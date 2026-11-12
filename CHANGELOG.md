@@ -1,0 +1,26 @@
+# Changelog
+
+Wszystkie istotne zmiany w grze. Format według [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
+wersje według [SemVer](https://semver.org/lang/pl/): przed 1.0.0 numer `0.N.x` oznacza etap N planu MVP.
+
+Każda zmiana trafia najpierw do sekcji „Nieopublikowane”, w podsekcji: Dodane, Zmienione,
+Naprawione, Usunięte. Wydanie tworzy `python3 tools/version.py bump ...` (szczegóły w README).
+
+## [Nieopublikowane]
+
+## [0.1.0] - 2026-11-12
+
+### Dodane
+
+- Etap 1: projekt Godot, viewport 320×180 ze skalowaniem całkowitym, orientacja pozioma, emulacja dotyku myszą.
+- Scena testowa z proceduralnym terenem, ścieżką, palisadą i dwiema chatami (grafika rysowana kodem).
+- Paleta epoki I (Gród) i deterministyczny `hash2()` do rysowania pikseli.
+- Preset eksportu „Android (debug APK)” (arm64-v8a).
+- Reguły pracy z AI (`CLAUDE.md`) i 15 skilli Godota w `.claude/skills/`.
+- System wersji: `CHANGELOG.md` i `tools/version.py` (zgodność wersji w projekcie, presecie i changelogu).
+- Testy headless: `tests/check_compile.gd` i `tests/run_tests.gd` z testami determinizmu grafiki.
+- GitHub Actions: CI (testy przy każdym pushu i PR) oraz wydanie (debug APK i GitHub Release po tagu `v*`).
+
+### Zmienione
+
+- Godot 4.5 → 4.7 (sprawdzone na 4.7.2).

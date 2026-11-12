@@ -34,13 +34,62 @@ Potem:
 - **Project → Export → Android (debug APK) → Export Project** zapisuje `build/castle_defender.apk`, albo
 - ikona Androida w prawym górnym rogu edytora (**Remote Deploy**) instaluje i uruchamia grę na podłączonym telefonie jednym kliknięciem.
 
+## Testy
+
+Wymagają Godota 4.7.2 w PATH jako `godot`. Na Windows użyj `Godot_v4.7.2-stable_win64_console.exe` i Git Bash.
+
+```bash
+bash .github/scripts/run_checks.sh          # wszystko naraz, to samo co CI
+godot --headless --path . --script res://tests/run_tests.gd   # same testy logiki
+```
+
+Nowe testy dodajesz jako `tests/test_<nazwa>.gd` z `extends TestCase`. Każda metoda `test_*`
+kończy się `return true` (wzór: `tests/test_pixel_canvas.gd`).
+
+## Wersje i changelog
+
+Wersja to SemVer `MAJOR.MINOR.PATCH`. Przed 1.0.0 obowiązuje `0.N.x`, gdzie N to ukończony etap MVP,
+a `x` to poprawki. Jedno źródło prawdy to `tools/version.py`, który trzyma w zgodzie
+`project.godot`, `export_presets.cfg` (`version/name`, `version/code = MAJOR*10000 + MINOR*100 + PATCH`)
+i `CHANGELOG.md`.
+
+- Każda zmiana: dopisz punkt w `CHANGELOG.md` w sekcji „Nieopublikowane” (Dodane / Zmienione / Naprawione / Usunięte).
+- Wydanie:
+
+  ```bash
+  python3 tools/version.py bump minor    # albo patch, major, 0.3.0
+  git commit -am "Wydanie 0.2.0"
+  git tag v0.2.0
+  git push --follow-tags
+  ```
+
+- `python3 tools/version.py check` sprawdza zgodność wersji (uruchamia się też w CI).
+
+## CI/CD (GitHub Actions)
+
+| Workflow | Kiedy | Co robi |
+|---|---|---|
+| `ci.yml` | każdy push i PR | wersja i changelog, import, kompilacja skryptów, test dymny, testy logiki |
+| `release.yml` | tag `vX.Y.Z` | CI, debug APK, GitHub Release z opisem z changelogu (APK do pobrania na telefon) |
+| `release.yml` (ręcznie) | Actions → Wydanie → Run workflow | samo debug APK jako artefakt, bez Release |
+| `dependabot.yml` | co miesiąc | PR z aktualizacjami akcji |
+
+Godot jest pobierany z oficjalnych wydań i weryfikowany przypiętą sumą SHA-512
+(`.github/scripts/install_godot.sh`). Zmiana wersji Godota oznacza podmianę wersji i sum w tym pliku.
+APK jest podpisany jednorazowym kluczem debug, więc przed instalacją nowej wersji odinstaluj
+poprzednią. Podpis release (Google Play) dojdzie później, z kluczem w sekretach repozytorium.
+
 ## Struktura
 
 ```
 scenes/          sceny Godota
 scripts/         logika gry
 scripts/gfx/     rysowanie proceduralne i palety
-build/           eksportowane APK (ignorowane przez git)
+tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
+tools/           narzędzia (version.py)
+.github/         workflowy CI/CD i skrypty instalacji Godota
+.claude/skills/  skille dla agenta AI (zob. CLAUDE.md)
+build/           eksportowane APK i logi (ignorowane przez git)
 ```
 
 ## Następny etap

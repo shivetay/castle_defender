@@ -1,0 +1,12 @@
+version: 2
+updates:
+  # Aktualizacje akcji GitHub Actions (checkout, cache itd.) raz w miesiącu, jednym PR-em.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "CI"

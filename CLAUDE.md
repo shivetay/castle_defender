@@ -60,23 +60,27 @@ uruchomienia są w `README.md`. Tu są zasady, których agent ma się trzymać.
 
 ## Weryfikacja przed zgłoszeniem „gotowe”
 
-Gdy Godot jest dostępny w środowisku (`godot --headless --version`):
+Całość uruchamia `bash .github/scripts/run_checks.sh` (to samo robi CI). Godota w kontenerze
+instaluje `bash .github/scripts/install_godot.sh`. Kroki:
 
-1. `godot --headless --path . --import` przy świeżym checkoucie (rejestruje `class_name`).
-2. `godot --headless --path . --script res://tests/check_compile.gd` sprawdza, czy kompilują się
-   wszystkie skrypty. Kod 1 oznacza, że któryś plik jest BROKEN.
-3. Krótki test dymny: `godot --headless --path . --quit-after 300 > run.log 2>&1`, potem
-   `grep -nE "SCRIPT ERROR|^ERROR:" run.log`. Wynik musi być pusty. Godot kończy się kodem 0
-   nawet po błędach, więc nie ufaj samemu kodowi wyjścia.
-4. Testy logiki (generator terenu, ekonomia, symulacja bitwy) piszesz w `tests/` jako runner
-   `SceneTree` z `quit(1 if failed > 0 else 0)`. Determinizm testujesz wprost: ten sam seed
-   musi dać identyczny wynik.
+1. `python3 tools/version.py check`: wersja zgodna w projekcie, presecie i changelogu.
+2. `godot --headless --path . --import` (rejestruje `class_name`).
+3. `godot --headless --path . --script res://tests/check_compile.gd`: kompilacja wszystkich skryptów.
+4. Test dymny: 300 klatek bez `SCRIPT ERROR` i `ERROR:` w logu. Godot kończy się kodem 0 nawet
+   po błędach, więc nie ufaj samemu kodowi wyjścia.
+5. `godot --headless --path . --script res://tests/run_tests.gd`: testy logiki. Nowa logika
+   (generator, ekonomia, symulacja bitwy) dostaje test w `tests/test_<nazwa>.gd` (`extends TestCase`,
+   każda metoda kończy się `return true`). Determinizm testujesz wprost: ten sam seed daje identyczny wynik.
 
 Jeśli Godota nie ma, napisz to wprost w podsumowaniu i nie twierdź, że kod działa.
 Czego nie da się sprawdzić bez telefonu (dotyk, FPS, APK), zostaje do ręcznego testu właściciela.
 
-## Git i współpraca
+## Git, wersje i współpraca
 
+- Każda zmiana widoczna dla gracza albo dla procesu (CI, narzędzia) dostaje punkt w `CHANGELOG.md`
+  w sekcji „Nieopublikowane”, w tym samym commicie co kod.
+- Wersji nie zmieniasz ręcznie, tylko przez `python3 tools/version.py bump`. Tagi `v*` i wydania
+  tworzysz wyłącznie na prośbę właściciela, bo tag od razu tworzy GitHub Release.
 - Commity po polsku, w trybie rozkazującym lub z prefiksem etapu, np. `Etap 2: generator terenu 64×64`.
 - Małe, logiczne commity. Push tylko na gałąź przydzieloną sesji. Bez PR-ów, dopóki
   właściciel o nie nie poprosi.
