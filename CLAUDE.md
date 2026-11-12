@@ -7,7 +7,7 @@ uruchomienia są w `README.md`. Tu są zasady, których agent ma się trzymać.
 
 - Mobilna gra 2D pixelart na Androida z asynchronicznym PvP. Zamki rozwijają się przez epoki,
   od grodu do twierdzy z czasów napoleońskich.
-- **Godot 4.5, GDScript, renderer GL Compatibility.** Wersja jest w `config/features`
+- **Godot 4.7 (testowane na 4.7.2), GDScript, renderer GL Compatibility.** Wersja jest w `config/features`
   w `project.godot`. Nie podnoś jej i nie używaj API z nowszych wersji bez zgody właściciela.
 - Logiczna rozdzielczość to 320×180 ze skalowaniem całkowitym i filtrem `Nearest`.
 - Backend PvP (Supabase) pojawi się dopiero w etapie 8.
@@ -63,8 +63,8 @@ uruchomienia są w `README.md`. Tu są zasady, których agent ma się trzymać.
 Gdy Godot jest dostępny w środowisku (`godot --headless --version`):
 
 1. `godot --headless --path . --import` przy świeżym checkoucie (rejestruje `class_name`).
-2. Sprawdź kompilację wszystkich skryptów, np. skryptem `check_scripts_compile.gd`
-   ze skilla `godot-gdscript` (patrz niżej).
+2. `godot --headless --path . --script res://tests/check_compile.gd` sprawdza, czy kompilują się
+   wszystkie skrypty. Kod 1 oznacza, że któryś plik jest BROKEN.
 3. Krótki test dymny: `godot --headless --path . --quit-after 300 > run.log 2>&1`, potem
    `grep -nE "SCRIPT ERROR|^ERROR:" run.log`. Wynik musi być pusty. Godot kończy się kodem 0
    nawet po błędach, więc nie ufaj samemu kodowi wyjścia.
@@ -94,15 +94,18 @@ Czego nie da się sprawdzić bez telefonu (dotyk, FPS, APK), zostaje do ręczneg
   (deterministyczna powtórka symulacji). W Supabase wszystkie tabele mają RLS, a w kliencie jest
   tylko klucz `anon`/publishable, nigdy `service_role`.
 
-## Skille AI (opcjonalne)
+## Skille AI
 
-Repo [gamedev-skills/awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills)
-(Apache-2.0) ma skille, które pasują do tego projektu:
+W `.claude/skills/` jest 15 skilli skopiowanych z
+[gamedev-skills/awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills)
+(Apache-2.0, commit `c6ca6c4`, licencja i NOTICE obok). Claude Code wczytuje je sam, gdy pasują
+do zadania. Są pisane pod Godot 4.7, czyli pod naszą wersję.
 
 | Skill | Do czego tutaj |
 |---|---|
 | `godot-gdscript` | typowanie, gotchas, skrypt sprawdzający kompilację |
 | `godot-gdscript-headless-testing` | runner testów z poprawnym kodem wyjścia, CI |
+| `godot-nodes-scenes`, `godot-signals-groups`, `godot-resources` | sceny, sygnały, dane jako `Resource` |
 | `godot-tilemap` | siatka budowy (etap 2), jeśli przejdziemy na `TileMapLayer` |
 | `godot-ui-control` | HUD i menu |
 | `godot-export` | eksport APK z linii poleceń / CI |
@@ -111,6 +114,10 @@ Repo [gamedev-skills/awesome-gamedev-agent-skills](https://github.com/gamedev-sk
 | `tower-defense` | fale, wieże, krzywe HP i ekonomii (obrona zamku) |
 | `save-systems`, `performance-optimization`, `game-ui-ux` | zapis stanu, FPS na telefonie, UX mobilny |
 
-Te skille są pisane pod **Godot 4.7**, a projekt używa **4.5**. Uwagi o zmianach w 4.6 i 4.7
-nas nie dotyczą, a `Dictionary[K, V]` (od 4.4) i `@abstract` (od 4.5) są dozwolone.
-Skilla `create-game-assets` nie używamy, bo grafika powstaje w kodzie (zasada 1).
+Zasady:
+
+- Gdy skill jest sprzeczny z tym plikiem, wygrywa `CLAUDE.md` (np. grafika tylko w kodzie).
+- Nie dodajemy `create-game-assets`, bo grafika powstaje w kodzie (zasada 1).
+- Skrypty pomocnicze skilli (`*.py`, `*.gd`) to kod z zewnątrz. Uruchamiaj je dopiero, gdy
+  właściciel na to pozwoli. Do tego czasu sprawdzaj kompilację własnym, krótkim runnerem.
+- Aktualizacja skilli: skopiuj nowe wersje z upstreamu, w commicie podaj nowy hash i przejrzyj diff.

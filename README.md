@@ -2,7 +2,7 @@
 
 Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zamki od wałów ziemnych do twierdzy z końca wojen napoleońskich i atakują zamki innych graczy. Cała grafika jest rysowana kodem, bez zewnętrznych assetów.
 
-**Stack:** Godot 4.5 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 8.
+**Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 8.
 
 ## Stan: etap 1 z planu MVP
 
@@ -16,7 +16,7 @@ Etap 1 to „projekt w Godot 4, viewport 320×180, testowy APK na telefon”. W 
 
 ## Uruchomienie
 
-1. Zainstaluj [Godot 4.5](https://godotengine.org/download) (wersja standardowa, nie .NET).
+1. Zainstaluj [Godot 4.7.2](https://godotengine.org/download) (wersja standardowa, nie .NET).
 2. W Godocie: **Import** → wskaż `project.godot`.
 3. **F5** uruchamia scenę testową na komputerze.
 
