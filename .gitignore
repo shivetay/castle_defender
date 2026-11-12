@@ -1,0 +1,20 @@
+# Godot 4
+.godot/
+/android/
+*.translation
+
+# Eksport
+build/
+*.apk
+*.aab
+*.idsig
+
+# Klucze i sekrety
+*.keystore
+*.jks
+.env*
+
+# System / edytory
+.DS_Store
+.vscode/
+.idea/
