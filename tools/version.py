@@ -107,9 +107,10 @@ def cmd_check(tag: str | None) -> None:
     if not names or names[0] != UNRELEASED:
         errors.append(f"CHANGELOG.md: pierwsza sekcja musi być ## [{UNRELEASED}]")
     released = [(s[0], s[1]) for s in sections(log) if s[0] != UNRELEASED]
-    if not released or released[0][0] != ver:
-        top = released[0][0] if released else "brak"
-        errors.append(f"CHANGELOG.md: najnowsza wydana sekcja to {top}, a wersja to {ver}")
+    if released and released[0][0] != ver:
+        errors.append(f"CHANGELOG.md: najnowsza wydana sekcja to {released[0][0]}, a wersja to {ver}")
+    if tag is not None and not released:
+        errors.append("CHANGELOG.md: brak wydanej sekcji, najpierw `version.py bump`")
     for sec, date in released:
         parse(sec)
         if date is None:
@@ -120,7 +121,8 @@ def cmd_check(tag: str | None) -> None:
         for e in errors:
             print(f"BŁĄD: {e}", file=sys.stderr)
         sys.exit(1)
-    print(f"OK: wersja {ver} (version/code {code}) zgodna w project.godot, export_presets.cfg i CHANGELOG.md")
+    state = "" if released else " (przed pierwszym wydaniem)"
+    print(f"OK: wersja {ver} (version/code {code}) zgodna w project.godot, export_presets.cfg i CHANGELOG.md{state}")
 
 
 def cmd_bump(what: str) -> None:

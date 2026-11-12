@@ -5,10 +5,9 @@ wersje według [SemVer](https://semver.org/lang/pl/): przed 1.0.0 numer `0.N.x` 
 
 Każda zmiana trafia najpierw do sekcji „Nieopublikowane”, w podsekcji: Dodane, Zmienione,
 Naprawione, Usunięte. Wydanie tworzy `python3 tools/version.py bump ...` (szczegóły w README).
+Pierwsze wydanie (0.2.0) pojawi się razem z pierwszą funkcjonalnością gry, czyli w etapie 2.
 
 ## [Nieopublikowane]
-
-## [0.1.0] - 2026-11-12
 
 ### Dodane
 
