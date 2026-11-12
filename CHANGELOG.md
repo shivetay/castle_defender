@@ -23,3 +23,7 @@ Pierwsze wydanie (0.2.0) pojawi się razem z pierwszą funkcjonalnością gry, c
 ### Zmienione
 
 - Godot 4.5 → 4.7 (sprawdzone na 4.7.2).
+
+### Naprawione
+
+- Eksport na Androida: włączona kompresja tekstur ETC2/ASTC, której wymaga Godot przy eksporcie APK.
