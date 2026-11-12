@@ -1,0 +1,91 @@
+name: Wydanie
+
+# Po wypchnięciu tagu vX.Y.Z: testy, debug APK i GitHub Release z opisem z CHANGELOG.md.
+# Ręcznie (workflow_dispatch) buduje samo APK jako artefakt, bez tworzenia Release.
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  apk:
+    name: Debug APK
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write # tworzenie GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tag zgodny z wersją
+        if: github.ref_type == 'tag'
+        run: python3 tools/version.py check --tag "${GITHUB_REF_NAME}"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Godota i szablonów
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-templates-${{ hashFiles('.github/scripts/install_godot.sh') }}
+
+      - name: Instalacja Godota i szablonów eksportu
+        run: bash .github/scripts/install_godot.sh --templates
+
+      - name: Konfiguracja Androida (SDK z runnera, debug keystore)
+        run: |
+          # Runner GitHuba ma preinstalowane Android SDK w $ANDROID_HOME (platform-tools, build-tools).
+          test -d "$ANDROID_HOME/platform-tools" && ls "$ANDROID_HOME/build-tools"
+          mkdir -p ~/.config/godot
+          cat > ~/.config/godot/editor_settings-4.7.tres <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/java_sdk_path = "$JAVA_HOME"
+          EOF
+          keytool -genkeypair -keystore "$RUNNER_TEMP/debug.keystore" -storepass android \
+            -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          {
+            echo "GODOT_ANDROID_KEYSTORE_DEBUG_PATH=$RUNNER_TEMP/debug.keystore"
+            echo "GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey"
+            echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android"
+          } >> "$GITHUB_ENV"
+
+      - name: Eksport APK
+        run: |
+          VERSION=$(python3 tools/version.py current)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          mkdir -p build
+          godot --headless --path . --import
+          godot --headless --path . --export-debug "Android (debug APK)" build/castle_defender.apk
+          test -s build/castle_defender.apk || { echo "Brak APK po eksporcie"; exit 1; }
+          mv build/castle_defender.apk "build/castle_defender-${VERSION}-debug.apk"
+          ls -la build/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: castle_defender-${{ env.VERSION }}-debug-apk
+          path: build/*.apk
+          retention-days: 30
+
+      - name: GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 tools/version.py notes > build/notes.md
+          gh release create "${GITHUB_REF_NAME}" build/*.apk \
+            --title "Castle Defender ${VERSION}" --notes-file build/notes.md \
+            $([[ "$VERSION" == 0.* ]] && echo --prerelease)
