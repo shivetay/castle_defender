@@ -4,9 +4,14 @@ extends Node2D
 ## wybiera budynek, a dotknięcie wolnej trawy zleca budowę: koszt schodzi od razu, na kratkach
 ## staje plac budowy, a budynek powstaje po czasie z BuildConfig. Dotknięcie budynku otwiera kartę
 ## z przyciskami Ulepsz, Rozbierz (albo Anuluj dla zlecenia w kolejce) i Zamknij. Surowce i budowa
-## idą dalej, gdy gra jest w tle; po powrocie komunikat podaje, ile przybyło.
+## idą dalej, gdy gra jest w tle albo zamknięta; po powrocie komunikat podaje, ile przybyło.
+## Gra zapisuje się (SaveGame) po każdej akcji, po ukończeniu budowy i przy zejściu do tła,
+## a przy starcie wczytuje zapis i nadrabia czas nieobecności.
 
-const WORLD_SEED := 1337
+## Seed terenu nowej gry. Wczytana gra ma seed z zapisu.
+const NEW_GAME_SEED := 1337
+
+var world_seed := NEW_GAME_SEED
 
 var terrain: TerrainMap
 var grid: BuildGrid
@@ -23,10 +28,19 @@ var _cursor_ok := true
 
 
 func _ready() -> void:
-	terrain = TerrainMap.generate(WORLD_SEED)
-	grid = BuildGrid.new(terrain)
-	economy = Economy.new(_now_ms())
-	_place_manor()
+	var saved := SaveGame.load_state(SaveGame.PATH, _now_ms())
+	if saved != null:
+		world_seed = saved.world_seed
+		grid = saved.grid
+		economy = saved.economy
+		queue = saved.queue
+		terrain = grid.terrain
+	else:
+		terrain = TerrainMap.generate(world_seed)
+		grid = BuildGrid.new(terrain)
+		economy = Economy.new(_now_ms())
+	if grid.manor_id() == 0:
+		_place_manor()
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
 	textures.warm_up()
 
@@ -45,13 +59,16 @@ func _ready() -> void:
 	add_child(layer)
 	hud = Hud.new()
 	hud.camera = camera
-	hud.world_seed = WORLD_SEED
+	hud.world_seed = world_seed
 	hud.economy = economy
 	layer.add_child(hud)
 	hud.kind_selected.connect(_on_kind_selected)
 	hud.upgrade_pressed.connect(_on_upgrade)
 	hud.demolish_pressed.connect(_on_middle_button)
 	hud.card_closed.connect(_deselect)
+	if saved != null:
+		_catch_up("Witaj z powrotem: ")
+	_save()
 
 
 ## Dwór staje na pierwszym wolnym miejscu najbliżej środka mapy (kolejność stała dla seeda).
@@ -75,16 +92,36 @@ func _process(_delta: float) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_RESUMED and economy != null:
-		var before: Array[int] = []
-		before.assign(economy.amounts)
-		_tick()
-		var parts: PackedStringArray = []
-		for res in before.size():
-			if economy.amounts[res] > before[res]:
-				parts.append("+%d %s" % [economy.amounts[res] - before[res], EconomyConfig.SHORT_NAMES[res]])
-		if not parts.is_empty():
-			hud.message = "Podczas nieobecności: " + " ".join(parts)
+	if economy == null or hud == null:
+		return
+	match what:
+		NOTIFICATION_APPLICATION_RESUMED:
+			_catch_up("Podczas nieobecności: ")
+		NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_CLOSE_REQUEST:
+			# Android potrafi zabić aplikację w tle bez ostrzeżenia, więc zapis idzie przy wyjściu
+			_tick()
+			_save()
+
+
+## Nadrabia czas nieobecności i podaje w komunikacie, ile surowców przybyło.
+func _catch_up(prefix: String) -> void:
+	var before: Array[int] = []
+	before.assign(economy.amounts)
+	_tick()
+	var parts: PackedStringArray = []
+	for res in before.size():
+		if economy.amounts[res] > before[res]:
+			parts.append("+%d %s" % [economy.amounts[res] - before[res], EconomyConfig.SHORT_NAMES[res]])
+	if not parts.is_empty():
+		hud.message = prefix + " ".join(parts)
+	_save()
+
+
+## Zapisuje grę. Błąd zapisu nie przerywa gry, tylko trafia do logu.
+func _save() -> void:
+	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue))
+	if err != OK:
+		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
 
 
 static func _now_ms() -> int:
@@ -104,6 +141,7 @@ func _tick() -> void:
 		if queue.orders.size() > 1:
 			hud.queue_text += " +%d" % (queue.orders.size() - 1)
 	if not done.is_empty():
+		_save()
 		if _selected_id != 0:
 			_refresh_card()
 		queue_redraw()
@@ -125,6 +163,7 @@ func _on_tapped(world_pos: Vector2) -> void:
 		_cursor = grid.buildings[queue.placed_id] if _cursor_ok else grid.placement_candidates(cell, kind)[0]
 		if _cursor_ok:
 			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(BuildConfig.time_ms(kind, 1))]
+			_save()
 		else:
 			hud.message = BuildQueue.MESSAGES[result]
 	queue_redraw()
@@ -171,6 +210,7 @@ func _on_upgrade() -> void:
 	if result == BuildQueue.Result.OK:
 		var o := queue.order_for(_selected_id)
 		hud.message = "Ulepszanie do poziomu %d, %s" % [o.level, Hud.format_time(o.duration_ms)]
+		_save()
 	elif result == BuildQueue.Result.NEEDS_MANOR:
 		hud.message = queue.upgrade_hint(grid, _selected_id)
 	else:
@@ -186,6 +226,7 @@ func _on_middle_button() -> void:
 		queue.cancel(grid, economy, _selected_id, _now_ms())
 		_refresh_card()
 		hud.message = "Anulowano: %s, surowce wróciły" % title
+		_save()
 		return
 	if grid.kinds[_selected_id] == BuildingTypes.Kind.MANOR:
 		hud.message = "Dworu nie można rozebrać"
@@ -195,6 +236,7 @@ func _on_middle_button() -> void:
 	grid.remove(_selected_id)
 	_deselect()
 	hud.message = "Rozebrano: %s" % title
+	_save()
 
 
 func _draw() -> void:
