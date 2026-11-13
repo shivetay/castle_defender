@@ -55,6 +55,8 @@ static func content_bounds(view: Vector2, safe: Rect2) -> Vector2:
 	if safe.has_area():
 		left = maxf(left, ceilf(safe.position.x))
 		right = minf(right, floorf(safe.end.x))
+	# zabezpieczenie przed nietypową strefą bezpieczną: prawa granica nigdy nie przed lewą
+	right = maxf(right, left)
 	return Vector2(left, right)
 
 

@@ -47,6 +47,8 @@ func test_hud_content_avoids_rounded_corners() -> bool:
 	assert_eq(Hud.content_bounds(view, Rect2(30, 0, 340, 180)), Vector2(30, 370), "wycięcie po bokach odsuwa treść")
 	assert_eq(Hud.content_bounds(view, Rect2(2, 0, 396, 180)), Vector2(Hud.CORNER_INSET, 400 - Hud.CORNER_INSET),
 			"mała strefa nie zmniejsza marginesu narożników")
+	var odd := Hud.content_bounds(view, Rect2(300, 0, 50, 180))
+	assert_true(odd.y >= odd.x, "nietypowa strefa: prawa granica nie przed lewą")
 	var rects := Hud.toolbar_rects(Vector2(320, 180))
 	assert_true(rects[0].position.x >= Hud.CORNER_INSET and rects[-1].end.x <= 320 - Hud.CORNER_INSET,
 			"pasek budynków mieści się między narożnikami")
