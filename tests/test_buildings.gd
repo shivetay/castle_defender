@@ -5,17 +5,14 @@ extends TestCase
 
 func _palette_set() -> Dictionary:
 	var allowed := {}
-	for group: Array in [Palette.GRASS, Palette.EARTH, Palette.WOOD, Palette.THATCH, Palette.WATER]:
-		for col: Color in group:
-			allowed[col.to_rgba32()] = true
-	for col: Color in [Palette.SHADOW, Palette.INK, Palette.ACCENT]:
+	for col: Color in Palette.AGE_I:
 		allowed[col.to_rgba32()] = true
 	return allowed
 
 
 func test_same_input_same_pixels() -> bool:
 	for kind in BuildingTypes.count():
-		for state in 3:
+		for state in BuildingTypes.State.size():
 			var a := BuildingArt.make_image(kind, 3, state, 5)
 			var b := BuildingArt.make_image(kind, 3, state, 5)
 			assert_eq(a.get_data(), b.get_data(), "rodzaj %d stan %d powtarzalny" % [kind, state])
@@ -34,13 +31,92 @@ func test_every_level_looks_different() -> bool:
 	return true
 
 
-func test_states_differ_from_intact() -> bool:
+## Każdy budynek MVP ma 4 różne stany na każdym poziomie, w każdym wariancie autotilingu
+## i w obu ułożeniach bramy.
+func test_four_distinct_states() -> bool:
+	assert_eq(BuildingTypes.State.size(), 4, "cztery stany")
 	for kind in BuildingTypes.count():
-		var intact := BuildingArt.make_image(kind, 2, BuildingTypes.State.INTACT, 0b0101).get_data()
-		var damaged := BuildingArt.make_image(kind, 2, BuildingTypes.State.DAMAGED, 0b0101).get_data()
-		var ruined := BuildingArt.make_image(kind, 2, BuildingTypes.State.RUINED, 0b0101).get_data()
-		assert_true(damaged != intact, "rodzaj %d: uszkodzony inny niż cały" % kind)
-		assert_true(ruined != intact and ruined != damaged, "rodzaj %d: zniszczony inny" % kind)
+		var masks := 16 if BuildingTypes.is_wall(kind) else 1
+		for level in range(1, BuildingTypes.MAX_LEVEL + 1):
+			for mask in masks:
+				for vertical: bool in ([false, true] if kind == BuildingTypes.Kind.GATE else [false]):
+					var seen := {}
+					for state in BuildingTypes.State.size():
+						seen[BuildingArt.make_image(kind, level, state, mask, vertical).get_data()] = true
+					assert_eq(seen.size(), 4, "%s poz. %d maska %d pion %s: 4 różne stany"
+							% [BuildingTypes.NAMES[kind], level, mask, vertical])
+	return true
+
+
+## Gruz leży tylko na kratkach budynku (nic nie wystaje ponad nie), a pęknięcia i wyrwa
+## nie dodają pikseli poza sylwetką całego budynku.
+func test_damage_stays_inside_building() -> bool:
+	for kind in BuildingTypes.count():
+		for level in range(1, BuildingTypes.MAX_LEVEL + 1):
+			var intact := BuildingArt.make_image(kind, level, BuildingTypes.State.INTACT, 0b1111)
+			for state: int in [BuildingTypes.State.CRACKED, BuildingTypes.State.BREACHED]:
+				var img := BuildingArt.make_image(kind, level, state, 0b1111)
+				var added := 0
+				for y in img.get_height():
+					for x in img.get_width():
+						if img.get_pixel(x, y).a > 0.0 and intact.get_pixel(x, y).a == 0.0:
+							added += 1
+				assert_eq(added, 0, "rodzaj %d poz. %d stan %d: nowe piksele poza sylwetką" % [kind, level, state])
+			var rubble := BuildingArt.make_image(kind, level, BuildingTypes.State.RUBBLE, 0b1111)
+			var high := 0
+			for y in BuildingArt.EXTRA[kind] - 2:
+				for x in rubble.get_width():
+					if rubble.get_pixel(x, y).a > 0.0:
+						high += 1
+			assert_eq(high, 0, "rodzaj %d poz. %d: gruz nie wystaje ponad kratki" % [kind, level])
+	return true
+
+
+## Wyrwa obniża sylwetkę: w każdym budynku jest kolumna, której wierzch leży niżej niż w całym.
+func test_breach_lowers_silhouette() -> bool:
+	for kind in BuildingTypes.count():
+		for level in range(1, BuildingTypes.MAX_LEVEL + 1):
+			var intact := BuildingArt.make_image(kind, level, BuildingTypes.State.INTACT, 0b0101)
+			var breached := BuildingArt.make_image(kind, level, BuildingTypes.State.BREACHED, 0b0101)
+			var lowered := false
+			for x in intact.get_width():
+				for y in intact.get_height():
+					if intact.get_pixel(x, y).a > 0.0 and breached.get_pixel(x, y).a == 0.0:
+						lowered = true
+			assert_true(lowered, "%s poz. %d: wyrwa zabiera część budynku" % [BuildingTypes.NAMES[kind], level])
+	return true
+
+
+func test_state_follows_hp_percent() -> bool:
+	var s := BuildingTypes.State
+	assert_eq(BuildingTypes.state_for_hp(100, 100), s.INTACT, "100%")
+	assert_eq(BuildingTypes.state_for_hp(76, 100), s.INTACT, "76%")
+	assert_eq(BuildingTypes.state_for_hp(75, 100), s.CRACKED, "75%")
+	assert_eq(BuildingTypes.state_for_hp(41, 100), s.CRACKED, "41%")
+	assert_eq(BuildingTypes.state_for_hp(40, 100), s.BREACHED, "40%")
+	assert_eq(BuildingTypes.state_for_hp(1, 1000), s.BREACHED, "0,1% to jeszcze nie gruz")
+	assert_eq(BuildingTypes.state_for_hp(0, 100), s.RUBBLE, "0%")
+	assert_eq(BuildingTypes.state_for_hp(-5, 100), s.RUBBLE, "ujemne HP")
+	assert_eq(BuildingTypes.state_for_hp(150, 100), s.INTACT, "HP ponad maksimum")
+	assert_eq(BuildingTypes.state_for_hp(10, 0), s.RUBBLE, "brak maksimum")
+	# stan nigdy nie poprawia się, gdy HP spada
+	var last := s.INTACT
+	for hp in range(300, -1, -1):
+		var st := BuildingTypes.state_for_hp(hp, 300)
+		assert_true(st >= last, "HP %d/300: stan nie cofa się" % hp)
+		last = st
+	return true
+
+
+func test_age_palette_has_12_to_16_colors() -> bool:
+	var unique := _palette_set()
+	assert_eq(unique.size(), Palette.AGE_I.size(), "kolory epoki się nie powtarzają")
+	assert_true(Palette.AGE_I.size() >= 12 and Palette.AGE_I.size() <= 16, "12–16 kolorów epoki I")
+	for group: Array in [Palette.GRASS, Palette.WOOD, Palette.EARTH, Palette.THATCH, Palette.WATER]:
+		for col: Color in group:
+			assert_true(unique.has(col.to_rgba32()), "rampa należy do palety epoki")
+	for col: Color in [Palette.SHADOW, Palette.ACCENT]:
+		assert_true(unique.has(col.to_rgba32()), "cień i akcent należą do palety epoki")
 	return true
 
 
@@ -48,7 +124,7 @@ func test_only_palette_colors() -> bool:
 	var allowed := _palette_set()
 	for kind in BuildingTypes.count():
 		for level in range(1, BuildingTypes.MAX_LEVEL + 1):
-			for state in 3:
+			for state in BuildingTypes.State.size():
 				var img := BuildingArt.make_image(kind, level, state, 0b1111)
 				var outside := 0
 				for y in img.get_height():

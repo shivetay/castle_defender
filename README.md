@@ -4,17 +4,22 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 8.
 
-## Stan: etap 3 z planu MVP
+## Stan: etap 4 z planu MVP
 
-Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
-z gestami) są zamknięte. Etap 3 to budynki epoki I rysowane kodem: autotiling umocnień (#6),
-pięć budynków z poziomami 1–5 (#7) oraz z #5 prymitywy, `draw_building` i cache tekstur. Z #5 zostają
-otwarte uporządkowanie palety do 12–16 kolorów i pomiar startu na telefonie.
+Etapy 1 (szkielet, viewport 320×180, testowy APK), 2 (teren 64×64 z seeda, siatka budowy, kamera
+z gestami) i 3 (budynki epoki I: autotiling umocnień #6, pięć budynków z poziomami 1–5 #7) są zamknięte.
+Etap 4 to 4 stany zniszczeń budynków (#8) i paleta epoki I zamknięta w 16 kolorach (#5). Z #5 zostaje
+pomiar startu na telefonie.
+
+- `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
+  `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
 
 - `scripts/gfx/pixel_canvas.gd` (`PixelCanvas`): prymitywy rysowania: ściana z bali, ściana z desek,
   belki szkieletu, dach strzechowy, okno, drzwi, flaga i dithering 2×2. Faktura idzie przez `hash2`.
 - `scripts/gfx/building_art.gd` (`BuildingArt`): budynki w rzucie 3/4, każdy z 5 poziomami o różnym
-  wyglądzie, i stany: cały, uszkodzony, zniszczony (pełne 4 stany zniszczeń to #8).
+  wyglądzie, i 4 stany zniszczeń: cały, pęknięcia, wyrwa w blankach, gruz. W wale i palisadzie
+  wyrwa obniża ścianę w blokach 2×2, a gruz leży na kształcie odcinka, więc autotiling dalej się łączy.
+  Budynki wielokratkowe dostają wyłomy w górnej krawędzi i kopiec rumowiska na swoich kratkach.
   Wał i palisada mają autotiling: odcinek 1×1 to środek plus ramię do każdego sąsiada z maski N/E/S/W
   (16 wariantów). Ramiona dochodzą do krawędzi kratki, więc dowolny kształt łączy się bez dziur.
   Ściana i blanki rysują się osobno, a palisada ma ścianę wysoką na 4 px.
@@ -23,6 +28,8 @@ otwarte uporządkowanie palety do 12–16 kolorów i pomiar startu na telefonie.
   (ok. 18 ms na komputerze).
 - `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (2×1),
   Wieża drewniana i Chata drwala (2×2). Wał łączy się z wałem, palisada z palisadą, bramą i wieżą.
+  `state_for_hp(hp, max_hp)` wybiera stan z procentu wytrzymałości: od 76% cały, od 41% pęknięcia,
+  od 1% wyrwa, 0 to gruz.
 - `scripts/world/build_grid.gd` (`BuildGrid`): rodzaj i poziom budynku, ulepszanie do poziomu 5,
   maski sąsiadów i stała kolejność rysowania (od tyłu do przodu).
 - `scripts/ui/hud.gd`: pasek wyboru budynku nad dolną krawędzią, a po dotknięciu budynku karta
@@ -126,5 +133,5 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 4: kolejny krok planu MVP. Kolejność wybiera właściciel; najbliżej obecnego stanu są stany zniszczeń
-(#8), HUD z surowcami (#9) i ekonomia (#10).
+Etap 5: HUD z paskiem surowców (#9) razem z ekonomią (#10): 4 surowce, produkcja i magazyny.
+Kolejność potwierdza właściciel.
