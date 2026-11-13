@@ -100,13 +100,12 @@ static func _draw_rampart(img: Image, level: int, mask: int) -> void:
 			var top := y + ex - h
 			if _has_face(f, mask, x, y):
 				for i in range(1, h + 1):
-					var dark := ((x >> 1) + ((top + i) >> 1)) % 2 == 0
-					PixelCanvas.px(img, x, top + i, Palette.EARTH[1] if dark else Palette.EARTH[2])
+					PixelCanvas.px(img, x, top + i, PixelCanvas.dither(x, top + i, Palette.EARTH[1], Palette.EARTH[2]))
 			# korona: ziemia albo darń przemieszana z ziemią; w biegu pionowym ciemniejsze zbocza
 			var grass := level >= 2
 			var a: Color = Palette.GRASS[3] if grass else Palette.EARTH[3]
 			var b: Color = Palette.EARTH[3] if grass else Palette.EARTH[2]
-			var col: Color = a if ((x >> 1) + (y >> 1)) % 2 == 0 else b
+			var col := PixelCanvas.dither(x, y, a, b)
 			var lo := (CELL - t) / 2
 			if (y < lo or y >= lo + t) and (x == lo or x == lo + t - 1):
 				col = Palette.EARTH[2] if x == lo else Palette.EARTH[1]
@@ -182,8 +181,7 @@ static func _wall_ground(img: Image, f: PackedByteArray, mask: int, ex: int, dit
 				for d in range(1, 3):
 					var row := y + d
 					if row < CELL and not _on(f, x, row):
-						var dark := ((x >> 1) + (row >> 1)) % 2 == 0
-						PixelCanvas.px(img, x, row + ex, Palette.EARTH[0] if dark else Palette.SHADOW)
+						PixelCanvas.px(img, x, row + ex, PixelCanvas.dither(x, row, Palette.EARTH[0], Palette.SHADOW))
 			elif y + 1 < CELL:
 				PixelCanvas.px(img, x, y + 1 + ex, Color(Palette.SHADOW, 0.5))
 
@@ -197,8 +195,7 @@ static func _wall_mound(img: Image, f: PackedByteArray, mask: int, ex: int) -> v
 			for d in range(0, 2):
 				var row := y + d
 				if row < CELL:
-					var dark := ((x >> 1) + (row >> 1)) % 2 == 0
-					PixelCanvas.px(img, x, row + ex, Palette.EARTH[1] if dark else Palette.EARTH[2])
+					PixelCanvas.px(img, x, row + ex, PixelCanvas.dither(x, row, Palette.EARTH[1], Palette.EARTH[2]))
 
 
 # --- Budynki wielokratkowe -----------------------------------------------------------------
@@ -232,7 +229,9 @@ static func _draw_gate(img: Image, level: int) -> void:
 		PixelCanvas.rect(img, Rect2i(x0, top, 1, post_h[level - 1]), Palette.WOOD[2])
 		PixelCanvas.rect(img, Rect2i(x0, top, post_w, 1), Palette.WOOD[3])
 		if level == 3:
-			PixelCanvas.draw_roof(img, x0 + post_w / 2 + 1, top - 2, 2, 2, Palette.THATCH)
+			# daszki 4 px nad słupami 3 px: nawis do środka bramy, żeby nie wyjść poza obraz
+			var roof_cx := x0 + 2 if x0 == 0 else x0 + 1
+			PixelCanvas.draw_roof(img, roof_cx, top - 2, 2, 2, Palette.THATCH)
 		if level == 5:
 			PixelCanvas.rect(img, Rect2i(x0 + (1 if x0 == 0 else 0), top + 3, 2, 4), Palette.ACCENT)
 	# nadproże
@@ -278,8 +277,9 @@ static func _draw_gate_vertical(img: Image, level: int) -> void:
 				PixelCanvas.px(img, 4, g + ex - ph, Palette.WOOD[0])
 	# izba bramna: strzecha nad całą bramą
 	if level >= 4:
-		var roof_top := ex - ph - 3
-		for g in range(-1, 16):
+		# szczyt strzechy w wierszu 0 obrazu (ph = 10 na poziomach 4–5), okap pod spodem
+		var roof_top := ex - ph - 2
+		for g in range(0, 16):
 			var y := g + roof_top
 			PixelCanvas.px(img, 1, y, Palette.THATCH[0])
 			for x in range(2, 6):
@@ -326,7 +326,7 @@ static func _draw_tower(img: Image, level: int) -> void:
 		var roof_rows := 6 if level == 4 else 8
 		PixelCanvas.draw_roof(img, w / 2, room_top - roof_rows, 2, roof_rows, Palette.THATCH)
 		if level == 5:
-			PixelCanvas.draw_flag(img, Vector2i(w / 2 - 1, room_top - roof_rows - 1), 4, Palette.ACCENT)
+			PixelCanvas.draw_flag(img, Vector2i(w / 2 - 1, room_top - roof_rows - 1), 3, Palette.ACCENT)
 
 
 ## Chata drwala (2×2). Poziomy: 1 wiata ze stosem drewna, 2 chata ze strzechą, 3 ze stosem

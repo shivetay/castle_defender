@@ -46,11 +46,10 @@ static func rect(img: Image, r: Rect2i, col: Color) -> void:
 		img.fill_rect(clipped, col)
 
 
-## Dithering 2×2: szachownica bloków 2×2 z kolorów `a` i `b` (wały, fosy, rumowisko).
-static func dither_fill(img: Image, r: Rect2i, a: Color, b: Color) -> void:
-	for y in range(r.position.y, r.end.y):
-		for x in range(r.position.x, r.end.x):
-			px(img, x, y, a if ((x >> 1) + (y >> 1)) % 2 == 0 else b)
+## Dithering 2×2: kolor piksela w szachownicy bloków 2×2 z kolorów `a` i `b`.
+## Wał, sucha fosa i podsypka palisady liczą go piksel po pikselu, bo mają nieprostokątny kształt.
+static func dither(x: int, y: int, a: Color, b: Color) -> Color:
+	return a if ((x >> 1) + (y >> 1)) % 2 == 0 else b
 
 
 ## Ściana z poziomych bali: co trzeci wiersz ciemna fuga, faktura słojów z hash2.

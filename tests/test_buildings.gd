@@ -229,3 +229,47 @@ func test_vertical_gate_image() -> bool:
 	var b := BuildingArt.make_image(BuildingTypes.Kind.GATE, 5, 0, 0, true).get_data()
 	assert_true(a != b, "poziomy bramy pionowej się różnią")
 	return true
+
+
+func _row_has_pixel(img: Image, y: int) -> bool:
+	for x in img.get_width():
+		if img.get_pixel(x, y).a > 0.0:
+			return true
+	return false
+
+
+## Szczyty dachów i flag muszą mieścić się w obrazie (px() po cichu ucina piksele poza nim).
+## Najwyższe elementy dochodzą do wiersza 0, a wiersz 0 ma kolor ze strzechy albo flagi.
+func test_tallest_parts_fit_in_image() -> bool:
+	var gate := BuildingTypes.Kind.GATE
+	for level: int in [4, 5]:
+		var v := BuildingArt.make_image(gate, level, BuildingTypes.State.INTACT, 0, true)
+		assert_true(_row_has_pixel(v, 0), "brama pionowa poziom %d: szczyt strzechy w wierszu 0" % level)
+		# lewa krawędź strzechy: 16 wierszy dachu + okap; ucięty dach miałby ich mniej
+		var eave := 0
+		for y in v.get_height():
+			if v.get_pixel(1, y) == Palette.THATCH[0]:
+				eave += 1
+		assert_eq(eave, 17, "brama pionowa poziom %d: cała krawędź strzechy w obrazie" % level)
+	var tower := BuildingArt.make_image(BuildingTypes.Kind.TOWER, 5, BuildingTypes.State.INTACT)
+	assert_true(_row_has_pixel(tower, 0), "wieża poziom 5: flaga sięga wiersza 0")
+	assert_eq(tower.get_pixel(8, 0), Palette.ACCENT, "wieża poziom 5: górny wiersz proporca")
+	assert_eq(tower.get_pixel(8, 1), Palette.ACCENT, "wieża poziom 5: dolny wiersz proporca (cały w obrazie)")
+	# daszki słupów bramy poziom 3: symetryczne, oba w całości w obrazie
+	var g3 := BuildingArt.make_image(gate, 3, BuildingTypes.State.INTACT)
+	var w := g3.get_width()
+	for y in g3.get_height():
+		for x in w:
+			assert_eq(g3.get_pixel(x, y).a > 0.0, g3.get_pixel(w - 1 - x, y).a > 0.0,
+					"brama poziom 3 symetryczna w (%d, %d)" % [x, y])
+	return true
+
+
+func test_failed_gate_cursor_uses_vertical_shape() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var o := _free_area(grid, Vector2i(3, 6))
+	var c := o + Vector2i(1, 0)
+	grid.place_kind(c, BuildingTypes.Kind.PALISADE)
+	assert_eq(grid.placement_candidates(c + Vector2i(0, 1), BuildingTypes.Kind.GATE)[0].size, Vector2i(1, 2),
+			"pod pionową palisadą pierwszy wariant bramy jest pionowy")
+	return true
