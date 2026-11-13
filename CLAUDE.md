@@ -87,6 +87,9 @@ Czego nie da się sprawdzić bez telefonu (dotyk, FPS, APK), zostaje do ręczneg
   z opisem (co, dlaczego, jak sprawdzone, czego nie dało się sprawdzić) i linkiem do issue
   (`Closes #N` tylko wtedy, gdy merge faktycznie domyka issue). Gdy gałąź zależy od innej
   niescalonej gałęzi, pisze to w opisie.
+- **Agent zawsze obserwuje swoje PR-y** (komentarze, review, wyniki CI) aż do merge'a albo zamknięcia.
+  Poprawia uwagi z review i błędy CI kolejnymi commitami na tej samej gałęzi i odpowiada
+  w wątku, co zmienił. Testów nie wyłącza, a historii gałęzi nie przepisuje.
 - **Gałęzie mają tylko opisowe nazwy** w formacie `<typ>/<krótki-opis>`, małymi literami
   w kebab-case, bez polskich znaków. Typ to `feat`, `fix`, `ci`, `docs`, `chore`, `refactor`
   albo `test`. Przykłady: `feat/etap-3-budynki-epoki-i`, `fix/android-etc2-astc`,

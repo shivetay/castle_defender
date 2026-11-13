@@ -20,6 +20,7 @@ Pierwsze wydanie (0.2.0) pojawi się razem z pierwszą funkcjonalnością gry, c
 - Testy headless: `tests/check_compile.gd` i `tests/run_tests.gd` z testami determinizmu grafiki.
 - GitHub Actions: CI (testy przy każdym pushu i PR) oraz wydanie (debug APK i GitHub Release po tagu `v*`).
 - Reguła w `CLAUDE.md`: gałęzie tylko z opisowymi nazwami (`<typ>/<opis>`), merge do `main` robi właściciel, a PR-y agent otwiera sam.
+- Reguła w `CLAUDE.md`: agent obserwuje swoje PR-y i sam poprawia uwagi z review oraz błędy CI.
 
 ### Zmienione
 
