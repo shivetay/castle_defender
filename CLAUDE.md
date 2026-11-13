@@ -82,7 +82,11 @@ Czego nie da się sprawdzić bez telefonu (dotyk, FPS, APK), zostaje do ręczneg
 - Wersji nie zmieniasz ręcznie, tylko przez `python3 tools/version.py bump`. Tagi `v*` i wydania
   tworzysz wyłącznie na prośbę właściciela, bo tag od razu tworzy GitHub Release.
 - Commity po polsku, w trybie rozkazującym lub z prefiksem etapu, np. `Etap 2: generator terenu 64×64`.
-- Małe, logiczne commity. Bez PR-ów, dopóki właściciel o nie nie poprosi.
+- Małe, logiczne commity.
+- **PR-y agent tworzy sam:** po wypchnięciu skończonej, zweryfikowanej zmiany otwiera PR do `main`
+  z opisem (co, dlaczego, jak sprawdzone, czego nie dało się sprawdzić) i linkiem do issue
+  (`Closes #N` tylko wtedy, gdy merge faktycznie domyka issue). Gdy gałąź zależy od innej
+  niescalonej gałęzi, pisze to w opisie.
 - **Gałęzie mają tylko opisowe nazwy** w formacie `<typ>/<krótki-opis>`, małymi literami
   w kebab-case, bez polskich znaków. Typ to `feat`, `fix`, `ci`, `docs`, `chore`, `refactor`
   albo `test`. Przykłady: `feat/etap-3-budynki-epoki-i`, `fix/android-etc2-astc`,
