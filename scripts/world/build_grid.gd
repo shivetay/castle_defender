@@ -19,21 +19,50 @@ func _init(map: TerrainMap) -> void:
 
 
 ## Czy cały prostokąt mieści się na mapie, leży na trawie i jest wolny.
-func can_place(rect: Rect2i) -> bool:
+## Brama (`kind` = GATE) może też stać na drodze, ale tylko w poprzek: pozioma brama na drodze
+## biegnącej z północy na południe, pionowa na drodze ze wschodu na zachód.
+func can_place(rect: Rect2i, kind: int = -1) -> bool:
 	if rect.size.x <= 0 or rect.size.y <= 0:
 		return false
+	var gate_across := Vector2i.ZERO
+	if kind == BuildingTypes.Kind.GATE:
+		# oś drogi, w poprzek której brama może stać: pozioma brama → droga pionowa
+		gate_across = Vector2i.DOWN if rect.size.x > rect.size.y else Vector2i.RIGHT
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):
 			var c := Vector2i(x, y)
-			if not terrain.is_buildable(c) or cells[y * terrain.size + x] != 0:
+			if not terrain.in_bounds(c) or cells[y * terrain.size + x] != 0:
+				return false
+			if terrain.is_buildable(c):
+				continue
+			if gate_across == Vector2i.ZERO or terrain.get_tile(c) != TerrainMap.Tile.PATH \
+					or road_axis(c) != gate_across:
 				return false
 	return true
+
+
+## Kierunek drogi na kratce: Vector2i.DOWN (z północy na południe) albo Vector2i.RIGHT (ze wschodu
+## na zachód), według liczby sąsiednich kratek drogi (lub mostu). Na zakręcie, gdzie obie osie mają
+## po jednym sąsiedzie, wygrywa oś pionowa. Zero, gdy kratka nie jest drogą.
+func road_axis(c: Vector2i) -> Vector2i:
+	if not terrain.in_bounds(c) or terrain.get_tile(c) != TerrainMap.Tile.PATH:
+		return Vector2i.ZERO
+	var vertical := int(_is_road(c + Vector2i.UP)) + int(_is_road(c + Vector2i.DOWN))
+	var horizontal := int(_is_road(c + Vector2i.LEFT)) + int(_is_road(c + Vector2i.RIGHT))
+	return Vector2i.DOWN if vertical >= horizontal else Vector2i.RIGHT
+
+
+func _is_road(c: Vector2i) -> bool:
+	if not terrain.in_bounds(c):
+		return false
+	var t := terrain.get_tile(c)
+	return t == TerrainMap.Tile.PATH or t == TerrainMap.Tile.BRIDGE
 
 
 ## Stawia budynek i zwraca jego id albo 0, gdy miejsce jest niedozwolone.
 ## Poziom 0 stawia plac budowy (kolejka budowy podnosi go potem do 1).
 func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int = 1) -> int:
-	if not can_place(rect):
+	if not can_place(rect, kind):
 		return 0
 	var id := _next_id
 	_next_id += 1
@@ -45,11 +74,12 @@ func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int =
 
 
 ## Stawia budynek danego rodzaju na dotkniętej kratce `c`. Zwykle `c` to lewy górny róg.
-## Brama staje pionowo (1×2), gdy obok jest pionowa palisada, i dosuwa się o kratkę wstecz,
-## jeśli dotknięto dolnej albo prawej kratki luki w linii.
+## Brama (3×1) staje środkiem na dotkniętej kratce, a gdy tam się nie mieści, dosuwa się tak,
+## żeby dotknięta kratka była jej końcem. Staje pionowo (1×3), gdy obok jest pionowa palisada.
+## Dotknięta droga ustawia bramę w poprzek drogi, z drogą pośrodku.
 func place_kind(c: Vector2i, kind: int, level: int = 1) -> int:
 	for rect in placement_candidates(c, kind):
-		if can_place(rect):
+		if can_place(rect, kind):
 			return place(rect, kind, level)
 	return 0
 
@@ -57,7 +87,7 @@ func place_kind(c: Vector2i, kind: int, level: int = 1) -> int:
 ## Pierwsze miejsce, w które place_kind() postawiłby budynek dla kratki `c`, albo pusty prostokąt.
 func placement_for(c: Vector2i, kind: int) -> Rect2i:
 	for rect in placement_candidates(c, kind):
-		if can_place(rect):
+		if can_place(rect, kind):
 			return rect
 	return Rect2i()
 
@@ -81,12 +111,19 @@ func placement_candidates(c: Vector2i, kind: int) -> Array[Rect2i]:
 	var size := BuildingTypes.size_of(kind)
 	if kind != BuildingTypes.Kind.GATE:
 		return [Rect2i(c, size)]
-	var beside := _is_palisade(c + Vector2i.LEFT) or _is_palisade(c + Vector2i.RIGHT)
-	var above_below := _is_palisade(c + Vector2i.UP) or _is_palisade(c + Vector2i.DOWN)
-	if above_below and not beside:
-		var v := Vector2i(size.y, size.x)
-		return [Rect2i(c, v), Rect2i(c + Vector2i.UP, v)]
-	return [Rect2i(c, size), Rect2i(c + Vector2i.LEFT, size)]
+	var axis := road_axis(c)
+	var vertical := axis == Vector2i.RIGHT
+	if axis == Vector2i.ZERO:
+		var beside := _is_palisade(c + Vector2i.LEFT) or _is_palisade(c + Vector2i.RIGHT)
+		var above_below := _is_palisade(c + Vector2i.UP) or _is_palisade(c + Vector2i.DOWN)
+		vertical = above_below and not beside
+	var along := Vector2i.DOWN if vertical else Vector2i.RIGHT
+	var rect_size := Vector2i(size.y, size.x) if vertical else size
+	var out: Array[Rect2i] = []
+	# środek na dotkniętej kratce, potem dotknięta kratka jako pierwsza i jako ostatnia
+	for back: int in [1, 0, 2]:
+		out.append(Rect2i(c - along * back, rect_size))
+	return out
 
 
 ## Czy budynek stoi pionowo (dłuższy w osi y), np. brama w pionowej linii palisady.

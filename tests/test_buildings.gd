@@ -221,16 +221,17 @@ func test_gate_connects_palisade_and_draw_order() -> bool:
 	var grid := BuildGrid.new(map)
 	var origin := Vector2i(-1, -1)
 	for y in range(2, map.size - 4):
-		for x in range(2, map.size - 6):
-			if grid.can_place(Rect2i(x, y, 4, 3)):
+		for x in range(2, map.size - 7):
+			if grid.can_place(Rect2i(x, y, 5, 3)):
 				origin = Vector2i(x, y)
 				break
 		if origin.x >= 0:
 			break
 	var wall := grid.place_kind(origin, BuildingTypes.Kind.PALISADE)
 	var gate := grid.place_kind(origin + Vector2i(1, 0), BuildingTypes.Kind.GATE)
-	var after := grid.place_kind(origin + Vector2i(3, 0), BuildingTypes.Kind.PALISADE)
-	assert_true(gate > 0, "brama 2×1 postawiona w linii")
+	var after := grid.place_kind(origin + Vector2i(4, 0), BuildingTypes.Kind.PALISADE)
+	assert_true(gate > 0, "brama 3×1 postawiona w linii")
+	assert_eq(grid.buildings[gate], Rect2i(origin + Vector2i(1, 0), Vector2i(3, 1)), "brama dosunięta do palisady")
 	assert_eq(grid.wall_mask(wall), BuildingTypes.E, "palisada łączy się z bramą od wschodu")
 	assert_eq(grid.wall_mask(after), BuildingTypes.W, "palisada łączy się z bramą od zachodu")
 	var front := grid.place_kind(origin + Vector2i(0, 1), BuildingTypes.Kind.TOWER)
@@ -251,18 +252,18 @@ func _free_area(grid: BuildGrid, size: Vector2i) -> Vector2i:
 
 func test_gate_turns_vertical_in_vertical_palisade() -> bool:
 	var grid := BuildGrid.new(TerrainMap.generate(1337))
-	var o := _free_area(grid, Vector2i(3, 6))
-	assert_true(o.x >= 0, "wolne miejsce 3×6")
+	var o := _free_area(grid, Vector2i(3, 7))
+	assert_true(o.x >= 0, "wolne miejsce 3×7")
 	var c := o + Vector2i(1, 0)
-	for dy: int in [0, 1, 4, 5]:
+	for dy: int in [0, 1, 5, 6]:
 		grid.place_kind(c + Vector2i(0, dy), BuildingTypes.Kind.PALISADE)
 	# dotknięta dolna kratka luki: brama dosuwa się w górę i staje pionowo
-	var gate := grid.place_kind(c + Vector2i(0, 3), BuildingTypes.Kind.GATE)
+	var gate := grid.place_kind(c + Vector2i(0, 4), BuildingTypes.Kind.GATE)
 	assert_true(gate > 0, "brama postawiona")
-	assert_eq(grid.buildings[gate], Rect2i(c + Vector2i(0, 2), Vector2i(1, 2)), "brama pionowa w luce")
+	assert_eq(grid.buildings[gate], Rect2i(c + Vector2i(0, 2), Vector2i(1, 3)), "brama pionowa w luce")
 	assert_true(grid.is_vertical(gate), "is_vertical")
 	var above := grid.building_at(c + Vector2i(0, 1))
-	var below := grid.building_at(c + Vector2i(0, 4))
+	var below := grid.building_at(c + Vector2i(0, 5))
 	assert_eq(grid.wall_mask(above), BuildingTypes.N | BuildingTypes.S, "palisada nad bramą łączy się w dół")
 	assert_eq(grid.wall_mask(below), BuildingTypes.N | BuildingTypes.S, "palisada pod bramą łączy się w górę")
 	# palisada z boku bramy pionowej się z nią nie łączy
@@ -273,13 +274,16 @@ func test_gate_turns_vertical_in_vertical_palisade() -> bool:
 
 func test_gate_snaps_into_horizontal_gap() -> bool:
 	var grid := BuildGrid.new(TerrainMap.generate(1337))
-	var o := _free_area(grid, Vector2i(6, 3))
+	var o := _free_area(grid, Vector2i(7, 3))
 	var c := o + Vector2i(0, 1)
-	for dx: int in [0, 1, 4, 5]:
+	for dx: int in [0, 1, 5, 6]:
 		grid.place_kind(c + Vector2i(dx, 0), BuildingTypes.Kind.PALISADE)
-	var gate := grid.place_kind(c + Vector2i(3, 0), BuildingTypes.Kind.GATE)
-	assert_eq(grid.buildings[gate], Rect2i(c + Vector2i(2, 0), Vector2i(2, 1)), "dotknięta prawa kratka luki")
+	var gate := grid.place_kind(c + Vector2i(4, 0), BuildingTypes.Kind.GATE)
+	assert_eq(grid.buildings[gate], Rect2i(c + Vector2i(2, 0), Vector2i(3, 1)), "dotknięta prawa kratka luki")
 	assert_true(not grid.is_vertical(gate), "brama pozioma")
+	grid.remove(gate)
+	var middle := grid.place_kind(c + Vector2i(3, 0), BuildingTypes.Kind.GATE)
+	assert_eq(grid.buildings[middle], Rect2i(c + Vector2i(2, 0), Vector2i(3, 1)), "dotknięty środek luki")
 	return true
 
 
@@ -300,7 +304,7 @@ func test_tower_gets_stubs_toward_palisade() -> bool:
 func test_vertical_gate_image() -> bool:
 	for level in range(1, BuildingTypes.MAX_LEVEL + 1):
 		var v := BuildingArt.make_image(BuildingTypes.Kind.GATE, level, BuildingTypes.State.INTACT, 0, true)
-		assert_eq(v.get_size(), Vector2i(8, 16 + BuildingArt.EXTRA[BuildingTypes.Kind.GATE]), "rozmiar bramy pionowej")
+		assert_eq(v.get_size(), Vector2i(8, 24 + BuildingArt.EXTRA[BuildingTypes.Kind.GATE]), "rozmiar bramy pionowej 1×3")
 		assert_true(not v.is_invisible(), "brama pionowa poziom %d coś rysuje" % level)
 	var a := BuildingArt.make_image(BuildingTypes.Kind.GATE, 1, 0, 0, true).get_data()
 	var b := BuildingArt.make_image(BuildingTypes.Kind.GATE, 5, 0, 0, true).get_data()
@@ -322,12 +326,12 @@ func test_tallest_parts_fit_in_image() -> bool:
 	for level: int in [4, 5]:
 		var v := BuildingArt.make_image(gate, level, BuildingTypes.State.INTACT, 0, true)
 		assert_true(_row_has_pixel(v, 0), "brama pionowa poziom %d: szczyt strzechy w wierszu 0" % level)
-		# lewa krawędź strzechy: 16 wierszy dachu + okap; ucięty dach miałby ich mniej
+		# lewa krawędź strzechy: 24 wiersze dachu + okap; ucięty dach miałby ich mniej
 		var eave := 0
 		for y in v.get_height():
 			if v.get_pixel(1, y) == Palette.THATCH[0]:
 				eave += 1
-		assert_eq(eave, 17, "brama pionowa poziom %d: cała krawędź strzechy w obrazie" % level)
+		assert_eq(eave, 25, "brama pionowa poziom %d: cała krawędź strzechy w obrazie" % level)
 	var tower := BuildingArt.make_image(BuildingTypes.Kind.TOWER, 5, BuildingTypes.State.INTACT)
 	assert_true(_row_has_pixel(tower, 0), "wieża poziom 5: flaga sięga wiersza 0")
 	assert_eq(tower.get_pixel(8, 0), Palette.ACCENT, "wieża poziom 5: górny wiersz proporca")
@@ -347,7 +351,7 @@ func test_failed_gate_cursor_uses_vertical_shape() -> bool:
 	var o := _free_area(grid, Vector2i(3, 6))
 	var c := o + Vector2i(1, 0)
 	grid.place_kind(c, BuildingTypes.Kind.PALISADE)
-	assert_eq(grid.placement_candidates(c + Vector2i(0, 1), BuildingTypes.Kind.GATE)[0].size, Vector2i(1, 2),
+	assert_eq(grid.placement_candidates(c + Vector2i(0, 1), BuildingTypes.Kind.GATE)[0].size, Vector2i(1, 3),
 			"pod pionową palisadą pierwszy wariant bramy jest pionowy")
 	return true
 
