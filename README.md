@@ -61,8 +61,8 @@ kończy się `return true` (wzór: `tests/test_pixel_canvas.gd`).
 
 ## Wersje i changelog
 
-Wersja to SemVer `MAJOR.MINOR.PATCH`. Przed 1.0.0 obowiązuje `0.N.x`, gdzie N to ukończony etap MVP,
-a `x` to poprawki. Jedno źródło prawdy to `tools/version.py`, który trzyma w zgodzie
+Wersja to SemVer `MAJOR.MINOR.PATCH`. Pierwsze wydanie, 0.0.1, obejmuje etapy 1 i 2 (szkielet projektu,
+teren, siatka budowy i kamera). Przed 1.0.0 wersje mają postać `0.x.y`, a numer kolejnego wydania wybiera właściciel. Jedno źródło prawdy to `tools/version.py`, który trzyma w zgodzie
 `project.godot`, `export_presets.cfg` (`version/name`, `version/code = MAJOR*10000 + MINOR*100 + PATCH`)
 i `CHANGELOG.md`.
 
