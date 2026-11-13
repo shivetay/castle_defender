@@ -3,7 +3,7 @@ extends TestCase
 
 
 func test_ui_texts_use_only_known_glyphs() -> bool:
-	var texts: Array[String] = ["Castle Defender · etap 4", "seed 1337  4×  60 FPS", "Ulepsz", "Rozbierz",
+	var texts: Array[String] = ["Castle Defender · etap 4", "4×  60 FPS", "Podczas nieobecności: +200 Dr +20 Ka", "Ulepsz", "Rozbierz",
 			"Zamknij", "poziom 5/5", "Tu nie można budować", "Najwyższy poziom", "zażółć gęślą jaźń",
 			"ĄĆĘŁŃÓŚŹŻ 0123456789 .,:;-+/%()!?"]
 	texts.append_array(BuildingTypes.NAMES)

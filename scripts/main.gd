@@ -1,7 +1,8 @@
 extends Node2D
-## Etap 3: widok zamku z budynkami epoki I. Teren 64×64 kratki z seeda, siatka budowy, kamera
-## z gestami. Pasek u dołu wybiera budynek, dotknięcie wolnej trawy go stawia, a dotknięcie
-## budynku otwiera kartę z poziomem oraz przyciskami Ulepsz i Rozbierz.
+## Etap 4: widok zamku z budynkami epoki I i ekonomią. Teren 64×64 kratki z seeda, siatka budowy,
+## kamera z gestami. Pasek u dołu wybiera budynek, dotknięcie wolnej trawy go stawia, a dotknięcie
+## budynku otwiera kartę z poziomem oraz przyciskami Ulepsz i Rozbierz. Surowce rosną w czasie,
+## także gdy gra jest w tle; po powrocie komunikat podaje, ile przybyło.
 
 const WORLD_SEED := 1337
 
@@ -10,6 +11,7 @@ var grid: BuildGrid
 var camera: PanZoomCamera
 var hud: Hud
 var textures := BuildingTextures.new()
+var economy: Economy
 
 var _terrain_tex: ImageTexture
 var _selected_id := 0
@@ -20,6 +22,7 @@ var _cursor_ok := true
 func _ready() -> void:
 	terrain = TerrainMap.generate(WORLD_SEED)
 	grid = BuildGrid.new(terrain)
+	economy = Economy.new(_now_ms())
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
 	textures.warm_up()
 
@@ -35,6 +38,7 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.camera = camera
 	hud.world_seed = WORLD_SEED
+	hud.economy = economy
 	layer.add_child(hud)
 	hud.kind_selected.connect(_on_kind_selected)
 	hud.upgrade_pressed.connect(_on_upgrade)
@@ -42,7 +46,33 @@ func _ready() -> void:
 	hud.card_closed.connect(_deselect)
 
 
+func _process(_delta: float) -> void:
+	_sync_economy()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_RESUMED and economy != null:
+		var gained := _sync_economy()
+		var parts: PackedStringArray = []
+		for res in gained.size():
+			if gained[res] > 0:
+				parts.append("+%d %s" % [gained[res], EconomyConfig.SHORT_NAMES[res]])
+		if not parts.is_empty():
+			hud.message = "Podczas nieobecności: " + " ".join(parts)
+
+
+static func _now_ms() -> int:
+	return int(Time.get_unix_time_from_system() * 1000.0)
+
+
+## Nalicza produkcję do teraz przy obecnych budynkach. Wołane przed każdą zmianą budynków,
+## żeby czas sprzed zmiany liczył się po starych stawkach.
+func _sync_economy() -> Array[int]:
+	return economy.update(_now_ms(), Economy.rates(grid))
+
+
 func _on_tapped(world_pos: Vector2) -> void:
+	_sync_economy()
 	var cell := Vector2i((world_pos / TerrainMap.CELL).floor())
 	var id := grid.building_at(cell)
 	if id != 0:
@@ -84,6 +114,7 @@ func _refresh_card() -> void:
 
 
 func _on_upgrade() -> void:
+	_sync_economy()
 	if grid.upgrade(_selected_id):
 		hud.message = "Ulepszono do poziomu %d" % grid.levels[_selected_id]
 		_refresh_card()
@@ -92,6 +123,7 @@ func _on_upgrade() -> void:
 
 
 func _on_demolish() -> void:
+	_sync_economy()
 	var title := BuildingTypes.NAMES[grid.kinds[_selected_id]]
 	_cursor = grid.buildings[_selected_id]
 	_cursor_ok = true
