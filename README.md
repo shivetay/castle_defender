@@ -7,7 +7,9 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 ## Stan: etap 3 z planu MVP
 
 Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
-z gestami) są zamknięte. Etap 3 to budynki epoki I rysowane kodem (issues #5, #6 i #7):
+z gestami) są zamknięte. Etap 3 to budynki epoki I rysowane kodem: autotiling umocnień (#6),
+pięć budynków z poziomami 1–5 (#7) oraz z #5 prymitywy, `draw_building` i cache tekstur. Z #5 zostają
+otwarte uporządkowanie palety do 12–16 kolorów i pomiar startu na telefonie.
 
 - `scripts/gfx/pixel_canvas.gd` (`PixelCanvas`): prymitywy rysowania: ściana z bali, ściana z desek,
   belki szkieletu, dach strzechowy, okno, drzwi, flaga i dithering 2×2. Faktura idzie przez `hash2`.
@@ -16,8 +18,8 @@ z gestami) są zamknięte. Etap 3 to budynki epoki I rysowane kodem (issues #5, 
   Wał i palisada mają autotiling: odcinek 1×1 to środek plus ramię do każdego sąsiada z maski N/E/S/W
   (16 wariantów). Ramiona dochodzą do krawędzi kratki, więc dowolny kształt łączy się bez dziur.
   Ściana i blanki rysują się osobno, a palisada ma ścianę wysoką na 4 px.
-- `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska)`
-  zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 175 całych wariantów
+- `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska,
+  pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 180 całych wariantów
   (ok. 18 ms na komputerze).
 - `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (2×1),
   Wieża drewniana i Chata drwala (2×2). Wał łączy się z wałem, palisada z palisadą, bramą i wieżą.
