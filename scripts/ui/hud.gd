@@ -108,13 +108,12 @@ func _input(event: InputEvent) -> void:
 
 
 func _draw() -> void:
-	var font := ThemeDB.fallback_font
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, 0, view.x, BAR_H), Color(Palette.SHADOW, 0.8))
-	draw_string(font, Vector2(4, 9), "CASTLE DEFENDER · etap 3", HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Palette.INK)
+	PixelFont.draw_text(self, Vector2(4, 1), "Castle Defender · etap 3", Palette.INK)
 	var zoom := camera.zoom_level if camera != null else 1
 	var info := "seed %d  %d×  %d FPS" % [world_seed, zoom, Engine.get_frames_per_second()]
-	draw_string(font, Vector2(4, 9), info, HORIZONTAL_ALIGNMENT_RIGHT, view.x - 8, 8, Palette.INK)
+	PixelFont.draw_right(self, view.x - 4, 1, info, Palette.INK)
 
 	var rects := _current_rects()
 	if is_card_open():
@@ -122,8 +121,8 @@ func _draw() -> void:
 		var panel := Rect2(r0.position - Vector2(4, 16), Vector2(rects[-1].end.x - r0.position.x + 8, r0.size.y + 20))
 		draw_rect(panel, Color(Palette.SHADOW, 0.85))
 		var lv := "poziom %d/%d" % [card_level, BuildingTypes.MAX_LEVEL]
-		draw_string(font, panel.position + Vector2(4, 10), card_title, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Palette.INK)
-		draw_string(font, panel.position + Vector2(4, 10), lv, HORIZONTAL_ALIGNMENT_RIGHT, panel.size.x - 8, 8, Palette.THATCH[2])
+		PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
+		PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, lv, Palette.THATCH[2])
 		for i in rects.size():
 			var disabled := i == CardButton.UPGRADE and card_level >= BuildingTypes.MAX_LEVEL
 			_draw_button(rects[i], CARD_LABELS[i], i == _pressed, disabled)
@@ -132,13 +131,12 @@ func _draw() -> void:
 			_draw_button(rects[i], BuildingTypes.SHORT_NAMES[i], i == selected_kind or i == _pressed, false)
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
-	draw_string(font, Vector2(4, view.y - 3), message, HORIZONTAL_ALIGNMENT_LEFT, view.x - 8, 8, Palette.INK)
+	PixelFont.draw_text(self, Vector2(4, view.y - BAR_H + 1), message, Palette.INK)
 
 
 func _draw_button(r: Rect2, label: String, active: bool, disabled: bool) -> void:
-	var font := ThemeDB.fallback_font
 	draw_rect(r, Palette.WOOD[2] if active else Palette.WOOD[1])
 	draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), Palette.WOOD[3])
 	draw_rect(Rect2(r.position + Vector2(0, r.size.y - 1), Vector2(r.size.x, 1)), Palette.WOOD[0])
 	var col: Color = Palette.WOOD[0] if disabled else Palette.INK
-	draw_string(font, r.position + Vector2(0, 10), label, HORIZONTAL_ALIGNMENT_CENTER, r.size.x, 8, col)
+	PixelFont.draw_centered(self, r, label, col)
