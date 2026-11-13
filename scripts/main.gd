@@ -53,7 +53,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 		var kind := hud.selected_kind
 		var placed := grid.place_kind(cell, kind)
 		_cursor_ok = placed != 0
-		_cursor = grid.buildings[placed] if _cursor_ok else Rect2i(cell, BuildingTypes.size_of(kind))
+		# przy nieudanej próbie ramka ma kształt pierwszego wariantu (np. pionowej bramy)
+		_cursor = grid.buildings[placed] if _cursor_ok else grid.placement_candidates(cell, kind)[0]
 		var title := BuildingTypes.NAMES[kind]
 		hud.message = ("Postawiono: %s" % title) if _cursor_ok else "Tu nie można budować"
 	queue_redraw()
@@ -109,9 +110,9 @@ func _draw() -> void:
 		draw_texture(tex, Vector2(_texture_origin(grid.buildings[id].position, kind)))
 	var frame := grid.buildings[_selected_id] if _selected_id != 0 else _cursor
 	if frame.has_area():
-		var r := Rect2(frame.position * TerrainMap.CELL, frame.size * TerrainMap.CELL)
 		var ok := _selected_id != 0 or _cursor_ok
-		draw_rect(r.grow(-0.5), Palette.VALID if ok else Palette.ACCENT, false, 1.0)
+		_draw_frame(Rect2i(frame.position * TerrainMap.CELL, frame.size * TerrainMap.CELL),
+				Palette.VALID if ok else Palette.ACCENT)
 
 
 func _texture_origin(cell: Vector2i, kind: int) -> Vector2i:
@@ -138,3 +139,11 @@ static func _dir_of(bit: int) -> Vector2i:
 		BuildingTypes.S:
 			return Vector2i.DOWN
 	return Vector2i.LEFT
+
+
+## Ramka 1 px wewnątrz prostokąta, z czterech pełnych pasków na całych pikselach.
+func _draw_frame(r: Rect2i, col: Color) -> void:
+	draw_rect(Rect2(r.position.x, r.position.y, r.size.x, 1), col)
+	draw_rect(Rect2(r.position.x, r.end.y - 1, r.size.x, 1), col)
+	draw_rect(Rect2(r.position.x, r.position.y + 1, 1, r.size.y - 2), col)
+	draw_rect(Rect2(r.end.x - 1, r.position.y + 1, 1, r.size.y - 2), col)
