@@ -1,9 +1,10 @@
 name: Wydanie
 
 # Po wypchnięciu tagu vX.Y.Z: testy, debug APK i GitHub Release z opisem z CHANGELOG.md.
-# Ręcznie (workflow_dispatch) buduje samo APK jako artefakt, bez tworzenia Release.
+# Push na main i uruchomienie ręczne (workflow_dispatch) budują samo APK jako artefakt, bez Release.
 on:
   push:
+    branches: [main]
     tags: ["v*.*.*"]
   workflow_dispatch:
 
