@@ -22,19 +22,19 @@ jobs:
     permissions:
       contents: write # tworzenie GitHub Release
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Tag zgodny z wersją
         if: github.ref_type == 'tag'
         run: python3 tools/version.py check --tag "${GITHUB_REF_NAME}"
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Cache Godota i szablonów
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/godot
           key: godot-templates-${{ hashFiles('.github/scripts/install_godot.sh') }}
@@ -74,7 +74,7 @@ jobs:
           mv build/castle_defender.apk "build/castle_defender-${VERSION}-debug.apk"
           ls -la build/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: castle_defender-${{ env.VERSION }}-debug-apk
           path: build/*.apk
