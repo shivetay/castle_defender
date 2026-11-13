@@ -4,28 +4,32 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 8.
 
-## Stan: etap 2 z planu MVP
+## Stan: etap 3 z planu MVP
 
-Etap 1 (szkielet projektu, viewport 320×180, testowy APK) jest zamknięty. Etap 2 to teren i siatka budowy
-z kamerą (issues #3 i #4):
+Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
+z gestami) są zamknięte. Etap 3 to budynki epoki I rysowane kodem (issues #5, #6 i #7):
 
-- `scripts/world/terrain_map.gd` (`TerrainMap`): mapa 64×64 kratki po 8×8 px z seeda. Wzgórze z szumu
-  wartości (4 odcienie trawy, najwyżej pośrodku), rzeka szerokości 2 kratek z boku i dwie ścieżki od grodu:
-  na południe i przez most do bocznej krawędzi. Logika jest na liczbach całkowitych, więc ten sam seed
-  zawsze daje ten sam teren.
-- `scripts/world/build_grid.gd` (`BuildGrid`): zajętość kratek, walidacja miejsca (tylko wolna trawa
-  w granicach mapy), stawianie i usuwanie budynków.
-- `scripts/gfx/terrain_renderer.gd` (`TerrainRenderer`): cała mapa 512×512 px rysowana raz do jednej
-  `ImageTexture`. Kafelki bazowe kopiuje `blit_rect`, a `set_pixel` dorysowuje tylko brzegi, skraje ścieżek
-  i zbocza. Zamiast `TileMapLayer`, bo mapa jest statyczna, a jedna tekstura jest prostsza i szybsza
-  (ok. 30 ms na komputerze).
-- `scripts/camera/pan_zoom_camera.gd` (`PanZoomCamera`): przeciąganie jednym palcem, szczypanie
-  (i kółko myszy) przełącza zoom 1×/2×/4×, pozycja w całych pikselach, granice na krawędziach mapy.
-  Krótkie dotknięcie bez ruchu to „tap”.
-- `scripts/main.gd` + `scripts/ui/hud.gd`: tap na wolnej trawie stawia chatę 2×2 kratki, tap na chacie
-  ją usuwa. Zielona ramka oznacza akcję udaną, czerwona miejsce niedozwolone. U góry widać seed, zoom i FPS.
+- `scripts/gfx/pixel_canvas.gd` (`PixelCanvas`): prymitywy rysowania: ściana z bali, ściana z desek,
+  belki szkieletu, dach strzechowy, okno, drzwi, flaga i dithering 2×2. Faktura idzie przez `hash2`.
+- `scripts/gfx/building_art.gd` (`BuildingArt`): budynki w rzucie 3/4, każdy z 5 poziomami o różnym
+  wyglądzie, i stany: cały, uszkodzony, zniszczony (pełne 4 stany zniszczeń to #8).
+  Wał i palisada mają autotiling: odcinek 1×1 to środek plus ramię do każdego sąsiada z maski N/E/S/W
+  (16 wariantów). Ramiona dochodzą do krawędzi kratki, więc dowolny kształt łączy się bez dziur.
+  Ściana i blanki rysują się osobno, a palisada ma ścianę wysoką na 4 px.
+- `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska)`
+  zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 175 całych wariantów
+  (ok. 18 ms na komputerze).
+- `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (2×1),
+  Wieża drewniana i Chata drwala (2×2). Wał łączy się z wałem, palisada z palisadą, bramą i wieżą.
+- `scripts/world/build_grid.gd` (`BuildGrid`): rodzaj i poziom budynku, ulepszanie do poziomu 5,
+  maski sąsiadów i stała kolejność rysowania (od tyłu do przodu).
+- `scripts/ui/hud.gd`: pasek wyboru budynku nad dolną krawędzią, a po dotknięciu budynku karta
+  z poziomem i przyciskami Ulepsz, Rozbierz, Zamknij (cele 56×14 px).
 
-Do ręcznego testu na telefonie: płynność przeciągania, szczypanie i to, czy tap nie myli się z przeciąganiem.
+Ulepszanie jest na razie darmowe i natychmiastowe. Koszty, czasy i kolejka budowy to #11.
+
+Do ręcznego testu na telefonie: czy przyciski paska i karty łatwo trafić i czy budowa długiego wału
+kratka po kratce nie jest zbyt męcząca.
 
 ## Uruchomienie
 
@@ -120,5 +124,5 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 3: biblioteka prymitywów i `draw_building(typ, poziom, stan)` (#5), autotiling wałów i palisady (#6)
-oraz pierwsze 5 budynków epoki I z poziomami 1–5 (#7).
+Etap 4: kolejny krok planu MVP. Kolejność wybiera właściciel; najbliżej obecnego stanu są stany zniszczeń
+(#8), HUD z surowcami (#9) i ekonomia (#10).
