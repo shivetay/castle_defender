@@ -6,7 +6,7 @@ extends RefCounted
 enum Res { WOOD, STONE, FOOD, GOLD }
 
 const NAMES: Array[String] = ["Drewno", "Kamień", "Żywność", "Złoto"]
-## Skróty na pasku surowców (ikony dojdą z HUD-em w #9).
+## Skróty w komunikacie o nieobecności („+120 Dr +20 Ka”). Pasek surowców ma ikony (PixelIcons).
 const SHORT_NAMES: Array[String] = ["Dr", "Ka", "Ży", "Zł"]
 
 const START: Array[int] = [500, 300, 300, 50]
