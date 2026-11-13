@@ -25,8 +25,8 @@ Z #5 zostaje pomiar startu na telefonie.
   (16 wariantów). Ramiona dochodzą do krawędzi kratki, więc dowolny kształt łączy się bez dziur.
   Ściana i blanki rysują się osobno, a palisada ma ścianę wysoką na 4 px.
 - `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska,
-  pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 180 całych wariantów
-  (ok. 18 ms na komputerze).
+  pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 222 całe warianty i place budowy
+  (ok. 19 ms na komputerze, headless).
 - `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (2×1),
   Wieża drewniana, Chata drwala i Dwór (2×2). Wał łączy się z wałem, palisada z palisadą, bramą i wieżą.
   Dwór stoi od startu na środku mapy, jest jeden, nie ma go na pasku budowy i nie da się go rozebrać.

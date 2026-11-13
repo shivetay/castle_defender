@@ -60,6 +60,11 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 	if not economy.spend(cost):
 		return Result.NO_RESOURCES
 	placed_id = grid.place_kind(c, kind, 0)
+	if placed_id == 0:
+		# bezpiecznik: placement_for i place_kind powinny się zgadzać, ale koszt nie może przepaść
+		for res in cost.size():
+			economy.add(res, cost[res])
+		return Result.NO_PLACE
 	_append(placed_id, kind, 1, cost, now_ms)
 	return Result.OK
 
