@@ -22,7 +22,7 @@ func test_widths_and_fit() -> bool:
 		assert_true(PixelFont.text_width(label) <= int(Hud.BUTTON_SIZE.x) - 4, "„%s” mieści się na przycisku" % label)
 	for name in BuildingTypes.NAMES:
 		var msg := "%s: dotknij trawy, aby postawić" % name
-		assert_true(PixelFont.text_width(msg) <= 312, "komunikat „%s” mieści się w 320 px" % msg)
+		assert_true(PixelFont.text_width(msg) <= Hud.MESSAGE_MAX_WIDTH, "komunikat „%s” mieści się w 320 px" % msg)
 	return true
 
 
@@ -37,4 +37,17 @@ func test_render_is_deterministic_and_accents_differ() -> bool:
 	PixelFont.render(z, Vector2i.ZERO, "Z", Palette.INK)
 	PixelFont.render(zz, Vector2i.ZERO, "Ż", Palette.INK)
 	assert_true(z.get_data() != zz.get_data(), "Ż różni się od Z")
+	return true
+
+
+## Treść pasków trzyma się z dala od zaokrąglonych narożników, a wycięcie ekranu ją odsuwa dalej.
+func test_hud_content_avoids_rounded_corners() -> bool:
+	var view := Vector2(400, 180)
+	assert_eq(Hud.content_bounds(view, Rect2()), Vector2(Hud.CORNER_INSET, 400 - Hud.CORNER_INSET), "bez strefy: stały margines")
+	assert_eq(Hud.content_bounds(view, Rect2(30, 0, 340, 180)), Vector2(30, 370), "wycięcie po bokach odsuwa treść")
+	assert_eq(Hud.content_bounds(view, Rect2(2, 0, 396, 180)), Vector2(Hud.CORNER_INSET, 400 - Hud.CORNER_INSET),
+			"mała strefa nie zmniejsza marginesu narożników")
+	var rects := Hud.toolbar_rects(Vector2(320, 180))
+	assert_true(rects[0].position.x >= Hud.CORNER_INSET and rects[-1].end.x <= 320 - Hud.CORNER_INSET,
+			"pasek budynków mieści się między narożnikami")
 	return true

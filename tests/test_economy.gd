@@ -143,8 +143,8 @@ func test_resources_bar_fits() -> bool:
 	for res in EconomyConfig.count():
 		worst.append(maxi(EconomyConfig.CAPACITY[res], 99999))
 	var right := PixelFont.text_width("4×  60 FPS")
-	var xs := Hud.resource_layout(worst, 4)
+	var xs := Hud.resource_layout(worst, Hud.CORNER_INSET)
 	assert_eq(xs.size(), EconomyConfig.count() + 1, "pozycja każdej ikony i koniec paska")
-	assert_true(xs[-1] + right + 12 <= 320, "pasek surowców mieści się w 320 px")
+	assert_true(xs[-1] + 6 + right <= 320 - Hud.CORNER_INSET, "pasek surowców mieści się w 320 px z marginesem narożników")
 	assert_true(Hud.resource_labels(worst)[0].contains("max"), "pełny magazyn jest oznaczony")
 	return true

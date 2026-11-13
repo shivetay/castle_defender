@@ -13,6 +13,12 @@ signal card_closed
 enum CardButton { UPGRADE, DEMOLISH, CLOSE }
 
 const BAR_H := 12
+## Margines treści pasków od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów
+## ucinają ok. 10 px logicznych przy samej górze i dole, a Android nie zgłasza ich jako strefy
+## niebezpiecznej, więc margines jest stały; wycięcia (np. na kamerę) dokładają do niego.
+const CORNER_INSET := 12
+## Najszerszy komunikat, który mieści się w dolnym pasku na najwęższym ekranie (320 px).
+const MESSAGE_MAX_WIDTH := 320 - 2 * CORNER_INSET
 const BUTTON_SIZE := Vector2(56, 14)
 const BUTTON_GAP := 4
 const CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Zamknij"]
@@ -36,7 +42,34 @@ var queue_text := ""
 var _pressed := -1
 
 
+## Lewa i prawa granica treści pasków w pikselach widoku (z marginesem narożników i wycięć).
+var content_left := float(CORNER_INSET)
+var content_right := 320.0 - CORNER_INSET
+
+
+## Granice treści dla widoku `view` i strefy bezpiecznej `safe` (w pikselach widoku; pusta, gdy
+## system jej nie podaje): nigdy bliżej krawędzi niż CORNER_INSET.
+static func content_bounds(view: Vector2, safe: Rect2) -> Vector2:
+	var left := float(CORNER_INSET)
+	var right := view.x - CORNER_INSET
+	if safe.has_area():
+		left = maxf(left, ceilf(safe.position.x))
+		right = minf(right, floorf(safe.end.x))
+	return Vector2(left, right)
+
+
+## Strefa bezpieczna ekranu przeliczona na piksele widoku (pusta, gdy system jej nie podaje).
+func _safe_area_in_view() -> Rect2:
+	var safe := Rect2(DisplayServer.get_display_safe_area())
+	if not safe.has_area():
+		return Rect2()
+	return get_viewport().get_final_transform().affine_inverse() * safe
+
+
 func _process(_delta: float) -> void:
+	var bounds := content_bounds(get_viewport_rect().size, _safe_area_in_view())
+	content_left = bounds.x
+	content_right = bounds.y
 	queue_redraw()
 
 
@@ -173,7 +206,7 @@ func _draw() -> void:
 		_draw_resources()
 	var zoom := camera.zoom_level if camera != null else 1
 	var info := queue_text if not queue_text.is_empty() else "%d×  %d FPS" % [zoom, Engine.get_frames_per_second()]
-	PixelFont.draw_right(self, view.x - 4, 1, info, Palette.INK)
+	PixelFont.draw_right(self, content_right, 1, info, Palette.INK)
 
 	var rects := _current_rects()
 	if is_card_open():
@@ -192,13 +225,13 @@ func _draw() -> void:
 			_draw_button(rects[i], BuildingTypes.SHORT_NAMES[i], i == selected_kind or i == _pressed, false)
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
-	PixelFont.draw_text(self, Vector2(4, view.y - BAR_H + 1), message, Palette.INK)
+	PixelFont.draw_text(self, Vector2(content_left, view.y - BAR_H + 1), message, Palette.INK)
 
 
 ## Ikona 5×5 na wysokości wielkich liter, obok liczba. Pełny magazyn świeci kolorem strzechy.
 func _draw_resources() -> void:
 	var labels := resource_labels(economy.amounts)
-	var xs := resource_layout(economy.amounts, 4)
+	var xs := resource_layout(economy.amounts, int(content_left))
 	for res in labels.size():
 		PixelIcons.draw_resource(self, Vector2(xs[res], 1 + PixelFont.CAP_TOP), res)
 		var col: Color = Palette.THATCH[2] if economy.is_full(res) else Palette.INK
