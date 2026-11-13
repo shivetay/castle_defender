@@ -9,8 +9,9 @@ Wersja (SemVer, MAJOR.MINOR.PATCH) żyje w trzech miejscach, które ten skrypt t
 Użycie:
   python3 tools/version.py current             wypisuje bieżącą wersję
   python3 tools/version.py check [--tag vX.Y.Z]  sprawdza zgodność (CI); z --tag także tag gita
-  python3 tools/version.py bump patch|minor|major|X.Y.Z
-                                               przenosi "Nieopublikowane" do nowej sekcji i podbija wersję;
+  python3 tools/version.py bump patch|minor|major|X.Y.Z [--repo owner/name] [--bez-pr]
+                                               tworzy sekcję wydania ze scalonych PR-ów (tools/changelog.py)
+                                               i ręcznych wpisów z "Nieopublikowane", podbija wersję;
                                                przy pierwszym wydaniu X.Y.Z może równać się bieżącej wersji
   python3 tools/version.py notes [X.Y.Z]       wypisuje opis wersji z changelogu (do GitHub Release)
 """
@@ -21,6 +22,9 @@ import datetime
 import re
 import sys
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import changelog  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 PROJECT = ROOT / "project.godot"
@@ -126,7 +130,7 @@ def cmd_check(tag: str | None) -> None:
     print(f"OK: wersja {ver} (version/code {code}) zgodna w project.godot, export_presets.cfg i CHANGELOG.md{state}")
 
 
-def cmd_bump(what: str) -> None:
+def cmd_bump(what: str, repo: str | None = None, offline: bool = False) -> None:
     old = current()
     major, minor, patch = parse(old)
     if what == "major":
@@ -146,11 +150,18 @@ def cmd_bump(what: str) -> None:
     body = section_body(log, UNRELEASED)
     if body is None:
         fail(f"CHANGELOG.md nie ma sekcji ## [{UNRELEASED}]")
-    if not re.search(r"^\s*[-*] ", body, re.M):
-        fail(f"sekcja [{UNRELEASED}] jest pusta: najpierw opisz zmiany")
+    # ręczne wpisy z "Nieopublikowane" + wpisy wygenerowane ze scalonych PR-ów
+    groups = changelog.parse_body(body)
+    if not offline:
+        groups = changelog.merge(groups, changelog.generated_section(repo))
+    text = changelog.render(groups)
+    if not text:
+        fail("brak zmian do wydania: żadnych scalonych PR-ów od ostatniego tagu ani wpisów w Nieopublikowane")
     today = datetime.date.today().isoformat()
-    header = f"## [{UNRELEASED}]"
-    log = log.replace(header, f"{header}\n\n## [{new}] - {today}", 1)
+    for name, _date, start, end in sections(log):
+        if name == UNRELEASED:
+            log = log[:start].rstrip() + f"\n\n## [{new}] - {today}\n\n{text}\n\n" + log[end:].lstrip()
+            break
     write(CHANGELOG, log)
 
     write(PROJECT, RE_PROJECT.sub(f'config/version="{new}"', read(PROJECT), count=1))
@@ -177,6 +188,8 @@ def main() -> None:
     c.add_argument("--tag")
     b = sub.add_parser("bump")
     b.add_argument("what")
+    b.add_argument("--repo", help="owner/name na GitHubie (domyślnie z GITHUB_REPOSITORY albo origin)")
+    b.add_argument("--bez-pr", action="store_true", help="tylko ręczne wpisy, bez pobierania PR-ów")
     n = sub.add_parser("notes")
     n.add_argument("version", nargs="?")
     a = p.parse_args()
@@ -185,7 +198,7 @@ def main() -> None:
     elif a.cmd == "check":
         cmd_check(a.tag)
     elif a.cmd == "bump":
-        cmd_bump(a.what)
+        cmd_bump(a.what, a.repo, a.bez_pr)
     else:
         cmd_notes(a.version)
 

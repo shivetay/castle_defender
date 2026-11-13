@@ -77,10 +77,16 @@ Czego nie da się sprawdzić bez telefonu (dotyk, FPS, APK), zostaje do ręczneg
 
 ## Git, wersje i współpraca
 
-- Każda zmiana widoczna dla gracza albo dla procesu (CI, narzędzia) dostaje punkt w `CHANGELOG.md`
-  w sekcji „Nieopublikowane”, w tym samym commicie co kod.
-- Wersji nie zmieniasz ręcznie, tylko przez `python3 tools/version.py bump`. Tagi `v*` i wydania
-  tworzysz wyłącznie na prośbę właściciela, bo tag od razu tworzy GitHub Release.
+- **Changelog generuje się ze scalonych PR-ów** (`tools/changelog.py`). Nie dopisuj zmian ręcznie
+  do `CHANGELOG.md`. Tytuł PR jest wpisem w changelogu, więc pisz go po polsku, krótko,
+  z perspektywy gracza albo procesu, bez prefiksu typu („Kamera: przesuwanie po szczypaniu”,
+  a nie „fix/kamera”). Podsekcję wybiera prefiks gałęzi (`feat` → Dodane, `fix` → Naprawione,
+  reszta → Zmienione) albo etykieta PR (`dodane`, `zmienione`, `naprawione`, `usuniete`).
+  Etykieta `bez-changelogu` pomija PR. Ręczny wpis w „Nieopublikowane” to wyjątek dla zmian
+  spoza PR-ów.
+- Wersji nie zmieniasz ręcznie. Wydanie przygotowuje workflow „Przygotuj wydanie” albo
+  `python3 tools/version.py bump`. Tagi `v*` i wydania tworzysz wyłącznie na prośbę właściciela,
+  bo tag od razu tworzy GitHub Release.
 - Commity po polsku, w trybie rozkazującym lub z prefiksem etapu, np. `Etap 2: generator terenu 64×64`.
 - Małe, logiczne commity.
 - **PR-y agent tworzy sam:** po wypchnięciu skończonej, zweryfikowanej zmiany otwiera PR do `main`

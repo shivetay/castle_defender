@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pełna weryfikacja projektu: wersja, import, kompilacja, test dymny, testy logiki.
+# Pełna weryfikacja projektu: wersja, testy narzędzi, import, kompilacja, test dymny, testy logiki.
 # Działa w CI i lokalnie (Linux, macOS, Git Bash na Windows): GODOT=ścieżka/do/godota bash .github/scripts/run_checks.sh
 set -uo pipefail
 
@@ -33,6 +33,7 @@ smoke() {
 }
 
 step "Wersja i changelog" python3 tools/version.py check
+step "Testy narzędzi" python3 -m unittest discover -s tools -p "test_*.py"
 step "Import projektu" timeout 300 "$GODOT" --headless --path . --import
 step "Kompilacja skryptów" timeout 120 "$GODOT" --headless --path . --script res://tests/check_compile.gd
 step "Test dymny (300 klatek)" smoke
