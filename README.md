@@ -4,15 +4,28 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 8.
 
-## Stan: etap 1 z planu MVP
+## Stan: etap 2 z planu MVP
 
-Etap 1 to „projekt w Godot 4, viewport 320×180, testowy APK na telefon”. W repozytorium jest:
+Etap 1 (szkielet projektu, viewport 320×180, testowy APK) jest zamknięty. Etap 2 to teren i siatka budowy
+z kamerą (issues #3 i #4):
 
-- `project.godot`: viewport 320×180, okno 1280×720, skalowanie całkowite (`integer`), filtr `Nearest`, przyciąganie do pikseli, orientacja pozioma, emulacja dotyku myszą.
-- `scenes/main.tscn` + `scripts/main.gd`: scena testowa z terenem, palisadą i dwiema chatami wygenerowanymi przy starcie (`Image.set_pixel` → `ImageTexture`). Tapnięcie zostawia czerwony znacznik, a w rogu widać rozdzielczość i FPS, żeby sprawdzić dotyk i wydajność na telefonie.
-- `scripts/gfx/palette.gd`: paleta epoki I.
-- `scripts/gfx/pixel_canvas.gd`: deterministyczny `hash2(x, y)` i pierwsze funkcje rysujące.
-- `export_presets.cfg`: preset „Android (debug APK)” (arm64-v8a, `com.shivetay.castledefender`).
+- `scripts/world/terrain_map.gd` (`TerrainMap`): mapa 64×64 kratki po 8×8 px z seeda. Wzgórze z szumu
+  wartości (4 odcienie trawy, najwyżej pośrodku), rzeka szerokości 2 kratek z boku i dwie ścieżki od grodu:
+  na południe i przez most do bocznej krawędzi. Logika jest na liczbach całkowitych, więc ten sam seed
+  zawsze daje ten sam teren.
+- `scripts/world/build_grid.gd` (`BuildGrid`): zajętość kratek, walidacja miejsca (tylko wolna trawa
+  w granicach mapy), stawianie i usuwanie budynków.
+- `scripts/gfx/terrain_renderer.gd` (`TerrainRenderer`): cała mapa 512×512 px rysowana raz do jednej
+  `ImageTexture`. Kafelki bazowe kopiuje `blit_rect`, a `set_pixel` dorysowuje tylko brzegi, skraje ścieżek
+  i zbocza. Zamiast `TileMapLayer`, bo mapa jest statyczna, a jedna tekstura jest prostsza i szybsza
+  (ok. 30 ms na komputerze).
+- `scripts/camera/pan_zoom_camera.gd` (`PanZoomCamera`): przeciąganie jednym palcem, szczypanie
+  (i kółko myszy) przełącza zoom 1×/2×/4×, pozycja w całych pikselach, granice na krawędziach mapy.
+  Krótkie dotknięcie bez ruchu to „tap”.
+- `scripts/main.gd` + `scripts/ui/hud.gd`: tap na wolnej trawie stawia chatę 2×2 kratki, tap na chacie
+  ją usuwa. Zielona ramka oznacza akcję udaną, czerwona miejsce niedozwolone. U góry widać seed, zoom i FPS.
+
+Do ręcznego testu na telefonie: płynność przeciągania, szczypanie i to, czy tap nie myli się z przeciąganiem.
 
 ## Uruchomienie
 
@@ -86,6 +99,9 @@ poprzednią. Podpis release (Google Play) dojdzie później, z kluczem w sekreta
 scenes/          sceny Godota
 scripts/         logika gry
 scripts/gfx/     rysowanie proceduralne i palety
+scripts/world/   dane świata: teren, siatka budowy
+scripts/camera/  kamera z gestami
+scripts/ui/      HUD
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
 tools/           narzędzia (version.py)
 .github/         workflowy CI/CD i skrypty instalacji Godota
@@ -95,4 +111,5 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 2: generator terenu 64×64 kratki (8×8 px) i siatka budowy z kamerą (przeciąganie, zoom 1×/2×/4×).
+Etap 3: biblioteka prymitywów i `draw_building(typ, poziom, stan)` (#5), autotiling wałów i palisady (#6)
+oraz pierwsze 5 budynków epoki I z poziomami 1–5 (#7).

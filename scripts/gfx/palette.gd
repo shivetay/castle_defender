@@ -10,3 +10,5 @@ const SKY := Color("9fc4d6")
 const SHADOW := Color("1e1a14")
 const INK := Color("f2e8cf")
 const ACCENT := Color("c8432b")
+const WATER := [Color("2b4a5e"), Color("365e74"), Color("4d7d8f")]
+const VALID := Color("9bd06a")
