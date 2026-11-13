@@ -200,10 +200,10 @@ func test_grid_upgrade_and_wall_masks() -> bool:
 	assert_eq(grid.wall_mask(corner), BuildingTypes.E | BuildingTypes.S, "narożnik łączy się na E i S")
 	assert_eq(grid.wall_mask(east), BuildingTypes.W, "odcinek wschodni łączy się na W")
 	assert_eq(grid.wall_mask(south), BuildingTypes.N, "odcinek południowy łączy się na N")
-	# wał obok palisady się z nią nie łączy
+	# wał obok palisady łączy się z nią (mieszana linia bez szpar)
 	var rampart := grid.place_kind(origin + Vector2i(1, 1), BuildingTypes.Kind.RAMPART)
-	assert_eq(grid.wall_mask(rampart), 0, "wał nie łączy się z palisadą")
-	assert_eq(grid.wall_mask(east), BuildingTypes.W, "palisada nie łączy się z wałem")
+	assert_eq(grid.wall_mask(rampart), BuildingTypes.N | BuildingTypes.W, "wał łączy się z palisadą")
+	assert_eq(grid.wall_mask(east), BuildingTypes.W | BuildingTypes.S, "palisada łączy się z wałem")
 	grid.remove(east)
 	assert_eq(grid.wall_mask(corner), BuildingTypes.S, "po rozbiórce sąsiada maska się zmienia")
 	# ulepszanie do poziomu 5 i nie dalej
@@ -295,9 +295,10 @@ func test_tower_gets_stubs_toward_palisade() -> bool:
 	grid.place_kind(o + Vector2i(1, 3), BuildingTypes.Kind.PALISADE)
 	grid.place_kind(o + Vector2i(3, 2), BuildingTypes.Kind.RAMPART)
 	var stubs := grid.wall_stubs(tower)
-	assert_eq(stubs.size(), 2, "dwa wpusty (wał się nie liczy)")
+	assert_eq(stubs.size(), 3, "trzy wpusty: dwie palisady i wał")
 	assert_true(stubs.has(Vector3i(o.x + 1, o.y + 1, BuildingTypes.W)), "wpust od zachodu")
 	assert_true(stubs.has(Vector3i(o.x + 1, o.y + 2, BuildingTypes.S)), "wpust od południa")
+	assert_true(stubs.has(Vector3i(o.x + 2, o.y + 2, BuildingTypes.E)), "wpust od wału na wschodzie")
 	return true
 
 

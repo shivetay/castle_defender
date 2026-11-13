@@ -109,6 +109,8 @@ func manor_level() -> int:
 ## Prostokąty, które place_kind() próbuje po kolei dla dotkniętej kratki.
 func placement_candidates(c: Vector2i, kind: int) -> Array[Rect2i]:
 	var size := BuildingTypes.size_of(kind)
+	if BuildingTypes.is_wall(kind):
+		return _wall_candidates(c, kind)
 	if kind != BuildingTypes.Kind.GATE:
 		return [Rect2i(c, size)]
 	var axis := road_axis(c)
@@ -124,6 +126,58 @@ func placement_candidates(c: Vector2i, kind: int) -> Array[Rect2i]:
 	for back: int in [1, 0, 2]:
 		out.append(Rect2i(c - along * back, rect_size))
 	return out
+
+
+## Kratki dla odcinka umocnienia. Wierzch umocnienia rysuje się o pół kratki wyżej niż jego kratka,
+## a palec na telefonie zakrywa kilka kratek, więc dotknięcie widocznej luki w linii często trafia
+## w kratkę obok. Gdy dotknięta kratka sama nie jest luką, a sąsiednia wolna kratka jest (łączy się
+## z co najmniej dwoma odcinkami), odcinek wskakuje w tę lukę. Najpierw sprawdzana jest kratka
+## pod dotkniętą, bo tam najczęściej leży luka, w którą celował gracz.
+func _wall_candidates(c: Vector2i, kind: int) -> Array[Rect2i]:
+	var tapped := Rect2i(c, Vector2i.ONE)
+	if wall_links(c, kind) >= 2:
+		return [tapped]
+	for d: Vector2i in [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP]:
+		var n := c + d
+		if wall_links(n, kind) >= 2 and can_place(Rect2i(n, Vector2i.ONE), kind):
+			return [Rect2i(n, Vector2i.ONE), tapped]
+	return [tapped]
+
+
+## Wolna luka w linii umocnień tuż przy punkcie `pos` (piksele świata), w którą da się postawić
+## odcinek `kind`, albo (-1, -1). Liczy się luka sąsiadująca z dotkniętą kratką, gdy punkt leży
+## najwyżej `tolerance` px od wspólnej krawędzi; wygrywa najbliższa. Dzięki temu palec, który
+## w wąskiej luce trafił w sąsiedni odcinek, stawia odcinek w luce zamiast zaznaczać sąsiada.
+func gap_near(pos: Vector2, kind: int, tolerance: int) -> Vector2i:
+	var cell := TerrainMap.CELL
+	var c := Vector2i((pos / cell).floor())
+	var local := pos - Vector2(c * cell)
+	var dist: Array[float] = [local.y, cell - local.x, cell - local.y, local.x]  # N, E, S, W
+	var dirs: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
+	var best := Vector2i(-1, -1)
+	var best_dist := float(tolerance)
+	for i in dirs.size():
+		var n := c + dirs[i]
+		if dist[i] > best_dist or building_at(n) != 0:
+			continue
+		if wall_links(n, kind) >= 2 and can_place(Rect2i(n, Vector2i.ONE), kind):
+			best = n
+			best_dist = dist[i]
+	return best
+
+
+## Z iloma sąsiednimi budynkami połączyłby się odcinek umocnienia `kind` postawiony na kratce `c`.
+func wall_links(c: Vector2i, kind: int) -> int:
+	var n := 0
+	for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+		var other := building_at(c + d)
+		if other == 0 or not BuildingTypes.connects(kind, kinds[other]):
+			continue
+		# z bramą łączy się tylko odcinek leżący na jej osi
+		if kinds[other] == BuildingTypes.Kind.GATE and (d.x == 0) != is_vertical(other):
+			continue
+		n += 1
+	return n
 
 
 ## Czy budynek stoi pionowo (dłuższy w osi y), np. brama w pionowej linii palisady.
