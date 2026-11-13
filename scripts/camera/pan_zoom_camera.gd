@@ -15,6 +15,8 @@ const PINCH_STEP := 1.4
 
 var world_size := Vector2i(512, 512)
 var zoom_level := 1
+## Rozmiar widoku podany z zewnątrz (testy bez drzewa sceny). Zero oznacza rozmiar viewportu.
+var view_size_override := Vector2.ZERO
 
 var _center := Vector2.ZERO
 var _touches: Dictionary[int, Vector2] = {}
@@ -98,6 +100,11 @@ func _on_touch(e: InputEventScreenTouch) -> void:
 		if not _dragging and not _multi_touch:
 			tapped.emit(screen_to_world(e.position))
 	elif _touches.size() == 1:
+		# po szczypaniu pozostały palec od razu przesuwa kamerę; _dragging = true, żeby
+		# podniesienie go bez ruchu nie zostało uznane za tap (nie stawia budynku)
+		_multi_touch = false
+		_dragging = true
+		_press_pos = _touches.values()[0] as Vector2
 		_pinch_dist = 0.0
 
 
@@ -141,6 +148,8 @@ func _finger_midpoint() -> Vector2:
 
 
 func _view_size() -> Vector2:
+	if view_size_override != Vector2.ZERO:
+		return view_size_override
 	return get_viewport_rect().size
 
 
