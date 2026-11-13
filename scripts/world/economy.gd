@@ -28,8 +28,8 @@ static func rates(grid: BuildGrid) -> Array[int]:
 		return out
 	for id: int in grid.buildings:
 		var entry: Array = EconomyConfig.BUILDING_PRODUCTION.get(grid.kinds[id], [])
-		if entry.is_empty():
-			continue
+		if entry.is_empty() or grid.levels[id] < 1:
+			continue  # plac budowy jeszcze nic nie produkuje
 		var res: int = entry[0]
 		var per_level: Array = entry[1]
 		out[res] += per_level[clampi(grid.levels[id], 1, per_level.size()) - 1] as int

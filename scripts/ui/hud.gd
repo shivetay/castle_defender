@@ -1,8 +1,9 @@
 class_name Hud
 extends Node2D
-## Interfejs nad mapą (nie przesuwa się z kamerą). U góry: surowce oraz seed, zoom i FPS.
-## Nad dolnym paskiem komunikatu: pasek wyboru budynku albo karta zaznaczonego budynku
-## (poziom, Ulepsz, Rozbierz, Zamknij). Dotknięcia przycisków nie trafiają do kamery.
+## Interfejs nad mapą (nie przesuwa się z kamerą). U góry: surowce, a z prawej czas budowy
+## (gdy kolejka pracuje) albo zoom i FPS. Nad dolnym paskiem komunikatu: pasek wyboru budynku
+## albo karta zaznaczonego budynku (stan, Ulepsz, Rozbierz lub Anuluj, Zamknij).
+## Dotknięcia przycisków nie trafiają do kamery.
 
 signal kind_selected(kind: int)
 signal upgrade_pressed
@@ -15,6 +16,7 @@ const BAR_H := 12
 const BUTTON_SIZE := Vector2(56, 14)
 const BUTTON_GAP := 4
 const CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Zamknij"]
+const CANCEL_LABEL := "Anuluj"
 
 var camera: PanZoomCamera
 var economy: Economy
@@ -23,7 +25,14 @@ var message := "Wybierz budynek i dotknij trawy"
 var selected_kind := 0
 ## Karta budynku: widoczna, gdy card_title nie jest pusty.
 var card_title := ""
-var card_level := 0
+## Tekst z prawej strony karty, np. „poziom 2/5” albo „w budowie 0:42”.
+var card_status := ""
+var card_can_upgrade := true
+## Środkowy przycisk: Rozbierz, a dla budynku w kolejce Anuluj.
+var card_cancel := false
+var card_middle_enabled := true
+## Czas budowy w prawym górnym rogu; pusty, gdy kolejka stoi.
+var queue_text := ""
 var _pressed := -1
 
 
@@ -31,9 +40,34 @@ func _process(_delta: float) -> void:
 	queue_redraw()
 
 
-func show_card(title: String, level: int) -> void:
+func show_card(title: String, status: String, can_upgrade: bool, cancel: bool, middle_enabled: bool) -> void:
 	card_title = title
-	card_level = level
+	card_status = status
+	card_can_upgrade = can_upgrade
+	card_cancel = cancel
+	card_middle_enabled = middle_enabled
+
+
+## Czas w formacie m:ss albo h:mm:ss, zaokrąglony w górę do pełnej sekundy.
+static func format_time(ms: int) -> String:
+	@warning_ignore("integer_division")
+	var s := (maxi(0, ms) + 999) / 1000
+	@warning_ignore("integer_division")
+	var h := s / 3600
+	@warning_ignore("integer_division")
+	var m := (s % 3600) / 60
+	if h > 0:
+		return "%d:%02d:%02d" % [h, m, s % 60]
+	return "%d:%02d" % [m, s % 60]
+
+
+## Koszt jako tekst, np. „120 Dr 40 Ka 40 Ży” (pomija zera).
+static func cost_text(cost: Array[int]) -> String:
+	var parts: PackedStringArray = []
+	for res in cost.size():
+		if cost[res] > 0:
+			parts.append("%d %s" % [cost[res], EconomyConfig.SHORT_NAMES[res]])
+	return " ".join(parts)
 
 
 func hide_card() -> void:
@@ -70,7 +104,7 @@ static func resource_layout(amounts: Array[int], left: int) -> Array[int]:
 
 ## Przyciski paska budynków: rząd wyśrodkowany nad paskiem komunikatu, z dala od krawędzi.
 static func toolbar_rects(view: Vector2) -> Array[Rect2]:
-	return _row(view, BuildingTypes.count())
+	return _row(view, BuildingTypes.buildable_count())
 
 
 ## Przyciski karty budynku (Ulepsz, Rozbierz, Zamknij) w tym samym miejscu co pasek.
@@ -138,7 +172,7 @@ func _draw() -> void:
 	if economy != null:
 		_draw_resources()
 	var zoom := camera.zoom_level if camera != null else 1
-	var info := "%d×  %d FPS" % [zoom, Engine.get_frames_per_second()]
+	var info := queue_text if not queue_text.is_empty() else "%d×  %d FPS" % [zoom, Engine.get_frames_per_second()]
 	PixelFont.draw_right(self, view.x - 4, 1, info, Palette.INK)
 
 	var rects := _current_rects()
@@ -146,12 +180,13 @@ func _draw() -> void:
 		var r0 := rects[0]
 		var panel := Rect2(r0.position - Vector2(4, 16), Vector2(rects[-1].end.x - r0.position.x + 8, r0.size.y + 20))
 		draw_rect(panel, Color(Palette.SHADOW, 0.85))
-		var lv := "poziom %d/%d" % [card_level, BuildingTypes.MAX_LEVEL]
 		PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
-		PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, lv, Palette.THATCH[2])
+		PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])
 		for i in rects.size():
-			var disabled := i == CardButton.UPGRADE and card_level >= BuildingTypes.MAX_LEVEL
-			_draw_button(rects[i], CARD_LABELS[i], i == _pressed, disabled)
+			var label := CANCEL_LABEL if i == CardButton.DEMOLISH and card_cancel else CARD_LABELS[i]
+			var disabled := (i == CardButton.UPGRADE and not card_can_upgrade) \
+					or (i == CardButton.DEMOLISH and not card_middle_enabled)
+			_draw_button(rects[i], label, i == _pressed, disabled)
 	else:
 		for i in rects.size():
 			_draw_button(rects[i], BuildingTypes.SHORT_NAMES[i], i == selected_kind or i == _pressed, false)

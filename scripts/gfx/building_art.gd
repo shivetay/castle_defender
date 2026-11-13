@@ -11,7 +11,7 @@ extends RefCounted
 
 const CELL := 8
 ## Ile pikseli budynek wystaje ponad swoje kratki (stałe dla rodzaju, niezależne od poziomu).
-const EXTRA: Array[int] = [4, 4, 12, 20, 10]
+const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10]
 
 
 ## Rozmiar obrazu. `vertical` obraca obrys budynku (brama w pionowej linii palisady).
@@ -23,10 +23,14 @@ static func image_size(kind: int, vertical: bool = false) -> Vector2i:
 
 
 ## Obraz budynku. `mask` ma znaczenie tylko dla wału i palisady, `vertical` tylko dla bramy.
+## Poziom 0 to plac budowy (stan nie ma wtedy znaczenia).
 static func make_image(kind: int, level: int, state: int, mask: int = 0, vertical: bool = false) -> Image:
 	var v := vertical and kind == BuildingTypes.Kind.GATE
 	var sz := image_size(kind, v)
 	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
+	if level <= 0:
+		_draw_site(img, kind, mask)
+		return img
 	var lv := clampi(level, 1, BuildingTypes.MAX_LEVEL)
 	match kind:
 		BuildingTypes.Kind.RAMPART:
@@ -42,6 +46,8 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 			_draw_tower(img, lv)
 		BuildingTypes.Kind.LUMBER_HUT:
 			_draw_hut(img, lv)
+		BuildingTypes.Kind.MANOR:
+			_draw_manor(img, lv)
 	_apply_state(img, kind, state, mask)
 	return img
 
@@ -405,6 +411,73 @@ static func _draw_hut(img: Image, level: int) -> void:
 	if level == 5:
 		_log_pile(img, Rect2i(12, base - 5, 4, 2))
 		PixelCanvas.draw_flag(img, Vector2i(cx - 1, wall.position.y - 8), 5, Palette.ACCENT)
+
+
+## Dwór (2×2), siedziba władcy i poziom zamku. Poziomy: 1 izba z bali pod strzechą,
+## 2 ze szkieletem belek i oknem, 3 wyższy z drugim oknem, 4 z daszkiem nad wejściem,
+## 5 z flagą na szczycie i tarczami na ścianie.
+static func _draw_manor(img: Image, level: int) -> void:
+	var base := 13 + EXTRA[BuildingTypes.Kind.MANOR]
+	PixelCanvas.rect(img, Rect2i(0, base + 1, 16, 1), Color(Palette.SHADOW, 0.5))
+	var wall_h := 8 if level < 3 else 10
+	var wall := Rect2i(1, base - wall_h + 1, 14, wall_h)
+	PixelCanvas.draw_log_wall(img, wall, Palette.WOOD, 13)
+	if level >= 2:
+		PixelCanvas.draw_beams(img, wall, Palette.WOOD[0])
+		PixelCanvas.draw_window(img, Vector2i(3, base - 6))
+	if level >= 3:
+		PixelCanvas.draw_window(img, Vector2i(11, base - 6))
+	PixelCanvas.draw_door(img, Rect2i(6, base - 4, 4, 5))
+	PixelCanvas.draw_roof(img, 8, wall.position.y - 7, 2, 7, Palette.THATCH)
+	if level >= 4:
+		PixelCanvas.draw_roof(img, 8, base - 7, 4, 2, Palette.THATCH)
+	if level == 5:
+		PixelCanvas.draw_flag(img, Vector2i(7, wall.position.y - 8), 3, Palette.ACCENT)
+		for x: int in [2, 12]:
+			PixelCanvas.rect(img, Rect2i(x, base - 3, 2, 3), Palette.ACCENT)
+			PixelCanvas.px(img, x + 1, base - 1, Palette.WOOD[0])
+
+
+# --- Plac budowy -----------------------------------------------------------------------------
+
+## Plac budowy (poziom 0): ubita ziemia na kratkach budynku, belki fundamentu po obwodzie,
+## rusztowanie z dwóch słupów z poprzeczkami i stos bali. Umocnienia dostają ziemię na kształcie
+## odcinka i rzadkie paliki, więc plac budowy też łączy się z sąsiadami.
+static func _draw_site(img: Image, kind: int, mask: int) -> void:
+	var ex: int = EXTRA[kind]
+	if BuildingTypes.is_wall(kind):
+		var f := wall_shape(mask, wall_thickness(kind))
+		for y in CELL:
+			for x in CELL:
+				if not _on(f, x, y):
+					continue
+				PixelCanvas.px(img, x, y + ex, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
+				if (x + 2 * y) % 5 == 0:
+					PixelCanvas.px(img, x, y + ex - 1, Palette.WOOD[2])
+					PixelCanvas.px(img, x, y + ex - 2, Palette.WOOD[3])
+		return
+	var sz := img.get_size()
+	var lot := Rect2i(1, ex + 1, sz.x - 2, sz.y - ex - 2)
+	for y in range(lot.position.y, lot.end.y):
+		for x in range(lot.position.x, lot.end.x):
+			var edge := x == lot.position.x or x == lot.end.x - 1 or y == lot.position.y or y == lot.end.y - 1
+			var col := PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1])
+			if edge:
+				col = Palette.WOOD[1] if (x + y) % 3 != 0 else Palette.WOOD[0]
+			PixelCanvas.px(img, x, y, col)
+	# rusztowanie: rama z dwóch słupów z tyłu placu, wystająca ponad kratki, z poprzeczkami
+	var foot := lot.position.y + 2
+	var height := mini(10, foot)
+	var left := lot.position.x + 1
+	var right := lot.end.x - 2
+	for i in height:
+		PixelCanvas.px(img, left, foot - i, Palette.WOOD[3])
+		PixelCanvas.px(img, right, foot - i, Palette.WOOD[3])
+		if i % 3 == 1:
+			for x in range(left + 1, right):
+				PixelCanvas.px(img, x, foot - i, Palette.WOOD[1])
+	if right - left >= 6:
+		_log_pile(img, Rect2i(left + 2, lot.end.y - 3, 4, 2))
 
 
 ## Stos drewna od czoła: końce bali 2×2 (jasny słój, ciemna kora).

@@ -176,7 +176,8 @@ func test_texture_cache_reuses_textures() -> bool:
 	var d := tx.draw_building(BuildingTypes.Kind.TOWER, 2, BuildingTypes.State.INTACT, 0)
 	assert_true(c == d, "maska nie ma znaczenia dla wieży")
 	tx.warm_up()
-	assert_eq(tx.cached_count(), 2 * 5 * 16 + 3 * 5 + 5, "warm_up rysuje wszystkie całe warianty (z bramą pionową)")
+	# poziomy 0–5 (0 = plac budowy): wał i palisada w 16 maskach, brama w dwóch ułożeniach, wieża, chata, dwór
+	assert_eq(tx.cached_count(), 6 * (2 * 16 + 2 + 3), "warm_up rysuje wszystkie całe warianty i place budowy")
 	return true
 
 
@@ -348,4 +349,31 @@ func test_failed_gate_cursor_uses_vertical_shape() -> bool:
 	grid.place_kind(c, BuildingTypes.Kind.PALISADE)
 	assert_eq(grid.placement_candidates(c + Vector2i(0, 1), BuildingTypes.Kind.GATE)[0].size, Vector2i(1, 2),
 			"pod pionową palisadą pierwszy wariant bramy jest pionowy")
+	return true
+
+
+## Plac budowy (poziom 0) wygląda inaczej niż poziom 1, mieści się w obrazie budynku, używa palety
+## i nie wystaje ponad kratki wyżej niż rusztowanie.
+func test_construction_site() -> bool:
+	var allowed := _palette_set()
+	for kind in BuildingTypes.count():
+		for vertical: bool in ([false, true] if kind == BuildingTypes.Kind.GATE else [false]):
+			var site := BuildingArt.make_image(kind, 0, BuildingTypes.State.INTACT, 0b0110, vertical)
+			var built := BuildingArt.make_image(kind, 1, BuildingTypes.State.INTACT, 0b0110, vertical)
+			assert_eq(site.get_size(), built.get_size(), "rodzaj %d: plac ma rozmiar budynku" % kind)
+			assert_true(site.get_data() != built.get_data(), "rodzaj %d: plac różni się od poziomu 1" % kind)
+			assert_true(not site.is_invisible(), "rodzaj %d: plac jest widoczny" % kind)
+			for y in site.get_height():
+				for x in site.get_width():
+					var col := site.get_pixel(x, y)
+					if col.a > 0.0:
+						assert_true(allowed.has(Color(col, 1.0).to_rgba32()), "rodzaj %d: plac w palecie" % kind)
+	return true
+
+
+func test_manor_is_not_on_toolbar() -> bool:
+	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 1, "pasek bez Dworu")
+	assert_eq(BuildingTypes.Kind.MANOR, BuildingTypes.count() - 1, "Dwór jest ostatni")
+	assert_eq(Hud.toolbar_rects(Vector2(320, 180)).size(), BuildingTypes.buildable_count(), "przyciski paska")
+	assert_true(Hud.toolbar_rects(Vector2(320, 180))[-1].end.x <= 316, "pasek mieści się w 320 px")
 	return true

@@ -8,8 +8,9 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 Etapy 1 (szkielet, viewport 320×180, testowy APK), 2 (teren 64×64 z seeda, siatka budowy, kamera
 z gestami) i 3 (budynki epoki I: autotiling umocnień #6, pięć budynków z poziomami 1–5 #7) są zamknięte.
-Etap 4 (krok 4 planu MVP) to 4 stany zniszczeń budynków (#8), paleta epoki I zamknięta w 16 kolorach (#5)
-i ekonomia (#10). Zostają progresja: koszty, czasy i kolejka budowy (#11), a z #5 pomiar startu na telefonie.
+Etap 4 (krok 4 planu MVP) to 4 stany zniszczeń budynków (#8), paleta epoki I zamknięta w 16 kolorach (#5),
+ekonomia (#10) oraz progresja: koszty, czasy, kolejka budowy i Dwór jako poziom zamku (#11).
+Z #5 zostaje pomiar startu na telefonie.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -24,14 +25,24 @@ i ekonomia (#10). Zostają progresja: koszty, czasy i kolejka budowy (#11), a z 
   (16 wariantów). Ramiona dochodzą do krawędzi kratki, więc dowolny kształt łączy się bez dziur.
   Ściana i blanki rysują się osobno, a palisada ma ścianę wysoką na 4 px.
 - `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska,
-  pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 180 całych wariantów
-  (ok. 18 ms na komputerze).
+  pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 222 całe warianty i place budowy
+  (ok. 19 ms na komputerze, headless).
 - `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (2×1),
-  Wieża drewniana i Chata drwala (2×2). Wał łączy się z wałem, palisada z palisadą, bramą i wieżą.
+  Wieża drewniana, Chata drwala i Dwór (2×2). Wał łączy się z wałem, palisada z palisadą, bramą i wieżą.
+  Dwór stoi od startu na środku mapy, jest jeden, nie ma go na pasku budowy i nie da się go rozebrać.
   `state_for_hp(hp, max_hp)` wybiera stan z procentu wytrzymałości: od 76% cały, od 41% pęknięcia,
   od 1% wyrwa, 0 to gruz.
-- `scripts/world/build_grid.gd` (`BuildGrid`): rodzaj i poziom budynku, ulepszanie do poziomu 5,
+- `scripts/world/build_grid.gd` (`BuildGrid`): rodzaj i poziom budynku (0 = plac budowy), poziom Dworu,
   maski sąsiadów i stała kolejność rysowania (od tyłu do przodu).
+- `scripts/world/build_config.gd` (`BuildConfig`): koszty i czasy budowy w jednym pliku. Poziom 1:
+  Wał 10 Dr 10 Ży 5 s, Palisada 20 Dr 5 Ży 10 s, Brama 60 Dr 20 Ka 20 Ży 30 s, Wieża 120 Dr 40 Ka 40 Ży 60 s,
+  Chata 80 Dr 30 Ży 45 s. Poziomy 1–5 mnożą koszt ×1/×1,5/×2,5/×4/×6, a czas ×1/×3/×10/×30/×90.
+  Dwór 2–5: 300/200/200 10 min, 500/350/350 1 h, 750/550/550 4 h, 1000/800/800 12 h. Budynek nie może
+  mieć wyższego poziomu niż Dwór.
+- `scripts/world/build_queue.gd` (`BuildQueue`): jeden budowniczy i do 3 czekających zleceń. Koszt schodzi
+  przy zleceniu, nowy budynek od razu zajmuje kratki jako plac budowy, anulowanie oddaje cały koszt
+  (do pojemności magazynu), a rozbiórka gotowego budynku nic nie zwraca. Zlecenia kończą się po kolei
+  według zegara, także w tle, a ekonomia liczy się odcinkami między ukończeniami.
 - `scripts/world/economy_config.gd` (`EconomyConfig`): wszystkie liczby ekonomii w jednym pliku.
   Drewno, kamień, żywność i złoto. Start 500/300/300/50, magazyn 1000 każdego surowca, złoto bez
   limitu (docelowo waluta premium, przybywa tylko z łupu i PvE). Gród daje 20/h drewna, kamienia
@@ -42,10 +53,12 @@ i ekonomia (#10). Zostają progresja: koszty, czasy i kolejka budowy (#11), a z 
 - `scripts/gfx/pixel_icons.gd` (`PixelIcons`): ikony surowców 5×5 zapisane w kodzie jako wzory znaków
   (dwa bale, kamień, jabłko, moneta), kolory z palety, atlas w cache.
 - `scripts/ui/hud.gd`: u góry pasek surowców z ikonami (pełny magazyn ma dopisek „max” i kolor strzechy),
-  pasek wyboru budynku nad dolną krawędzią, a po dotknięciu budynku karta
-  z poziomem i przyciskami Ulepsz, Rozbierz, Zamknij (cele 56×14 px).
+  a z prawej czas budowy i liczba czekających zleceń. Nad budowanym budynkiem pasek postępu.
+  Pasek wyboru budynku nad dolną krawędzią pokazuje po wyborze koszt i czas. Po dotknięciu budynku
+  karta z poziomem albo czasem budowy i przyciskami Ulepsz, Rozbierz (Anuluj dla zlecenia), Zamknij
+  (cele 56×14 px).
 
-Ulepszanie jest na razie darmowe i natychmiastowe. Koszty, czasy i kolejka budowy to #11.
+Wymagania technologii dojdą z badaniami (#12).
 Zapis na dysk dojdzie w #13: do tego czasu zamknięcie aplikacji (nie tylko zejście do tła) zaczyna grę od nowa.
 
 Do ręcznego testu na telefonie: czy przyciski paska i karty łatwo trafić, czy budowa długiego wału
@@ -144,6 +157,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 4, ciąg dalszy: progresja (#11): tabela kosztów i czasów poziomów 1–5, kolejka budowy
-i wymagania. Koszty pobiera już `Economy.spend`. Potem reszta HUD-u: przyciski Buduj
-i Oblężenie (#9; ikony surowców już są). Kolejność potwierdza właściciel.
+Etap 4 jest zamknięty po scaleniu #11. Etap 5 wybiera właściciel. Najbliżej obecnego stanu są:
+reszta HUD-u, czyli przyciski Buduj i Oblężenie (#9, ikony surowców już są), zapis lokalny (#13),
+dzięki któremu budowa i produkcja przetrwają zamknięcie aplikacji, oraz badania (#12).
