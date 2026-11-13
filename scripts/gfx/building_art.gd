@@ -30,9 +30,9 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 	var lv := clampi(level, 1, BuildingTypes.MAX_LEVEL)
 	match kind:
 		BuildingTypes.Kind.RAMPART:
-			_draw_rampart(img, lv, mask)
+			_draw_rampart(img, lv, mask, state)
 		BuildingTypes.Kind.PALISADE:
-			_draw_palisade(img, lv, mask)
+			_draw_palisade(img, lv, mask, state)
 		BuildingTypes.Kind.GATE:
 			if v:
 				_draw_gate_vertical(img, lv)
@@ -42,7 +42,7 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 			_draw_tower(img, lv)
 		BuildingTypes.Kind.LUMBER_HUT:
 			_draw_hut(img, lv)
-	_apply_state(img, kind, state)
+	_apply_state(img, kind, state, mask)
 	return img
 
 
@@ -71,6 +71,46 @@ static func _on(f: PackedByteArray, x: int, y: int) -> bool:
 	return x >= 0 and y >= 0 and x < CELL and y < CELL and f[y * CELL + x] == 1
 
 
+## Grubość odcinka umocnienia na ziemi w pikselach.
+static func wall_thickness(kind: int) -> int:
+	return 4 if kind == BuildingTypes.Kind.RAMPART else 2
+
+
+## Wysokość ściany w każdym pikselu kształtu: pełna `h`, a przy wyrwie niższa w blokach 2×2
+## wybranych przez hash2. Blok w środku kratki pęka zawsze, więc wyrwa jest widoczna w każdym
+## wariancie autotilingu. Wzór zależy tylko od położenia w kratce, więc odcinki dalej się łączą.
+## Gdy odcinek ciągnie się na południe, wyrwa nie schodzi poniżej wierzchu ostatniego wiersza,
+## bo pod nim zaczyna się już obraz sąsiedniej kratki.
+static func _wall_heights(kind: int, f: PackedByteArray, mask: int, h: int, state: int) -> PackedInt32Array:
+	var hm := PackedInt32Array()
+	hm.resize(CELL * CELL)
+	for y in CELL:
+		for x in CELL:
+			if not _on(f, x, y):
+				continue
+			var drop := 0
+			if state == BuildingTypes.State.BREACHED:
+				var bx := x >> 1
+				var by := y >> 1
+				if (bx == 2 and by == 2) or (bx == 1 and by == 1) or PixelCanvas.hash2(bx, by, 17 + kind) % 3 == 0:
+					drop = mini(h, 1 + PixelCanvas.hash2(x, y, 23 + kind) % 2 + (1 if h >= 4 else 0))
+				if mask & BuildingTypes.S != 0:
+					drop = mini(drop, CELL - 1 - y)
+			hm[y * CELL + x] = h - drop
+	return hm
+
+
+## Wysokość umocnienia tuż na południe od piksela, do której schodzi jego czoło: 0, gdy przed
+## nim jest ziemia, wysokość sąsiada w kształcie, albo pełna `h`, gdy odcinek ciągnie się w kratce
+## poniżej (tamta kratka rysuje się osobno).
+static func _south_height(f: PackedByteArray, hm: PackedInt32Array, mask: int, x: int, y: int, h: int) -> int:
+	if y == CELL - 1:
+		return h if mask & BuildingTypes.S != 0 else 0
+	if _on(f, x, y + 1):
+		return mini(hm[(y + 1) * CELL + x], hm[y * CELL + x])
+	return 0
+
+
 ## Czy piksel kształtu ma widoczne czoło (od południa nie ma dalszej części umocnienia).
 static func _has_face(f: PackedByteArray, mask: int, x: int, y: int) -> bool:
 	if y == CELL - 1 and mask & BuildingTypes.S != 0:
@@ -87,20 +127,22 @@ static func _is_crest(f: PackedByteArray, mask: int, x: int, y: int) -> bool:
 
 ## Wał ziemny: nasyp z ditheringiem 2×2. Poziomy: 1 goła ziemia, 2 wyższy i zarośnięty,
 ## 3 z suchą fosą, 4 z palikami na koronie, 5 z płotem na koronie.
-static func _draw_rampart(img: Image, level: int, mask: int) -> void:
-	var t := 4
+static func _draw_rampart(img: Image, level: int, mask: int, state: int) -> void:
+	var kind := BuildingTypes.Kind.RAMPART
 	var h := 2 if level == 1 else 3
-	var ex: int = EXTRA[BuildingTypes.Kind.RAMPART]
+	var ex: int = EXTRA[kind]
+	var t := wall_thickness(kind)
 	var f := wall_shape(mask, t)
+	var hm := _wall_heights(kind, f, mask, h, state)
 	_wall_ground(img, f, mask, ex, level >= 3)
 	for y in CELL:
 		for x in CELL:
 			if not _on(f, x, y):
 				continue
-			var top := y + ex - h
-			if _has_face(f, mask, x, y):
-				for i in range(1, h + 1):
-					PixelCanvas.px(img, x, top + i, PixelCanvas.dither(x, top + i, Palette.EARTH[1], Palette.EARTH[2]))
+			var hh := hm[y * CELL + x]
+			var top := y + ex - hh
+			for i in range(1, hh - _south_height(f, hm, mask, x, y, h) + 1):
+				PixelCanvas.px(img, x, top + i, PixelCanvas.dither(x, top + i, Palette.EARTH[1], Palette.EARTH[2]))
 			# korona: ziemia albo darń przemieszana z ziemią; w biegu pionowym ciemniejsze zbocza
 			var grass := level >= 2
 			var a: Color = Palette.GRASS[3] if grass else Palette.EARTH[3]
@@ -109,13 +151,16 @@ static func _draw_rampart(img: Image, level: int, mask: int) -> void:
 			var lo := (CELL - t) / 2
 			if (y < lo or y >= lo + t) and (x == lo or x == lo + t - 1):
 				col = Palette.EARTH[2] if x == lo else Palette.EARTH[1]
+			if hh < h:
+				# dno wyrwy: rozkopana ziemia bez darni
+				col = PixelCanvas.dither(x, y, Palette.EARTH[1], Palette.EARTH[0])
 			PixelCanvas.px(img, x, top, col)
 	# blanki: paliki (poziom 4) albo płot (poziom 5) na północnym skraju korony
 	if level < 4:
 		return
 	for y in CELL:
 		for x in CELL:
-			if not (_on(f, x, y) and _is_crest(f, mask, x, y)):
+			if not (_on(f, x, y) and _is_crest(f, mask, x, y)) or hm[y * CELL + x] < h:
 				continue
 			var top := y + ex - h
 			if level == 4:
@@ -130,11 +175,13 @@ static func _draw_rampart(img: Image, level: int, mask: int) -> void:
 ## Palisada: pale 2 px grubości, ściana wysoka na 4 px. Poziomy: 1 płaskie pale,
 ## 2 zaostrzone (blanki), 3 z belką spinającą, 4 na ziemnym podsypaniu, 5 z żelazną obręczą
 ## i wyższymi ostrzami.
-static func _draw_palisade(img: Image, level: int, mask: int) -> void:
-	var t := 2
+static func _draw_palisade(img: Image, level: int, mask: int, state: int) -> void:
+	var kind := BuildingTypes.Kind.PALISADE
 	var h := 4
-	var ex: int = EXTRA[BuildingTypes.Kind.PALISADE]
+	var ex: int = EXTRA[kind]
+	var t := wall_thickness(kind)
 	var f := wall_shape(mask, t)
+	var hm := _wall_heights(kind, f, mask, h, state)
 	var lo := (CELL - t) / 2
 	var hi := lo + t
 	_wall_ground(img, f, mask, ex, false)
@@ -144,27 +191,31 @@ static func _draw_palisade(img: Image, level: int, mask: int) -> void:
 		for x in CELL:
 			if not _on(f, x, y):
 				continue
-			var top := y + ex - h
-			if _has_face(f, mask, x, y):
-				for i in range(1, h + 1):
-					var col: Color = Palette.WOOD[2] if x % 2 == 0 else Palette.WOOD[1]
-					if i == h:
-						col = Palette.WOOD[0]
-					elif level >= 3 and i == 2:
-						col = Palette.SHADOW if level == 5 else Palette.WOOD[0]
-					PixelCanvas.px(img, x, top + i, col)
+			var hh := hm[y * CELL + x]
+			var top := y + ex - hh
+			# czoło od wierzchu w dół; przy wyrwie także bok wyższego pala nad niższym sąsiadem
+			for i in range(1, hh - _south_height(f, hm, mask, x, y, h) + 1):
+				var col: Color = Palette.WOOD[2] if x % 2 == 0 else Palette.WOOD[1]
+				if i == hh:
+					col = Palette.WOOD[0]
+				elif level >= 3 and i == 2 and hh == h:
+					col = Palette.SHADOW if level == 5 else Palette.WOOD[0]
+				PixelCanvas.px(img, x, top + i, col)
 			# wierzch pali: w biegu pionowym pale idą wzdłuż y, w poziomym wzdłuż x
 			var vertical := y < lo or y >= hi
 			var stake := y if vertical else x
 			var top_col: Color = Palette.WOOD[3] if stake % 2 == 0 else Palette.WOOD[2]
 			if vertical and x == hi - 1:
 				top_col = Palette.WOOD[1]
+			if hh < h:
+				# złamany pal: ciemny, postrzępiony wierzch
+				top_col = Palette.WOOD[0] if (x + y) % 2 == 0 else Palette.SHADOW
 			PixelCanvas.px(img, x, top, top_col)
 	if level < 2:
 		return
 	for y in CELL:
 		for x in CELL:
-			if _on(f, x, y) and _is_crest(f, mask, x, y) and x % 2 == 0:
+			if _on(f, x, y) and _is_crest(f, mask, x, y) and x % 2 == 0 and hm[y * CELL + x] == h:
 				var top := y + ex - h
 				PixelCanvas.px(img, x, top - 1, Palette.WOOD[3])
 				if level == 5:
@@ -372,25 +423,165 @@ static func _log_pile(img: Image, r: Rect2i) -> void:
 
 # --- Stan ---------------------------------------------------------------------------------
 
-## Uszkodzenia: ciemne dziury i osmalenia z hash2. Zniszczenie: zostaje dolna część
-## z rumowiskiem. Wzór jest deterministyczny, więc ten sam stan zawsze wygląda tak samo.
-static func _apply_state(img: Image, kind: int, state: int) -> void:
-	if state == BuildingTypes.State.INTACT:
-		return
+## Cztery stany zniszczeń. Pęknięcia: ciemne rysy z hash2. Wyrwa: pęknięcia plus wyłom
+## w sylwetce (w umocnieniach rysuje go już _wall_heights). Gruz: zostaje rumowisko na kratkach
+## budynku. Wzór jest deterministyczny, więc ten sam stan zawsze wygląda tak samo.
+static func _apply_state(img: Image, kind: int, state: int, mask: int) -> void:
+	match state:
+		BuildingTypes.State.CRACKED:
+			_draw_cracks(img, kind)
+		BuildingTypes.State.BREACHED:
+			if not BuildingTypes.is_wall(kind):
+				_carve_breach(img, kind)
+			_draw_cracks(img, kind)
+		BuildingTypes.State.RUBBLE:
+			if BuildingTypes.is_wall(kind):
+				_wall_rubble(img, kind, mask)
+			else:
+				_building_rubble(img, kind)
+
+
+static func _opaque(img: Image, x: int, y: int) -> bool:
+	return img.get_pixel(x, y).a == 1.0
+
+
+## Górny nieprzezroczysty piksel kolumny albo -1 dla pustej kolumny.
+static func _column_top(img: Image, x: int) -> int:
+	for y in img.get_height():
+		if _opaque(img, x, y):
+			return y
+	return -1
+
+
+## Rysy: od punktu w górnej połowie kolumny w dół, co krok o piksel w bok albo prosto.
+## Malują tylko istniejące piksele budynku, więc nie wychodzą poza jego sylwetkę.
+static func _draw_cracks(img: Image, kind: int) -> void:
 	var sz := img.get_size()
-	var foot_h := sz.y - EXTRA[kind]
-	var keep_row := sz.y - foot_h / 2 - 3
-	var rubble_row := sz.y - 4
-	for y in sz.y:
-		for x in sz.x:
-			var h := PixelCanvas.hash2(x, y, 91 + kind) % 7
-			if img.get_pixel(x, y).a == 0.0:
-				if state == BuildingTypes.State.RUINED and y >= rubble_row and h < 2:
-					img.set_pixel(x, y, Palette.EARTH[1] if h == 0 else Palette.WOOD[0])
-				continue
-			if state == BuildingTypes.State.RUINED and y < keep_row:
-				img.set_pixel(x, y, Color(Palette.SHADOW, 0.0))
-			elif h == 0:
+	var wall := BuildingTypes.is_wall(kind)
+	var count := 2 if wall else 3
+	var length := 3 if wall else 6
+	for n in count:
+		var x := PixelCanvas.hash2(n, 7, 51 + kind) % sz.x
+		var top := -1
+		for i in sz.x:
+			top = _column_top(img, (x + i) % sz.x)
+			if top >= 0:
+				x = (x + i) % sz.x
+				break
+		if top < 0:
+			return
+		var y := top + 1 + PixelCanvas.hash2(n, 8, 51 + kind) % (2 if wall else 5)
+		for step in length:
+			if x >= 0 and x < sz.x and y < sz.y and _opaque(img, x, y):
 				img.set_pixel(x, y, Palette.SHADOW)
-			elif h == 1:
-				img.set_pixel(x, y, Palette.EARTH[1])
+			y += 1
+			x += PixelCanvas.hash2(n, step, 53 + kind) % 3 - 1
+
+
+## Dwa wyłomy w górnej krawędzi budynku (dach, blanki, szczyt słupów): kolumny ścięte o 4–6 px
+## z postrzępionym dnem i ciemną krawędzią przełomu. Wyłomy leżą w środkowej części sylwetki
+## i nie ścinają więcej niż połowy kolumny.
+static func _carve_breach(img: Image, kind: int) -> void:
+	var sz := img.get_size()
+	var tops := PackedInt32Array()
+	var bottoms := PackedInt32Array()
+	for x in sz.x:
+		var top := _column_top(img, x)
+		tops.append(top)
+		var bottom := top
+		if top >= 0:
+			for y in range(sz.y - 1, top - 1, -1):
+				if _opaque(img, x, y):
+					bottom = y
+					break
+		bottoms.append(bottom)
+	var span := _opaque_span(tops)
+	var inner := maxi(1, (span.y - span.x + 1) / 2)
+	for n in 2:
+		var w := 3 + PixelCanvas.hash2(n, 0, 41 + kind) % 2
+		var start := clampi(span.x + inner / 2 - 1 + PixelCanvas.hash2(n, 1, 41 + kind) % inner, 0, sz.x - w)
+		var depth := 4 + PixelCanvas.hash2(n, 2, 41 + kind) % 3
+		for x in range(start, start + w):
+			if tops[x] < 0:
+				continue
+			var d := mini(depth - PixelCanvas.hash2(x, n, 43 + kind) % 2, (bottoms[x] - tops[x]) / 2)
+			for y in range(tops[x], tops[x] + d):
+				img.set_pixel(x, y, Color(Palette.SHADOW, 0.0))
+			var edge := tops[x] + d
+			if d > 0 and _opaque(img, x, edge):
+				img.set_pixel(x, edge, Palette.SHADOW)
+
+
+## Barwy gruzu: ziemia dla wału, drewno z ziemią dla reszty.
+static func _rubble_color(kind: int, x: int, y: int) -> Color:
+	var h := PixelCanvas.hash2(x, y, 73 + kind)
+	if kind == BuildingTypes.Kind.RAMPART:
+		var earth: Array[Color] = [Palette.EARTH[0], Palette.EARTH[1], Palette.EARTH[2]]
+		return earth[h % earth.size()]
+	var debris: Array[Color] = [Palette.WOOD[0], Palette.WOOD[1], Palette.WOOD[2], Palette.EARTH[1], Palette.SHADOW]
+	return debris[h % debris.size()]
+
+
+## Gruz umocnienia: niski kopiec dokładnie na kształcie odcinka, więc rumowisko też się łączy
+## z sąsiadami. Z palisady sterczą kikuty pali.
+static func _wall_rubble(img: Image, kind: int, mask: int) -> void:
+	var ex: int = EXTRA[kind]
+	var f := wall_shape(mask, wall_thickness(kind))
+	img.fill(Color(Palette.SHADOW, 0.0))
+	for y in CELL:
+		for x in CELL:
+			if not _on(f, x, y):
+				continue
+			PixelCanvas.px(img, x, y + ex, _rubble_color(kind, x, y))
+			var h := PixelCanvas.hash2(x, y, 79 + kind) % 4
+			if h == 0:
+				PixelCanvas.px(img, x, y + ex - 1, _rubble_color(kind, x, y + 1))
+			elif h == 1 and kind == BuildingTypes.Kind.PALISADE and x % 2 == 0:
+				PixelCanvas.px(img, x, y + ex - 1, Palette.WOOD[1])
+				PixelCanvas.px(img, x, y + ex - 2, Palette.WOOD[0])
+
+
+## Pierwsza i ostatnia niepusta kolumna (x, y) według wierzchów kolumn.
+static func _opaque_span(tops: PackedInt32Array) -> Vector2i:
+	var span := Vector2i(-1, -1)
+	for x in tops.size():
+		if tops[x] >= 0:
+			if span.x < 0:
+				span.x = x
+			span.y = x
+	return span
+
+
+## Gruz budynku wielokratkowego: kopiec rumowiska przy froncie, najwyższy pośrodku, za nim
+## rozrzucone szczątki na kratkach budynku i kilka osmalonych kikutów belek. Zajmuje tylko
+## kolumny, w których stał budynek.
+static func _building_rubble(img: Image, kind: int) -> void:
+	var sz := img.get_size()
+	var tops := PackedInt32Array()
+	for x in sz.x:
+		tops.append(_column_top(img, x))
+	var span := _opaque_span(tops)
+	img.fill(Color(Palette.SHADOW, 0.0))
+	var ground: int = EXTRA[kind]
+	var front := sz.y - 2
+	for x in range(span.x, span.y + 1):
+		if tops[x] < 0:
+			continue
+		var heap := mini(5, 1 + mini(x - span.x, span.y - x) * 2 / 3) + PixelCanvas.hash2(x, 0, 75 + kind) % 2
+		var top := front - heap
+		for y in range(ground + 1, front + 1):
+			if y > top:
+				img.set_pixel(x, y, _rubble_color(kind, x, y))
+			elif y == top:
+				img.set_pixel(x, y, Palette.EARTH[3] if PixelCanvas.hash2(x, y, 76 + kind) % 3 == 0 else Palette.WOOD[2])
+			elif PixelCanvas.hash2(x, y, 71 + kind) % 4 == 0:
+				img.set_pixel(x, y, _rubble_color(kind, x, y))
+		PixelCanvas.px(img, x, front + 1, Color(Palette.SHADOW, 0.5))
+	for n in 3:
+		var x := span.x + PixelCanvas.hash2(n, 3, 77 + kind) % (span.y - span.x + 1)
+		if tops[x] < 0:
+			continue
+		var base := front - 2 - PixelCanvas.hash2(n, 4, 77 + kind) % 3
+		var height := 3 + PixelCanvas.hash2(n, 5, 77 + kind) % 3
+		for i in height:
+			img.set_pixel(x, base - i, Palette.WOOD[0] if i == height - 1 else Palette.WOOD[1])

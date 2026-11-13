@@ -110,7 +110,7 @@ func _input(event: InputEvent) -> void:
 func _draw() -> void:
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, 0, view.x, BAR_H), Color(Palette.SHADOW, 0.8))
-	PixelFont.draw_text(self, Vector2(4, 1), "Castle Defender · etap 3", Palette.INK)
+	PixelFont.draw_text(self, Vector2(4, 1), "Castle Defender · etap 4", Palette.INK)
 	var zoom := camera.zoom_level if camera != null else 1
 	var info := "seed %d  %d×  %d FPS" % [world_seed, zoom, Engine.get_frames_per_second()]
 	PixelFont.draw_right(self, view.x - 4, 1, info, Palette.INK)

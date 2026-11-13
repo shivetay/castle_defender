@@ -79,9 +79,8 @@ func test_render_is_deterministic_and_uses_palette() -> bool:
 	assert_eq(a.get_size(), Vector2i(512, 512), "rozmiar obrazu")
 	assert_eq(a.get_data(), b.get_data(), "ten sam seed, te same piksele")
 	var allowed := {}
-	for group: Array in [Palette.GRASS, Palette.EARTH, Palette.WOOD, Palette.WATER]:
-		for col: Color in group:
-			allowed[col.to_rgba32()] = true
+	for col: Color in Palette.AGE_I:
+		allowed[col.to_rgba32()] = true
 	var outside := 0
 	for y in range(0, a.get_height(), 3):
 		for x in range(0, a.get_width(), 3):
