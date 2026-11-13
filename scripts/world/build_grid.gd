@@ -1,7 +1,8 @@
 class_name BuildGrid
 extends RefCounted
 ## Zajętość kratek: który budynek stoi na której kratce. Budynek zajmuje prostokąt kratek,
-## ma rodzaj (`BuildingTypes.Kind`) i poziom 1..MAX_LEVEL.
+## ma rodzaj (`BuildingTypes.Kind`) i poziom 1..MAX_LEVEL. Poziom 0 to plac budowy: budynek
+## zajmuje już kratki, ale jeszcze nie działa (nie produkuje, rysuje się jako rusztowanie).
 ## Identyfikatory rosną od 1 (0 oznacza wolną kratkę) i nie są używane ponownie.
 
 var terrain: TerrainMap
@@ -30,14 +31,15 @@ func can_place(rect: Rect2i) -> bool:
 
 
 ## Stawia budynek i zwraca jego id albo 0, gdy miejsce jest niedozwolone.
-func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT) -> int:
+## Poziom 0 stawia plac budowy (kolejka budowy podnosi go potem do 1).
+func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int = 1) -> int:
 	if not can_place(rect):
 		return 0
 	var id := _next_id
 	_next_id += 1
 	buildings[id] = rect
 	kinds[id] = kind
-	levels[id] = 1
+	levels[id] = clampi(level, 0, BuildingTypes.MAX_LEVEL)
 	_fill(rect, id)
 	return id
 
@@ -45,11 +47,33 @@ func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT) -> int:
 ## Stawia budynek danego rodzaju na dotkniętej kratce `c`. Zwykle `c` to lewy górny róg.
 ## Brama staje pionowo (1×2), gdy obok jest pionowa palisada, i dosuwa się o kratkę wstecz,
 ## jeśli dotknięto dolnej albo prawej kratki luki w linii.
-func place_kind(c: Vector2i, kind: int) -> int:
+func place_kind(c: Vector2i, kind: int, level: int = 1) -> int:
 	for rect in placement_candidates(c, kind):
 		if can_place(rect):
-			return place(rect, kind)
+			return place(rect, kind, level)
 	return 0
+
+
+## Pierwsze miejsce, w które place_kind() postawiłby budynek dla kratki `c`, albo pusty prostokąt.
+func placement_for(c: Vector2i, kind: int) -> Rect2i:
+	for rect in placement_candidates(c, kind):
+		if can_place(rect):
+			return rect
+	return Rect2i()
+
+
+## Id Dworu albo 0, gdy go nie ma.
+func manor_id() -> int:
+	for id: int in kinds:
+		if kinds[id] == BuildingTypes.Kind.MANOR:
+			return id
+	return 0
+
+
+## Poziom zamku, czyli poziom Dworu (1, gdy Dworu nie ma albo jest w budowie).
+func manor_level() -> int:
+	var id := manor_id()
+	return maxi(1, levels[id]) if id != 0 else 1
 
 
 ## Prostokąty, które place_kind() próbuje po kolei dla dotkniętej kratki.
