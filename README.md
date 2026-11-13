@@ -70,6 +70,7 @@ i `CHANGELOG.md`.
 | Workflow | Kiedy | Co robi |
 |---|---|---|
 | `ci.yml` | każdy push i PR | wersja i changelog, import, kompilacja skryptów, test dymny, testy logiki |
+| `release.yml` | push na `main` | CI i debug APK jako artefakt (Actions → Wydanie → przebieg → Artifacts) |
 | `release.yml` | tag `vX.Y.Z` | CI, debug APK, GitHub Release z opisem z changelogu (APK do pobrania na telefon) |
 | `release.yml` (ręcznie) | Actions → Wydanie → Run workflow | samo debug APK jako artefakt, bez Release |
 | `dependabot.yml` | co miesiąc | PR z aktualizacjami akcji |
