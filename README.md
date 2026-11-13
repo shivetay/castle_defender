@@ -46,9 +46,10 @@ lokalny (#13). Z #5 zostaje pomiar startu na telefonie.
   (do pojemności magazynu), a rozbiórka gotowego budynku nic nie zwraca. Zlecenia kończą się po kolei
   według zegara, także w tle, a ekonomia liczy się odcinkami między ukończeniami.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
-  i miejscem na migracje). Zapisuje seed terenu, budynki, surowce i kolejkę budowy. Pisze najpierw do pliku
-  tymczasowego i trzyma kopię poprzedniego zapisu (`.bak`), więc przerwany zapis nie gubi gry. Zapis
-  nieczytelny albo z nowszej wersji gry jest odkładany obok (`.broken`), a nie nadpisywany.
+  i miejscem na migracje). Zapisuje seed terenu, budynki, surowce i kolejkę budowy. Pisze pełny plik
+  tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
+  głównym, więc na dysku zawsze leży co najmniej jeden pełny zapis. Nieczytelny plik główny jest
+  odkładany obok (`.broken`) i nie trafia do kopii; zapis z nowszej wersji gry też nie jest nadpisywany.
 - `scripts/world/economy_config.gd` (`EconomyConfig`): wszystkie liczby ekonomii w jednym pliku.
   Drewno, kamień, żywność i złoto. Start 500/300/300/50, magazyn 1000 każdego surowca, złoto bez
   limitu (docelowo waluta premium, przybywa tylko z łupu i PvE). Gród daje 20/h drewna, kamienia

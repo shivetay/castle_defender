@@ -113,6 +113,48 @@ func test_broken_main_file_falls_back_to_backup() -> bool:
 	return true
 
 
+## Scenariusz z review: urwany plik główny i dobra kopia → odczyt z kopii → zaraz zapis →
+## ponowny odczyt nadal widzi zamek. Zepsuty plik główny nie może trafić do .bak.
+func test_corrupt_main_then_save_keeps_good_backup() -> bool:
+	SaveGame.delete(PATH)
+	var c := _castle()
+	var d := SaveGame.to_dict(SEED, c[0], c[1], c[2])
+	SaveGame.write(PATH, d)
+	SaveGame.write(PATH, d)
+	var f := FileAccess.open(PATH, FileAccess.WRITE)
+	f.store_string("{ urwany")
+	f.close()
+	var s := SaveGame.load_state(PATH, T0)
+	assert_true(s != null, "stan z kopii")
+	assert_true(not FileAccess.file_exists(PATH), "zepsuty plik główny odłożony")
+	assert_eq(FileAccess.get_file_as_string(PATH + ".broken"), "{ urwany", "jako .broken")
+	assert_eq(SaveGame.write(PATH, SaveGame.to_dict(SEED, s.grid, s.economy, s.queue)), OK, "zapis po odczycie z kopii")
+	assert_true(SaveGame.read(PATH + ".bak").has("version"), "kopia nadal jest dobrym zapisem")
+	var again := SaveGame.load_state(PATH, T0)
+	assert_true(again != null, "ponowny odczyt widzi zamek, nie nową grę")
+	assert_eq(again.grid.buildings.size(), (c[0] as BuildGrid).buildings.size(), "wszystkie budynki")
+	SaveGame.delete(PATH)
+	return true
+
+
+## Awaria między zmianami nazw w write(): pliku głównego nie ma, pełny .tmp jest najnowszy.
+func test_crash_between_renames_reads_tmp() -> bool:
+	SaveGame.delete(PATH)
+	var c := _castle()
+	SaveGame.write(PATH, SaveGame.to_dict(SEED, c[0], c[1], c[2]))
+	(c[1] as Economy).add(R.GOLD, 5)
+	var newer := SaveGame.to_dict(SEED, c[0], c[1], c[2])
+	var f := FileAccess.open(PATH + ".tmp", FileAccess.WRITE)
+	f.store_string(JSON.stringify(newer))
+	f.close()
+	DirAccess.rename_absolute(PATH, PATH + ".bak")  # pierwsza zmiana nazwy zrobiona, druga nie
+	var s := SaveGame.load_state(PATH, T0)
+	assert_true(s != null, "stan odczytany")
+	assert_eq(s.economy.amounts[R.GOLD], (c[1] as Economy).amounts[R.GOLD], "z najnowszego .tmp")
+	SaveGame.delete(PATH)
+	return true
+
+
 ## Nieczytelny zapis bez kopii: nowa gra, a stary plik zostaje odłożony, nie nadpisany.
 func test_unreadable_save_is_set_aside() -> bool:
 	SaveGame.delete(PATH)

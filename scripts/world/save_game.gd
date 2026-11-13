@@ -1,10 +1,12 @@
 class_name SaveGame
 extends RefCounted
 ## Zapis lokalny stanu gry: JSON w user:// z numerem wersji formatu.
-## Zapis idzie najpierw do pliku tymczasowego, a dopiero potem zastępuje właściwy plik; poprzedni
-## zapis zostaje jako kopia (.bak). Przerwany zapis nie niszczy więc gry. Odczyt próbuje pliku
-## głównego, potem kopii. Zapis nieczytelny albo z nowszej wersji gry nie jest nadpisywany:
-## odkłada się go obok z dopiskiem, a gra zaczyna od nowa.
+## Zapis idzie najpierw do pliku tymczasowego (.tmp). Potem poprzedni plik główny przechodzi
+## w kopię (.bak), a .tmp staje się plikiem głównym; same zmiany nazw, bez kopiowania, więc
+## w każdej chwili na dysku leży co najmniej jeden pełny zapis. Odczyt próbuje pliku głównego,
+## pełnego .tmp (awaria między zmianami nazw) i kopii. Nieczytelny plik główny jest odkładany
+## obok (.broken), żeby następny zapis nie zrobił z niego kopii. Zapis z nowszej wersji gry
+## też nie jest nadpisywany, tylko odkładany, a gra zaczyna od nowa.
 ## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce i kolejkę.
 
 const FORMAT_VERSION := 1
@@ -68,7 +70,9 @@ static func migrate(data: Dictionary) -> Dictionary:
 	return d
 
 
-## Zapisuje stan do `path`: plik tymczasowy, kopia poprzedniego zapisu, podmiana.
+## Zapisuje stan do `path`: pełny plik tymczasowy, poprzedni plik główny → .bak, .tmp → plik główny.
+## Plik główny jest zawsze ostatnim udanym zapisem (nieczytelny odkłada load_state), więc kopia
+## dostaje dobry zapis, a nie „cokolwiek leży pod `path`”.
 static func write(path: String, data: Dictionary) -> Error:
 	var tmp := path + ".tmp"
 	var f := FileAccess.open(tmp, FileAccess.WRITE)
@@ -77,8 +81,11 @@ static func write(path: String, data: Dictionary) -> Error:
 	f.store_string(JSON.stringify(data, "\t"))
 	f.close()
 	if FileAccess.file_exists(path):
-		DirAccess.copy_absolute(path, path + ".bak")
-		DirAccess.remove_absolute(path)
+		# rename nie nadpisuje istniejącego pliku na każdej platformie, więc najpierw zwalniamy .bak
+		DirAccess.remove_absolute(path + ".bak")
+		var err := DirAccess.rename_absolute(path, path + ".bak")
+		if err != OK:
+			return err
 	return DirAccess.rename_absolute(tmp, path)
 
 
@@ -93,16 +100,21 @@ static func read(path: String) -> Dictionary:
 	return json.data as Dictionary if json.data is Dictionary else {}
 
 
-## Wczytuje stan gry z `path` albo, gdy się nie da, z kopii. Zwraca null, gdy zapisu nie ma
-## albo żaden plik nie jest czytelny; nieczytelny plik główny zostaje wtedy odłożony obok
-## (path + ".broken"), żeby nowa gra go nie nadpisała.
+## Wczytuje stan gry z `path`, a gdy się nie da, z pełnego .tmp albo z kopii. Nieczytelny plik
+## główny zostaje odłożony obok (path + ".broken"), także gdy stan udało się wczytać z innego
+## pliku: następny write() nie zrobi wtedy z niego kopii i nie zniszczy dobrego .bak.
+## Zwraca null, gdy zapisu nie ma albo żaden plik nie jest czytelny.
 static func load_state(path: String, now_ms: int) -> State:
-	for candidate: String in [path, path + ".bak"]:
-		var s := from_dict(read(candidate), now_ms)
+	var s := from_dict(read(path), now_ms)
+	if s != null:
+		return s
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path + ".broken")
+		DirAccess.rename_absolute(path, path + ".broken")
+	for candidate: String in [path + ".tmp", path + ".bak"]:
+		s = from_dict(read(candidate), now_ms)
 		if s != null:
 			return s
-	if FileAccess.file_exists(path):
-		DirAccess.rename_absolute(path, path + ".broken")
 	return null
 
 
