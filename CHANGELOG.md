@@ -1,13 +1,15 @@
 # Changelog
 
 Wszystkie istotne zmiany w grze. Format według [Keep a Changelog](https://keepachangelog.com/pl/1.1.0/),
-wersje według [SemVer](https://semver.org/lang/pl/): przed 1.0.0 numer `0.N.x` oznacza etap N planu MVP.
+wersje według [SemVer](https://semver.org/lang/pl/). Przed 1.0.0 wersje mają postać `0.x.y`, a numer
+kolejnego wydania wybiera właściciel.
 
 Każda zmiana trafia najpierw do sekcji „Nieopublikowane”, w podsekcji: Dodane, Zmienione,
 Naprawione, Usunięte. Wydanie tworzy `python3 tools/version.py bump ...` (szczegóły w README).
-Pierwsze wydanie (0.2.0) pojawi się razem z pierwszą funkcjonalnością gry, czyli w etapie 2.
 
 ## [Nieopublikowane]
+
+## [0.0.1] - 2026-11-13
 
 ### Dodane
 
@@ -31,6 +33,7 @@ Pierwsze wydanie (0.2.0) pojawi się razem z pierwszą funkcjonalnością gry, c
 
 - Godot 4.5 → 4.7 (sprawdzone na 4.7.2).
 - Scena startowa pokazuje widok zamku z etapu 2 zamiast statycznej sceny testowej z etapu 1.
+- `tools/version.py bump` przy pierwszym wydaniu pozwala opublikować bieżącą wersję bez podbijania numeru.
 
 ### Naprawione
 

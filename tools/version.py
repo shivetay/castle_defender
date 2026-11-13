@@ -10,7 +10,8 @@ Użycie:
   python3 tools/version.py current             wypisuje bieżącą wersję
   python3 tools/version.py check [--tag vX.Y.Z]  sprawdza zgodność (CI); z --tag także tag gita
   python3 tools/version.py bump patch|minor|major|X.Y.Z
-                                               przenosi "Nieopublikowane" do nowej sekcji i podbija wersję
+                                               przenosi "Nieopublikowane" do nowej sekcji i podbija wersję;
+                                               przy pierwszym wydaniu X.Y.Z może równać się bieżącej wersji
   python3 tools/version.py notes [X.Y.Z]       wypisuje opis wersji z changelogu (do GitHub Release)
 """
 from __future__ import annotations
@@ -136,10 +137,12 @@ def cmd_bump(what: str) -> None:
         new = f"{major}.{minor}.{patch + 1}"
     else:
         new = what
-    if version_code(new) <= version_code(old):
+    log = read(CHANGELOG)
+    first_release = not [s for s in sections(log) if s[0] != UNRELEASED]
+    # pierwsze wydanie może opublikować bieżącą wersję (np. 0.0.1) bez podbijania numeru
+    if version_code(new) < version_code(old) or (version_code(new) == version_code(old) and not first_release):
         fail(f"nowa wersja {new} musi być wyższa niż {old}")
 
-    log = read(CHANGELOG)
     body = section_body(log, UNRELEASED)
     if body is None:
         fail(f"CHANGELOG.md nie ma sekcji ## [{UNRELEASED}]")
