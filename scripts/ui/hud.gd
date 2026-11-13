@@ -1,37 +1,61 @@
 class_name Hud
 extends Node2D
-## Interfejs nad mapą (nie przesuwa się z kamerą). U góry: surowce, a z prawej czas budowy
-## (gdy kolejka pracuje) albo zoom i FPS. Nad dolnym paskiem komunikatu: pasek wyboru budynku
-## albo karta zaznaczonego budynku (stan, Ulepsz, Rozbierz lub Anuluj, Zamknij).
-## Dotknięcia przycisków nie trafiają do kamery.
+## Interfejs nad mapą (nie przesuwa się z kamerą), obsługiwany jednym kciukiem w poziomie.
+## U góry: surowce z ikonami, a z prawej czas budowy (gdy kolejka pracuje) oraz epoka i rok.
+## U dołu pasek komunikatu z FPS. Nad nim, zależnie od trybu:
+## - oglądanie: w lewym rogu Oblężenie, w prawym Buduj; dotknięcie budynku otwiera kartę,
+## - budowa: przewijany w poziomie pasek budynków i Gotowe w prawym rogu; dotknięcia mapy
+##   tylko stawiają budynki, niczego nie zaznaczają,
+## - karta budynku: stan oraz Ulepsz, Rozbierz (Anuluj dla zlecenia) i Zamknij, wyśrodkowane.
+## Dotknięcia przycisków i przewijanie paska nie trafiają do kamery.
 
 signal kind_selected(kind: int)
+signal build_mode_changed(building: bool)
+signal siege_pressed
 signal upgrade_pressed
 signal demolish_pressed
 signal card_closed
 
 enum CardButton { UPGRADE, DEMOLISH, CLOSE }
+## Cele dotyku: przyciski w rogach, przyciski karty i rodzaje budynków na pasku (KIND + rodzaj).
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, CARD = 100, KIND = 200 }
 
 const BAR_H := 12
-## Margines treści pasków od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów
-## ucinają ok. 10 px logicznych przy samej górze i dole, a Android nie zgłasza ich jako strefy
+## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
+## ok. 10 px logicznych przy samej górze i dole, a Android nie zgłasza ich jako strefy
 ## niebezpiecznej, więc margines jest stały; wycięcia (np. na kamerę) dokładają do niego.
 const CORNER_INSET := 12
-## Najszerszy komunikat, który mieści się w dolnym pasku na najwęższym ekranie (320 px).
-const MESSAGE_MAX_WIDTH := 320 - 2 * CORNER_INSET
-const BUTTON_SIZE := Vector2(56, 14)
+## Przycisk 56×22 px logicznych: przy typowym telefonie (skala 6, ok. 420 dpi) to ok. 50 dp
+## wysokości, czyli powyżej zalecanych 48 dp na cel dotyku.
+const BUTTON_SIZE := Vector2(56, 22)
 const BUTTON_GAP := 4
+## Miejsce na FPS z prawej strony paska komunikatu (do testów wydajności na telefonie).
+const FPS_WIDTH := 40
+## Najszerszy komunikat, który mieści się w dolnym pasku obok FPS na ekranie 320 px.
+const MESSAGE_MAX_WIDTH := 320 - 2 * CORNER_INSET - FPS_WIDTH
+## Przesunięcie palca, od którego dotknięcie paska budynków staje się przewijaniem.
+const DRAG_THRESHOLD := 6
 const CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Zamknij"]
 const CANCEL_LABEL := "Anuluj"
+const SIEGE_LABEL := "Oblężenie"
+const BUILD_LABEL := "Buduj"
+const DONE_LABEL := "Gotowe"
+## Komunikat w trybie oglądania i po dotknięciu wyszarzonego Oblężenia (bitwa dojdzie w #14).
+const VIEW_MESSAGE := "Dotknij budynku albo wybierz Buduj"
+const SIEGE_LATER_MESSAGE := "Oblężenia dojdą razem z bitwą"
+const ICON_GAP := 2
+const RESOURCE_GAP := 7
 
-var camera: PanZoomCamera
 var economy: Economy
-var world_seed := 0
-var message := "Wybierz budynek i dotknij trawy"
+var message := ""
+## Tryb budowy: pasek budynków zamiast przycisków Buduj i Oblężenie.
+var building := false
 var selected_kind := 0
+## Pierwszy rodzaj widoczny na przewijanym pasku budynków.
+var first_kind := 0
 ## Karta budynku: widoczna, gdy card_title nie jest pusty.
 var card_title := ""
-## Tekst z prawej strony karty, np. „poziom 2/5” albo „w budowie 0:42”.
+## Tekst z prawej strony karty, np. „poziom 2/5” albo „budowa 0:42”.
 var card_status := ""
 var card_can_upgrade := true
 ## Środkowy przycisk: Rozbierz, a dla budynku w kolejce Anuluj.
@@ -39,13 +63,26 @@ var card_cancel := false
 var card_middle_enabled := true
 ## Czas budowy w prawym górnym rogu; pusty, gdy kolejka stoi.
 var queue_text := ""
-var _pressed := -1
-
-
-## Lewa i prawa granica treści pasków w pikselach widoku (z marginesem narożników i wycięć).
+## Epoka i rok w prawym górnym rogu, np. „Epoka I · 550 r.”.
+var age_text := ""
+## Lewa i prawa granica treści w pikselach widoku (z marginesem narożników i wycięć).
 var content_left := float(CORNER_INSET)
 var content_right := 320.0 - CORNER_INSET
 
+var _pressed: int = Target.NONE
+var _drag_start := Vector2.ZERO
+var _drag_first := 0
+var _dragging := false
+
+
+func _process(_delta: float) -> void:
+	var bounds := content_bounds(get_viewport_rect().size, _safe_area_in_view())
+	content_left = bounds.x
+	content_right = bounds.y
+	queue_redraw()
+
+
+# --- Układ -----------------------------------------------------------------------------------
 
 ## Granice treści dla widoku `view` i strefy bezpiecznej `safe` (w pikselach widoku; pusta, gdy
 ## system jej nie podaje): nigdy bliżej krawędzi niż CORNER_INSET.
@@ -68,12 +105,75 @@ func _safe_area_in_view() -> Rect2:
 	return get_viewport().get_final_transform().affine_inverse() * safe
 
 
-func _process(_delta: float) -> void:
-	var bounds := content_bounds(get_viewport_rect().size, _safe_area_in_view())
-	content_left = bounds.x
-	content_right = bounds.y
-	queue_redraw()
+## Górna krawędź rzędu przycisków nad paskiem komunikatu.
+static func row_y(view: Vector2) -> float:
+	return view.y - BAR_H - BUTTON_SIZE.y - 4
 
+
+## Przycisk w lewym rogu (Oblężenie) i w prawym (Buduj albo Gotowe).
+static func left_corner_rect(view: Vector2, left: float) -> Rect2:
+	return Rect2(Vector2(left, row_y(view)), BUTTON_SIZE)
+
+
+static func right_corner_rect(view: Vector2, right: float) -> Rect2:
+	return Rect2(Vector2(right - BUTTON_SIZE.x, row_y(view)), BUTTON_SIZE)
+
+
+## Ile rodzajów budynków mieści się na pasku między lewą granicą a przyciskiem Gotowe.
+static func visible_kinds(left: float, right: float) -> int:
+	var area := right - BUTTON_SIZE.x - BUTTON_GAP - left
+	return clampi(int((area + BUTTON_GAP) / (BUTTON_SIZE.x + BUTTON_GAP)), 1, BuildingTypes.buildable_count())
+
+
+## Najdalsze przewinięcie paska (pierwszy widoczny rodzaj).
+static func max_first_kind(left: float, right: float) -> int:
+	return BuildingTypes.buildable_count() - visible_kinds(left, right)
+
+
+## Prostokąty widocznych miejsc na pasku budowy (od lewej). Miejsce `i` pokazuje rodzaj first_kind + i.
+static func kind_rects(view: Vector2, left: float, right: float) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for i in visible_kinds(left, right):
+		out.append(Rect2(Vector2(left + i * (BUTTON_SIZE.x + BUTTON_GAP), row_y(view)), BUTTON_SIZE))
+	return out
+
+
+## Przyciski karty budynku (Ulepsz, Rozbierz, Zamknij), wyśrodkowane nad paskiem komunikatu.
+static func card_rects(view: Vector2) -> Array[Rect2]:
+	var n := CARD_LABELS.size()
+	var total := n * BUTTON_SIZE.x + (n - 1) * BUTTON_GAP
+	var x := floorf((view.x - total) / 2.0)
+	var out: Array[Rect2] = []
+	for i in n:
+		out.append(Rect2(Vector2(x + i * (BUTTON_SIZE.x + BUTTON_GAP), row_y(view)), BUTTON_SIZE))
+	return out
+
+
+## Cel pod punktem `p` w danym stanie interfejsu.
+static func target_at(p: Vector2, view: Vector2, left: float, right: float, is_building: bool, card_open: bool,
+		first: int) -> int:
+	if card_open:
+		var i := hit(card_rects(view), p)
+		return Target.CARD + i if i >= 0 else Target.NONE
+	if right_corner_rect(view, right).has_point(p):
+		return Target.DONE if is_building else Target.BUILD
+	if is_building:
+		var k := hit(kind_rects(view, left, right), p)
+		return Target.KIND + first + k if k >= 0 else Target.NONE
+	if left_corner_rect(view, left).has_point(p):
+		return Target.SIEGE
+	return Target.NONE
+
+
+## Indeks prostokąta pod punktem albo -1.
+static func hit(rects: Array[Rect2], p: Vector2) -> int:
+	for i in rects.size():
+		if rects[i].has_point(p):
+			return i
+	return -1
+
+
+# --- Stan --------------------------------------------------------------------------------------
 
 func show_card(title: String, status: String, can_upgrade: bool, cancel: bool, middle_enabled: bool) -> void:
 	card_title = title
@@ -82,6 +182,24 @@ func show_card(title: String, status: String, can_upgrade: bool, cancel: bool, m
 	card_cancel = cancel
 	card_middle_enabled = middle_enabled
 
+
+func hide_card() -> void:
+	card_title = ""
+
+
+func is_card_open() -> bool:
+	return not card_title.is_empty()
+
+
+## Włącza albo wyłącza tryb budowy i powiadamia grę.
+func set_building(on: bool) -> void:
+	if building == on:
+		return
+	building = on
+	build_mode_changed.emit(on)
+
+
+# --- Teksty ------------------------------------------------------------------------------------
 
 ## Czas w formacie m:ss albo h:mm:ss, zaokrąglony w górę do pełnej sekundy.
 static func format_time(ms: int) -> String:
@@ -105,24 +223,12 @@ static func cost_text(cost: Array[int]) -> String:
 	return " ".join(parts)
 
 
-func hide_card() -> void:
-	card_title = ""
-
-
-func is_card_open() -> bool:
-	return not card_title.is_empty()
-
-
-const ICON_GAP := 2
-const RESOURCE_GAP := 7
-
-
-## Liczby na pasku surowców (bez ikon). Pełny magazyn ma dopisek „max”.
+## Liczby na pasku surowców (bez ikon). Pełny magazyn wyróżnia kolor liczby (bez dopisku,
+## żeby pasek z czasem budowy oraz epoką i rokiem zmieścił się na ekranie 320 px).
 static func resource_labels(amounts: Array[int]) -> Array[String]:
 	var out: Array[String] = []
 	for res in EconomyConfig.count():
-		var full := EconomyConfig.is_capped(res) and amounts[res] >= EconomyConfig.CAPACITY[res]
-		out.append("%d%s" % [amounts[res], " max" if full else ""])
+		out.append("%d" % amounts[res])
 	return out
 
 
@@ -137,97 +243,142 @@ static func resource_layout(amounts: Array[int], left: int) -> Array[int]:
 	return xs
 
 
-## Przyciski paska budynków: rząd wyśrodkowany nad paskiem komunikatu, z dala od krawędzi.
-static func toolbar_rects(view: Vector2) -> Array[Rect2]:
-	return _row(view, BuildingTypes.buildable_count())
+## Tekst w prawym górnym rogu: czas budowy (jeśli trwa) oraz epoka i rok.
+static func top_right_text(queue: String, age: String) -> String:
+	return age if queue.is_empty() else "%s  %s" % [queue, age]
 
 
-## Przyciski karty budynku (Ulepsz, Rozbierz, Zamknij) w tym samym miejscu co pasek.
-static func card_rects(view: Vector2) -> Array[Rect2]:
-	return _row(view, CARD_LABELS.size())
+# --- Dotyk -------------------------------------------------------------------------------------
 
-
-static func _row(view: Vector2, n: int) -> Array[Rect2]:
-	var total := n * BUTTON_SIZE.x + (n - 1) * BUTTON_GAP
-	var x := floorf((view.x - total) / 2.0)
-	var y := view.y - BAR_H - BUTTON_SIZE.y - 4
-	var out: Array[Rect2] = []
-	for i in n:
-		out.append(Rect2(Vector2(x + i * (BUTTON_SIZE.x + BUTTON_GAP), y), BUTTON_SIZE))
-	return out
-
-
-## Indeks przycisku pod punktem ekranu albo -1.
-static func hit(rects: Array[Rect2], p: Vector2) -> int:
-	for i in rects.size():
-		if rects[i].has_point(p):
-			return i
-	return -1
-
-
-func _current_rects() -> Array[Rect2]:
-	var view := get_viewport_rect().size
-	return card_rects(view) if is_card_open() else toolbar_rects(view)
+func _target_at(p: Vector2) -> int:
+	return target_at(p, get_viewport_rect().size, content_left, content_right, building, is_card_open(), first_kind)
 
 
 func _input(event: InputEvent) -> void:
+	var drag := event as InputEventScreenDrag
+	if drag != null:
+		_on_drag(drag)
+		return
 	var touch := event as InputEventScreenTouch
 	if touch == null:
 		return
-	var i := hit(_current_rects(), touch.position)
+	var t := _target_at(touch.position)
 	if touch.pressed:
-		_pressed = i
-		if i >= 0:
+		_pressed = t
+		_dragging = false
+		_drag_start = touch.position
+		_drag_first = first_kind
+		if t != Target.NONE:
 			get_viewport().set_input_as_handled()
 		return
-	# przycisk działa, gdy palec puszczono na tym samym przycisku, na którym go położono
+	# przycisk działa, gdy palec puszczono na tym samym przycisku, na którym go położono,
+	# i nie był to ruch przewijania paska
 	var was := _pressed
-	_pressed = -1
-	if was < 0:
+	var dragged := _dragging
+	_pressed = Target.NONE
+	_dragging = false
+	if was == Target.NONE:
 		return
 	get_viewport().set_input_as_handled()
-	if i != was:
+	if dragged or t != was:
 		return
-	if is_card_open():
-		match i:
+	_activate(was)
+
+
+## Przewijanie paska budynków: przesunięcie palca o szerokość przycisku przesuwa pasek o jeden rodzaj.
+func _on_drag(drag: InputEventScreenDrag) -> void:
+	if not building or _pressed < Target.KIND:
+		return
+	get_viewport().set_input_as_handled()
+	var dx := drag.position.x - _drag_start.x
+	if not _dragging and absf(dx) < DRAG_THRESHOLD:
+		return
+	_dragging = true
+	var step := int(roundf(-dx / (BUTTON_SIZE.x + BUTTON_GAP)))
+	first_kind = clampi(_drag_first + step, 0, max_first_kind(content_left, content_right))
+
+
+func _activate(t: int) -> void:
+	if t >= Target.KIND:
+		selected_kind = t - Target.KIND
+		kind_selected.emit(selected_kind)
+	elif t >= Target.CARD:
+		match t - Target.CARD:
 			CardButton.UPGRADE:
 				upgrade_pressed.emit()
 			CardButton.DEMOLISH:
 				demolish_pressed.emit()
 			CardButton.CLOSE:
 				card_closed.emit()
-	else:
-		selected_kind = i
-		kind_selected.emit(i)
+	elif t == Target.BUILD:
+		set_building(true)
+		kind_selected.emit(selected_kind)
+	elif t == Target.DONE:
+		set_building(false)
+	elif t == Target.SIEGE:
+		siege_pressed.emit()
 
+
+# --- Rysowanie ---------------------------------------------------------------------------------
 
 func _draw() -> void:
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, 0, view.x, BAR_H), Color(Palette.SHADOW, 0.8))
 	if economy != null:
 		_draw_resources()
-	var zoom := camera.zoom_level if camera != null else 1
-	var info := queue_text if not queue_text.is_empty() else "%d×  %d FPS" % [zoom, Engine.get_frames_per_second()]
-	PixelFont.draw_right(self, content_right, 1, info, Palette.INK)
+	PixelFont.draw_right(self, content_right, 1, top_right_text(queue_text, age_text), Palette.INK)
 
-	var rects := _current_rects()
 	if is_card_open():
-		var r0 := rects[0]
-		var panel := Rect2(r0.position - Vector2(4, 16), Vector2(rects[-1].end.x - r0.position.x + 8, r0.size.y + 20))
-		draw_rect(panel, Color(Palette.SHADOW, 0.85))
-		PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
-		PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])
-		for i in rects.size():
-			var label := CANCEL_LABEL if i == CardButton.DEMOLISH and card_cancel else CARD_LABELS[i]
-			var disabled := (i == CardButton.UPGRADE and not card_can_upgrade) \
-					or (i == CardButton.DEMOLISH and not card_middle_enabled)
-			_draw_button(rects[i], label, i == _pressed, disabled)
+		_draw_card(view)
+	elif building:
+		_draw_build_bar(view)
 	else:
-		for i in rects.size():
-			_draw_button(rects[i], BuildingTypes.SHORT_NAMES[i], i == selected_kind or i == _pressed, false)
+		# Oblężenie jest wyszarzone tylko wizualnie: dotknięcie emituje siege_pressed, a gra pokazuje
+		# SIEGE_LATER_MESSAGE. Przy włączaniu bitwy (#14, #16) zdejmij wyszarzenie razem z komunikatem.
+		_draw_button(left_corner_rect(view, content_left), SIEGE_LABEL, _pressed == Target.SIEGE, true)
+		_draw_button(right_corner_rect(view, content_right), BUILD_LABEL, _pressed == Target.BUILD, false)
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
 	PixelFont.draw_text(self, Vector2(content_left, view.y - BAR_H + 1), message, Palette.INK)
+	PixelFont.draw_right(self, content_right, view.y - BAR_H + 1, "%d FPS" % Engine.get_frames_per_second(),
+			Palette.WOOD[3])
+
+
+func _draw_card(view: Vector2) -> void:
+	var rects := card_rects(view)
+	var r0 := rects[0]
+	var panel := Rect2(r0.position - Vector2(4, 16), Vector2(rects[-1].end.x - r0.position.x + 8, r0.size.y + 20))
+	draw_rect(panel, Color(Palette.SHADOW, 0.85))
+	PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
+	PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])
+	for i in rects.size():
+		var label := CANCEL_LABEL if i == CardButton.DEMOLISH and card_cancel else CARD_LABELS[i]
+		var disabled := (i == CardButton.UPGRADE and not card_can_upgrade) \
+				or (i == CardButton.DEMOLISH and not card_middle_enabled)
+		_draw_button(rects[i], label, _pressed == Target.CARD + i, disabled)
+
+
+## Pasek budowy: widoczne rodzaje, strzałki, gdy część rodzajów jest poza paskiem, i Gotowe.
+func _draw_build_bar(view: Vector2) -> void:
+	var rects := kind_rects(view, content_left, content_right)
+	for i in rects.size():
+		var kind := first_kind + i
+		var active := kind == selected_kind or _pressed == Target.KIND + kind
+		_draw_button(rects[i], BuildingTypes.SHORT_NAMES[kind], active, false)
+	var y := row_y(view) + BUTTON_SIZE.y / 2.0 - 2.0
+	if first_kind > 0:
+		_draw_arrow(Vector2(rects[0].position.x - 3, y), -1)
+	if first_kind < max_first_kind(content_left, content_right):
+		_draw_arrow(Vector2(rects[-1].end.x + 1, y), 1)
+	_draw_button(right_corner_rect(view, content_right), DONE_LABEL, _pressed == Target.DONE, false)
+
+
+## Mała strzałka 2×5 px wskazująca, że pasek można przewinąć w stronę `dir`.
+func _draw_arrow(at: Vector2, dir: int) -> void:
+	for i in 3:
+		var h := 5 - 2 * i
+		var x := at.x + (i if dir > 0 else 2 - i)
+		draw_rect(Rect2(x, at.y + i, 1, h), Palette.INK)
 
 
 ## Ikona 5×5 na wysokości wielkich liter, obok liczba. Pełny magazyn świeci kolorem strzechy.

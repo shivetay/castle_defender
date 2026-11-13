@@ -138,13 +138,14 @@ func test_spend_is_all_or_nothing() -> bool:
 	return true
 
 
+## Górny pasek przy pełnych magazynach, dużym zapasie złota, długiej budowie i ostatnim roku epoki
+## mieści się na ekranie 320 px z marginesami narożników.
 func test_resources_bar_fits() -> bool:
-	var worst: Array[int] = []
+	var full: Array[int] = []
 	for res in EconomyConfig.count():
-		worst.append(maxi(EconomyConfig.CAPACITY[res], 99999))
-	var right := PixelFont.text_width("4×  60 FPS")
-	var xs := Hud.resource_layout(worst, Hud.CORNER_INSET)
+		full.append(EconomyConfig.CAPACITY[res] if EconomyConfig.is_capped(res) else 99999)
+	var right := PixelFont.text_width(Hud.top_right_text("11:59:59 +3", Ages.label(0, 5)))
+	var xs := Hud.resource_layout(full, Hud.CORNER_INSET)
 	assert_eq(xs.size(), EconomyConfig.count() + 1, "pozycja każdej ikony i koniec paska")
-	assert_true(xs[-1] + 6 + right <= 320 - Hud.CORNER_INSET, "pasek surowców mieści się w 320 px z marginesem narożników")
-	assert_true(Hud.resource_labels(worst)[0].contains("max"), "pełny magazyn jest oznaczony")
+	assert_true(xs[-1] + 6 + right <= 320 - Hud.CORNER_INSET, "pasek surowców, budowa i epoka mieszczą się w 320 px")
 	return true

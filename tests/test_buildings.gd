@@ -379,6 +379,8 @@ func test_construction_site() -> bool:
 func test_manor_is_not_on_toolbar() -> bool:
 	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 1, "pasek bez Dworu")
 	assert_eq(BuildingTypes.Kind.MANOR, BuildingTypes.count() - 1, "Dwór jest ostatni")
-	assert_eq(Hud.toolbar_rects(Vector2(320, 180)).size(), BuildingTypes.buildable_count(), "przyciski paska")
-	assert_true(Hud.toolbar_rects(Vector2(320, 180))[-1].end.x <= 316, "pasek mieści się w 320 px")
+	var left := float(Hud.CORNER_INSET)
+	var right := 320.0 - Hud.CORNER_INSET
+	assert_eq(Hud.visible_kinds(left, right) + Hud.max_first_kind(left, right), BuildingTypes.buildable_count(),
+			"przewijany pasek pokazuje wszystkie rodzaje z paska budowy, bez Dworu")
 	return true

@@ -4,13 +4,14 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 8.
 
-## Stan: etap 4 z planu MVP
+## Stan: etap 5 z planu MVP
 
 Etapy 1 (szkielet, viewport 320×180, testowy APK), 2 (teren 64×64 z seeda, siatka budowy, kamera
 z gestami) i 3 (budynki epoki I: autotiling umocnień #6, pięć budynków z poziomami 1–5 #7) są zamknięte.
 Etap 4 (krok 4 planu MVP) to 4 stany zniszczeń budynków (#8), paleta epoki I zamknięta w 16 kolorach (#5),
 ekonomia (#10), progresja: koszty, czasy, kolejka budowy i Dwór jako poziom zamku (#11), oraz zapis
-lokalny (#13). Z #5 zostaje pomiar startu na telefonie.
+lokalny (#13), z poprawkami po teście na telefonie. Z #5 zostaje pomiar startu na telefonie.
+Etap 5 zaczyna HUD z #9: tryby oglądania i budowy, przyciski Buduj i Oblężenie, epoka i rok.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -62,20 +63,24 @@ lokalny (#13). Z #5 zostaje pomiar startu na telefonie.
   się z zegara systemowego, więc rośnie też, gdy gra jest w tle. Po powrocie komunikat podaje przyrost.
 - `scripts/gfx/pixel_icons.gd` (`PixelIcons`): ikony surowców 5×5 zapisane w kodzie jako wzory znaków
   (dwa bale, kamień, jabłko, moneta), kolory z palety, atlas w cache.
-- `scripts/ui/hud.gd`: treść pasków trzyma się 12 px od bocznych krawędzi (zaokrąglone narożniki telefonów),
-  a wycięcia ekranu zgłoszone przez system odsuwają ją dalej. U góry pasek surowców z ikonami (pełny magazyn ma dopisek „max” i kolor strzechy),
-  a z prawej czas budowy i liczba czekających zleceń. Nad budowanym budynkiem pasek postępu.
-  Pasek wyboru budynku nad dolną krawędzią pokazuje po wyborze koszt i czas. Po dotknięciu budynku
-  karta z poziomem albo czasem budowy i przyciskami Ulepsz, Rozbierz (Anuluj dla zlecenia), Zamknij
-  (cele 56×14 px).
+- `scripts/ui/hud.gd`: interfejs na jeden kciuk w poziomie. Treść trzyma się 12 px od bocznych krawędzi
+  (zaokrąglone narożniki), a wycięcia ekranu odsuwają ją dalej. U góry surowce z ikonami (pełny magazyn
+  ma żółtą liczbę), a z prawej czas budowy z liczbą czekających zleceń oraz epoka i rok. U dołu komunikat
+  i FPS. Tryb oglądania: Oblężenie w lewym rogu (wyszarzone, dojdzie z bitwą), Buduj w prawym, dotknięcie
+  budynku otwiera kartę (poziom albo czas budowy; Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy:
+  przewijany w poziomie pasek budynków (koszt i czas w komunikacie) i Gotowe; dotknięcia mapy tylko
+  stawiają, niczego nie zaznaczają. Przyciski 56×22 px (ok. 50 dp na typowym telefonie).
+- `scripts/world/ages.gd` (`Ages`): epoka i rok na pasku. Epoka I zaczyna się w 550 r., a rok rośnie
+  z poziomem Dworu (550, 600, 650, 700, 750).
 
 Wymagania technologii dojdą z badaniami (#12).
 Gra zapisuje się po każdej akcji, po ukończeniu budowy i przy zejściu do tła, a po ponownym uruchomieniu
 nadrabia czas nieobecności (budowa i produkcja liczą się tak, jakby gra działała cały czas).
 
-Do ręcznego testu na telefonie: czy przyciski paska i karty łatwo trafić, czy budowa długiego wału
-kratka po kratce nie jest zbyt męcząca, czy po zejściu do tła na kilka minut surowce przybywają
-i czy po zamknięciu aplikacji (także „ubiciu” z listy ostatnich) zamek wraca z nadrobioną budową.
+Do ręcznego testu na telefonie: czy Buduj, Gotowe, pasek budynków i karta dają się obsłużyć jednym
+kciukiem, czy przewijanie paska palcem jest wygodne, czy budowa długiego wału kratka po kratce nie jest
+zbyt męcząca, czy po zejściu do tła na kilka minut surowce przybywają i czy po zamknięciu aplikacji
+(także „ubiciu” z listy ostatnich) zamek wraca z nadrobioną budową.
 
 ## Uruchomienie
 
@@ -170,6 +175,5 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Po scaleniu #13 etap 4 jest zamknięty w kodzie. Przed etapem 5 właściciel testuje go na telefonie
-(lista w „Do ręcznego testu na telefonie” wyżej, plus pomiar startu z #5). Etap 5 wybiera właściciel;
-najbliżej obecnego stanu są reszta HUD-u, czyli przyciski Buduj i Oblężenie (#9), i badania (#12).
+Etap 5 ciąg dalszy wybiera właściciel. Przycisk Oblężenie czeka na symulację bitwy (#14) i fale PvE (#16);
+najbliżej obecnego stanu są też badania (#12).
