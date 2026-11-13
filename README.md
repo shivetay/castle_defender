@@ -34,6 +34,8 @@ Z #5 zostaje pomiar startu na telefonie.
   od 1% wyrwa, 0 to gruz.
 - `scripts/world/build_grid.gd` (`BuildGrid`): rodzaj i poziom budynku (0 = plac budowy), poziom Dworu,
   maski sąsiadów i stała kolejność rysowania (od tyłu do przodu).
+  Budynki stoją na trawie. Wyjątkiem jest brama: może stać nad drogą, ale tylko w poprzek niej
+  (pozioma na drodze północ–południe, pionowa na drodze wschód–zachód).
 - `scripts/world/build_config.gd` (`BuildConfig`): koszty i czasy budowy w jednym pliku. Poziom 1:
   Wał 10 Dr 10 Ży 5 s, Palisada 20 Dr 5 Ży 10 s, Brama 60 Dr 20 Ka 20 Ży 30 s, Wieża 120 Dr 40 Ka 40 Ży 60 s,
   Chata 80 Dr 30 Ży 45 s. Poziomy 1–5 mnożą koszt ×1/×1,5/×2,5/×4/×6, a czas ×1/×3/×10/×30/×90.
