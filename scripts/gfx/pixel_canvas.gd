@@ -33,28 +33,82 @@ static func draw_path(img: Image, rect: Rect2i) -> void:
 			img.set_pixel(x, y, Palette.EARTH[2 + hash2(x, y, 3) % 2])
 
 
-## Palisada: pale 2 px szerokości, „ściana” 4 px pod zaostrzonym czubkiem.
-static func draw_palisade(img: Image, origin: Vector2i, length: int) -> void:
-	for i in range(0, length, 2):
-		var x := origin.x + i
-		img.set_pixel(x, origin.y, Palette.WOOD[3])
-		for h in range(1, 5):
-			img.set_pixel(x, origin.y + h, Palette.WOOD[2])
-			img.set_pixel(x + 1, origin.y + h, Palette.WOOD[1])
-		img.set_pixel(x, origin.y + 5, Palette.SHADOW)
-		img.set_pixel(x + 1, origin.y + 5, Palette.SHADOW)
+## Piksel z kontrolą granic: rysowanie poza obrazem jest pomijane, a nie zgłasza błędu.
+static func px(img: Image, x: int, y: int, col: Color) -> void:
+	if x >= 0 and y >= 0 and x < img.get_width() and y < img.get_height():
+		img.set_pixel(x, y, col)
 
 
-## Prosta chata z dachem strzechowym (zalążek draw_building).
-static func draw_hut(img: Image, origin: Vector2i) -> void:
-	var w := 12
-	# ściana
-	img.fill_rect(Rect2i(origin + Vector2i(1, 6), Vector2i(w - 2, 6)), Palette.WOOD[2])
-	img.fill_rect(Rect2i(origin + Vector2i(5, 8), Vector2i(2, 4)), Palette.WOOD[0])
-	# dach
-	for row in 6:
-		var inset := 5 - row
-		for x in range(inset, w - inset):
-			img.set_pixel(origin.x + x, origin.y + row, Palette.THATCH[2 if row < 2 else 1])
-	# cień
-	img.fill_rect(Rect2i(origin + Vector2i(1, 12), Vector2i(w - 2, 1)), Palette.SHADOW)
+## Prostokąt przycięty do obrazu.
+static func rect(img: Image, r: Rect2i, col: Color) -> void:
+	var clipped := r.intersection(Rect2i(Vector2i.ZERO, img.get_size()))
+	if clipped.has_area():
+		img.fill_rect(clipped, col)
+
+
+## Dithering 2×2: szachownica bloków 2×2 z kolorów `a` i `b` (wały, fosy, rumowisko).
+static func dither_fill(img: Image, r: Rect2i, a: Color, b: Color) -> void:
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			px(img, x, y, a if ((x >> 1) + (y >> 1)) % 2 == 0 else b)
+
+
+## Ściana z poziomych bali: co trzeci wiersz ciemna fuga, faktura słojów z hash2.
+static func draw_log_wall(img: Image, r: Rect2i, ramp: Array, tex_seed: int) -> void:
+	for y in range(r.position.y, r.end.y):
+		var row := y - r.position.y
+		for x in range(r.position.x, r.end.x):
+			var col: Color = ramp[0] if row % 3 == 2 else ramp[1 + hash2(x, y, tex_seed) % 2]
+			px(img, x, y, col)
+
+
+## Ściana z pionowych desek albo pali: deski szerokości 2 px, jasna i ciemna na zmianę.
+static func draw_plank_wall(img: Image, r: Rect2i, ramp: Array) -> void:
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			var col: Color = ramp[2] if ((x - r.position.x) >> 1) % 2 == 0 else ramp[1]
+			px(img, x, y, col)
+
+
+## Belki szkieletu: słupy po bokach i belka u góry (oczep) w kolorze `col`.
+static func draw_beams(img: Image, r: Rect2i, col: Color) -> void:
+	rect(img, Rect2i(r.position, Vector2i(r.size.x, 1)), col)
+	rect(img, Rect2i(r.position, Vector2i(1, r.size.y)), col)
+	rect(img, Rect2i(r.end.x - 1, r.position.y, 1, r.size.y), col)
+
+
+## Dach dwuspadowy od frontu: `rows` wierszy, każdy o 1 px szerszy z obu stron, od szczytu
+## (`top_width` px) w dół. Jaśniejszy szczyt, ciemny okap i smugi strzechy z hash2.
+static func draw_roof(img: Image, top_center_x: int, top_y: int, top_width: int, rows: int, ramp: Array) -> void:
+	for row in rows:
+		var half := (top_width >> 1) + row
+		for x in range(top_center_x - half, top_center_x + half):
+			var col: Color = ramp[2] if row < 2 else ramp[1]
+			if row == rows - 1:
+				col = ramp[0]
+			elif hash2(x, row, 61) % 5 == 0:
+				col = ramp[0]
+			px(img, x, top_y + row, col)
+
+
+## Okno 2×2 (ciemny otwór) z jasnym parapetem pod spodem.
+static func draw_window(img: Image, pos: Vector2i) -> void:
+	rect(img, Rect2i(pos, Vector2i(2, 2)), Palette.SHADOW)
+	rect(img, Rect2i(pos + Vector2i(-1, 2), Vector2i(4, 1)), Palette.WOOD[3])
+
+
+## Drzwi z desek z ciemną ościeżnicą.
+static func draw_door(img: Image, r: Rect2i) -> void:
+	rect(img, r, Palette.WOOD[0])
+	for y in range(r.position.y + 1, r.end.y):
+		for x in range(r.position.x + 1, r.end.x - 1):
+			px(img, x, y, Palette.WOOD[1] if (x - r.position.x) % 2 == 1 else Palette.WOOD[2])
+
+
+## Flaga: maszt wysokości `height` od `base` w górę i proporzec 3×2 z wcięciem.
+static func draw_flag(img: Image, base: Vector2i, height: int, col: Color) -> void:
+	for i in height:
+		px(img, base.x, base.y - i, Palette.WOOD[0])
+	var top := base.y - height + 1
+	rect(img, Rect2i(base.x + 1, top, 3, 2), col)
+	px(img, base.x + 3, top + 1, Color(col, 0.0))
