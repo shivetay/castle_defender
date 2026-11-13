@@ -249,13 +249,13 @@ func test_texts_fit_on_screen() -> bool:
 		for level in range(1, BuildingTypes.MAX_LEVEL + 1):
 			var msg := "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, level)),
 					Hud.format_time(BuildConfig.time_ms(kind, level))]
-			assert_true(PixelFont.text_width(msg) <= 312, "„%s” mieści się" % msg)
+			assert_true(PixelFont.text_width(msg) <= Hud.MESSAGE_MAX_WIDTH, "„%s” mieści się" % msg)
 			var up := "Ulepszenie: %s, %s" % [Hud.cost_text(BuildConfig.cost(kind, level)),
 					Hud.format_time(BuildConfig.time_ms(kind, level))]
-			assert_true(PixelFont.text_width(up) <= 312, "„%s” mieści się" % up)
+			assert_true(PixelFont.text_width(up) <= Hud.MESSAGE_MAX_WIDTH, "„%s” mieści się" % up)
 	for m in BuildQueue.MESSAGES:
-		assert_true(PixelFont.text_width(m) <= 312, "„%s” mieści się" % m)
-	assert_true(PixelFont.text_width(q.upgrade_hint(grid, grid.manor_id())) <= 312, "podpowiedź dworu")
+		assert_true(PixelFont.text_width(m) <= Hud.MESSAGE_MAX_WIDTH, "„%s” mieści się" % m)
+	assert_true(PixelFont.text_width(q.upgrade_hint(grid, grid.manor_id())) <= Hud.MESSAGE_MAX_WIDTH, "podpowiedź dworu")
 	var card := Hud.card_rects(Vector2(320, 180))
 	var status_w := PixelFont.text_width("budowa 11:59:59")
 	assert_true(PixelFont.text_width("Brama drewniana") + status_w + 12 <= card[-1].end.x - card[0].position.x + 8,

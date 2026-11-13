@@ -62,7 +62,8 @@ lokalny (#13). Z #5 zostaje pomiar startu na telefonie.
   się z zegara systemowego, więc rośnie też, gdy gra jest w tle. Po powrocie komunikat podaje przyrost.
 - `scripts/gfx/pixel_icons.gd` (`PixelIcons`): ikony surowców 5×5 zapisane w kodzie jako wzory znaków
   (dwa bale, kamień, jabłko, moneta), kolory z palety, atlas w cache.
-- `scripts/ui/hud.gd`: u góry pasek surowców z ikonami (pełny magazyn ma dopisek „max” i kolor strzechy),
+- `scripts/ui/hud.gd`: treść pasków trzyma się 12 px od bocznych krawędzi (zaokrąglone narożniki telefonów),
+  a wycięcia ekranu zgłoszone przez system odsuwają ją dalej. U góry pasek surowców z ikonami (pełny magazyn ma dopisek „max” i kolor strzechy),
   a z prawej czas budowy i liczba czekających zleceń. Nad budowanym budynkiem pasek postępu.
   Pasek wyboru budynku nad dolną krawędzią pokazuje po wyborze koszt i czas. Po dotknięciu budynku
   karta z poziomem albo czasem budowy i przyciskami Ulepsz, Rozbierz (Anuluj dla zlecenia), Zamknij
