@@ -1,6 +1,6 @@
 class_name Hud
 extends Node2D
-## Interfejs nad mapą (nie przesuwa się z kamerą). U góry: etap, seed, zoom i FPS.
+## Interfejs nad mapą (nie przesuwa się z kamerą). U góry: surowce oraz seed, zoom i FPS.
 ## Nad dolnym paskiem komunikatu: pasek wyboru budynku albo karta zaznaczonego budynku
 ## (poziom, Ulepsz, Rozbierz, Zamknij). Dotknięcia przycisków nie trafiają do kamery.
 
@@ -17,6 +17,7 @@ const BUTTON_GAP := 4
 const CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Zamknij"]
 
 var camera: PanZoomCamera
+var economy: Economy
 var world_seed := 0
 var message := "Wybierz budynek i dotknij trawy"
 var selected_kind := 0
@@ -41,6 +42,15 @@ func hide_card() -> void:
 
 func is_card_open() -> bool:
 	return not card_title.is_empty()
+
+
+## Pasek surowców, np. „Dr 520 Ka 300 Ży 300 Zł 50”. Pełny magazyn ma dopisek „max”.
+static func resources_text(amounts: Array[int]) -> String:
+	var parts: PackedStringArray = []
+	for res in EconomyConfig.count():
+		var full := EconomyConfig.is_capped(res) and amounts[res] >= EconomyConfig.CAPACITY[res]
+		parts.append("%s %d%s" % [EconomyConfig.SHORT_NAMES[res], amounts[res], " max" if full else ""])
+	return "  ".join(parts)
 
 
 ## Przyciski paska budynków: rząd wyśrodkowany nad paskiem komunikatu, z dala od krawędzi.
@@ -110,9 +120,10 @@ func _input(event: InputEvent) -> void:
 func _draw() -> void:
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, 0, view.x, BAR_H), Color(Palette.SHADOW, 0.8))
-	PixelFont.draw_text(self, Vector2(4, 1), "Castle Defender · etap 4", Palette.INK)
+	if economy != null:
+		PixelFont.draw_text(self, Vector2(4, 1), resources_text(economy.amounts), Palette.INK)
 	var zoom := camera.zoom_level if camera != null else 1
-	var info := "seed %d  %d×  %d FPS" % [world_seed, zoom, Engine.get_frames_per_second()]
+	var info := "%d×  %d FPS" % [zoom, Engine.get_frames_per_second()]
 	PixelFont.draw_right(self, view.x - 4, 1, info, Palette.INK)
 
 	var rects := _current_rects()

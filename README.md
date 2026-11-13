@@ -8,8 +8,8 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 Etapy 1 (szkielet, viewport 320×180, testowy APK), 2 (teren 64×64 z seeda, siatka budowy, kamera
 z gestami) i 3 (budynki epoki I: autotiling umocnień #6, pięć budynków z poziomami 1–5 #7) są zamknięte.
-Etap 4 to 4 stany zniszczeń budynków (#8) i paleta epoki I zamknięta w 16 kolorach (#5). Z #5 zostaje
-pomiar startu na telefonie.
+Etap 4 (krok 4 planu MVP) to 4 stany zniszczeń budynków (#8), paleta epoki I zamknięta w 16 kolorach (#5)
+i ekonomia (#10). Zostają progresja: koszty, czasy i kolejka budowy (#11), a z #5 pomiar startu na telefonie.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -32,13 +32,21 @@ pomiar startu na telefonie.
   od 1% wyrwa, 0 to gruz.
 - `scripts/world/build_grid.gd` (`BuildGrid`): rodzaj i poziom budynku, ulepszanie do poziomu 5,
   maski sąsiadów i stała kolejność rysowania (od tyłu do przodu).
-- `scripts/ui/hud.gd`: pasek wyboru budynku nad dolną krawędzią, a po dotknięciu budynku karta
+- `scripts/world/economy_config.gd` (`EconomyConfig`): wszystkie liczby ekonomii w jednym pliku.
+  Drewno, kamień, żywność i złoto. Start 500/300/300/50, magazyn 1000 każdego surowca, złoto bez
+  limitu (docelowo waluta premium, przybywa tylko z łupu i PvE). Gród daje 20/h drewna, kamienia
+  i żywności, a Chata drwala +60/90/120/160/200 drewna/h na poziomach 1–5.
+- `scripts/world/economy.gd` (`Economy`): naliczanie produkcji w liczbach całkowitych (ten sam wynik
+  co klatkę i jednym skokiem), limity magazynów, łup (`add`) i wydawanie (`spend`). Produkcja liczy
+  się z zegara systemowego, więc rośnie też, gdy gra jest w tle. Po powrocie komunikat podaje przyrost.
+- `scripts/ui/hud.gd`: u góry pasek surowców (pełny magazyn ma dopisek „max”), pasek wyboru budynku nad dolną krawędzią, a po dotknięciu budynku karta
   z poziomem i przyciskami Ulepsz, Rozbierz, Zamknij (cele 56×14 px).
 
 Ulepszanie jest na razie darmowe i natychmiastowe. Koszty, czasy i kolejka budowy to #11.
+Zapis na dysk dojdzie w #13: do tego czasu zamknięcie aplikacji (nie tylko zejście do tła) zaczyna grę od nowa.
 
-Do ręcznego testu na telefonie: czy przyciski paska i karty łatwo trafić i czy budowa długiego wału
-kratka po kratce nie jest zbyt męcząca.
+Do ręcznego testu na telefonie: czy przyciski paska i karty łatwo trafić, czy budowa długiego wału
+kratka po kratce nie jest zbyt męcząca i czy po zejściu do tła na kilka minut surowce przybywają.
 
 ## Uruchomienie
 
@@ -133,5 +141,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 5: HUD z paskiem surowców (#9) razem z ekonomią (#10): 4 surowce, produkcja i magazyny.
-Kolejność potwierdza właściciel.
+Etap 4, ciąg dalszy: progresja (#11): tabela kosztów i czasów poziomów 1–5, kolejka budowy
+i wymagania. Koszty pobiera już `Economy.spend`. Potem HUD z ikonami surowców i przyciskami Buduj
+i Oblężenie (#9). Kolejność potwierdza właściciel.
