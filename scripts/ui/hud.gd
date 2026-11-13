@@ -40,12 +40,13 @@ const CANCEL_LABEL := "Anuluj"
 const SIEGE_LABEL := "Oblężenie"
 const BUILD_LABEL := "Buduj"
 const DONE_LABEL := "Gotowe"
+## Komunikat w trybie oglądania i po dotknięciu wyszarzonego Oblężenia (bitwa dojdzie w #14).
+const VIEW_MESSAGE := "Dotknij budynku albo wybierz Buduj"
+const SIEGE_LATER_MESSAGE := "Oblężenia dojdą razem z bitwą"
 const ICON_GAP := 2
 const RESOURCE_GAP := 7
 
-var camera: PanZoomCamera
 var economy: Economy
-var world_seed := 0
 var message := ""
 ## Tryb budowy: pasek budynków zamiast przycisków Buduj i Oblężenie.
 var building := false
@@ -129,8 +130,8 @@ static func max_first_kind(left: float, right: float) -> int:
 	return BuildingTypes.buildable_count() - visible_kinds(left, right)
 
 
-## Prostokąty widocznych rodzajów na pasku budowy, od rodzaju `first`.
-static func kind_rects(view: Vector2, left: float, right: float, first: int) -> Array[Rect2]:
+## Prostokąty widocznych miejsc na pasku budowy (od lewej). Miejsce `i` pokazuje rodzaj first_kind + i.
+static func kind_rects(view: Vector2, left: float, right: float) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for i in visible_kinds(left, right):
 		out.append(Rect2(Vector2(left + i * (BUTTON_SIZE.x + BUTTON_GAP), row_y(view)), BUTTON_SIZE))
@@ -157,7 +158,7 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, is_b
 	if right_corner_rect(view, right).has_point(p):
 		return Target.DONE if is_building else Target.BUILD
 	if is_building:
-		var k := hit(kind_rects(view, left, right, first), p)
+		var k := hit(kind_rects(view, left, right), p)
 		return Target.KIND + first + k if k >= 0 else Target.NONE
 	if left_corner_rect(view, left).has_point(p):
 		return Target.SIEGE
@@ -332,6 +333,8 @@ func _draw() -> void:
 	elif building:
 		_draw_build_bar(view)
 	else:
+		# Oblężenie jest wyszarzone tylko wizualnie: dotknięcie emituje siege_pressed, a gra pokazuje
+		# SIEGE_LATER_MESSAGE. Przy włączaniu bitwy (#14, #16) zdejmij wyszarzenie razem z komunikatem.
 		_draw_button(left_corner_rect(view, content_left), SIEGE_LABEL, _pressed == Target.SIEGE, true)
 		_draw_button(right_corner_rect(view, content_right), BUILD_LABEL, _pressed == Target.BUILD, false)
 
@@ -357,7 +360,7 @@ func _draw_card(view: Vector2) -> void:
 
 ## Pasek budowy: widoczne rodzaje, strzałki, gdy część rodzajów jest poza paskiem, i Gotowe.
 func _draw_build_bar(view: Vector2) -> void:
-	var rects := kind_rects(view, content_left, content_right, first_kind)
+	var rects := kind_rects(view, content_left, content_right)
 	for i in rects.size():
 		var kind := first_kind + i
 		var active := kind == selected_kind or _pressed == Target.KIND + kind

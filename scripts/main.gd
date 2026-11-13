@@ -14,7 +14,7 @@ extends Node2D
 const GAP_TAP_TOLERANCE := 3
 
 ## Komunikat w trybie oglądania.
-const DEFAULT_MESSAGE := "Dotknij budynku albo wybierz Buduj"
+const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 
 ## Seed terenu nowej gry. Wczytana gra ma seed z zapisu.
 const NEW_GAME_SEED := 1337
@@ -66,8 +66,6 @@ func _ready() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	hud = Hud.new()
-	hud.camera = camera
-	hud.world_seed = world_seed
 	hud.economy = economy
 	layer.add_child(hud)
 	hud.message = DEFAULT_MESSAGE
@@ -224,7 +222,7 @@ func _on_build_mode_changed(building: bool) -> void:
 
 
 func _on_siege_pressed() -> void:
-	hud.message = "Oblężenia dojdą razem z bitwą"
+	hud.message = Hud.SIEGE_LATER_MESSAGE
 
 
 func _refresh_card() -> void:

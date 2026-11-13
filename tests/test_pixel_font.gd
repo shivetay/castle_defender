@@ -3,9 +3,11 @@ extends TestCase
 
 
 func test_ui_texts_use_only_known_glyphs() -> bool:
-	var texts: Array[String] = ["Castle Defender · etap 4", "4×  60 FPS", "Podczas nieobecności: +200 Dr +20 Ka", "Ulepsz", "Rozbierz",
-			"Zamknij", "poziom 5/5", "Tu nie można budować", "Najwyższy poziom", "zażółć gęślą jaźń",
-			"ĄĆĘŁŃÓŚŹŻ 0123456789 .,:;-+/%()!?"]
+	var texts: Array[String] = [Hud.VIEW_MESSAGE, Hud.SIEGE_LATER_MESSAGE, "60 FPS", Ages.label(0, 5),
+			"Podczas nieobecności: +200 Dr +20 Ka", "Tu stoi Wieża drewniana", "poziom 5/5", "budowa 1:30:00",
+			"Tu nie można budować", "Najwyższy poziom", "zażółć gęślą jaźń", "ĄĆĘŁŃÓŚŹŻ 0123456789 .,:;-+/%()!?"]
+	texts.append_array(Hud.CARD_LABELS)
+	texts.append_array([Hud.CANCEL_LABEL, Hud.SIEGE_LABEL, Hud.BUILD_LABEL, Hud.DONE_LABEL])
 	texts.append_array(BuildingTypes.NAMES)
 	texts.append_array(BuildingTypes.SHORT_NAMES)
 	for t in texts:
@@ -20,8 +22,10 @@ func test_widths_and_fit() -> bool:
 	assert_eq(PixelFont.text_width("ż"), PixelFont.text_width("Z"), "polska litera ma szerokość bazowej")
 	for label in BuildingTypes.SHORT_NAMES + Hud.CARD_LABELS + [Hud.CANCEL_LABEL, Hud.SIEGE_LABEL, Hud.BUILD_LABEL, Hud.DONE_LABEL]:
 		assert_true(PixelFont.text_width(label) <= int(Hud.BUTTON_SIZE.x) - 4, "„%s” mieści się na przycisku" % label)
+	var messages: Array[String] = [Hud.VIEW_MESSAGE, Hud.SIEGE_LATER_MESSAGE]
 	for name in BuildingTypes.NAMES:
-		var msg := "%s: dotknij trawy, aby postawić" % name
+		messages.append("Tu stoi %s" % name)
+	for msg in messages:
 		assert_true(PixelFont.text_width(msg) <= Hud.MESSAGE_MAX_WIDTH, "komunikat „%s” mieści się w 320 px" % msg)
 	return true
 

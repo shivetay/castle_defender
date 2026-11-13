@@ -39,7 +39,7 @@ func test_targets_follow_mode() -> bool:
 	assert_eq(Hud.target_at(build, VIEW, b.x, b.y, false, false, 0), T.BUILD, "oglądanie: Buduj")
 	assert_eq(Hud.target_at(siege, VIEW, b.x, b.y, false, false, 0), T.SIEGE, "oglądanie: Oblężenie")
 	assert_eq(Hud.target_at(build, VIEW, b.x, b.y, true, false, 0), T.DONE, "budowa: w tym samym miejscu Gotowe")
-	var kinds := Hud.kind_rects(VIEW, b.x, b.y, 1)
+	var kinds := Hud.kind_rects(VIEW, b.x, b.y)
 	assert_eq(Hud.target_at(kinds[0].get_center(), VIEW, b.x, b.y, true, false, 1), T.KIND + 1, "przewinięty pasek: pierwszy widoczny to rodzaj 1")
 	assert_eq(Hud.target_at(Vector2(160, 90), VIEW, b.x, b.y, true, false, 0), T.NONE, "mapa to nie przycisk")
 	var card := Hud.card_rects(VIEW)
@@ -54,7 +54,7 @@ func test_build_bar_scrolls_to_every_kind() -> bool:
 		var done := Hud.right_corner_rect(view, b.y)
 		var seen := {}
 		for first in range(0, Hud.max_first_kind(b.x, b.y) + 1):
-			var rects := Hud.kind_rects(view, b.x, b.y, first)
+			var rects := Hud.kind_rects(view, b.x, b.y)
 			for i in rects.size():
 				assert_true(not rects[i].intersects(done), "rodzaj nie nachodzi na Gotowe")
 				assert_true(rects[i].position.x >= b.x, "rodzaj w granicach treści")
