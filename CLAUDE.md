@@ -82,8 +82,15 @@ Czego nie da się sprawdzić bez telefonu (dotyk, FPS, APK), zostaje do ręczneg
 - Wersji nie zmieniasz ręcznie, tylko przez `python3 tools/version.py bump`. Tagi `v*` i wydania
   tworzysz wyłącznie na prośbę właściciela, bo tag od razu tworzy GitHub Release.
 - Commity po polsku, w trybie rozkazującym lub z prefiksem etapu, np. `Etap 2: generator terenu 64×64`.
-- Małe, logiczne commity. Push tylko na gałąź przydzieloną sesji. Bez PR-ów, dopóki
-  właściciel o nie nie poprosi.
+- Małe, logiczne commity. Bez PR-ów, dopóki właściciel o nie nie poprosi.
+- **Gałęzie mają tylko opisowe nazwy** w formacie `<typ>/<krótki-opis>`, małymi literami
+  w kebab-case, bez polskich znaków. Typ to `feat`, `fix`, `ci`, `docs`, `chore`, `refactor`
+  albo `test`. Przykłady: `feat/etap-3-budynki-epoki-i`, `fix/android-etc2-astc`,
+  `ci/apk-przy-pushu-na-main`. Losowe nazwy, takie jak `claude/serene-edison-5gql30`, są zakazane.
+  Jeśli sesja dostała taką gałąź, utwórz od aktualnego `main` gałąź opisową, pracuj na niej
+  i tam pushuj. Jedna gałąź to jedna spójna zmiana (etap, poprawka, zmiana CI).
+- **Merge do `main` robi wyłącznie właściciel.** Agent nie merguje, nie pushuje na `main`
+  i nie zamyka issues, których kod nie trafił jeszcze na `main`.
 - **Najpierw zapytaj**, gdy chodzi o: decyzje projektowe gry (balans, mechaniki, kolejność etapów),
   zmianę wersji Godota, nowe addony lub zależności, zmiany w `export_presets.cfg` i ustawieniach
   wyświetlania w `project.godot`.
