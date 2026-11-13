@@ -9,8 +9,8 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 Etapy 1 (szkielet, viewport 320×180, testowy APK), 2 (teren 64×64 z seeda, siatka budowy, kamera
 z gestami) i 3 (budynki epoki I: autotiling umocnień #6, pięć budynków z poziomami 1–5 #7) są zamknięte.
 Etap 4 (krok 4 planu MVP) to 4 stany zniszczeń budynków (#8), paleta epoki I zamknięta w 16 kolorach (#5),
-ekonomia (#10) oraz progresja: koszty, czasy, kolejka budowy i Dwór jako poziom zamku (#11).
-Z #5 zostaje pomiar startu na telefonie.
+ekonomia (#10), progresja: koszty, czasy, kolejka budowy i Dwór jako poziom zamku (#11), oraz zapis
+lokalny (#13). Z #5 zostaje pomiar startu na telefonie.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -45,6 +45,11 @@ Z #5 zostaje pomiar startu na telefonie.
   przy zleceniu, nowy budynek od razu zajmuje kratki jako plac budowy, anulowanie oddaje cały koszt
   (do pojemności magazynu), a rozbiórka gotowego budynku nic nie zwraca. Zlecenia kończą się po kolei
   według zegara, także w tle, a ekonomia liczy się odcinkami między ukończeniami.
+- `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
+  i miejscem na migracje). Zapisuje seed terenu, budynki, surowce i kolejkę budowy. Pisze pełny plik
+  tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
+  głównym, więc na dysku zawsze leży co najmniej jeden pełny zapis. Nieczytelny plik główny jest
+  odkładany obok (`.broken`) i nie trafia do kopii; zapis z nowszej wersji gry też nie jest nadpisywany.
 - `scripts/world/economy_config.gd` (`EconomyConfig`): wszystkie liczby ekonomii w jednym pliku.
   Drewno, kamień, żywność i złoto. Start 500/300/300/50, magazyn 1000 każdego surowca, złoto bez
   limitu (docelowo waluta premium, przybywa tylko z łupu i PvE). Gród daje 20/h drewna, kamienia
@@ -61,10 +66,12 @@ Z #5 zostaje pomiar startu na telefonie.
   (cele 56×14 px).
 
 Wymagania technologii dojdą z badaniami (#12).
-Zapis na dysk dojdzie w #13: do tego czasu zamknięcie aplikacji (nie tylko zejście do tła) zaczyna grę od nowa.
+Gra zapisuje się po każdej akcji, po ukończeniu budowy i przy zejściu do tła, a po ponownym uruchomieniu
+nadrabia czas nieobecności (budowa i produkcja liczą się tak, jakby gra działała cały czas).
 
 Do ręcznego testu na telefonie: czy przyciski paska i karty łatwo trafić, czy budowa długiego wału
-kratka po kratce nie jest zbyt męcząca i czy po zejściu do tła na kilka minut surowce przybywają.
+kratka po kratce nie jest zbyt męcząca, czy po zejściu do tła na kilka minut surowce przybywają
+i czy po zamknięciu aplikacji (także „ubiciu” z listy ostatnich) zamek wraca z nadrobioną budową.
 
 ## Uruchomienie
 
@@ -159,6 +166,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 4 jest zamknięty po scaleniu #11. Etap 5 wybiera właściciel. Najbliżej obecnego stanu są:
-reszta HUD-u, czyli przyciski Buduj i Oblężenie (#9, ikony surowców już są), zapis lokalny (#13),
-dzięki któremu budowa i produkcja przetrwają zamknięcie aplikacji, oraz badania (#12).
+Po scaleniu #13 etap 4 jest zamknięty w kodzie. Przed etapem 5 właściciel testuje go na telefonie
+(lista w „Do ręcznego testu na telefonie” wyżej, plus pomiar startu z #5). Etap 5 wybiera właściciel;
+najbliżej obecnego stanu są reszta HUD-u, czyli przyciski Buduj i Oblężenie (#9), i badania (#12).

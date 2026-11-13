@@ -99,3 +99,23 @@ func spend(cost: Array[int]) -> bool:
 	for res in cost.size():
 		amounts[res] -= cost[res]
 	return true
+
+
+## Stan do zapisu: zapasy, ułamki jednostek i czas ostatniego naliczenia (liczby całkowite).
+func save_data() -> Dictionary:
+	return {"amounts": amounts.duplicate(), "remainder": _remainder.duplicate(), "last_update_ms": last_update_ms}
+
+
+## Wczytuje stan z save_data(). Brakujące albo złe pola zostawiają wartości startowe.
+## Zapasy są przycięte do pojemności magazynów, więc zapis nie przemyci przepełnienia.
+func load_data(d: Dictionary) -> void:
+	var saved_amounts: Array = d.get("amounts", []) as Array
+	var saved_rem: Array = d.get("remainder", []) as Array
+	for res in EconomyConfig.count():
+		if res < saved_amounts.size():
+			amounts[res] = maxi(0, int(saved_amounts[res]))
+			if EconomyConfig.is_capped(res):
+				amounts[res] = mini(amounts[res], capacity(res))
+		if res < saved_rem.size():
+			_remainder[res] = clampi(int(saved_rem[res]), 0, MS_PER_HOUR - 1)
+	last_update_ms = int(d.get("last_update_ms", last_update_ms))

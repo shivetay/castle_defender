@@ -222,3 +222,42 @@ func draw_order() -> Array[int]:
 			return ra.position.x < rb.position.x
 		return a < b)
 	return ids
+
+
+## Stan do zapisu: budynki w kolejności id, każdy jako [id, rodzaj, poziom, x, y, szer., wys.].
+## Teren nie jest zapisywany, bo odtwarza się z seeda.
+func save_data() -> Dictionary:
+	var list: Array = []
+	var ids: Array[int] = []
+	ids.assign(buildings.keys())
+	ids.sort()
+	for id in ids:
+		var r := buildings[id]
+		list.append([id, kinds[id], levels[id], r.position.x, r.position.y, r.size.x, r.size.y])
+	return {"next_id": _next_id, "buildings": list}
+
+
+## Wczytuje budynki z save_data() do pustej siatki. Wpis, który nie mieści się na tym terenie
+## (zły rodzaj, poza mapą, na zajętej kratce), jest pomijany, żeby uszkodzony zapis nie wywrócił gry.
+## Zwraca liczbę pominiętych wpisów.
+func load_data(d: Dictionary) -> int:
+	var skipped := 0
+	var max_id := 0
+	for entry: Variant in d.get("buildings", []) as Array:
+		var e := entry as Array
+		if e == null or e.size() < 7:
+			skipped += 1
+			continue
+		var id := int(e[0])
+		var kind := int(e[1])
+		var rect := Rect2i(int(e[3]), int(e[4]), int(e[5]), int(e[6]))
+		if id <= 0 or buildings.has(id) or kind < 0 or kind >= BuildingTypes.count() or not can_place(rect, kind):
+			skipped += 1
+			continue
+		buildings[id] = rect
+		kinds[id] = kind
+		levels[id] = clampi(int(e[2]), 0, BuildingTypes.MAX_LEVEL)
+		_fill(rect, id)
+		max_id = maxi(max_id, id)
+	_next_id = maxi(int(d.get("next_id", 1)), max_id + 1)
+	return skipped
