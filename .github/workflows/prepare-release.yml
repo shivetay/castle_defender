@@ -1,0 +1,65 @@
+name: Przygotuj wydanie
+
+# Ręcznie (Actions → Przygotuj wydanie → Run workflow): generuje sekcję CHANGELOG.md ze scalonych PR-ów
+# od ostatniego tagu, podbija wersję i otwiera PR "Wydanie X.Y.Z" z gałęzi chore/wydanie-X.Y.Z.
+# Po merge'u tego PR-a właściciel (albo agent na jego prośbę) taguje vX.Y.Z, co uruchamia workflow Wydanie.
+on:
+  workflow_dispatch:
+    inputs:
+      wersja:
+        description: "patch, minor, major albo konkretna wersja X.Y.Z"
+        required: true
+        default: minor
+
+permissions:
+  contents: write # gałąź chore/wydanie-*
+  pull-requests: write # PR z wydaniem
+
+jobs:
+  prepare:
+    name: Changelog i wersja
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # tagi: changelog liczy PR-y od ostatniego v*
+
+      - name: Testy narzędzi
+        run: python3 -m unittest discover -s tools -p "test_*.py"
+
+      - name: Changelog z PR-ów i nowa wersja
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          WERSJA: ${{ inputs.wersja }}
+        run: |
+          python3 tools/version.py bump "$WERSJA"
+          python3 tools/version.py check
+          VERSION=$(python3 tools/version.py current)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          python3 tools/version.py notes > "$RUNNER_TEMP/notes.md"
+          cat "$RUNNER_TEMP/notes.md"
+
+      - name: Gałąź i PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="chore/wydanie-${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git commit -am "Wydanie ${VERSION}"
+          git push -u origin "$BRANCH"
+          {
+            echo "Changelog wygenerowany ze scalonych PR-ów od ostatniego tagu. Popraw wpisy w tym PR, jeśli trzeba."
+            echo
+            echo "Po merge'u: tag \`v${VERSION}\` uruchomi workflow Wydanie (APK i GitHub Release)."
+            echo
+            echo "---"
+            echo
+            cat "$RUNNER_TEMP/notes.md"
+          } > "$RUNNER_TEMP/body.md"
+          # PR utworzony tokenem Actions nie uruchamia CI; pełne testy i tak przechodzą przed APK po tagu.
+          if ! gh pr create --base main --head "$BRANCH" --title "Wydanie ${VERSION}" --body-file "$RUNNER_TEMP/body.md"; then
+            echo "::warning::Nie udało się otworzyć PR (Settings → Actions → General → Allow GitHub Actions to create pull requests). Gałąź $BRANCH jest wypchnięta, otwórz PR ręcznie."
+          fi

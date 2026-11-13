@@ -4,8 +4,10 @@ Wszystkie istotne zmiany w grze. Format według [Keep a Changelog](https://keepa
 wersje według [SemVer](https://semver.org/lang/pl/). Przed 1.0.0 wersje mają postać `0.x.y`, a numer
 kolejnego wydania wybiera właściciel.
 
-Każda zmiana trafia najpierw do sekcji „Nieopublikowane”, w podsekcji: Dodane, Zmienione,
-Naprawione, Usunięte. Wydanie tworzy `python3 tools/version.py bump ...` (szczegóły w README).
+Od wersji 0.0.1 sekcje wydań generują się ze scalonych PR-ów (`tools/changelog.py`): jeden PR to
+jeden wpis z tytułu PR, a podsekcję (Dodane, Zmienione, Naprawione, Usunięte) wybiera prefiks gałęzi
+albo etykieta. Sekcja „Nieopublikowane” zostaje na ręczne wyjątki. Wydanie przygotowuje workflow
+„Przygotuj wydanie” albo `python3 tools/version.py bump ...` (szczegóły w README).
 
 ## [Nieopublikowane]
 

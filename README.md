@@ -66,15 +66,23 @@ teren, siatka budowy i kamera). Przed 1.0.0 wersje mają postać `0.x.y`, a nume
 `project.godot`, `export_presets.cfg` (`version/name`, `version/code = MAJOR*10000 + MINOR*100 + PATCH`)
 i `CHANGELOG.md`.
 
-- Każda zmiana: dopisz punkt w `CHANGELOG.md` w sekcji „Nieopublikowane” (Dodane / Zmienione / Naprawione / Usunięte).
+- **Changelog generuje się ze scalonych PR-ów.** Tytuł PR to wpis w changelogu. Podsekcję wybiera
+  prefiks gałęzi (`feat/` → Dodane, `fix/` → Naprawione, reszta → Zmienione) albo etykieta PR
+  (`dodane`, `zmienione`, `naprawione`, `usuniete`). Etykieta `bez-changelogu` pomija PR.
+  Podgląd następnego wydania (wymaga `gh` albo `GITHUB_TOKEN`): `python3 tools/changelog.py preview`.
 - Wydanie:
+  1. **Actions → Przygotuj wydanie → Run workflow** (`patch`, `minor`, `major` albo `X.Y.Z`). Workflow
+     generuje sekcję changelogu z PR-ów od ostatniego tagu, podbija wersję i otwiera PR „Wydanie X.Y.Z”.
+     Wymaga włączonego *Settings → Actions → General → Allow GitHub Actions to create pull requests*.
+     Bez tego wypchnie tylko gałąź, a PR otwierasz ręcznie.
+  2. Po merge'u PR-a z wydaniem:
 
-  ```bash
-  python3 tools/version.py bump minor    # albo patch, major, 0.3.0
-  git commit -am "Wydanie 0.2.0"
-  git tag v0.2.0
-  git push --follow-tags
-  ```
+     ```bash
+     git tag vX.Y.Z origin/main
+     git push origin vX.Y.Z
+     ```
+
+  To samo lokalnie: `python3 tools/version.py bump minor`, potem commit, PR i tag.
 
 - `python3 tools/version.py check` sprawdza zgodność wersji (uruchamia się też w CI).
 
@@ -86,6 +94,7 @@ i `CHANGELOG.md`.
 | `release.yml` | push na `main` | CI i debug APK jako artefakt (Actions → Wydanie → przebieg → Artifacts) |
 | `release.yml` | tag `vX.Y.Z` | CI, debug APK, GitHub Release z opisem z changelogu (APK do pobrania na telefon) |
 | `release.yml` (ręcznie) | Actions → Wydanie → Run workflow | samo debug APK jako artefakt, bez Release |
+| `prepare-release.yml` | Actions → Przygotuj wydanie → Run workflow | changelog z PR-ów, nowa wersja, PR „Wydanie X.Y.Z” |
 | `dependabot.yml` | co miesiąc | PR z aktualizacjami akcji |
 
 Godot jest pobierany z oficjalnych wydań i weryfikowany przypiętą sumą SHA-512
@@ -103,7 +112,7 @@ scripts/world/   dane świata: teren, siatka budowy
 scripts/camera/  kamera z gestami
 scripts/ui/      HUD
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
-tools/           narzędzia (version.py)
+tools/           narzędzia (version.py, changelog.py i ich testy)
 .github/         workflowy CI/CD i skrypty instalacji Godota
 .claude/skills/  skille dla agenta AI (zob. CLAUDE.md)
 build/           eksportowane APK i logi (ignorowane przez git)
