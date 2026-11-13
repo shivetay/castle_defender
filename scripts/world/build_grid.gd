@@ -144,6 +144,28 @@ func _wall_candidates(c: Vector2i, kind: int) -> Array[Rect2i]:
 	return [tapped]
 
 
+## Wolna luka w linii umocnień tuż przy punkcie `pos` (piksele świata), w którą da się postawić
+## odcinek `kind`, albo (-1, -1). Liczy się luka sąsiadująca z dotkniętą kratką, gdy punkt leży
+## najwyżej `tolerance` px od wspólnej krawędzi; wygrywa najbliższa. Dzięki temu palec, który
+## w wąskiej luce trafił w sąsiedni odcinek, stawia odcinek w luce zamiast zaznaczać sąsiada.
+func gap_near(pos: Vector2, kind: int, tolerance: int) -> Vector2i:
+	var cell := TerrainMap.CELL
+	var c := Vector2i((pos / cell).floor())
+	var local := pos - Vector2(c * cell)
+	var dist: Array[float] = [local.y, cell - local.x, cell - local.y, local.x]  # N, E, S, W
+	var dirs: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
+	var best := Vector2i(-1, -1)
+	var best_dist := float(tolerance)
+	for i in dirs.size():
+		var n := c + dirs[i]
+		if dist[i] > best_dist or building_at(n) != 0:
+			continue
+		if wall_links(n, kind) >= 2 and can_place(Rect2i(n, Vector2i.ONE), kind):
+			best = n
+			best_dist = dist[i]
+	return best
+
+
 ## Z iloma sąsiednimi budynkami połączyłby się odcinek umocnienia `kind` postawiony na kratce `c`.
 func wall_links(c: Vector2i, kind: int) -> int:
 	var n := 0

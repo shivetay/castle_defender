@@ -161,3 +161,24 @@ func test_wall_extends_line_where_tapped() -> bool:
 	var next := grid.place_kind(o + Vector2i(0, -1) + Vector2i(1, 0), BuildingTypes.Kind.PALISADE)
 	assert_eq(grid.buildings[next].position, o + Vector2i(1, -1), "jedno połączenie obok: stawiamy w dotkniętej kratce")
 	return true
+
+
+## Dotknięcie odcinka przy krawędzi wolnej luki trafia w lukę, a środek odcinka nadal go zaznacza.
+func test_tap_near_gap_edge_targets_gap() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var o := _free_area(grid, Vector2i(5, 3)) + Vector2i(0, 1)
+	var left := o
+	grid.place_kind(left, BuildingTypes.Kind.PALISADE)
+	grid.place_kind(o + Vector2i(2, 0), BuildingTypes.Kind.PALISADE)
+	var gap := o + Vector2i(1, 0)
+	var cell := TerrainMap.CELL
+	var left_px := Vector2(left * cell)
+	# 2 px od prawej krawędzi lewego odcinka (granica z luką)
+	assert_eq(grid.gap_near(left_px + Vector2(cell - 2, 4), BuildingTypes.Kind.PALISADE, 3), gap, "przy krawędzi: luka")
+	assert_eq(grid.gap_near(left_px + Vector2(4, 4), BuildingTypes.Kind.PALISADE, 3), Vector2i(-1, -1), "środek odcinka: bez luki")
+	# z prawego odcinka, przy lewej krawędzi
+	var right_px := Vector2((o + Vector2i(2, 0)) * cell)
+	assert_eq(grid.gap_near(right_px + Vector2(1, 4), BuildingTypes.Kind.RAMPART, 3), gap, "wał też trafia w lukę")
+	grid.place_kind(gap, BuildingTypes.Kind.PALISADE)
+	assert_eq(grid.gap_near(left_px + Vector2(cell - 1, 4), BuildingTypes.Kind.PALISADE, 3), Vector2i(-1, -1), "luka zapełniona")
+	return true

@@ -29,8 +29,9 @@ lokalny (#13). Z #5 zostaje pomiar startu na telefonie.
   (ok. 19 ms na komputerze, headless).
 - `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (3×1),
   Wieża drewniana, Chata drwala i Dwór (2×2). Wał i palisada łączą się ze sobą nawzajem
-  oraz z bramą i wieżą, więc mieszana linia nie ma szpar. Dotknięcie kratki obok luki w linii (np. nad nią,
-  gdzie widać wierzch palisady) stawia odcinek w luce.
+  oraz z bramą i wieżą, więc mieszana linia nie ma szpar. Przy wybranym wale lub palisadzie dotknięcie
+  kratki obok luki w linii (np. nad nią, gdzie widać wierzch palisady) albo sąsiedniego odcinka do 3 px od
+  krawędzi luki stawia odcinek w luce zamiast zaznaczać sąsiada.
   Dwór stoi od startu na środku mapy, jest jeden, nie ma go na pasku budowy i nie da się go rozebrać.
   `state_for_hp(hp, max_hp)` wybiera stan z procentu wytrzymałości: od 76% cały, od 41% pęknięcia,
   od 1% wyrwa, 0 to gruz.
