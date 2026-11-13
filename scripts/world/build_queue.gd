@@ -175,3 +175,37 @@ func progress_permille(building_id: int, now_ms: int) -> int:
 		return 1000
 	@warning_ignore("integer_division")
 	return clampi((now_ms - o.start_ms) * 1000 / o.duration_ms, 0, 1000)
+
+
+## Stan do zapisu: zlecenia w kolejności, każde z kosztem, czasem i początkiem pracy, tak jak
+## zostały zlecone (późniejsza zmiana BuildConfig nie zmienia obiecanych zleceń).
+func save_data() -> Dictionary:
+	var list: Array = []
+	for o in orders:
+		list.append({"building_id": o.building_id, "kind": o.kind, "level": o.level, "cost": o.cost.duplicate(),
+				"duration_ms": o.duration_ms, "start_ms": o.start_ms})
+	return {"orders": list}
+
+
+## Wczytuje zlecenia z save_data(). Zlecenie budynku, którego nie ma w siatce, jest pomijane.
+## Pierwsze zlecenie zawsze ma początek pracy, a kolejne czekają. Zwraca liczbę pominiętych.
+func load_data(d: Dictionary, grid: BuildGrid, now_ms: int) -> int:
+	orders.clear()
+	var skipped := 0
+	for entry: Variant in d.get("orders", []) as Array:
+		var e := entry as Dictionary
+		if e == null or not grid.buildings.has(int(e.get("building_id", 0))) or is_full():
+			skipped += 1
+			continue
+		var o := Order.new()
+		o.building_id = int(e["building_id"])
+		o.kind = grid.kinds[o.building_id]
+		o.level = clampi(int(e.get("level", 1)), 1, BuildingTypes.MAX_LEVEL)
+		for amount: Variant in e.get("cost", []) as Array:
+			o.cost.append(maxi(0, int(amount)))
+		o.duration_ms = maxi(0, int(e.get("duration_ms", 0)))
+		o.start_ms = int(e.get("start_ms", -1)) if orders.is_empty() else -1
+		if orders.is_empty() and o.start_ms < 0:
+			o.start_ms = now_ms
+		orders.append(o)
+	return skipped
