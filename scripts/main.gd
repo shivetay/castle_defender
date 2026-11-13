@@ -8,6 +8,10 @@ extends Node2D
 ## Gra zapisuje się (SaveGame) po każdej akcji, po ukończeniu budowy i przy zejściu do tła,
 ## a przy starcie wczytuje zapis i nadrabia czas nieobecności.
 
+## Ile pikseli od krawędzi wolnej luki w linii umocnień dotknięcie sąsiedniego odcinka
+## nadal stawia odcinek w luce (z 8 px kratki), zamiast zaznaczać ten odcinek.
+const GAP_TAP_TOLERANCE := 3
+
 ## Seed terenu nowej gry. Wczytana gra ma seed z zapisu.
 const NEW_GAME_SEED := 1337
 
@@ -151,6 +155,12 @@ func _on_tapped(world_pos: Vector2) -> void:
 	_tick()
 	var cell := Vector2i((world_pos / TerrainMap.CELL).floor())
 	var id := grid.building_at(cell)
+	if id != 0 and _selected_id == 0 and BuildingTypes.is_wall(hud.selected_kind):
+		# palec w wąskiej luce linii umocnień trafił w sąsiedni odcinek: budujemy w luce
+		var gap := grid.gap_near(world_pos, hud.selected_kind, GAP_TAP_TOLERANCE)
+		if gap.x >= 0:
+			cell = gap
+			id = 0
 	if id != 0:
 		_select(id)
 	elif _selected_id != 0:
