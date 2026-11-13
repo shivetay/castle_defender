@@ -6,18 +6,20 @@ extends RefCounted
 var _cache: Dictionary[int, ImageTexture] = {}
 
 
-static func key(kind: int, level: int, state: int, mask: int) -> int:
-	return ((kind * 8 + level) * 4 + state) * 16 + mask
+static func key(kind: int, level: int, state: int, mask: int, vertical: bool = false) -> int:
+	return (((kind * 8 + level) * 4 + state) * 16 + mask) * 2 + (1 if vertical else 0)
 
 
-## Tekstura budynku. Maska N/E/S/W liczy się tylko dla wału i palisady.
-func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0) -> ImageTexture:
+## Tekstura budynku. Maska N/E/S/W liczy się tylko dla wału i palisady, `vertical` tylko dla bramy.
+func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
+		vertical: bool = false) -> ImageTexture:
 	var m := mask if BuildingTypes.is_wall(kind) else 0
+	var v := vertical and kind == BuildingTypes.Kind.GATE
 	var lv := clampi(level, 1, BuildingTypes.MAX_LEVEL)
-	var k := key(kind, lv, state, m)
+	var k := key(kind, lv, state, m, v)
 	var tex: ImageTexture = _cache.get(k)
 	if tex == null:
-		tex = ImageTexture.create_from_image(BuildingArt.make_image(kind, lv, state, m))
+		tex = ImageTexture.create_from_image(BuildingArt.make_image(kind, lv, state, m, v))
 		_cache[k] = tex
 	return tex
 
@@ -29,6 +31,8 @@ func warm_up() -> void:
 		for level in range(1, BuildingTypes.MAX_LEVEL + 1):
 			for mask in masks:
 				draw_building(kind, level, BuildingTypes.State.INTACT, mask)
+			if kind == BuildingTypes.Kind.GATE:
+				draw_building(kind, level, BuildingTypes.State.INTACT, 0, true)
 
 
 func cached_count() -> int:

@@ -51,8 +51,9 @@ func _on_tapped(world_pos: Vector2) -> void:
 		_deselect()
 	else:
 		var kind := hud.selected_kind
-		_cursor = Rect2i(cell, BuildingTypes.size_of(kind))
-		_cursor_ok = grid.place(_cursor, kind) != 0
+		var placed := grid.place_kind(cell, kind)
+		_cursor_ok = placed != 0
+		_cursor = grid.buildings[placed] if _cursor_ok else Rect2i(cell, BuildingTypes.size_of(kind))
 		var title := BuildingTypes.NAMES[kind]
 		hud.message = ("Postawiono: %s" % title) if _cursor_ok else "Tu nie można budować"
 	queue_redraw()
@@ -102,11 +103,38 @@ func _draw() -> void:
 	draw_texture(_terrain_tex, Vector2.ZERO)
 	for id in grid.draw_order():
 		var kind := grid.kinds[id]
-		var tex := textures.draw_building(kind, grid.levels[id], BuildingTypes.State.INTACT, grid.wall_mask(id))
-		var at := grid.buildings[id].position * TerrainMap.CELL - Vector2i(0, BuildingArt.EXTRA[kind])
-		draw_texture(tex, Vector2(at))
+		_draw_wall_stubs(id)
+		var tex := textures.draw_building(kind, grid.levels[id], BuildingTypes.State.INTACT,
+				grid.wall_mask(id), grid.is_vertical(id))
+		draw_texture(tex, Vector2(_texture_origin(grid.buildings[id].position, kind)))
 	var frame := grid.buildings[_selected_id] if _selected_id != 0 else _cursor
 	if frame.has_area():
 		var r := Rect2(frame.position * TerrainMap.CELL, frame.size * TerrainMap.CELL)
 		var ok := _selected_id != 0 or _cursor_ok
 		draw_rect(r.grow(-0.5), Palette.VALID if ok else Palette.ACCENT, false, 1.0)
+
+
+func _texture_origin(cell: Vector2i, kind: int) -> Vector2i:
+	return cell * TerrainMap.CELL - Vector2i(0, BuildingArt.EXTRA[kind])
+
+
+## Wpusty: na kratce budynku przy sąsiedniej palisadzie rysuje się jej krótki odcinek (od krawędzi
+## do środka kratki), a budynek przykrywa go zaraz potem. Linia dochodzi wtedy do korpusu.
+func _draw_wall_stubs(id: int) -> void:
+	for stub in grid.wall_stubs(id):
+		var c := Vector2i(stub.x, stub.y)
+		var wall := grid.building_at(c + _dir_of(stub.z))
+		var kind := grid.kinds[wall]
+		var tex := textures.draw_building(kind, grid.levels[wall], BuildingTypes.State.INTACT, stub.z)
+		draw_texture(tex, Vector2(_texture_origin(c, kind)))
+
+
+static func _dir_of(bit: int) -> Vector2i:
+	match bit:
+		BuildingTypes.N:
+			return Vector2i.UP
+		BuildingTypes.E:
+			return Vector2i.RIGHT
+		BuildingTypes.S:
+			return Vector2i.DOWN
+	return Vector2i.LEFT

@@ -14,14 +14,18 @@ const CELL := 8
 const EXTRA: Array[int] = [4, 4, 12, 20, 10]
 
 
-static func image_size(kind: int) -> Vector2i:
+## Rozmiar obrazu. `vertical` obraca obrys budynku (brama w pionowej linii palisady).
+static func image_size(kind: int, vertical: bool = false) -> Vector2i:
 	var s := BuildingTypes.size_of(kind) * CELL
+	if vertical:
+		s = Vector2i(s.y, s.x)
 	return Vector2i(s.x, s.y + EXTRA[kind])
 
 
-## Obraz budynku. `mask` ma znaczenie tylko dla wału i palisady.
-static func make_image(kind: int, level: int, state: int, mask: int = 0) -> Image:
-	var sz := image_size(kind)
+## Obraz budynku. `mask` ma znaczenie tylko dla wału i palisady, `vertical` tylko dla bramy.
+static func make_image(kind: int, level: int, state: int, mask: int = 0, vertical: bool = false) -> Image:
+	var v := vertical and kind == BuildingTypes.Kind.GATE
+	var sz := image_size(kind, v)
 	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
 	var lv := clampi(level, 1, BuildingTypes.MAX_LEVEL)
 	match kind:
@@ -30,7 +34,10 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0) -> Imag
 		BuildingTypes.Kind.PALISADE:
 			_draw_palisade(img, lv, mask)
 		BuildingTypes.Kind.GATE:
-			_draw_gate(img, lv)
+			if v:
+				_draw_gate_vertical(img, lv)
+			else:
+				_draw_gate(img, lv)
 		BuildingTypes.Kind.TOWER:
 			_draw_tower(img, lv)
 		BuildingTypes.Kind.LUMBER_HUT:
@@ -237,6 +244,50 @@ static func _draw_gate(img: Image, level: int) -> void:
 		PixelCanvas.draw_roof(img, w / 2, 0, 10, 4, Palette.THATCH)
 
 
+## Brama w pionowej linii palisady (1×2), widziana z boku: słup na każdym końcu, między nimi
+## zamknięte skrzydła widoczne od góry. Słupy stoją na osi palisady (kolumny 2..5), więc
+## pionowe odcinki dochodzą do nich bez szpary. Poziomy jak w bramie poziomej.
+static func _draw_gate_vertical(img: Image, level: int) -> void:
+	var ex: int = EXTRA[BuildingTypes.Kind.GATE]
+	var post_h: Array[int] = [6, 8, 9, 10, 10]
+	var ph := post_h[level - 1]
+	var door_h := 5 if level == 1 else 6
+	PixelCanvas.rect(img, Rect2i(2, 16 + ex - 0, 4, 1), Color(Palette.SHADOW, 0.5))
+	# skrzydła od góry: ciemne deski z jasną krawędzią, okucia na poziomie 5
+	for g in range(3, 13):
+		var top := g + ex - door_h
+		PixelCanvas.px(img, 3, top, Palette.WOOD[2] if g % 2 == 0 else Palette.WOOD[1])
+		PixelCanvas.px(img, 4, top, Palette.WOOD[0] if g != 7 else Palette.SHADOW)
+		if level == 5 and g % 3 == 0:
+			PixelCanvas.px(img, 3, top, Palette.SHADOW)
+	for g0: int in [0, 13]:
+		var top := g0 + ex - ph
+		# wierzch słupa, czoło od dolnego wiersza i jasna lewa krawędź
+		PixelCanvas.rect(img, Rect2i(2, top, 4, 3), Palette.WOOD[3])
+		PixelCanvas.rect(img, Rect2i(2, top + 3, 4, ph), Palette.WOOD[1])
+		PixelCanvas.rect(img, Rect2i(2, top + 3, 1, ph), Palette.WOOD[2])
+		PixelCanvas.rect(img, Rect2i(2, top + 2 + ph, 4, 1), Palette.WOOD[0])
+		if level == 3:
+			PixelCanvas.draw_roof(img, 4, top - 2, 2, 3, Palette.THATCH)
+		if level == 5:
+			PixelCanvas.rect(img, Rect2i(3, top + 4, 2, 3), Palette.ACCENT)
+		if g0 == 0 and level >= 2:
+			# nadproże: belka wzdłuż bramy na wysokości szczytu słupów
+			for g in range(3, 13):
+				PixelCanvas.px(img, 3, g + ex - ph, Palette.WOOD[2])
+				PixelCanvas.px(img, 4, g + ex - ph, Palette.WOOD[0])
+	# izba bramna: strzecha nad całą bramą
+	if level >= 4:
+		var roof_top := ex - ph - 3
+		for g in range(-1, 16):
+			var y := g + roof_top
+			PixelCanvas.px(img, 1, y, Palette.THATCH[0])
+			for x in range(2, 6):
+				PixelCanvas.px(img, x, y, Palette.THATCH[2] if (x + g) % 3 != 0 else Palette.THATCH[1])
+			PixelCanvas.px(img, 6, y, Palette.THATCH[0])
+		PixelCanvas.rect(img, Rect2i(1, roof_top + 16, 6, 1), Palette.THATCH[0])
+
+
 ## Wieża drewniana (2×2). Poziomy: 1 pomost na nogach, 2 z balustradą, 3 z obudowanym dołem,
 ## 4 z izbą i dachem, 5 wyższa, z flagą.
 static func _draw_tower(img: Image, level: int) -> void:
@@ -327,7 +378,7 @@ static func _apply_state(img: Image, kind: int, state: int) -> void:
 	if state == BuildingTypes.State.INTACT:
 		return
 	var sz := img.get_size()
-	var foot_h := BuildingTypes.size_of(kind).y * CELL
+	var foot_h := sz.y - EXTRA[kind]
 	var keep_row := sz.y - foot_h / 2 - 3
 	var rubble_row := sz.y - 4
 	for y in sz.y:
