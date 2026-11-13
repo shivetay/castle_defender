@@ -1,16 +1,20 @@
 extends Node2D
-## Etap 4: widok zamku z budynkami epoki I, ekonomią i kolejką budowy. Teren 64×64 kratki z seeda,
-## siatka budowy, kamera z gestami. Na środku od startu stoi Dwór (poziom zamku). Pasek u dołu
-## wybiera budynek, a dotknięcie wolnej trawy zleca budowę: koszt schodzi od razu, na kratkach
-## staje plac budowy, a budynek powstaje po czasie z BuildConfig. Dotknięcie budynku otwiera kartę
-## z przyciskami Ulepsz, Rozbierz (albo Anuluj dla zlecenia w kolejce) i Zamknij. Surowce i budowa
+## Widok zamku z budynkami epoki I, ekonomią i kolejką budowy. Teren 64×64 kratki z seeda,
+## siatka budowy, kamera z gestami. Na środku od startu stoi Dwór (poziom zamku).
+## Tryb oglądania: dotknięcie budynku otwiera kartę z przyciskami Ulepsz, Rozbierz (albo Anuluj
+## dla zlecenia w kolejce) i Zamknij. Przycisk Buduj włącza tryb budowy: pasek wybiera budynek,
+## a dotknięcie wolnej trawy zleca budowę (koszt schodzi od razu, na kratkach staje plac budowy,
+## budynek powstaje po czasie z BuildConfig); Gotowe wraca do oglądania. Surowce i budowa
 ## idą dalej, gdy gra jest w tle albo zamknięta; po powrocie komunikat podaje, ile przybyło.
 ## Gra zapisuje się (SaveGame) po każdej akcji, po ukończeniu budowy i przy zejściu do tła,
 ## a przy starcie wczytuje zapis i nadrabia czas nieobecności.
 
 ## Ile pikseli od krawędzi wolnej luki w linii umocnień dotknięcie sąsiedniego odcinka
-## nadal stawia odcinek w luce (z 8 px kratki), zamiast zaznaczać ten odcinek.
+## w trybie budowy nadal stawia odcinek w luce (z 8 px kratki).
 const GAP_TAP_TOLERANCE := 3
+
+## Komunikat w trybie oglądania.
+const DEFAULT_MESSAGE := "Dotknij budynku albo wybierz Buduj"
 
 ## Seed terenu nowej gry. Wczytana gra ma seed z zapisu.
 const NEW_GAME_SEED := 1337
@@ -66,7 +70,10 @@ func _ready() -> void:
 	hud.world_seed = world_seed
 	hud.economy = economy
 	layer.add_child(hud)
+	hud.message = DEFAULT_MESSAGE
 	hud.kind_selected.connect(_on_kind_selected)
+	hud.build_mode_changed.connect(_on_build_mode_changed)
+	hud.siege_pressed.connect(_on_siege_pressed)
 	hud.upgrade_pressed.connect(_on_upgrade)
 	hud.demolish_pressed.connect(_on_middle_button)
 	hud.card_closed.connect(_deselect)
@@ -140,6 +147,7 @@ func _tick() -> void:
 	for o in done:
 		hud.message = "Ukończono: %s, poziom %d" % [BuildingTypes.NAMES[o.kind], o.level]
 	hud.queue_text = ""
+	hud.age_text = Ages.label(0, grid.manor_level())
 	if not queue.orders.is_empty():
 		hud.queue_text = Hud.format_time(queue.remaining_ms(queue.orders[0].building_id, now))
 		if queue.orders.size() > 1:
@@ -151,20 +159,27 @@ func _tick() -> void:
 		queue_redraw()
 
 
+## Dotknięcie mapy. W trybie oglądania zaznacza budynek (albo zamyka kartę), w trybie budowy
+## tylko stawia wybrany budynek i niczego nie zaznacza.
 func _on_tapped(world_pos: Vector2) -> void:
 	_tick()
 	var cell := Vector2i((world_pos / TerrainMap.CELL).floor())
 	var id := grid.building_at(cell)
-	if id != 0 and _selected_id == 0 and BuildingTypes.is_wall(hud.selected_kind):
+	if not hud.building:
+		if id != 0:
+			_select(id)
+		elif _selected_id != 0:
+			_deselect()
+		queue_redraw()
+		return
+	if id != 0 and BuildingTypes.is_wall(hud.selected_kind):
 		# palec w wąskiej luce linii umocnień trafił w sąsiedni odcinek: budujemy w luce
 		var gap := grid.gap_near(world_pos, hud.selected_kind, GAP_TAP_TOLERANCE)
 		if gap.x >= 0:
 			cell = gap
 			id = 0
 	if id != 0:
-		_select(id)
-	elif _selected_id != 0:
-		_deselect()
+		hud.message = "Tu stoi %s" % BuildingTypes.NAMES[grid.kinds[id]]
 	else:
 		var kind := hud.selected_kind
 		var result := queue.order_build(grid, economy, cell, kind, _now_ms())
@@ -194,8 +209,22 @@ func _select(id: int) -> void:
 func _deselect() -> void:
 	_selected_id = 0
 	hud.hide_card()
-	hud.message = "Wybierz budynek i dotknij trawy"
+	hud.message = DEFAULT_MESSAGE
 	queue_redraw()
+
+
+## Wejście w tryb budowy zamyka kartę; wyjście czyści ramkę ostatniej próby.
+func _on_build_mode_changed(building: bool) -> void:
+	_selected_id = 0
+	hud.hide_card()
+	_cursor = Rect2i()
+	if not building:
+		hud.message = DEFAULT_MESSAGE
+	queue_redraw()
+
+
+func _on_siege_pressed() -> void:
+	hud.message = "Oblężenia dojdą razem z bitwą"
 
 
 func _refresh_card() -> void:
