@@ -74,9 +74,9 @@ func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int =
 
 
 ## Stawia budynek danego rodzaju na dotkniętej kratce `c`. Zwykle `c` to lewy górny róg.
-## Brama staje pionowo (1×2), gdy obok jest pionowa palisada, i dosuwa się o kratkę wstecz,
-## jeśli dotknięto dolnej albo prawej kratki luki w linii. Dotknięta droga ustawia bramę
-## w poprzek drogi.
+## Brama (3×1) staje środkiem na dotkniętej kratce, a gdy tam się nie mieści, dosuwa się tak,
+## żeby dotknięta kratka była jej końcem. Staje pionowo (1×3), gdy obok jest pionowa palisada.
+## Dotknięta droga ustawia bramę w poprzek drogi, z drogą pośrodku.
 func place_kind(c: Vector2i, kind: int, level: int = 1) -> int:
 	for rect in placement_candidates(c, kind):
 		if can_place(rect, kind):
@@ -111,17 +111,19 @@ func placement_candidates(c: Vector2i, kind: int) -> Array[Rect2i]:
 	var size := BuildingTypes.size_of(kind)
 	if kind != BuildingTypes.Kind.GATE:
 		return [Rect2i(c, size)]
-	var v := Vector2i(size.y, size.x)
 	var axis := road_axis(c)
-	if axis == Vector2i.DOWN:
-		return [Rect2i(c, size), Rect2i(c + Vector2i.LEFT, size)]
-	if axis == Vector2i.RIGHT:
-		return [Rect2i(c, v), Rect2i(c + Vector2i.UP, v)]
-	var beside := _is_palisade(c + Vector2i.LEFT) or _is_palisade(c + Vector2i.RIGHT)
-	var above_below := _is_palisade(c + Vector2i.UP) or _is_palisade(c + Vector2i.DOWN)
-	if above_below and not beside:
-		return [Rect2i(c, v), Rect2i(c + Vector2i.UP, v)]
-	return [Rect2i(c, size), Rect2i(c + Vector2i.LEFT, size)]
+	var vertical := axis == Vector2i.RIGHT
+	if axis == Vector2i.ZERO:
+		var beside := _is_palisade(c + Vector2i.LEFT) or _is_palisade(c + Vector2i.RIGHT)
+		var above_below := _is_palisade(c + Vector2i.UP) or _is_palisade(c + Vector2i.DOWN)
+		vertical = above_below and not beside
+	var along := Vector2i.DOWN if vertical else Vector2i.RIGHT
+	var rect_size := Vector2i(size.y, size.x) if vertical else size
+	var out: Array[Rect2i] = []
+	# środek na dotkniętej kratce, potem dotknięta kratka jako pierwsza i jako ostatnia
+	for back: int in [1, 0, 2]:
+		out.append(Rect2i(c - along * back, rect_size))
+	return out
 
 
 ## Czy budynek stoi pionowo (dłuższy w osi y), np. brama w pionowej linii palisady.

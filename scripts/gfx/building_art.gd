@@ -257,7 +257,7 @@ static func _wall_mound(img: Image, f: PackedByteArray, mask: int, ex: int) -> v
 
 # --- Budynki wielokratkowe -----------------------------------------------------------------
 
-## Brama drewniana (2×1) w linii palisady. Poziomy: 1 dwa skrzydła między słupami,
+## Brama drewniana (3×1) w linii palisady. Poziomy: 1 dwa skrzydła między słupami,
 ## 2 z nadprożem, 3 z daszkami na słupach, 4 z izbą bramną i dachem, 5 ze sztandarami i okuciami.
 static func _draw_gate(img: Image, level: int) -> void:
 	var w := img.get_width()
@@ -300,23 +300,24 @@ static func _draw_gate(img: Image, level: int) -> void:
 		PixelCanvas.draw_roof(img, w / 2, 0, 10, 4, Palette.THATCH)
 
 
-## Brama w pionowej linii palisady (1×2), widziana z boku: słup na każdym końcu, między nimi
+## Brama w pionowej linii palisady (1×3), widziana z boku: słup na każdym końcu, między nimi
 ## zamknięte skrzydła widoczne od góry. Słupy stoją na osi palisady (kolumny 2..5), więc
 ## pionowe odcinki dochodzą do nich bez szpary. Poziomy jak w bramie poziomej.
 static func _draw_gate_vertical(img: Image, level: int) -> void:
 	var ex: int = EXTRA[BuildingTypes.Kind.GATE]
+	var length := img.get_height() - ex  # długość bramy w pikselach (wzdłuż osi y)
 	var post_h: Array[int] = [6, 8, 9, 10, 10]
 	var ph := post_h[level - 1]
 	var door_h := 5 if level == 1 else 6
-	PixelCanvas.rect(img, Rect2i(2, 16 + ex - 0, 4, 1), Color(Palette.SHADOW, 0.5))
-	# skrzydła od góry: ciemne deski z jasną krawędzią, okucia na poziomie 5
-	for g in range(3, 13):
+	PixelCanvas.rect(img, Rect2i(2, length + ex - 0, 4, 1), Color(Palette.SHADOW, 0.5))
+	# skrzydła od góry: ciemne deski z jasną krawędzią, szpara między skrzydłami, okucia na poziomie 5
+	for g in range(3, length - 3):
 		var top := g + ex - door_h
 		PixelCanvas.px(img, 3, top, Palette.WOOD[2] if g % 2 == 0 else Palette.WOOD[1])
-		PixelCanvas.px(img, 4, top, Palette.WOOD[0] if g != 7 else Palette.SHADOW)
+		PixelCanvas.px(img, 4, top, Palette.WOOD[0] if g != length / 2 - 1 else Palette.SHADOW)
 		if level == 5 and g % 3 == 0:
 			PixelCanvas.px(img, 3, top, Palette.SHADOW)
-	for g0: int in [0, 13]:
+	for g0: int in [0, length - 3]:
 		var top := g0 + ex - ph
 		# wierzch słupa, czoło od dolnego wiersza i jasna lewa krawędź
 		PixelCanvas.rect(img, Rect2i(2, top, 4, 3), Palette.WOOD[3])
@@ -329,20 +330,20 @@ static func _draw_gate_vertical(img: Image, level: int) -> void:
 			PixelCanvas.rect(img, Rect2i(3, top + 4, 2, 3), Palette.ACCENT)
 		if g0 == 0 and level >= 2:
 			# nadproże: belka wzdłuż bramy na wysokości szczytu słupów
-			for g in range(3, 13):
+			for g in range(3, length - 3):
 				PixelCanvas.px(img, 3, g + ex - ph, Palette.WOOD[2])
 				PixelCanvas.px(img, 4, g + ex - ph, Palette.WOOD[0])
 	# izba bramna: strzecha nad całą bramą
 	if level >= 4:
 		# szczyt strzechy w wierszu 0 obrazu (ph = 10 na poziomach 4–5), okap pod spodem
 		var roof_top := ex - ph - 2
-		for g in range(0, 16):
+		for g in range(0, length):
 			var y := g + roof_top
 			PixelCanvas.px(img, 1, y, Palette.THATCH[0])
 			for x in range(2, 6):
 				PixelCanvas.px(img, x, y, Palette.THATCH[2] if (x + g) % 3 != 0 else Palette.THATCH[1])
 			PixelCanvas.px(img, 6, y, Palette.THATCH[0])
-		PixelCanvas.rect(img, Rect2i(1, roof_top + 16, 6, 1), Palette.THATCH[0])
+		PixelCanvas.rect(img, Rect2i(1, roof_top + length, 6, 1), Palette.THATCH[0])
 
 
 ## Wieża drewniana (2×2). Poziomy: 1 pomost na nogach, 2 z balustradą, 3 z obudowanym dołem,

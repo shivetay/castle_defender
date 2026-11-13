@@ -73,7 +73,8 @@ func test_gate_spans_road_across() -> bool:
 		var id := grid.place_kind(c, BuildingTypes.Kind.GATE)
 		assert_true(id != 0, "brama na drodze o osi %s" % axis)
 		var r := grid.buildings[id]
-		assert_true(r.has_point(c), "brama zakrywa dotkniętą kratkę drogi")
+		var across := Vector2i(axis.y, axis.x)
+		assert_eq(r, Rect2i(c - across, across * 2 + Vector2i.ONE), "brama 3 kratki, droga pośrodku (oś %s)" % axis)
 		assert_eq(grid.is_vertical(id), axis == Vector2i.RIGHT, "brama w poprzek drogi o osi %s" % axis)
 	return true
 
@@ -82,12 +83,12 @@ func test_gate_spans_road_across() -> bool:
 func test_road_only_for_gate_across() -> bool:
 	var grid := BuildGrid.new(TerrainMap.generate(1337))
 	var c := _straight_road(grid, Vector2i.DOWN)
-	assert_true(not grid.can_place(Rect2i(c, Vector2i(1, 2)), BuildingTypes.Kind.GATE), "pionowa brama wzdłuż drogi pionowej")
-	assert_true(grid.can_place(Rect2i(c, Vector2i(2, 1)), BuildingTypes.Kind.GATE), "pozioma brama w poprzek")
+	assert_true(not grid.can_place(Rect2i(c - Vector2i(0, 1), Vector2i(1, 3)), BuildingTypes.Kind.GATE), "pionowa brama wzdłuż drogi pionowej")
+	assert_true(grid.can_place(Rect2i(c - Vector2i(1, 0), Vector2i(3, 1)), BuildingTypes.Kind.GATE), "pozioma brama w poprzek")
 	for kind: int in [BuildingTypes.Kind.RAMPART, BuildingTypes.Kind.PALISADE, BuildingTypes.Kind.TOWER,
 			BuildingTypes.Kind.LUMBER_HUT]:
 		assert_eq(grid.place_kind(c, kind), 0, "%s nie staje na drodze" % BuildingTypes.NAMES[kind])
-	assert_true(not grid.can_place(Rect2i(c, Vector2i(2, 1))), "bez rodzaju droga jest zajęta jak dawniej")
+	assert_true(not grid.can_place(Rect2i(c - Vector2i(1, 0), Vector2i(3, 1))), "bez rodzaju droga jest zajęta jak dawniej")
 	return true
 
 
@@ -98,6 +99,6 @@ func test_gate_never_on_water_or_bridge() -> bool:
 			var c := Vector2i(x, y)
 			var t := grid.terrain.get_tile(c)
 			if t == TerrainMap.Tile.WATER or t == TerrainMap.Tile.BRIDGE:
-				assert_true(not grid.can_place(Rect2i(c, Vector2i(2, 1)), BuildingTypes.Kind.GATE), "brama pozioma na %s" % c)
-				assert_true(not grid.can_place(Rect2i(c, Vector2i(1, 2)), BuildingTypes.Kind.GATE), "brama pionowa na %s" % c)
+				assert_true(not grid.can_place(Rect2i(c - Vector2i(1, 0), Vector2i(3, 1)), BuildingTypes.Kind.GATE), "brama pozioma na %s" % c)
+				assert_true(not grid.can_place(Rect2i(c - Vector2i(0, 1), Vector2i(1, 3)), BuildingTypes.Kind.GATE), "brama pionowa na %s" % c)
 	return true

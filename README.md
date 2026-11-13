@@ -27,15 +27,15 @@ Z #5 zostaje pomiar startu na telefonie.
 - `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska,
   pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 180 całych wariantów
   (ok. 18 ms na komputerze).
-- `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (2×1),
+- `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (3×1),
   Wieża drewniana, Chata drwala i Dwór (2×2). Wał łączy się z wałem, palisada z palisadą, bramą i wieżą.
   Dwór stoi od startu na środku mapy, jest jeden, nie ma go na pasku budowy i nie da się go rozebrać.
   `state_for_hp(hp, max_hp)` wybiera stan z procentu wytrzymałości: od 76% cały, od 41% pęknięcia,
   od 1% wyrwa, 0 to gruz.
 - `scripts/world/build_grid.gd` (`BuildGrid`): rodzaj i poziom budynku (0 = plac budowy), poziom Dworu,
   maski sąsiadów i stała kolejność rysowania (od tyłu do przodu).
-  Budynki stoją na trawie. Wyjątkiem jest brama: może stać nad drogą, ale tylko w poprzek niej
-  (pozioma na drodze północ–południe, pionowa na drodze wschód–zachód).
+  Budynki stoją na trawie. Wyjątkiem jest brama (3 kratki): może stać nad drogą, ale tylko w poprzek niej
+  i z drogą pośrodku (pozioma na drodze północ–południe, pionowa na drodze wschód–zachód).
 - `scripts/world/build_config.gd` (`BuildConfig`): koszty i czasy budowy w jednym pliku. Poziom 1:
   Wał 10 Dr 10 Ży 5 s, Palisada 20 Dr 5 Ży 10 s, Brama 60 Dr 20 Ka 20 Ży 30 s, Wieża 120 Dr 40 Ka 40 Ży 60 s,
   Chata 80 Dr 30 Ży 45 s. Poziomy 1–5 mnożą koszt ×1/×1,5/×2,5/×4/×6, a czas ×1/×3/×10/×30/×90.
