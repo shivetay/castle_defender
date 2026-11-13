@@ -39,7 +39,10 @@ i ekonomia (#10). Zostają progresja: koszty, czasy i kolejka budowy (#11), a z 
 - `scripts/world/economy.gd` (`Economy`): naliczanie produkcji w liczbach całkowitych (ten sam wynik
   co klatkę i jednym skokiem), limity magazynów, łup (`add`) i wydawanie (`spend`). Produkcja liczy
   się z zegara systemowego, więc rośnie też, gdy gra jest w tle. Po powrocie komunikat podaje przyrost.
-- `scripts/ui/hud.gd`: u góry pasek surowców (pełny magazyn ma dopisek „max”), pasek wyboru budynku nad dolną krawędzią, a po dotknięciu budynku karta
+- `scripts/gfx/pixel_icons.gd` (`PixelIcons`): ikony surowców 5×5 zapisane w kodzie jako wzory znaków
+  (dwa bale, kamień, jabłko, moneta), kolory z palety, atlas w cache.
+- `scripts/ui/hud.gd`: u góry pasek surowców z ikonami (pełny magazyn ma dopisek „max” i kolor strzechy),
+  pasek wyboru budynku nad dolną krawędzią, a po dotknięciu budynku karta
   z poziomem i przyciskami Ulepsz, Rozbierz, Zamknij (cele 56×14 px).
 
 Ulepszanie jest na razie darmowe i natychmiastowe. Koszty, czasy i kolejka budowy to #11.
@@ -142,5 +145,5 @@ build/           eksportowane APK i logi (ignorowane przez git)
 ## Następny etap
 
 Etap 4, ciąg dalszy: progresja (#11): tabela kosztów i czasów poziomów 1–5, kolejka budowy
-i wymagania. Koszty pobiera już `Economy.spend`. Potem HUD z ikonami surowców i przyciskami Buduj
-i Oblężenie (#9). Kolejność potwierdza właściciel.
+i wymagania. Koszty pobiera już `Economy.spend`. Potem reszta HUD-u: przyciski Buduj
+i Oblężenie (#9; ikony surowców już są). Kolejność potwierdza właściciel.

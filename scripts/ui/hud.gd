@@ -44,13 +44,28 @@ func is_card_open() -> bool:
 	return not card_title.is_empty()
 
 
-## Pasek surowców, np. „Dr 520 Ka 300 Ży 300 Zł 50”. Pełny magazyn ma dopisek „max”.
-static func resources_text(amounts: Array[int]) -> String:
-	var parts: PackedStringArray = []
+const ICON_GAP := 2
+const RESOURCE_GAP := 7
+
+
+## Liczby na pasku surowców (bez ikon). Pełny magazyn ma dopisek „max”.
+static func resource_labels(amounts: Array[int]) -> Array[String]:
+	var out: Array[String] = []
 	for res in EconomyConfig.count():
 		var full := EconomyConfig.is_capped(res) and amounts[res] >= EconomyConfig.CAPACITY[res]
-		parts.append("%s %d%s" % [EconomyConfig.SHORT_NAMES[res], amounts[res], " max" if full else ""])
-	return "  ".join(parts)
+		out.append("%d%s" % [amounts[res], " max" if full else ""])
+	return out
+
+
+## Lewe krawędzie ikon na pasku surowców, licząc od x = `left`, i na końcu prawa krawędź paska.
+static func resource_layout(amounts: Array[int], left: int) -> Array[int]:
+	var xs: Array[int] = []
+	var x := left
+	for label in resource_labels(amounts):
+		xs.append(x)
+		x += PixelIcons.SIZE + ICON_GAP + PixelFont.text_width(label) + RESOURCE_GAP
+	xs.append(x - RESOURCE_GAP)
+	return xs
 
 
 ## Przyciski paska budynków: rząd wyśrodkowany nad paskiem komunikatu, z dala od krawędzi.
@@ -121,7 +136,7 @@ func _draw() -> void:
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, 0, view.x, BAR_H), Color(Palette.SHADOW, 0.8))
 	if economy != null:
-		PixelFont.draw_text(self, Vector2(4, 1), resources_text(economy.amounts), Palette.INK)
+		_draw_resources()
 	var zoom := camera.zoom_level if camera != null else 1
 	var info := "%d×  %d FPS" % [zoom, Engine.get_frames_per_second()]
 	PixelFont.draw_right(self, view.x - 4, 1, info, Palette.INK)
@@ -143,6 +158,16 @@ func _draw() -> void:
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
 	PixelFont.draw_text(self, Vector2(4, view.y - BAR_H + 1), message, Palette.INK)
+
+
+## Ikona 5×5 na wysokości wielkich liter, obok liczba. Pełny magazyn świeci kolorem strzechy.
+func _draw_resources() -> void:
+	var labels := resource_labels(economy.amounts)
+	var xs := resource_layout(economy.amounts, 4)
+	for res in labels.size():
+		PixelIcons.draw_resource(self, Vector2(xs[res], 1 + PixelFont.CAP_TOP), res)
+		var col: Color = Palette.THATCH[2] if economy.is_full(res) else Palette.INK
+		PixelFont.draw_text(self, Vector2(xs[res] + PixelIcons.SIZE + ICON_GAP, 1), labels[res], col)
 
 
 func _draw_button(r: Rect2, label: String, active: bool, disabled: bool) -> void:
