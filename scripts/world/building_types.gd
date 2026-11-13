@@ -42,14 +42,12 @@ static func is_wall(kind: int) -> bool:
 	return kind == Kind.RAMPART or kind == Kind.PALISADE
 
 
-## Czy odcinek umocnienia `wall` łączy się z sąsiednim budynkiem `other`. Wał łączy się
-## tylko z wałem. Palisada łączy się z palisadą, bramą i wieżą, żeby brama mogła stać w linii.
+## Czy odcinek umocnienia `wall` łączy się z sąsiednim budynkiem `other`. Wał i palisada łączą się
+## ze sobą nawzajem (mieszana linia nie ma szpar) oraz z bramą i wieżą, żeby stały w linii.
 static func connects(wall: int, other: int) -> bool:
-	if wall == Kind.RAMPART:
-		return other == Kind.RAMPART
-	if wall == Kind.PALISADE:
-		return other == Kind.PALISADE or other == Kind.GATE or other == Kind.TOWER
-	return false
+	if not is_wall(wall):
+		return false
+	return is_wall(other) or other == Kind.GATE or other == Kind.TOWER
 
 
 ## Stan budynku dla wytrzymałości `hp` z `max_hp`. Procent liczy się w liczbach całkowitych
