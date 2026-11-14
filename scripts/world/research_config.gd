@@ -3,10 +3,10 @@ extends RefCounted
 ## Koszty i czasy badań w jednym miejscu. Koszt to tablica ilości surowców w kolejności
 ## EconomyConfig.Res (drewno, kamień, żywność, złoto). Zmiana balansu badań to zmiana tylko tego pliku.
 ##
-## Według #12 każda kolejna technologia w epoce kosztuje ok. 1,6× więcej i trwa 2× dłużej.
-## UWAGA: bazowe koszty i czasy poniżej są tymczasowe, do zastąpienia liczbami z notatki
-## Drzewko technologiczne. Przy 30 technologiach epoki I wzrost ×1,6 / ×2 na każdą kolejną
-## szybko przekracza pojemność magazynu, więc mnożniki też czekają na decyzję właściciela.
+## Według notatki Drzewko technologiczne koszt i czas badań rosną jak budowa: ok. 1,6× koszt
+## i 2× czas na każdą kolejną technologię w epoce. Bazowych liczb notatka nie podaje (to decyzja
+## balansowa), więc te poniżej są tymczasowe. Przy 27 technologiach epoki I w MVP wzrost ×1,6
+## na każdą kolejną szybko przekracza pojemność magazynu: do decyzji właściciela.
 
 ## Koszt pierwszej technologii w epoce (indeks = epoka, 0 = I). TYMCZASOWE.
 const BASE_COST: Array = [
@@ -19,7 +19,7 @@ const BASE_TIME_S: Array[int] = [60, 30 * 60]
 const COST_STEP_PERCENT := 160
 ## Wzrost czasu na każdą wcześniej rozpoczętą technologię tej samej epoki (×2).
 const TIME_STEP := 2
-## Jedno badanie naraz.
+## Jedno badanie naraz (drugie miejsce da U10 Kwatermistrzostwo w epoce V).
 const RESEARCHERS := 1
 
 

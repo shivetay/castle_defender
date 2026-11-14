@@ -1,11 +1,11 @@
 class_name ResearchPanel
 extends Node2D
 ## Ekran drzewka badań (#12) na całą mapę, między górnym a dolnym paskiem HUD.
-## U góry zakładki gałęzi (Atak, Obrona, Gospodarka, Użyteczne), pod nimi kafelki technologii
+## U góry zakładki gałęzi (Atak, Obrona, Gospodarka, Użyteczne, Specjalne), pod nimi kafelki technologii
 ## z kodem. Kafelek pokazuje stan kolorem napisu: zbadana, w toku, dostępna, zablokowana
 ## (brak wymaganej technologii albo późniejsza epoka); technologia kluczowa ★ ma znacznik w rogu.
-## Dotknięcie kafelka pokazuje szczegóły: nazwę, stan, koszt i czas, wymagania (z ramką na
-## wymaganych kafelkach). Badaj rozpoczyna badanie, Zamknij wraca do mapy.
+## Dotknięcie kafelka pokazuje szczegóły: nazwę, stan, efekt, koszt i czas, wymagania (z ramką
+## na wymaganych kafelkach). Badaj rozpoczyna badanie, Zamknij wraca do mapy.
 ## Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
 
 signal research_requested(code: String)
@@ -20,6 +20,8 @@ const TILE_COLS := 8
 const TILE_H := 14
 const GAP := 3
 const DETAIL_Y := GRID_Y + 3 * (TILE_H + GAP) + 2
+## Nazwa i stan, efekt, epoka z kosztem i czasem, wymagania, trwające badanie.
+const DETAIL_LINES := 5
 const START_LABEL := "Badaj"
 const CLOSE_LABEL := "Zamknij"
 
@@ -137,6 +139,16 @@ static func requires_text(code: String, max_width: int) -> String:
 	return "Wymaga: " + ", ".join(PackedStringArray(reqs))
 
 
+## Tekst przycięty do szerokości `max_width` (z wielokropkiem „...”).
+static func fit_text(text: String, max_width: int) -> String:
+	if PixelFont.text_width(text) <= max_width:
+		return text
+	var out := text
+	while out.length() > 0 and PixelFont.text_width(out + "...") > max_width:
+		out = out.substr(0, out.length() - 1)
+	return out.strip_edges() + "..."
+
+
 # --- Dotyk -------------------------------------------------------------------------------------
 
 func _input(event: InputEvent) -> void:
@@ -215,7 +227,7 @@ func _draw_tile(r: Rect2, code: String, active: bool, required: bool) -> void:
 		draw_rect(Rect2(r.end.x - 1, r.position.y, 1, r.size.y), frame)
 
 
-## Szczegóły zaznaczonej technologii: do 4 linii między kafelkami a rzędem przycisków.
+## Szczegóły zaznaczonej technologii: do DETAIL_LINES linii między kafelkami a rzędem przycisków.
 func _draw_details() -> void:
 	if selected.is_empty():
 		return
@@ -227,6 +239,8 @@ func _draw_details() -> void:
 		title += " (kluczowa)"
 	PixelFont.draw_text(self, Vector2(x, y), title, Palette.INK)
 	PixelFont.draw_right(self, content_right, y, state_text(research, selected, age, now_ms), Palette.THATCH[2])
+	y += PixelFont.LINE + 2
+	PixelFont.draw_text(self, Vector2(x, y), fit_text(TechTree.effect(selected), width), Palette.VALID)
 	y += PixelFont.LINE + 2
 	if not research.is_done(selected) and research.active != selected:
 		var line := "%s, %s, %s" % [TechTree.age_label(TechTree.age(selected)),

@@ -3,7 +3,8 @@ extends RefCounted
 ## Stan badań: zbadane technologie i jedno trwające badanie. Koszt pobiera się przy rozpoczęciu,
 ## a badanie kończy się w czasie zegarowym, więc trwa też, gdy gra jest w tle albo zamknięta.
 ## Technologię można badać, gdy gra jest w jej epoce (lub późniejszej) i zbadano wszystkie
-## technologie, których wymaga. Efekty technologii dojdą osobno.
+## technologie, których wymaga. Z efektów działa na razie premia do produkcji (G1, G2);
+## pozostałe włączą się razem z budynkami, jednostkami i bitwą.
 
 enum Result { OK, BUSY, ALREADY_DONE, WRONG_AGE, MISSING_REQUIREMENTS, NO_RESOURCES, UNKNOWN }
 
@@ -35,6 +36,21 @@ func missing(code: String) -> Array[String]:
 		if not is_done(req):
 			out.append(req)
 	return out
+
+
+## Premia do produkcji surowca `res` w procentach (100 = bez premii) ze zbadanych technologii.
+func production_percent(res: int) -> int:
+	var percent := 100
+	for code: String in TechTree.PRODUCTION_BONUS:
+		var bonus: Array = TechTree.PRODUCTION_BONUS[code]
+		if is_done(code) and int(bonus[0]) == res:
+			percent += int(bonus[1])
+	return percent
+
+
+## Chwila końca trwającego badania (unix, ms); -1, gdy nic się nie bada.
+func finish_ms() -> int:
+	return start_ms + duration_ms if is_busy() else -1
 
 
 ## Ile technologii epoki `tech_age` zbadano albo właśnie się bada. Od tego rośnie koszt i czas.
