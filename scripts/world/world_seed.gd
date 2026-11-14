@@ -18,10 +18,12 @@ const MANOR_MAX_RING := 6
 ## Droga do bramy zaczyna się najdalej tyle kratek od Dworu.
 const ROAD_REACH := 4
 ## Argument wymuszający seed w wersji debug: godot --path . -- --seed=42
+## Wymuszony seed omija walidację grywalności, więc da się nim uruchomić też mapę niegrywalną.
 const DEBUG_ARG := "--seed="
 
 
-## Seed dla nowej gry: wymuszony argumentem w wersji debug, inaczej losowy i zwalidowany.
+## Seed dla nowej gry: wymuszony argumentem w wersji debug (bez walidacji), inaczej losowy
+## i zwalidowany.
 static func for_new_game() -> int:
 	var forced := debug_override(OS.get_cmdline_user_args())
 	if forced > 0 and OS.is_debug_build():
@@ -77,17 +79,18 @@ static func is_playable_map(map: TerrainMap) -> bool:
 	grid.place(manor, BuildingTypes.Kind.MANOR)
 	var near := manor.grow(ROAD_REACH)
 	var seen := {}
-	var queue: Array[Vector2i] = []
+	# stos (pop_back): przeszukanie w głąb wystarczy, bo liczy się tylko osiągalność
+	var stack: Array[Vector2i] = []
 	for y in range(near.position.y, near.end.y):
 		for x in range(near.position.x, near.end.x):
 			var c := Vector2i(x, y)
 			if _is_road(map, c):
 				seen[c] = true
-				queue.append(c)
+				stack.append(c)
 	var reaches_edge := false
 	var has_gate_spot := false
-	while not queue.is_empty():
-		var c: Vector2i = queue.pop_back()
+	while not stack.is_empty():
+		var c: Vector2i = stack.pop_back()
 		if c.x == 0 or c.y == 0 or c.x == map.size - 1 or c.y == map.size - 1:
 			reaches_edge = true
 		if not has_gate_spot and grid.placement_for(c, BuildingTypes.Kind.GATE).has_area():
@@ -98,7 +101,7 @@ static func is_playable_map(map: TerrainMap) -> bool:
 			var n := c + d
 			if not seen.has(n) and _is_road(map, n):
 				seen[n] = true
-				queue.append(n)
+				stack.append(n)
 	return false
 
 

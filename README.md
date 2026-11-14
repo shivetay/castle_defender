@@ -55,7 +55,8 @@ na jednostki, bitwę i epokę II z późniejszych etapów.
   (31 bitów, nie z czasu), zapisywany w `world_seed` i stały przez całą grę. Wylosowana mapa przechodzi
   walidację: Dwór mieści się do 6 kratek od środka wzgórza, a od Dworu biegnie droga do krawędzi mapy
   z miejscem na bramę. Gdy nie, kolejne seedy wynikają deterministycznie z pierwszego (do 32 prób,
-  potem seed zapasowy 1337). W wersji debug seed wymusza `godot --path . -- --seed=42`.
+  potem seed zapasowy 1337). W wersji debug seed wymusza `godot --path . -- --seed=42`; wymuszony seed omija walidację,
+  więc da się nim odtworzyć także mapę niegrywalną.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje). Zapisuje seed terenu, budynki, surowce i kolejkę budowy. Pisze pełny plik
   tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
