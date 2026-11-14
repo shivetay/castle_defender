@@ -16,10 +16,8 @@ const GAP_TAP_TOLERANCE := 3
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 
-## Seed terenu nowej gry. Wczytana gra ma seed z zapisu.
-const NEW_GAME_SEED := 1337
-
-var world_seed := NEW_GAME_SEED
+## Seed terenu: nowa gra losuje go (WorldSeed), wczytana bierze z zapisu.
+var world_seed := 0
 
 var terrain: TerrainMap
 var grid: BuildGrid
@@ -44,6 +42,7 @@ func _ready() -> void:
 		queue = saved.queue
 		terrain = grid.terrain
 	else:
+		world_seed = WorldSeed.for_new_game()
 		terrain = TerrainMap.generate(world_seed)
 		grid = BuildGrid.new(terrain)
 		economy = Economy.new(_now_ms())
@@ -82,14 +81,9 @@ func _ready() -> void:
 
 ## Dwór staje na pierwszym wolnym miejscu najbliżej środka mapy (kolejność stała dla seeda).
 func _place_manor() -> void:
-	var c := terrain.center()
-	for r in terrain.size:
-		for dy in range(-r, r + 1):
-			for dx in range(-r, r + 1):
-				if maxi(absi(dx), absi(dy)) != r:
-					continue
-				if grid.place_kind(c + Vector2i(dx, dy), BuildingTypes.Kind.MANOR) != 0:
-					return
+	var spot := grid.manor_spot(terrain.size)
+	if spot.has_area():
+		grid.place(spot, BuildingTypes.Kind.MANOR)
 
 
 func _process(_delta: float) -> void:
