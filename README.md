@@ -2,16 +2,18 @@
 
 Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zamki od wałów ziemnych do twierdzy z końca wojen napoleońskich i atakują zamki innych graczy. Cała grafika jest rysowana kodem, bez zewnętrznych assetów.
 
-**Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 8.
+**Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 9 (#131).
 
-## Stan: etap 5 z planu MVP
+## Stan: etap 4 z planu MVP
 
-Etapy 1 (szkielet, viewport 320×180, testowy APK), 2 (teren 64×64 z seeda, siatka budowy, kamera
-z gestami) i 3 (budynki epoki I: autotiling umocnień #6, pięć budynków z poziomami 1–5 #7) są zamknięte.
-Etap 4 (krok 4 planu MVP) to 4 stany zniszczeń budynków (#8), paleta epoki I zamknięta w 16 kolorach (#5),
-ekonomia (#10), progresja: koszty, czasy, kolejka budowy i Dwór jako poziom zamku (#11), oraz zapis
-lokalny (#13), z poprawkami po teście na telefonie. Z #5 zostaje pomiar startu na telefonie.
-Etap 5 zaczyna HUD z #9: tryby oglądania i budowy, przyciski Buduj i Oblężenie, epoka i rok.
+Numeracja etapów i zadań idzie za issues na GitHubie (ticket zbiorczy etapu ma etykietę `etap`).
+Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
+z gestami) są zamknięte. Etap 3 (#125: paleta epoki I w 16 kolorach #5, autotiling umocnień #6, pięć
+budynków z poziomami 1–5 #7, 4 stany zniszczeń #8) jest zrobiony; z #5 zostaje pomiar startu na telefonie.
+Etap 4 (#126): HUD z trybami oglądania i budowy (#9), ekonomia (#10), progresja z kolejką budowy
+i Dworem jako poziomem zamku (#11), zapis lokalny (#13) i losowy seed mapy dla każdego gracza (#97,
+część kliencka). Z etapu 4 zostaje Dwór zmieniający się z epokami i garnizon (#81), który czeka
+na jednostki, bitwę i epokę II z późniejszych etapów.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -49,6 +51,12 @@ Etap 5 zaczyna HUD z #9: tryby oglądania i budowy, przyciski Buduj i Oblężeni
   przy zleceniu, nowy budynek od razu zajmuje kratki jako plac budowy, anulowanie oddaje cały koszt
   (do pojemności magazynu), a rozbiórka gotowego budynku nic nie zwraca. Zlecenia kończą się po kolei
   według zegara, także w tle, a ekonomia liczy się odcinkami między ukończeniami.
+- `scripts/world/world_seed.gd` (`WorldSeed`): seed terenu nowej gry. Losowany z `Crypto`
+  (31 bitów, nie z czasu), zapisywany w `world_seed` i stały przez całą grę. Wylosowana mapa przechodzi
+  walidację: Dwór mieści się do 6 kratek od środka wzgórza, a od Dworu biegnie droga do krawędzi mapy
+  z miejscem na bramę. Gdy nie, kolejne seedy wynikają deterministycznie z pierwszego (do 32 prób,
+  potem seed zapasowy 1337). W wersji debug seed wymusza `godot --path . -- --seed=42`; wymuszony seed omija walidację,
+  więc da się nim odtworzyć także mapę niegrywalną.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje). Zapisuje seed terenu, budynki, surowce i kolejkę budowy. Pisze pełny plik
   tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
@@ -175,5 +183,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 5 ciąg dalszy wybiera właściciel. Przycisk Oblężenie czeka na symulację bitwy (#14) i fale PvE (#16);
-najbliżej obecnego stanu są też badania (#12).
+Z etapu 4 zostaje #81 (Dwór przez epoki i garnizon), ale jego kryteria zależą od jednostek (#15),
+symulacji bitwy (#14) i epoki II (#34). Z #97 zostaje strona serwera: kolumna `castles.map_seed`
+i przekazanie seeda atakującemu (#21, #23, #25 w etapie 9). Następny w kolejności jest etap 5 (#127):
+badania (#12), klasy jednostek, towary, wytwórcy i rekrutacja. Kolejność wybiera właściciel.
