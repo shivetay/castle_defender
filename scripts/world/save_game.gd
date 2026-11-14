@@ -7,14 +7,15 @@ extends RefCounted
 ## pełnego .tmp (awaria między zmianami nazw) i kopii. Nieczytelny plik główny jest odkładany
 ## obok (.broken), żeby następny zapis nie zrobił z niego kopii. Zapis z nowszej wersji gry
 ## też nie jest nadpisywany, tylko odkładany, a gra zaczyna od nowa.
-## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce i kolejkę.
+## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, kolejkę i badania.
 
-const FORMAT_VERSION := 1
+const FORMAT_VERSION := 2
 const PATH := "user://castle.json"
 
 ## Migracje: wersja → funkcja przerabiająca słownik tej wersji na wersję o 1 wyższą.
 ## Przy zmianie formatu podnieś FORMAT_VERSION i dopisz tu migrację z poprzedniej wersji.
-const MIGRATIONS := {}
+## Wersja 2 dodała badania (#12).
+static var MIGRATIONS: Dictionary = {1: _from_v1}
 
 ## Stan gry odczytany z pliku.
 class State:
@@ -23,18 +24,21 @@ class State:
 	var grid: BuildGrid
 	var economy: Economy
 	var queue: BuildQueue
+	var research: Research
 	## Ile wpisów zapisu pominięto, bo nie pasowały (0 przy zdrowym zapisie).
 	var skipped := 0
 
 
 ## Słownik zapisu dla stanu gry.
-static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: BuildQueue) -> Dictionary:
+static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: BuildQueue,
+		research: Research = null) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
 		"grid": grid.save_data(),
 		"economy": economy.save_data(),
 		"queue": queue.save_data(),
+		"research": research.save_data() if research != null else {},
 	}
 
 
@@ -51,7 +55,15 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	s.economy.load_data(d.get("economy", {}) as Dictionary)
 	s.queue = BuildQueue.new()
 	s.skipped += s.queue.load_data(d.get("queue", {}) as Dictionary, s.grid, now_ms)
+	s.research = Research.new()
+	s.skipped += s.research.load_data(d.get("research", {}) as Dictionary, now_ms)
 	return s
+
+
+## Wersja 1 → 2: zapis sprzed badań dostaje pusty stan badań.
+static func _from_v1(d: Dictionary) -> Dictionary:
+	d["research"] = {}
+	return d
 
 
 ## Doprowadza zapis do bieżącej wersji formatu. Pusty słownik, gdy wersji brak, jest nowsza
