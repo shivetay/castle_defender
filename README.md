@@ -15,7 +15,8 @@ i Dworem jako poziomem zamku (#11), zapis lokalny (#13) i losowy seed mapy dla k
 część kliencka). Z etapu 4 zostaje Dwór zmieniający się z epokami i garnizon (#81), który czeka
 na jednostki, bitwę i epokę II z późniejszych etapów.
 Etap 5 (#127) zaczyna drzewko badań z #12: 34 technologie, zależności, epoki i ekran drzewka.
-Efekty technologii i docelowe koszty dojdą z notatki Drzewko technologiczne.
+Efekty technologii i docelowe koszty dojdą z notatki Drzewko technologiczne. Do tego mechanizm towarów
+i łańcuchów produkcji z #88 (zbrojownia, przepisy wytwórców); same budynki wytwórców dojdą w #90.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -67,9 +68,17 @@ Efekty technologii i docelowe koszty dojdą z notatki Drzewko technologiczne.
   w epoce ×1,6 kosztu i ×2 czasu (#12). Bazowe liczby (epoka I: 100 Dr 50 Ka 50 Ży, 1 min) są tymczasowe.
 - `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga
   epoki i zbadanych zależności, koszt schodzi przy starcie, a koniec liczy się z zegara, także w tle.
+- `scripts/world/goods_config.gd` (`GoodsConfig`): 21 towarów epok I–II (skóry, kość, ścięgna, pióra, len,
+  zbroje, przeszywanice, tarcze, broń drzewcowa, cięciwy, łuki, strzały, siodła, uprząż, smoła, konie)
+  i przepisy 11 wytwórców z #90 i #91. Bez metalu. Ilości, tempa i pojemność zbrojowni są tymczasowe;
+  budynki przypisze do wytwórców #90 (`PRODUCER_KINDS`).
+- `scripts/world/goods.gd` (`Goods`): zbrojownia i produkcja w czasie, także offline. Cykl przepisu
+  zużywa surowce i towary; brak wejścia albo pełna zbrojownia go zatrzymuje. Wyższy poziom budynku
+  przyspiesza i odblokowuje lepszy towar (Łukmistrz 3 → łuk refleksyjny). Pusta zbrojownia strzał
+  to −50% tempa strzelania (dla bitwy, #14).
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
-  i miejscem na migracje; wersja 2 dodała badania). Zapisuje seed terenu, budynki, surowce, kolejkę
-  budowy i badania. Pisze pełny plik
+  i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary). Zapisuje seed terenu, budynki, surowce,
+  towary, kolejkę budowy i badania. Pisze pełny plik
   tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
   głównym, więc na dysku zawsze leży co najmniej jeden pełny zapis. Nieczytelny plik główny jest
   odkładany obok (`.broken`) i nie trafia do kopii; zapis z nowszej wersji gry też nie jest nadpisywany.
@@ -200,7 +209,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 ## Następny etap
 
 Etap 5 (#127): efekty technologii z #12 (po wklejeniu notatki Drzewko technologiczne, razem z docelowymi
-kosztami i czasami), potem klasy jednostek (#87), towary i łańcuchy produkcji (#88), wytwórcy (#90),
+kosztami i czasami), potem wytwórcy (#90) na mechanizmie towarów z #88, klasy jednostek (#87),
 Stajnia (#91), budynki rekrutacji (#119), rekrutacja (#89) i budynki gospodarcze (#122).
 Z etapu 4 zostaje #81, który czeka na jednostki, bitwę i epokę II. Z #97 zostaje strona serwera
 (#21, #23, #25 w etapie 9). Kolejność wybiera właściciel.

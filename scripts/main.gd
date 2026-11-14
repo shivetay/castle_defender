@@ -32,6 +32,7 @@ var textures := BuildingTextures.new()
 var economy: Economy
 var queue := BuildQueue.new()
 var research := Research.new()
+var goods: Goods
 var research_panel: ResearchPanel
 
 var _terrain_tex: ImageTexture
@@ -48,12 +49,14 @@ func _ready() -> void:
 		economy = saved.economy
 		queue = saved.queue
 		research = saved.research
+		goods = saved.goods
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
 		terrain = TerrainMap.generate(world_seed)
 		grid = BuildGrid.new(terrain)
 		economy = Economy.new(_now_ms())
+		goods = Goods.new(_now_ms())
 	if grid.manor_id() == 0:
 		_place_manor()
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
@@ -140,7 +143,7 @@ func _catch_up(prefix: String) -> void:
 
 ## Zapisuje grę. Błąd zapisu nie przerywa gry, tylko trafia do logu.
 func _save() -> void:
-	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research))
+	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods))
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
 
@@ -154,6 +157,8 @@ static func _now_ms() -> int:
 func _tick() -> void:
 	var now := _now_ms()
 	var done := queue.update(now, grid, economy)
+	# towary po surowcach: wytwórcy zużywają drewno i żywność naliczone do teraz
+	goods.update(now, Goods.producers(grid), economy)
 	for o in done:
 		hud.message = "Ukończono: %s, poziom %d" % [BuildingTypes.NAMES[o.kind], o.level]
 	var researched := research.update(now)

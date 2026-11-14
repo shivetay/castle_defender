@@ -7,15 +7,15 @@ extends RefCounted
 ## pełnego .tmp (awaria między zmianami nazw) i kopii. Nieczytelny plik główny jest odkładany
 ## obok (.broken), żeby następny zapis nie zrobił z niego kopii. Zapis z nowszej wersji gry
 ## też nie jest nadpisywany, tylko odkładany, a gra zaczyna od nowa.
-## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, kolejkę i badania.
+## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, towary, kolejkę i badania.
 
-const FORMAT_VERSION := 2
+const FORMAT_VERSION := 3
 const PATH := "user://castle.json"
 
 ## Migracje: wersja → funkcja przerabiająca słownik tej wersji na wersję o 1 wyższą.
 ## Przy zmianie formatu podnieś FORMAT_VERSION i dopisz tu migrację z poprzedniej wersji.
-## Wersja 2 dodała badania (#12).
-static var MIGRATIONS: Dictionary = {1: _from_v1}
+## Wersja 2 dodała badania (#12), wersja 3 towary w zbrojowni (#88).
+static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2}
 
 ## Stan gry odczytany z pliku.
 class State:
@@ -25,13 +25,14 @@ class State:
 	var economy: Economy
 	var queue: BuildQueue
 	var research: Research
+	var goods: Goods
 	## Ile wpisów zapisu pominięto, bo nie pasowały (0 przy zdrowym zapisie).
 	var skipped := 0
 
 
 ## Słownik zapisu dla stanu gry.
 static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: BuildQueue,
-		research: Research = null) -> Dictionary:
+		research: Research = null, goods: Goods = null) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -39,6 +40,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		"economy": economy.save_data(),
 		"queue": queue.save_data(),
 		"research": research.save_data() if research != null else {},
+		"goods": goods.save_data() if goods != null else {},
 	}
 
 
@@ -57,12 +59,20 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	s.skipped += s.queue.load_data(d.get("queue", {}) as Dictionary, s.grid, now_ms)
 	s.research = Research.new()
 	s.skipped += s.research.load_data(d.get("research", {}) as Dictionary, now_ms)
+	s.goods = Goods.new(s.economy.last_update_ms)
+	s.goods.load_data(d.get("goods", {}) as Dictionary)
 	return s
 
 
 ## Wersja 1 → 2: zapis sprzed badań dostaje pusty stan badań.
 static func _from_v1(d: Dictionary) -> Dictionary:
 	d["research"] = {}
+	return d
+
+
+## Wersja 2 → 3: zapis sprzed towarów dostaje pustą zbrojownię.
+static func _from_v2(d: Dictionary) -> Dictionary:
+	d["goods"] = {}
 	return d
 
 
