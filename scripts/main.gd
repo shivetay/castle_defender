@@ -168,6 +168,10 @@ func _tick() -> void:
 	if research_panel != null:
 		research_panel.now_ms = now
 	hud.queue_text = ""
+	hud.locked_kinds.clear()
+	for kind in BuildingTypes.BUILD_BAR:
+		if not BuildConfig.is_unlocked(kind, research):
+			hud.locked_kinds.append(kind)
 	hud.age_text = Ages.label(0, grid.manor_level())
 	if not queue.orders.is_empty():
 		hud.queue_text = Hud.format_time(queue.remaining_ms(queue.orders[0].building_id, now))
@@ -203,21 +207,32 @@ func _on_tapped(world_pos: Vector2) -> void:
 		hud.message = "Tu stoi %s" % BuildingTypes.NAMES[grid.kinds[id]]
 	else:
 		var kind := hud.selected_kind
-		var result := queue.order_build(grid, economy, cell, kind, _now_ms())
+		var result := queue.order_build(grid, economy, cell, kind, _now_ms(), research)
 		_cursor_ok = result == BuildQueue.Result.OK
 		# przy nieudanej próbie ramka ma kształt pierwszego wariantu (np. pionowej bramy)
 		_cursor = grid.buildings[queue.placed_id] if _cursor_ok else grid.placement_candidates(cell, kind)[0]
 		if _cursor_ok:
 			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(BuildConfig.time_ms(kind, 1))]
 			_save()
+		elif result == BuildQueue.Result.NEEDS_TECH:
+			hud.message = _tech_hint(kind)
 		else:
 			hud.message = BuildQueue.MESSAGES[result]
 	queue_redraw()
 
 
 func _on_kind_selected(kind: int) -> void:
+	if not BuildConfig.is_unlocked(kind, research):
+		hud.message = _tech_hint(kind)
+		return
 	hud.message = "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, 1)),
 			Hud.format_time(BuildConfig.time_ms(kind, 1))]
+
+
+## Komunikat o brakującej technologii, np. „Chata myśliwego: zbadaj G18 Łowiectwo”.
+func _tech_hint(kind: int) -> String:
+	var tech := BuildConfig.required_tech(kind)
+	return "%s: zbadaj %s %s" % [BuildingTypes.NAMES[kind], tech, TechTree.tech_name(tech)]
 
 
 func _select(id: int) -> void:

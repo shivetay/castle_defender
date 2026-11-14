@@ -4,16 +4,37 @@ extends RefCounted
 ## Koszt to tablica ilości surowców w kolejności EconomyConfig.Res (drewno, kamień, żywność, złoto).
 ## Zmiana balansu budowy to zmiana tylko tego pliku.
 
-## Koszt poziomu 1 dla rodzajów z paska budowy (indeks = BuildingTypes.Kind).
-const BASE_COST: Array = [
-	[10, 0, 10, 0],    # wał ziemny
-	[20, 0, 5, 0],     # palisada
-	[60, 20, 20, 0],   # brama drewniana
-	[120, 40, 40, 0],  # wieża drewniana
-	[80, 0, 30, 0],    # chata drwala
-]
+const K := BuildingTypes.Kind
+## Koszt poziomu 1 dla rodzajów z paska budowy. Wytwórcy (#90): koszt i czas tymczasowe,
+## w skali Chaty drwala (notatka zostawia liczby balansowi).
+const BASE_COST := {
+	K.RAMPART: [10, 0, 10, 0],
+	K.PALISADE: [20, 0, 5, 0],
+	K.GATE: [60, 20, 20, 0],
+	K.TOWER: [120, 40, 40, 0],
+	K.LUMBER_HUT: [80, 0, 30, 0],
+	K.HUNTER: [60, 0, 20, 0],
+	K.TANNERY: [80, 20, 20, 0],
+	K.LEATHERWORKER: [100, 20, 30, 0],
+	K.POLEARM: [80, 20, 20, 0],
+	K.BOWSTRING: [60, 0, 20, 0],
+	K.BOWYER: [100, 0, 30, 0],
+	K.FLETCHER: [80, 10, 20, 0],
+	K.SADDLER: [90, 0, 30, 0],
+	K.TAR_KILN: [60, 40, 10, 0],
+}
 ## Czas poziomu 1 w sekundach.
-const BASE_TIME_S: Array[int] = [5, 10, 30, 60, 45]
+const BASE_TIME_S := {
+	K.RAMPART: 5, K.PALISADE: 10, K.GATE: 30, K.TOWER: 60, K.LUMBER_HUT: 45,
+	K.HUNTER: 40, K.TANNERY: 50, K.LEATHERWORKER: 60, K.POLEARM: 50, K.BOWSTRING: 40, K.BOWYER: 60,
+	K.FLETCHER: 50, K.SADDLER: 60, K.TAR_KILN: 45,
+}
+## Technologia, bez której budynku nie da się postawić (Drzewko technologiczne). Ulepszenia
+## już postawionego budynku jej nie sprawdzają.
+const REQUIRED_TECH := {
+	K.HUNTER: "G18", K.TANNERY: "G19", K.LEATHERWORKER: "A38", K.POLEARM: "A39", K.BOWSTRING: "A40",
+	K.BOWYER: "A41", K.FLETCHER: "A42", K.SADDLER: "A43", K.TAR_KILN: "G24",
+}
 ## Mnożnik kosztu poziomów 1–5 w procentach (×1, ×1,5, ×2,5, ×4, ×6).
 const COST_PERCENT: Array[int] = [100, 150, 250, 400, 600]
 ## Mnożnik czasu poziomów 1–5 (Wieża 5 = 60 s × 90 = 90 min).
@@ -41,7 +62,7 @@ static func cost(kind: int, level: int) -> Array[int]:
 	if kind == BuildingTypes.Kind.MANOR:
 		out.assign(MANOR_COST[lv - 1])
 		return out
-	var base: Array = BASE_COST[kind]
+	var base: Array = BASE_COST.get(kind, [0, 0, 0, 0])
 	for amount: int in base:
 		@warning_ignore("integer_division")
 		out.append(amount * COST_PERCENT[lv - 1] / 100)
@@ -53,12 +74,24 @@ static func time_ms(kind: int, level: int) -> int:
 	var lv := clampi(level, 1, BuildingTypes.MAX_LEVEL)
 	if kind == BuildingTypes.Kind.MANOR:
 		return MANOR_TIME_S[lv - 1] * 1000
-	return BASE_TIME_S[kind] * TIME_MULT[lv - 1] * 1000
+	return int(BASE_TIME_S.get(kind, 0)) * TIME_MULT[lv - 1] * 1000
 
 
 ## Najwyższy poziom budynku `kind` przy Dworze na poziomie `manor_level`. Budynek nie może
-## przerosnąć zamku; sam Dwór nie ma tego ograniczenia. Wymagania technologii dojdą z badaniami (#12).
+## przerosnąć zamku; sam Dwór nie ma tego ograniczenia.
 static func max_level(kind: int, manor_level: int) -> int:
 	if kind == BuildingTypes.Kind.MANOR:
 		return BuildingTypes.MAX_LEVEL
 	return clampi(manor_level, 1, BuildingTypes.MAX_LEVEL)
+
+
+## Kod technologii wymaganej do postawienia budynku albo pusty napis.
+static func required_tech(kind: int) -> String:
+	return REQUIRED_TECH.get(kind, "")
+
+
+## Czy przy stanie badań `research` wolno postawić budynek `kind` (bez badań: tylko budynki
+## bez wymagań).
+static func is_unlocked(kind: int, research: Research) -> bool:
+	var tech := required_tech(kind)
+	return tech.is_empty() or (research != null and research.is_done(tech))

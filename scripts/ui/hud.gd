@@ -20,7 +20,7 @@ signal card_closed
 signal research_pressed
 
 enum CardButton { UPGRADE, DEMOLISH, CLOSE }
-## Cele dotyku: przyciski w rogach, przyciski karty i rodzaje budynków na pasku (KIND + rodzaj).
+## Cele dotyku: przyciski w rogach, przyciski karty i miejsca paska budowy (KIND + indeks w BUILD_BAR).
 enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, CARD = 100, KIND = 200 }
 
 const BAR_H := 12
@@ -54,7 +54,10 @@ var economy: Economy
 var message := ""
 ## Tryb budowy: pasek budynków zamiast przycisków Buduj i Oblężenie.
 var building := false
+## Wybrany rodzaj budynku (BuildingTypes.Kind).
 var selected_kind := 0
+## Rodzaje, których nie da się jeszcze postawić (brak technologii); na pasku są wyszarzone.
+var locked_kinds: Array[int] = []
 ## Pierwszy rodzaj widoczny na przewijanym pasku budynków.
 var first_kind := 0
 ## Karta budynku: widoczna, gdy card_title nie jest pusty.
@@ -315,7 +318,7 @@ func _on_drag(drag: InputEventScreenDrag) -> void:
 
 func _activate(t: int) -> void:
 	if t >= Target.KIND:
-		selected_kind = t - Target.KIND
+		selected_kind = BuildingTypes.bar_kind(t - Target.KIND)
 		kind_selected.emit(selected_kind)
 	elif t >= Target.CARD:
 		match t - Target.CARD:
@@ -382,9 +385,10 @@ func _draw_card(view: Vector2) -> void:
 func _draw_build_bar(view: Vector2) -> void:
 	var rects := kind_rects(view, content_left, content_right)
 	for i in rects.size():
-		var kind := first_kind + i
-		var active := kind == selected_kind or _pressed == Target.KIND + kind
-		_draw_button(rects[i], BuildingTypes.SHORT_NAMES[kind], active, false)
+		var slot := first_kind + i
+		var kind := BuildingTypes.bar_kind(slot)
+		var active := kind == selected_kind or _pressed == Target.KIND + slot
+		_draw_button(rects[i], BuildingTypes.SHORT_NAMES[kind], active, locked_kinds.has(kind))
 	var y := row_y(view) + BUTTON_SIZE.y / 2.0 - 2.0
 	if first_kind > 0:
 		_draw_arrow(Vector2(rects[0].position.x - 3, y), -1)

@@ -6,11 +6,12 @@ extends RefCounted
 ## więc budowa idzie dalej, gdy gra jest w tle, a po powrocie nadrabia wszystko po kolei.
 ## Ekonomia liczy się odcinkami: ukończona chata produkuje więcej dopiero od chwili ukończenia.
 
-enum Result { OK, QUEUE_FULL, NO_RESOURCES, MAX_LEVEL, NEEDS_MANOR, ALREADY_QUEUED, NO_PLACE, NOT_FOUND }
+enum Result { OK, QUEUE_FULL, NO_RESOURCES, MAX_LEVEL, NEEDS_MANOR, ALREADY_QUEUED, NO_PLACE, NOT_FOUND, NEEDS_TECH }
 
 ## Komunikaty dla gracza (indeks = Result).
 const MESSAGES: Array[String] = ["", "Kolejka budowy pełna", "Brak surowców", "Najwyższy poziom",
-		"Najpierw ulepsz Dwór", "Ten budynek już czeka w kolejce", "Tu nie można budować", "Brak budynku"]
+		"Najpierw ulepsz Dwór", "Ten budynek już czeka w kolejce", "Tu nie można budować", "Brak budynku",
+		"Najpierw zbadaj technologię"]
 
 
 class Order:
@@ -50,8 +51,12 @@ func has_order(building_id: int) -> bool:
 
 
 ## Zleca postawienie budynku `kind` na kratce `c`: pobiera koszt i stawia plac budowy.
-func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_ms: int) -> Result:
+## Budynek z wymaganą technologią (BuildConfig.REQUIRED_TECH) wymaga jej zbadania w `research`.
+func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_ms: int,
+		research: Research = null) -> Result:
 	placed_id = 0
+	if not BuildConfig.is_unlocked(kind, research):
+		return Result.NEEDS_TECH
 	if is_full():
 		return Result.QUEUE_FULL
 	if grid.placement_for(c, kind) == Rect2i():
