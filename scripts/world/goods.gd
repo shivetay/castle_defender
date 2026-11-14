@@ -40,13 +40,13 @@ static func producers(grid: BuildGrid) -> Dictionary:
 
 
 func is_full(good: int) -> bool:
-	return amounts[good] >= GoodsConfig.CAPACITY[good]
+	return amounts[good] >= GoodsConfig.capacity(good)
 
 
 ## Dodaje towar do pojemności zbrojowni. Zwraca, ile faktycznie weszło.
 func add(good: int, amount: int) -> int:
 	var before := amounts[good]
-	amounts[good] = mini(before + maxi(0, amount), GoodsConfig.CAPACITY[good])
+	amounts[good] = mini(before + maxi(0, amount), GoodsConfig.capacity(good))
 	return amounts[good] - before
 
 
@@ -124,7 +124,7 @@ func _run(recipe: int, ms: int, per_hour: int, economy: Economy) -> void:
 		var room := 0
 		for good: int in goods_out:
 			@warning_ignore("integer_division")
-			room = maxi(room, (GoodsConfig.CAPACITY[good] - amounts[good] + int(goods_out[good]) - 1) / int(goods_out[good]))
+			room = maxi(room, (GoodsConfig.capacity(good) - amounts[good] + int(goods_out[good]) - 1) / int(goods_out[good]))
 		n = mini(n, room)
 	if n < cycles:
 		_progress[recipe] = 0  # zatrzymana produkcja nie gromadzi ułamków
@@ -151,7 +151,7 @@ func load_data(d: Dictionary) -> void:
 	var saved_progress: Array = d.get("progress", []) as Array
 	for good in amounts.size():
 		if good < saved_amounts.size():
-			amounts[good] = clampi(int(saved_amounts[good]), 0, GoodsConfig.CAPACITY[good])
+			amounts[good] = clampi(int(saved_amounts[good]), 0, GoodsConfig.capacity(good))
 	for recipe in _progress.size():
 		if recipe < saved_progress.size():
 			_progress[recipe] = clampi(int(saved_progress[recipe]), 0, MS_PER_HOUR - 1)

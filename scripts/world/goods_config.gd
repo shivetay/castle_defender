@@ -1,15 +1,16 @@
 class_name GoodsConfig
 extends RefCounted
-## Towary i przepisy produkcji (#88) w jednym miejscu. Budynek produkcyjny (wytwórca) wykonuje
-## cykle przepisu: zużywa wejścia (surowce z EconomyConfig.Res i towary) i daje wyjścia.
-## Epoki I–II nie zużywają metalu; żelazo dojdzie jako surowiec od epoki III (#93).
+## Towary i przepisy produkcji (#88) w jednym miejscu, według notatki Klasy jednostek i produkcja
+## (docs/castle-defender-vault). Budynek produkcyjny (wytwórca) wykonuje cykle przepisu: zużywa
+## wejścia (surowce z EconomyConfig.Res i towary) i daje wyjścia. Wejścia są z kolumny „Z czego”
+## notatki. Epoki I–II nie zużywają metalu; żelazo dojdzie jako surowiec od epoki III (#93).
 ##
-## UWAGA: ilości w przepisach, tempa i pojemności są tymczasowe, do zastąpienia liczbami
-## z notatki Klasy jednostek i produkcja. Budynki wytwórców dojdą w #90 (PRODUCER_KINDS).
+## Notatka zostawia liczby (ilości, tempo, limity) jako decyzje balansowe, więc ilości w przepisach
+## i tempa są tymczasowe. Budynki wytwórców dojdą w #90 (PRODUCER_KINDS).
 
 enum Good {
 	RAW_HIDE, LEATHER, BONE, SINEW, FEATHER, FLAX,
-	LEATHER_ARMOR, GAMBESON, SHIELD,
+	LEATHER_ARMOR, GAMBESON, SHIELD, WET_HIDE,
 	SPEAR, JAVELIN, LANCE, STONE_AXE,
 	BOWSTRING, BOW, REFLEX_BOW, ARROW,
 	SADDLE, HARNESS, PITCH, HORSE,
@@ -17,20 +18,14 @@ enum Good {
 
 const NAMES: Array[String] = [
 	"Surowe skóry", "Wyprawiona skóra", "Kość", "Ścięgna", "Pióra", "Len",
-	"Zbroja skórzana", "Przeszywanica", "Tarcza",
+	"Zbroja skórzana", "Przeszywanica", "Tarcza", "Mokre skóry",
 	"Włócznia", "Oszczep", "Kopia", "Topór kamienny",
 	"Cięciwa", "Łuk", "Łuk refleksyjny", "Strzały",
 	"Siodło", "Uprząż", "Smoła", "Koń",
 ]
 
-## Pojemność zbrojowni dla każdego towaru. TYMCZASOWE.
-const CAPACITY: Array[int] = [
-	100, 100, 100, 100, 200, 100,
-	50, 50, 50,
-	50, 50, 50, 50,
-	100, 50, 50, 500,
-	50, 50, 50, 30,
-]
+## Pojemność zbrojowni dla każdego towaru: „limit jak przy surowcach” (EconomyConfig.CAPACITY).
+const ARMORY_CAPACITY := 1000
 
 ## Wytwórcy w kolejności liczenia: najpierw ci, którzy dają półprodukty, potem ci, którzy je zużywają,
 ## więc długa nieobecność liczy się w jednym przebiegu łańcucha.
@@ -51,24 +46,25 @@ const G := Good
 ##   wejścia surowców {Res: ilość}, wejścia towarów {Good: ilość},
 ##   wyjścia towarów {Good: ilość}, wyjścia surowców {Res: ilość}]. TYMCZASOWE liczby.
 ## Budynek wykonuje naraz wszystkie przepisy, do których ma poziom (np. Łukmistrz 3 robi
-## też łuki refleksyjne).
+## też łuki refleksyjne; to jedyny próg poziomu w notatce).
 const RECIPES: Array = [
 	["hunter", 1, 6, {}, {}, {G.RAW_HIDE: 2, G.BONE: 1, G.SINEW: 1, G.FEATHER: 2}, {R.FOOD: 2}],
 	["flax_field", 1, 6, {}, {}, {G.FLAX: 3}, {}],
 	["tannery", 1, 4, {}, {G.RAW_HIDE: 2}, {G.LEATHER: 1}, {}],
 	["bowstring", 1, 4, {}, {G.SINEW: 2}, {G.BOWSTRING: 1}, {}],
-	["bowstring", 2, 4, {}, {G.FLAX: 2}, {G.BOWSTRING: 1}, {}],
-	["polearm", 1, 3, {R.WOOD: 3}, {}, {G.SPEAR: 1}, {}],
-	["polearm", 1, 3, {R.WOOD: 2}, {}, {G.JAVELIN: 2}, {}],
-	["polearm", 1, 2, {R.WOOD: 2, R.STONE: 1}, {}, {G.STONE_AXE: 1}, {}],
-	["polearm", 3, 2, {R.WOOD: 5}, {}, {G.LANCE: 1}, {}],
+	["bowstring", 1, 4, {}, {G.FLAX: 2}, {G.BOWSTRING: 1}, {}],
+	["polearm", 1, 3, {R.WOOD: 3, R.STONE: 1}, {}, {G.SPEAR: 1}, {}],
+	["polearm", 1, 3, {R.WOOD: 2, R.STONE: 1}, {}, {G.JAVELIN: 2}, {}],
+	["polearm", 1, 2, {R.WOOD: 2, R.STONE: 2}, {}, {G.STONE_AXE: 1}, {}],
+	["polearm", 1, 2, {R.WOOD: 5, R.STONE: 1}, {}, {G.LANCE: 1}, {}],
 	["bowyer", 1, 2, {R.WOOD: 3}, {G.BOWSTRING: 1}, {G.BOW: 1}, {}],
-	["bowyer", 3, 1, {R.WOOD: 4}, {G.BOWSTRING: 1, G.BONE: 1, G.SINEW: 1}, {G.REFLEX_BOW: 1}, {}],
+	["bowyer", 3, 1, {R.WOOD: 4}, {G.BOWSTRING: 1, G.LEATHER: 1}, {G.REFLEX_BOW: 1}, {}],
 	["fletcher", 1, 3, {R.WOOD: 1}, {G.BONE: 1, G.FEATHER: 2}, {G.ARROW: 10}, {}],
-	["leatherworker", 1, 2, {}, {G.LEATHER: 2}, {G.LEATHER_ARMOR: 1}, {}],
+	["leatherworker", 1, 2, {R.WOOD: 1}, {G.LEATHER: 2}, {G.LEATHER_ARMOR: 1}, {}],
 	["leatherworker", 1, 2, {R.WOOD: 2}, {G.LEATHER: 1}, {G.SHIELD: 1}, {}],
-	["leatherworker", 2, 1, {}, {G.LEATHER: 1, G.FLAX: 2}, {G.GAMBESON: 1}, {}],
-	["saddler", 1, 2, {}, {G.LEATHER: 2}, {G.SADDLE: 1}, {}],
+	["leatherworker", 1, 1, {}, {G.LEATHER: 1, G.FLAX: 2}, {G.GAMBESON: 1}, {}],
+	["leatherworker", 1, 1, {}, {G.RAW_HIDE: 2}, {G.WET_HIDE: 1}, {}],
+	["saddler", 1, 2, {R.WOOD: 1}, {G.LEATHER: 2}, {G.SADDLE: 1}, {}],
 	["saddler", 1, 2, {}, {G.LEATHER: 1}, {G.HARNESS: 1}, {}],
 	["tar_kiln", 1, 3, {R.WOOD: 4}, {}, {G.PITCH: 1}, {}],
 	["stable", 1, 1, {R.FOOD: 10}, {}, {G.HORSE: 1}, {}],
@@ -81,6 +77,10 @@ const NO_ARROWS_FIRE_PERCENT := 50
 
 static func count() -> int:
 	return NAMES.size()
+
+
+static func capacity(_good: int) -> int:
+	return ARMORY_CAPACITY
 
 
 ## Cykle na godzinę przepisu `recipe` w budynku na poziomie `level` (0, gdy poziom za niski).

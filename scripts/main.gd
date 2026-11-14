@@ -156,14 +156,14 @@ static func _now_ms() -> int:
 ## każdą zmianą budynków, żeby czas sprzed zmiany liczył się po starych stawkach.
 func _tick() -> void:
 	var now := _now_ms()
-	var done := queue.update(now, grid, economy)
+	var researching := research.active
+	var done := queue.update(now, grid, economy, research)
 	# towary po surowcach: wytwórcy zużywają drewno i żywność naliczone do teraz
 	goods.update(now, Goods.producers(grid), economy)
 	for o in done:
 		hud.message = "Ukończono: %s, poziom %d" % [BuildingTypes.NAMES[o.kind], o.level]
-	var researched := research.update(now)
-	if not researched.is_empty():
-		hud.message = "Zbadano: %s %s" % [researched, TechTree.tech_name(researched)]
+	if not researching.is_empty() and research.is_done(researching):
+		hud.message = "Zbadano: %s %s" % [researching, TechTree.tech_name(researching)]
 		_save()
 	if research_panel != null:
 		research_panel.now_ms = now

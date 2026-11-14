@@ -1,5 +1,6 @@
 extends TestCase
-## Badania (#12): dane drzewka, zależności, blokada epoki, koszt i czas, zapis i ekran drzewka.
+## Badania (#12): dane drzewka zgodne z notatką Drzewko technologiczne, zależności, blokada epoki,
+## koszt i czas, premie do produkcji, zapis i ekran drzewka.
 
 const T0 := 1_700_000_000_000
 const VIEW := Vector2(320, 180)
@@ -31,20 +32,36 @@ func test_tree_has_34_unique_technologies() -> bool:
 	var sizes: Array[int] = []
 	for b in TechTree.BRANCH_NAMES.size():
 		sizes.append(TechTree.in_branch(b).size())
-	assert_eq(sizes, [19, 3, 9, 3] as Array[int], "Atak 19, Obrona 3, Gospodarka 9, Użyteczne 3")
+	assert_eq(sizes, [19, 3, 9, 1, 2] as Array[int], "Atak 19, Obrona 3, Gospodarka 9, Użyteczne 1, Specjalne 2")
+	var mvp: Array[String] = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A21", "A22", "A38", "A39", "A40", "A41",
+			"A42", "A43", "A44", "A45", "A46", "A47", "O1", "O2", "O3", "G1", "G2", "G4", "G6", "G18", "G19", "G20",
+			"G21", "G24", "U1", "S1", "S2"]
+	for code in mvp:
+		assert_true(TechTree.has(code), "%s z listy MVP (Plan MVP)" % code)
+		assert_true(not TechTree.effect(code).is_empty(), "%s ma efekt" % code)
 	return true
 
 
-func test_dependencies_from_issue() -> bool:
-	assert_eq(TechTree.requires("A21"), ["A38"] as Array[String], "A21 wymaga A38")
-	assert_eq(TechTree.requires("A7"), ["A2", "A43"] as Array[String], "A7 wymaga A2 i A43")
-	assert_eq(TechTree.requires("A3"), ["G24"] as Array[String], "A3 wymaga G24")
-	assert_eq(TechTree.requires("A44"), ["A41"] as Array[String], "A44 wymaga A41")
-	assert_true(TechTree.is_key("O1") and TechTree.age("O1") == 0, "O1 ★ kluczowa w epoce I (przejście I → II)")
-	assert_true(TechTree.is_key("G6") and TechTree.age("G6") == 1, "G6 ★ kluczowa w epoce II")
-	assert_eq(TechTree.age("A7"), 0, "Strzemię w epoce I (#91)")
-	for code: String in ["A22", "A46", "A47"]:
-		assert_eq(TechTree.age(code), 1, "%s w epoce II (#92)" % code)
+## Zależności i epoki z notatki, z jej sekcją „Zmienione zależności”.
+func test_dependencies_and_ages_from_note() -> bool:
+	var expected := {
+		"A3": ["G24"], "A4": ["A1"], "A5": ["A4"], "A6": ["A1"], "A7": ["A2", "A43"], "A21": ["A38"],
+		"A22": ["A7"], "A38": ["G19"], "A40": ["G18"], "A41": ["A40"], "A42": ["G18"], "A43": ["G19"],
+		"A44": ["A41"], "A45": ["A38"], "A46": ["A45"], "A47": ["A2"], "O3": ["O2"], "G4": ["G1"],
+		"G6": ["G4"], "G19": ["G18"], "G20": ["G2"], "G24": ["G1"],
+	}
+	for code in TechTree.codes():
+		var want: Array[String] = []
+		want.assign(expected.get(code, []) as Array)
+		assert_eq(TechTree.requires(code), want, "%s wymaga" % code)
+	var age_two: Array[String] = ["A5", "A6", "A22", "A46", "A47", "G4", "G6"]
+	for code in TechTree.codes():
+		assert_eq(TechTree.age(code), 1 if age_two.has(code) else 0, "%s: epoka" % code)
+	assert_true(TechTree.is_key("O1") and TechTree.is_key("G6"), "O1 i G6 kluczowe (★)")
+	var keys := 0
+	for code in TechTree.codes():
+		keys += int(TechTree.is_key(code))
+	assert_eq(keys, 2, "tylko dwie kluczowe w MVP")
 	return true
 
 
@@ -75,12 +92,15 @@ func test_requirements_and_age_block_research() -> bool:
 	assert_eq(r.start("G6", 0, e, T0), Research.Result.WRONG_AGE, "G6 w epoce I")
 	assert_eq(r.start("XX", 0, e, T0), Research.Result.UNKNOWN, "nieznany kod")
 	assert_eq(r.start("A2", 0, e, T0), Research.Result.OK, "A2 bez wymagań")
-	assert_eq(r.start("A43", 0, e, T0), Research.Result.BUSY, "jedno badanie naraz")
+	assert_eq(r.start("G18", 0, e, T0), Research.Result.BUSY, "jedno badanie naraz")
 	r.update(T0 + r.duration_ms)
 	assert_eq(r.start("A2", 0, e, T0), Research.Result.ALREADY_DONE, "drugi raz nie")
-	_finish(r, "A43", e)
+	assert_eq(r.check("A43", 0), Research.Result.MISSING_REQUIREMENTS, "Rymarstwo wymaga Garbarstwa")
+	for code: String in ["G18", "G19", "A43"]:
+		_finish(r, code, e)
 	assert_eq(r.check("A7", 0), Research.Result.OK, "po A2 i A43 Strzemię dostępne")
-	assert_eq(r.check("A46", 1), Research.Result.OK, "w epoce II A46 dostępne")
+	assert_eq(r.check("A47", 1), Research.Result.OK, "w epoce II A47 (po A2) dostępne")
+	assert_eq(r.check("A47", 0), Research.Result.WRONG_AGE, "ale nie w epoce I")
 	return true
 
 
@@ -122,6 +142,7 @@ func test_save_round_trip_and_v1_migration() -> bool:
 	var r := Research.new()
 	var e := _rich_economy()
 	_finish(r, "A2", e)
+	_finish(r, "G1", e)
 	_finish(r, "G24", e)
 	r.start("A3", 0, e, T0 + 5000)
 	var grid := BuildGrid.new(TerrainMap.generate(1337))
@@ -129,7 +150,7 @@ func test_save_round_trip_and_v1_migration() -> bool:
 	var s := SaveGame.from_dict(JSON.parse_string(JSON.stringify(d)) as Dictionary, T0)
 	assert_true(s != null, "zapis czytelny")
 	if s != null:
-		assert_eq(s.research.done.keys(), ["A2", "G24"], "zbadane po odczycie")
+		assert_eq(s.research.done.keys(), ["A2", "G1", "G24"], "zbadane po odczycie")
 		assert_eq(s.research.active, "A3", "trwające badanie")
 		assert_eq(s.research.start_ms, r.start_ms, "początek badania")
 		assert_eq(s.research.duration_ms, r.duration_ms, "czas badania")
@@ -151,7 +172,7 @@ func test_save_round_trip_and_v1_migration() -> bool:
 func test_panel_layout_fits_screen() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
 	var tabs := ResearchPanel.tab_rects(b.x, b.y)
-	assert_eq(tabs.size(), 4, "4 zakładki")
+	assert_eq(tabs.size(), 5, "5 zakładek")
 	for i in tabs.size():
 		assert_true(tabs[i].size.y >= 12 and tabs[i].size.x >= 12, "zakładka ≥ 12×12")
 		assert_true(PixelFont.text_width(TechTree.BRANCH_NAMES[i]) <= tabs[i].size.x - 2, "nazwa gałęzi mieści się")
@@ -165,7 +186,8 @@ func test_panel_layout_fits_screen() -> bool:
 			assert_true(tiles[i].end.x <= b.y, "kafelek w granicach treści")
 			assert_true(tiles[i].end.y <= ResearchPanel.DETAIL_Y, "kafelki nad szczegółami")
 			assert_true(PixelFont.text_width(codes[i]) <= tiles[i].size.x - 2, "kod %s mieści się" % codes[i])
-	assert_true(ResearchPanel.DETAIL_Y + 4 * (PixelFont.LINE + 2) <= row, "4 linie szczegółów nad przyciskami")
+	assert_true(ResearchPanel.DETAIL_Y + ResearchPanel.DETAIL_LINES * (PixelFont.LINE + 2) <= row,
+			"linie szczegółów nad przyciskami")
 	assert_true(not ResearchPanel.start_rect(VIEW, b.y).intersects(ResearchPanel.close_rect(VIEW, b.y)), "Badaj i Zamknij osobno")
 	return true
 
@@ -193,6 +215,9 @@ func test_panel_texts() -> bool:
 	assert_eq(ResearchPanel.requires_text("A1", 300), "Bez wymagań", "bez wymagań")
 	assert_eq(ResearchPanel.requires_text("A7", 300), "Wymaga: A2 Łuk kompozytowy, A43 Rymarstwo", "z nazwami")
 	assert_eq(ResearchPanel.requires_text("A7", 60), "Wymaga: A2, A43", "za wąsko: same kody")
+	var long := ResearchPanel.fit_text(TechTree.effect("A42"), 100)
+	assert_true(PixelFont.text_width(long) <= 100 and long.ends_with("..."), "długi efekt przycięty")
+	assert_eq(ResearchPanel.fit_text("+20% drewna", 300), "+20% drewna", "krótki bez zmian")
 	return true
 
 
@@ -204,3 +229,47 @@ func test_hud_research_button() -> bool:
 	assert_eq(Hud.target_at(research.get_center(), VIEW, b.x, b.y, false, false, 0), Hud.Target.RESEARCH, "oglądanie: Badania")
 	assert_true(Hud.target_at(research.get_center(), VIEW, b.x, b.y, true, false, 0) != Hud.Target.RESEARCH, "w trybie budowy nie")
 	return true
+
+
+## Efekty G1 i G2 (+20% drewna, +15% żywności) zmieniają produkcję od chwili zbadania.
+func test_production_bonus_from_research() -> bool:
+	var r := Research.new()
+	var e := _rich_economy()
+	var base := Economy.rates(null)
+	assert_eq(Economy.rates(null, r), base, "bez badań bez premii")
+	_finish(r, "G1", e)
+	_finish(r, "G2", e)
+	var bonus := Economy.rates(null, r)
+	assert_eq(bonus[EconomyConfig.Res.WOOD], base[EconomyConfig.Res.WOOD] * 120 / 100, "+20% drewna")
+	assert_eq(bonus[EconomyConfig.Res.FOOD], base[EconomyConfig.Res.FOOD] * 115 / 100, "+15% żywności")
+	assert_eq(bonus[EconomyConfig.Res.STONE], base[EconomyConfig.Res.STONE], "kamień bez zmian")
+	return true
+
+
+## Badanie kończy się w kolejce w porządku czasu: premia liczy się od chwili zbadania także
+## wtedy, gdy gra nadrabia nieobecność jednym skokiem.
+func test_bonus_starts_when_research_ends_during_absence() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var hour := 3600 * 1000
+	var jump := _economy_at(T0)
+	var r := Research.new()
+	r.start("G1", 0, jump, T0)
+	var finish := r.finish_ms()
+	BuildQueue.new().update(finish + 10 * hour, grid, jump, r)
+	assert_true(r.is_done("G1"), "zbadane po powrocie")
+	# ten sam przebieg ręcznie: do końca badania bez premii, potem z premią
+	var ref := _economy_at(T0)
+	var spent := ResearchConfig.cost(0, 0)
+	ref.spend(spent)
+	ref.update(finish, Economy.rates(grid))
+	var done := Research.new()
+	done.done["G1"] = true
+	ref.update(finish + 10 * hour, Economy.rates(grid, done))
+	assert_eq(jump.amounts, ref.amounts, "jeden skok = odcinek bez premii + odcinek z premią")
+	return true
+
+
+func _economy_at(t: int) -> Economy:
+	var e := Economy.new(t)
+	e.amounts = [500, 300, 300, 50] as Array[int]
+	return e

@@ -1,6 +1,7 @@
 extends TestCase
 ## Towary i łańcuchy produkcji (#88): wzrost w czasie, limit zbrojowni, brak wejścia,
-## łańcuch wytwórców, poziomy odblokowujące lepszy towar, brak metalu i zapis.
+## łańcuch wytwórców, poziomy odblokowujące lepszy towar, brak metalu i zapis. Wejścia przepisów
+## według kolumny „Z czego” notatki Klasy jednostek i produkcja.
 
 const T0 := 1_700_000_000_000
 const HOUR := 3600 * 1000
@@ -13,7 +14,8 @@ func _economy() -> Economy:
 
 
 func test_config_is_consistent() -> bool:
-	assert_eq(GoodsConfig.CAPACITY.size(), GoodsConfig.count(), "pojemność dla każdego towaru")
+	assert_eq(GoodsConfig.ARMORY_CAPACITY, EconomyConfig.CAPACITY[R.WOOD], "zbrojownia: limit jak przy surowcach")
+	assert_eq(GoodsConfig.NAMES.size(), GoodsConfig.Good.size(), "nazwa dla każdego towaru")
 	for row: Array in GoodsConfig.RECIPES:
 		var producer: String = row[0]
 		assert_true(GoodsConfig.PRODUCERS.has(producer), "%s na liście wytwórców" % producer)
@@ -48,7 +50,7 @@ func test_goods_grow_and_stop_at_capacity() -> bool:
 	var per_hour := GoodsConfig.cycles_per_hour(1, 1) * 3
 	assert_eq(goods.amounts[G.FLAX], per_hour, "po godzinie")
 	goods.update(T0 + 100 * HOUR, flax, e)
-	assert_eq(goods.amounts[G.FLAX], GoodsConfig.CAPACITY[G.FLAX], "zatrzymuje się na limicie zbrojowni")
+	assert_eq(goods.amounts[G.FLAX], GoodsConfig.capacity(G.FLAX), "zatrzymuje się na limicie zbrojowni")
 	assert_true(goods.is_full(G.FLAX), "pełne")
 	return true
 
@@ -97,14 +99,12 @@ func test_level_unlocks_better_goods() -> bool:
 	var e := _economy()
 	var low := Goods.new(T0)
 	low.amounts[G.BOWSTRING] = 50
-	low.amounts[G.BONE] = 50
-	low.amounts[G.SINEW] = 50
+	low.amounts[G.LEATHER] = 50
 	low.update(T0 + 5 * HOUR, {"bowyer": [2]}, e)
 	assert_true(low.amounts[G.BOW] > 0 and low.amounts[G.REFLEX_BOW] == 0, "Łukmistrz 2 robi zwykłe łuki")
 	var high := Goods.new(T0)
 	high.amounts[G.BOWSTRING] = 50
-	high.amounts[G.BONE] = 50
-	high.amounts[G.SINEW] = 50
+	high.amounts[G.LEATHER] = 50
 	high.update(T0 + 5 * HOUR, {"bowyer": [3]}, e)
 	assert_true(high.amounts[G.REFLEX_BOW] > 0, "Łukmistrz 3 robi łuki refleksyjne (#88)")
 	var faster := Goods.new(T0)
@@ -126,7 +126,7 @@ func test_take_and_fire_rate() -> bool:
 	assert_eq(goods.amounts[G.BOW], 1, "łuk został")
 	assert_true(goods.take({G.BOW: 1, G.ARROW: 10}), "łuk i strzały dla łucznika")
 	assert_eq(goods.amounts[G.ARROW], 0, "strzały zużyte")
-	assert_eq(goods.add(G.HORSE, 1000), GoodsConfig.CAPACITY[G.HORSE], "add do pojemności")
+	assert_eq(goods.add(G.HORSE, 1000), GoodsConfig.capacity(G.HORSE), "add do pojemności")
 	return true
 
 
@@ -154,5 +154,31 @@ func test_save_round_trip_and_migration() -> bool:
 	var tampered := d.duplicate(true)
 	((tampered["goods"] as Dictionary)["amounts"] as Array)[G.HORSE] = 99999
 	var t := SaveGame.from_dict(tampered, T0)
-	assert_eq(t.goods.amounts[G.HORSE], GoodsConfig.CAPACITY[G.HORSE], "zapas przycięty do pojemności")
+	assert_eq(t.goods.amounts[G.HORSE], GoodsConfig.capacity(G.HORSE), "zapas przycięty do pojemności")
+	return true
+
+
+## Wejścia z notatki: Drzewcarz z drewna i kamienia, Łukmistrz 3 dokłada skórę do łuku
+## refleksyjnego, Stajnia z żywności, Wytwórca zbroi skórzanych robi też mokre skóry na Taran.
+func test_recipes_follow_note() -> bool:
+	for row: Array in GoodsConfig.RECIPES:
+		var res_in: Dictionary = row[3]
+		var goods_in: Dictionary = row[4]
+		var out: Dictionary = row[5]
+		match row[0] as String:
+			"polearm":
+				assert_true(res_in.has(R.WOOD) and res_in.has(R.STONE), "Drzewcarz: drewno + kamień")
+			"stable":
+				assert_eq(res_in.keys(), [R.FOOD], "Stajnia: z żywności")
+			"tar_kiln":
+				assert_eq(res_in.keys(), [R.WOOD], "Smolarnia: z drewna")
+			"hunter":
+				assert_true(res_in.is_empty() and goods_in.is_empty(), "Chata myśliwego: z lasu")
+		if out.has(G.REFLEX_BOW):
+			assert_eq(int(row[1]), 3, "łuk refleksyjny od poziomu 3")
+			assert_true(goods_in.has(G.LEATHER) and goods_in.has(G.BOWSTRING), "łuk refleksyjny: cięciwa + skóra")
+	var wet := false
+	for row: Array in GoodsConfig.RECIPES:
+		wet = wet or (row[0] == "leatherworker" and (row[5] as Dictionary).has(G.WET_HIDE))
+	assert_true(wet, "mokre skóry na Taran od Wytwórcy zbroi skórzanych")
 	return true
