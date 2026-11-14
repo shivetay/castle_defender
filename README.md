@@ -2,16 +2,20 @@
 
 Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zamki od wałów ziemnych do twierdzy z końca wojen napoleońskich i atakują zamki innych graczy. Cała grafika jest rysowana kodem, bez zewnętrznych assetów.
 
-**Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 8.
+**Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 9 (#131).
 
 ## Stan: etap 5 z planu MVP
 
-Etapy 1 (szkielet, viewport 320×180, testowy APK), 2 (teren 64×64 z seeda, siatka budowy, kamera
-z gestami) i 3 (budynki epoki I: autotiling umocnień #6, pięć budynków z poziomami 1–5 #7) są zamknięte.
-Etap 4 (krok 4 planu MVP) to 4 stany zniszczeń budynków (#8), paleta epoki I zamknięta w 16 kolorach (#5),
-ekonomia (#10), progresja: koszty, czasy, kolejka budowy i Dwór jako poziom zamku (#11), oraz zapis
-lokalny (#13), z poprawkami po teście na telefonie. Z #5 zostaje pomiar startu na telefonie.
-Etap 5 zaczyna HUD z #9: tryby oglądania i budowy, przyciski Buduj i Oblężenie, epoka i rok.
+Numeracja etapów i zadań idzie za issues na GitHubie (ticket zbiorczy etapu ma etykietę `etap`).
+Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
+z gestami) są zamknięte. Etap 3 (#125: paleta epoki I w 16 kolorach #5, autotiling umocnień #6, pięć
+budynków z poziomami 1–5 #7, 4 stany zniszczeń #8) jest zrobiony; z #5 zostaje pomiar startu na telefonie.
+Etap 4 (#126): HUD z trybami oglądania i budowy (#9), ekonomia (#10), progresja z kolejką budowy
+i Dworem jako poziomem zamku (#11), zapis lokalny (#13) i losowy seed mapy dla każdego gracza (#97,
+część kliencka). Z etapu 4 zostaje Dwór zmieniający się z epokami i garnizon (#81), który czeka
+na jednostki, bitwę i epokę II z późniejszych etapów.
+Etap 5 (#127) zaczyna drzewko badań z #12: 34 technologie, zależności, epoki i ekran drzewka.
+Efekty technologii i docelowe koszty dojdą z notatki Drzewko technologiczne.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -49,8 +53,23 @@ Etap 5 zaczyna HUD z #9: tryby oglądania i budowy, przyciski Buduj i Oblężeni
   przy zleceniu, nowy budynek od razu zajmuje kratki jako plac budowy, anulowanie oddaje cały koszt
   (do pojemności magazynu), a rozbiórka gotowego budynku nic nie zwraca. Zlecenia kończą się po kolei
   według zegara, także w tle, a ekonomia liczy się odcinkami między ukończeniami.
+- `scripts/world/world_seed.gd` (`WorldSeed`): seed terenu nowej gry. Losowany z `Crypto`
+  (31 bitów, nie z czasu), zapisywany w `world_seed` i stały przez całą grę. Wylosowana mapa przechodzi
+  walidację: Dwór mieści się do 6 kratek od środka wzgórza, a od Dworu biegnie droga do krawędzi mapy
+  z miejscem na bramę. Gdy nie, kolejne seedy wynikają deterministycznie z pierwszego (do 32 prób,
+  potem seed zapasowy 1337). W wersji debug seed wymusza `godot --path . -- --seed=42`; wymuszony seed omija walidację,
+  więc da się nim odtworzyć także mapę niegrywalną.
+- `scripts/world/tech_tree.gd` (`TechTree`): 34 technologie MVP z #12 w gałęziach Atak (19), Obrona (3),
+  Gospodarka (9) i Użyteczne (3). Każda ma epokę, znacznik technologii kluczowej ★ (O1 dla I → II,
+  G6 dla II → III) i zależności (A21 ← A38, A7 ← A2 + A43, A3 ← G24, A44 ← A41). Epoka II: A22, A46,
+  A47, G6; reszta to epoka I (do potwierdzenia z notatką). Efektów jeszcze nie ma.
+- `scripts/world/research_config.gd` (`ResearchConfig`): koszt i czas badań. Każda kolejna technologia
+  w epoce ×1,6 kosztu i ×2 czasu (#12). Bazowe liczby (epoka I: 100 Dr 50 Ka 50 Ży, 1 min) są tymczasowe.
+- `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga
+  epoki i zbadanych zależności, koszt schodzi przy starcie, a koniec liczy się z zegara, także w tle.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
-  i miejscem na migracje). Zapisuje seed terenu, budynki, surowce i kolejkę budowy. Pisze pełny plik
+  i miejscem na migracje; wersja 2 dodała badania). Zapisuje seed terenu, budynki, surowce, kolejkę
+  budowy i badania. Pisze pełny plik
   tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
   głównym, więc na dysku zawsze leży co najmniej jeden pełny zapis. Nieczytelny plik główny jest
   odkładany obok (`.broken`) i nie trafia do kopii; zapis z nowszej wersji gry też nie jest nadpisywany.
@@ -70,17 +89,22 @@ Etap 5 zaczyna HUD z #9: tryby oglądania i budowy, przyciski Buduj i Oblężeni
   budynku otwiera kartę (poziom albo czas budowy; Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy:
   przewijany w poziomie pasek budynków (koszt i czas w komunikacie) i Gotowe; dotknięcia mapy tylko
   stawiają, niczego nie zaznaczają. Przyciski 56×22 px (ok. 50 dp na typowym telefonie).
+- `scripts/ui/research_panel.gd` (`ResearchPanel`): ekran drzewka pod przyciskiem Badania (obok Buduj).
+  Zakładki gałęzi, kafelki z kodami (zbadana na zielono, w toku kolorem strzechy, zablokowana
+  przygaszona, ★ z czerwonym znacznikiem w rogu), szczegóły zaznaczonej technologii z kosztem, czasem
+  i wymaganiami (ramki na wymaganych kafelkach) oraz Badaj i Zamknij w miejscu Badania i Buduj.
 - `scripts/world/ages.gd` (`Ages`): epoka i rok na pasku. Epoka I zaczyna się w 550 r., a rok rośnie
   z poziomem Dworu (550, 600, 650, 700, 750).
 
-Wymagania technologii dojdą z badaniami (#12).
+Wymagania technologii dla budynków i jednostek dojdą razem z efektami badań (#12).
 Gra zapisuje się po każdej akcji, po ukończeniu budowy i przy zejściu do tła, a po ponownym uruchomieniu
 nadrabia czas nieobecności (budowa i produkcja liczą się tak, jakby gra działała cały czas).
 
 Do ręcznego testu na telefonie: czy Buduj, Gotowe, pasek budynków i karta dają się obsłużyć jednym
 kciukiem, czy przewijanie paska palcem jest wygodne, czy budowa długiego wału kratka po kratce nie jest
 zbyt męcząca, czy po zejściu do tła na kilka minut surowce przybywają i czy po zamknięciu aplikacji
-(także „ubiciu” z listy ostatnich) zamek wraca z nadrobioną budową.
+(także „ubiciu” z listy ostatnich) zamek wraca z nadrobioną budową. Przy badaniach: czy kafelki
+drzewka (34×14 px) dają się trafić kciukiem, czy kody i opisy są czytelne i czy badanie kończy się w tle.
 
 ## Uruchomienie
 
@@ -175,5 +199,8 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 5 ciąg dalszy wybiera właściciel. Przycisk Oblężenie czeka na symulację bitwy (#14) i fale PvE (#16);
-najbliżej obecnego stanu są też badania (#12).
+Etap 5 (#127): efekty technologii z #12 (po wklejeniu notatki Drzewko technologiczne, razem z docelowymi
+kosztami i czasami), potem klasy jednostek (#87), towary i łańcuchy produkcji (#88), wytwórcy (#90),
+Stajnia (#91), budynki rekrutacji (#119), rekrutacja (#89) i budynki gospodarcze (#122).
+Z etapu 4 zostaje #81, który czeka na jednostki, bitwę i epokę II. Z #97 zostaje strona serwera
+(#21, #23, #25 w etapie 9). Kolejność wybiera właściciel.
