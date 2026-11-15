@@ -11,7 +11,7 @@ extends RefCounted
 
 const CELL := 8
 ## Ile pikseli budynek wystaje ponad swoje kratki (stałe dla rodzaju, niezależne od poziomu).
-const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10, 10, 10, 10, 10]
+const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10, 10, 10, 10, 10, 22]
 
 
 ## Rozmiar obrazu. `vertical` obraca obrys budynku (brama w pionowej linii palisady).
@@ -50,6 +50,8 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 			_draw_manor(img, lv)
 		BuildingTypes.Kind.FLAX_FIELD:
 			_draw_flax_field(img, lv)
+		BuildingTypes.Kind.KEEP:
+			_draw_keep(img, lv)
 		_:
 			_draw_workshop(img, kind, lv)
 	_apply_state(img, kind, state, mask)
@@ -618,6 +620,39 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 			if big:
 				PixelCanvas.rect(img, Rect2i(x + 2, y - 7, 1, 3), Color(Palette.SHADOW, 0.5))  # dym
 				PixelCanvas.rect(img, Rect2i(x - 1, y - 2, 2, 3), Palette.SHADOW)  # beczka smoły
+
+
+## Wieża grodowa (2×2, donżon epoki I, #120): najwyższa budowla zamku i cel każdego ataku.
+## Poziomy: 1 wieża z bali na podmurówce z ziemi, 2 wyższa z otworem strzelniczym, 3 z gankiem
+## (hurdycją) pod dachem, 4 ze szkieletem belek i drugim rzędem otworów, 5 z flagą i proporcem.
+static func _draw_keep(img: Image, level: int) -> void:
+	var base := 13 + EXTRA[BuildingTypes.Kind.KEEP]
+	PixelCanvas.rect(img, Rect2i(1, base + 1, 14, 1), Color(Palette.SHADOW, 0.5))
+	# ziemna podmurówka
+	for y in range(base - 1, base + 1):
+		for x in range(1, 15):
+			PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
+	var wall_h: Array[int] = [14, 18, 18, 22, 22]
+	var h := wall_h[level - 1]
+	var wall := Rect2i(3, base - 1 - h, 10, h)
+	PixelCanvas.draw_log_wall(img, wall, Palette.WOOD, 23)
+	PixelCanvas.draw_door(img, Rect2i(6, base - 6, 4, 5))
+	if level >= 2:
+		PixelCanvas.rect(img, Rect2i(7, wall.position.y + 3, 2, 3), Palette.SHADOW)
+	if level >= 4:
+		PixelCanvas.draw_beams(img, wall, Palette.WOOD[0])
+		for x: int in [4, 10]:
+			PixelCanvas.rect(img, Rect2i(x, wall.position.y + 8, 1, 3), Palette.SHADOW)
+	var top := wall.position.y
+	if level >= 3:
+		# ganek z desek wysunięty poza ścianę
+		PixelCanvas.draw_plank_wall(img, Rect2i(1, top - 3, 14, 3), Palette.WOOD)
+		PixelCanvas.rect(img, Rect2i(1, top, 14, 1), Palette.WOOD[0])
+		top -= 3
+	PixelCanvas.draw_roof(img, 8, top - 5, 2, 5, Palette.THATCH)
+	if level == 5:
+		PixelCanvas.draw_flag(img, Vector2i(7, top - 4), 3, Palette.ACCENT)
+		PixelCanvas.rect(img, Rect2i(4, wall.position.y + 2, 2, 4), Palette.ACCENT)
 
 
 ## Koń z boku, 5×4 px, stojący na wierszu `at.y` od kolumny `at.x`: tułów, głowa z grzywą

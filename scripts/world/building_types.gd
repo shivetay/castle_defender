@@ -11,6 +11,7 @@ enum Kind {
 	HUNTER, TANNERY, LEATHERWORKER, POLEARM, BOWSTRING, BOWYER, FLETCHER, SADDLER, TAR_KILN,
 	FLAX_FIELD, FISHER, STABLE,
 	BARRACKS, WARBAND_HOUSE, ARCHERY_RANGE,
+	KEEP,
 }
 ## Stan budynku zależny od wytrzymałości: cały, pęknięcia, wyrwa w blankach, gruz.
 enum State { INTACT, CRACKED, BREACHED, RUBBLE }
@@ -27,15 +28,16 @@ const W := 8
 
 const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wieża drewniana", "Chata drwala", "Dwór",
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
-		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica"]
+		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica",
+		"Wieża grodowa"]
 ## Napisy na przyciskach paska budowy (56 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
 		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
-		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica"]
+		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica", "Donżon"]
 const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
-		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2)]
+		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2)]
 ## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu): umocnienia, gospodarka (#122),
 ## wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119).
 const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.LUMBER_HUT,
@@ -46,6 +48,11 @@ const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWE
 
 static func count() -> int:
 	return NAMES.size()
+
+
+## Budynki, które zamek ma od startu, po jednym, i których nie da się rozebrać: Dwór i donżon (#120).
+static func is_unique(kind: int) -> bool:
+	return kind == Kind.MANOR or kind == Kind.KEEP
 
 
 ## Liczba rodzajów, które gracz stawia z paska budowy (bez Dworu).

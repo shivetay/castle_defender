@@ -120,8 +120,27 @@ func manor_id() -> int:
 ## Miejsce na Dwór: pierwszy wolny prostokąt na kolejnych pierścieniach wokół środka mapy
 ## (kolejność stała dla seeda), najdalej `max_ring` kratek od środka. Pusty prostokąt, gdy brak.
 func manor_spot(max_ring: int) -> Rect2i:
-	var c := terrain.center()
-	var kind := BuildingTypes.Kind.MANOR
+	return spot_near(terrain.center(), BuildingTypes.Kind.MANOR, max_ring)
+
+
+## Id donżonu (Wieży grodowej, #120) albo 0, gdy go nie ma.
+func keep_id() -> int:
+	for id: int in kinds:
+		if kinds[id] == BuildingTypes.Kind.KEEP:
+			return id
+	return 0
+
+
+## Miejsce na donżon: pierwszy wolny prostokąt wokół Dworu (albo środka mapy, gdy Dworu nie ma).
+func keep_spot(max_ring: int) -> Rect2i:
+	var id := manor_id()
+	var c := buildings[id].position if id != 0 else terrain.center()
+	return spot_near(c, BuildingTypes.Kind.KEEP, max_ring)
+
+
+## Pierwszy wolny prostokąt dla rodzaju `kind` na kolejnych pierścieniach wokół `c`, najdalej
+## `max_ring` kratek (kolejność stała dla seeda). Pusty prostokąt, gdy brak.
+func spot_near(c: Vector2i, kind: int, max_ring: int) -> Rect2i:
 	for r in mini(max_ring, terrain.size) + 1:
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):

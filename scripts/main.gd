@@ -67,6 +67,8 @@ func _ready() -> void:
 		goods = Goods.new(_now_ms())
 	if grid.manor_id() == 0:
 		_place_manor()
+	if grid.keep_id() == 0:
+		_place_keep()
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
 	textures.warm_up()
 
@@ -127,6 +129,14 @@ func _place_manor() -> void:
 	var spot := grid.manor_spot(terrain.size)
 	if spot.has_area():
 		grid.place(spot, BuildingTypes.Kind.MANOR)
+
+
+## Donżon (Wieża grodowa, #120) staje obok Dworu: cel każdego ataku. Starsze zapisy dostają go
+## przy wczytaniu.
+func _place_keep() -> void:
+	var spot := grid.keep_spot(terrain.size)
+	if spot.has_area():
+		grid.place(spot, BuildingTypes.Kind.KEEP)
 
 
 func _process(_delta: float) -> void:
@@ -367,7 +377,7 @@ func _refresh_card() -> void:
 	if pending:
 		status = "budowa %s" % Hud.format_time(queue.remaining_ms(_selected_id, _now_ms()))
 	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level())
-	var middle_enabled := pending or kind != BuildingTypes.Kind.MANOR
+	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
@@ -387,7 +397,7 @@ func _on_upgrade() -> void:
 	_refresh_card()
 
 
-## Środkowy przycisk karty: Anuluj dla budynku w kolejce, inaczej Rozbierz (Dworu nie można).
+## Środkowy przycisk karty: Anuluj dla budynku w kolejce, inaczej Rozbierz (Dworu i donżonu nie można).
 func _on_middle_button() -> void:
 	_tick()
 	var title := BuildingTypes.NAMES[grid.kinds[_selected_id]]
@@ -397,8 +407,8 @@ func _on_middle_button() -> void:
 		hud.message = "Anulowano: %s, surowce wróciły" % title
 		_save()
 		return
-	if grid.kinds[_selected_id] == BuildingTypes.Kind.MANOR:
-		hud.message = "Dworu nie można rozebrać"
+	if BuildingTypes.is_unique(grid.kinds[_selected_id]):
+		hud.message = "Tego budynku nie można rozebrać"
 		return
 	_cursor = grid.buildings[_selected_id]
 	_cursor_ok = true

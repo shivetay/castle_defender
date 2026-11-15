@@ -24,7 +24,8 @@ oraz Stajnia z #91 i budynki rekrutacji z #119 (Koszary, Dom drużyny, Strzelnic
 z #87: 13 jednostek MVP z klasą, statystykami i kosztem w towarach oraz tabela przewag klas.
 Rekrutacja z #89: kolejki szkolenia w budynkach klas, koszt w żywności i towarach, armia z limitem
 i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
-Etap 6 (#128) zaczyna deterministyczna symulacja bitwy z #14 (logika bez renderu).
+Etap 6 (#128) zaczyna deterministyczna symulacja bitwy z #14 (logika bez renderu) i donżon jako cel
+ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -124,8 +125,13 @@ Etap 6 (#128) zaczyna deterministyczna symulacja bitwy z #14 (logika bez renderu
   i ścieżki z AStarGrid2D, w którym budynki są drogie, ale przechodnie: atakujący burzą najsłabsze miejsce
   linii umocnień. Atakujący idą do celu i walczą z obrońcami po drodze, obrońcy trzymają pozycję przy celu,
   wieże strzelają (wolniej bez strzał w zbrojowni). Koniec: cel zniszczony, atakujący wybici albo limit
-  180 s. `checksum()` daje sumę kontrolną stanu do testów i przyszłej weryfikacji na serwerze. Celem będzie
-  donżon (#120); na razie podaje się dowolny budynek. Liczby w `BattleConfig` (poza palisadą) tymczasowe.
+  180 s. `checksum()` daje sumę kontrolną stanu do testów i przyszłej weryfikacji na serwerze. Liczby
+  w `BattleConfig` (poza palisadą) tymczasowe.
+- Donżon (#120): Wieża grodowa stoi od startu obok Dworu (starsze zapisy dostają ją przy wczytaniu), nie ma
+  jej na pasku i nie da się jej rozebrać, a ulepsza się do poziomu Dworu. `Battle.for_castle()` bierze ją
+  za cel: atakujący wygrywa po jej upadku albo zdobyciu (piechota lekka lub ciężka trzyma się przy niej
+  10 s bez obrońców w pobliżu). Zniszczenie Dworu bitwy nie kończy. Walidacja seeda mapy (#97) sprawdza
+  też miejsce na donżon. Grafika: wieża z bali na ziemnej podmurówce, z gankiem od poziomu 3.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -260,6 +266,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 6 (#128): donżon jako cel ataku (#120), zachowania jednostek i ludziki 3×5 px (#15, #92), morale (#98),
+Etap 6 (#128): zachowania jednostek i ludziki 3×5 px (#15, #92), morale (#98),
 samouczek PvE z 5 falami pod przyciskiem Oblężenie (#16) i efekty bitwy (#101). Z etapów 4–5 zostają części
 zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).
