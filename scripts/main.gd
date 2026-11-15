@@ -25,6 +25,8 @@ const FISHER_HINT := "Rybak musi stać tuż przy rzece"
 
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
+## Podgląd bitwy w wersji debug (#15): godot --path . -- --battle-preview. Bitwę z gry uruchomi #16.
+const BATTLE_PREVIEW_ARG := "--battle-preview"
 
 ## Seed terenu: nowa gra losuje go (WorldSeed), wczytana bierze z zapisu.
 var world_seed := 0
@@ -122,6 +124,34 @@ func _ready() -> void:
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
 	_save()
+	if OS.is_debug_build() and OS.get_cmdline_user_args().has(BATTLE_PREVIEW_ARG):
+		_start_battle_preview()
+
+
+## Podgląd bitwy na własnym zamku: obrońcy to wyszkolone oddziały (albo przykładowe),
+## atakujący przykładowa armia z drogi przy krawędzi mapy. Seed bitwy stały, więc podgląd
+## przebiega zawsze tak samo.
+func _start_battle_preview() -> void:
+	var defenders := recruitment.battle_squads()
+	if defenders.is_empty():
+		defenders = [[UnitTypes.Unit.SHIELDBEARER, 6], [UnitTypes.Unit.ARCHER, 8]]
+	var attackers := [[UnitTypes.Unit.AXE_WARRIOR, 10], [UnitTypes.Unit.JAVELINEER, 8],
+			[UnitTypes.Unit.RIDER, 4], [UnitTypes.Unit.FIRE_RAISER, 3]]
+	var view := BattleView.new()
+	view.battle = Battle.create_squads(grid, grid.keep_id(), attackers, defenders, _edge_road(), world_seed)
+	add_child(view)
+	hud.message = "Podgląd bitwy"
+
+
+## Pierwsza kratka drogi na krawędzi mapy (kolejność stała), a bez drogi środek dolnej krawędzi.
+func _edge_road() -> Vector2i:
+	var last := terrain.size - 1
+	for i in terrain.size:
+		for c: Vector2i in [Vector2i(i, last), Vector2i(i, 0), Vector2i(0, i), Vector2i(last, i)]:
+			if terrain.get_tile(c) == TerrainMap.Tile.PATH:
+				return c
+	@warning_ignore("integer_division")
+	return Vector2i(terrain.size / 2, last - 1)
 
 
 ## Dwór staje na pierwszym wolnym miejscu najbliżej środka mapy (kolejność stała dla seeda).

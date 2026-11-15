@@ -50,6 +50,12 @@ static func count() -> int:
 	return NAMES.size()
 
 
+## Czy budynek jest z drewna (epoka I: wszystko poza wałem ziemnym i polem). Topór i ogień
+## działają mocniej na drewno (#15).
+static func is_wooden(kind: int) -> bool:
+	return kind != Kind.RAMPART and kind != Kind.FLAX_FIELD
+
+
 ## Budynki, które zamek ma od startu, po jednym, i których nie da się rozebrać: Dwór i donżon (#120).
 static func is_unique(kind: int) -> bool:
 	return kind == Kind.MANOR or kind == Kind.KEEP
