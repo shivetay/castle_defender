@@ -124,7 +124,10 @@ func cancel(grid: BuildGrid, economy: Economy, building_id: int, now_ms: int) ->
 ## w chwili ukończenia poprzedniego. Badanie (`research`) kończy się w tym samym porządku czasu.
 ## Przed każdym ukończeniem ekonomia nalicza produkcję po starych stawkach, więc nowy budynek
 ## albo premia z technologii liczą się dokładnie od chwili ukończenia. Zwraca ukończone zlecenia.
-func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research = null) -> Array[Order]:
+## Towary (`goods`) liczą się w tych samych punktach czasu co surowce: wytwórca ukończony w trakcie
+## nieobecności produkuje dopiero od chwili ukończenia (review PR 140).
+func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research = null,
+		goods: Goods = null) -> Array[Order]:
 	var done: Array[Order] = []
 	while true:
 		var build_at := orders[0].finish_ms() if not orders.is_empty() else -1
@@ -138,6 +141,8 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 		var at := research_at if take_research else build_at
 		if at > economy.last_update_ms:
 			economy.update(at, Economy.rates(grid, research))
+		if goods != null and at > goods.last_update_ms:
+			goods.update(at, Goods.producers(grid), economy)
 		if take_research:
 			research.update(at)
 			continue
@@ -148,6 +153,8 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 			orders[0].start_ms = at
 		done.append(o)
 	economy.update(now_ms, Economy.rates(grid, research))
+	if goods != null:
+		goods.update(now_ms, Goods.producers(grid), economy)
 	return done
 
 
