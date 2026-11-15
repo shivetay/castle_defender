@@ -31,6 +31,8 @@ class Fighter:
 	var path: Array[Vector2i] = []
 	var path_index := 0
 	var repath_in := 0
+	## Kratka, do której prowadzi `path` (cel ataku albo wróg).
+	var path_goal := Vector2i(-1, -1)
 	## Kratka, wokół której obrońca trzyma pozycję.
 	var post := Vector2i.ZERO
 	## Numer oddziału po swojej stronie (od 1, w kolejności armii).
@@ -298,17 +300,21 @@ func _act(f: Fighter) -> void:
 		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
 			_strike_unit(f, enemy)
 		else:
-			_move_toward(f, enemy.x, enemy.y)
+			# pościg też idzie po ścieżce: atakujący przebija się przez umocnienia, obrońca czeka
+			_walk(f, enemy.cell(), enemy.x, enemy.y, f.side == Side.ATTACKER)
 		return
 	f.target = 0
 	if f.side == Side.DEFENDER:
-		_move_toward(f, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2)
+		_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2, false)
 		return
 	_advance(f)
 
 
 ## Najbliższy żywy wróg w zasięgu wzroku (zasięg + AGGRO_EXTRA); przy remisie niższe id.
+## Jednostka bez ataku (Tropiciel) nie wdaje się w walkę.
 func _enemy_for(f: Fighter) -> Fighter:
+	if UnitTypes.attack(f.unit) <= 0:
+		return null
 	var best: Fighter = null
 	var best_d := 0
 	var sight := (UnitTypes.attack_range(f.unit) + BattleConfig.AGGRO_EXTRA) * BattleConfig.SUB
@@ -334,20 +340,35 @@ func _advance(f: Fighter) -> void:
 	var goal := _objective_cell()
 	if goal.x < 0:
 		return
+	_walk(f, goal, goal.x * BattleConfig.SUB + BattleConfig.SUB / 2, goal.y * BattleConfig.SUB + BattleConfig.SUB / 2, true)
+
+
+## Ruch po ścieżce z `_astar` do kratki `goal`, a na jej końcu prosto do punktu (`px`, `py`).
+## Żaden ruch nie wchodzi na kratkę żywego budynku: z `breach` jednostka z atakiem go burzy,
+## inaczej czeka. Ścieżka liczy się od nowa co REPATH_TICKS, po wyłomie albo gdy cel odszedł
+## dalej niż o kratkę od końca ścieżki.
+func _walk(f: Fighter, goal: Vector2i, px: int, py: int, breach: bool) -> void:
 	f.repath_in -= 1
-	if f.path.is_empty() or f.path_index >= f.path.size() or f.repath_in <= 0:
+	var moved_goal := absi(goal.x - f.path_goal.x) > 1 or absi(goal.y - f.path_goal.y) > 1
+	if f.path.is_empty() or f.path_index >= f.path.size() or f.repath_in <= 0 or moved_goal:
 		f.path = _astar.get_id_path(f.cell(), goal)
 		f.path_index = 1
+		f.path_goal = goal
 		f.repath_in = BattleConfig.REPATH_TICKS
-	if f.path_index >= f.path.size():
-		return
-	var next := f.path[f.path_index]
-	var tx := next.x * BattleConfig.SUB + BattleConfig.SUB / 2
-	var ty := next.y * BattleConfig.SUB + BattleConfig.SUB / 2
+	var tx := px
+	var ty := py
+	var next := f.cell()
+	if f.path_index < f.path.size():
+		next = f.path[f.path_index]
+		tx = next.x * BattleConfig.SUB + BattleConfig.SUB / 2
+		ty = next.y * BattleConfig.SUB + BattleConfig.SUB / 2
+	elif next != goal:
+		return  # brak drogi
 	var blocker := _structure_at(next)
 	if blocker != null:
-		# budynek na drodze: z sąsiedniej kratki burzy go każdy, kto ma atak (zasięg co najmniej 1)
-		if _in_range(f, tx, ty, maxi(1, UnitTypes.attack_range(f.unit))):
+		# budynek na drodze: z sąsiedniej kratki burzy go atakujący z atakiem
+		if breach and UnitTypes.attack(f.unit) > 0 \
+				and _in_range(f, tx, ty, maxi(1, UnitTypes.attack_range(f.unit))):
 			_strike_structure(f, blocker)
 		else:
 			var here := f.cell()
@@ -516,7 +537,8 @@ func _destroy(s: Structure) -> void:
 	s.burning = 0
 	for y in range(s.rect.position.y, s.rect.end.y):
 		for x in range(s.rect.position.x, s.rect.end.x):
-			_astar.set_point_weight_scale(Vector2i(x, y), 1.0)
+			_cells[y * _terrain.size + x] = 0
+			_astar.set_point_weight_scale(Vector2i(x, y), BattleConfig.FREE_PATH_WEIGHT)
 			_ram_astar.set_point_solid(Vector2i(x, y), false)
 	for f in fighters:
 		f.repath_in = 0  # wyłom zmienia najkrótszą drogę
