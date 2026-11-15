@@ -37,13 +37,14 @@ const PRODUCER_NAMES := {
 	"leatherworker": "Wytwórca zbroi skórzanych", "saddler": "Rymarz", "tar_kiln": "Smolarnia",
 	"stable": "Stajnia",
 }
-## Rodzaj budynku (BuildingTypes.Kind) → wytwórca (#90, Pole lnu #122). Stajnia dojdzie w #91.
+## Rodzaj budynku (BuildingTypes.Kind) → wytwórca (#90, Pole lnu #122, Stajnia #91).
 const PRODUCER_KINDS := {
 	BuildingTypes.Kind.HUNTER: "hunter", BuildingTypes.Kind.TANNERY: "tannery",
 	BuildingTypes.Kind.LEATHERWORKER: "leatherworker", BuildingTypes.Kind.POLEARM: "polearm",
 	BuildingTypes.Kind.BOWSTRING: "bowstring", BuildingTypes.Kind.BOWYER: "bowyer",
 	BuildingTypes.Kind.FLETCHER: "fletcher", BuildingTypes.Kind.SADDLER: "saddler",
 	BuildingTypes.Kind.TAR_KILN: "tar_kiln", BuildingTypes.Kind.FLAX_FIELD: "flax_field",
+	BuildingTypes.Kind.STABLE: "stable",
 }
 
 const R := EconomyConfig.Res

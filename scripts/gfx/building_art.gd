@@ -11,7 +11,7 @@ extends RefCounted
 
 const CELL := 8
 ## Ile pikseli budynek wystaje ponad swoje kratki (stałe dla rodzaju, niezależne od poziomu).
-const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10]
+const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10, 10]
 
 
 ## Rozmiar obrazu. `vertical` obraca obrys budynku (brama w pionowej linii palisady).
@@ -573,6 +573,12 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 				PixelCanvas.rect(img, Rect2i(x - 1, y, 6, 1), Palette.WOOD[1])  # łódka
 				PixelCanvas.rect(img, Rect2i(x, y - 1, 1, 1), Palette.WOOD[1])
 				PixelCanvas.rect(img, Rect2i(x + 3, y - 1, 1, 1), Palette.WATER[2])
+		BuildingTypes.Kind.STABLE:
+			# koń przy żłobie z sianem (na wyższych poziomach drugi koń, gniady)
+			_draw_horse(img, Vector2i(x, y), Palette.WOOD[2])
+			PixelCanvas.rect(img, Rect2i(x - 1, y - 1, 1, 2), Palette.THATCH[1])  # siano
+			if big:
+				_draw_horse(img, Vector2i(x, y - 4), Palette.WOOD[1])
 		BuildingTypes.Kind.TAR_KILN:
 			# mielerz z otworem i beczką smoły
 			PixelCanvas.rect(img, Rect2i(x, y - 3, 5, 4), Palette.EARTH[2])
@@ -582,6 +588,17 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 			if big:
 				PixelCanvas.rect(img, Rect2i(x + 2, y - 7, 1, 3), Color(Palette.SHADOW, 0.5))  # dym
 				PixelCanvas.rect(img, Rect2i(x - 1, y - 2, 2, 3), Palette.SHADOW)  # beczka smoły
+
+
+## Koń z boku, 5×4 px, stojący na wierszu `at.y` od kolumny `at.x`: tułów, głowa z grzywą
+## w prawo, cztery nogi.
+static func _draw_horse(img: Image, at: Vector2i, coat: Color) -> void:
+	PixelCanvas.rect(img, Rect2i(at.x, at.y - 3, 4, 2), coat)
+	PixelCanvas.rect(img, Rect2i(at.x + 4, at.y - 4, 1, 2), coat)
+	PixelCanvas.px(img, at.x + 3, at.y - 4, Palette.SHADOW)  # grzywa
+	PixelCanvas.px(img, at.x - 1, at.y - 3, Palette.SHADOW)  # ogon
+	for lx: int in [0, 3]:
+		PixelCanvas.rect(img, Rect2i(at.x + lx, at.y - 1, 1, 2), Palette.WOOD[0])
 
 
 ## Pole lnu (2×2, #122): zaorana ziemia z rzędami lnu. Poziomy: 1 mała grządka z siewkami,
