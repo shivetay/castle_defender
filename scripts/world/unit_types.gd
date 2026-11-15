@@ -46,6 +46,10 @@ const UNITS: Array = [
 	["Kopacz", ENGINEERING, 0, 40, 2, 1, 3, "", K.BARRACKS, {R.FOOD: 10}, {}],
 ]
 
+## Krótkie nazwy na kafelkach ekranu Wojsko (szerokość ok. 60 px).
+const SHORT_NAMES: Array[String] = ["Topornik", "Oszczepnik", "Łucznik", "Tarczownik", "Podpalacz", "Tropiciel",
+		"Jeździec", "Włócznik", "Drużynnik", "Strz. refl.", "Kopijnik", "Taran", "Kopacz"]
+
 ## Jednostki z drzewcem: ×2 obrażeń przeciw konnicy (Włócznik w notatce Jednostki).
 const ANTI_CAVALRY: Array[int] = [Unit.SPEARMAN]
 const ANTI_CAVALRY_PERCENT := 200

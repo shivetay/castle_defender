@@ -21,10 +21,19 @@ const CLASS_BUILDING := {
 	UnitClass.FAST: BuildingTypes.Kind.STABLE,
 }
 
-## Ile jednostek budynek szkoli naraz na poziomach 1–5. TYMCZASOWE.
+## Ile jednostek mieści kolejka szkolenia budynku na poziomach 1–5. TYMCZASOWE.
 const TRAINING_SLOTS: Array[int] = [2, 3, 4, 5, 6]
 ## Tempo szkolenia na poziomach 1–5 w procentach tempa poziomu 1. TYMCZASOWE.
 const TRAINING_SPEED_PERCENT: Array[int] = [100, 120, 140, 170, 200]
+
+## Czas szkolenia jednostki na poziomie 1 budynku, w sekundach (indeks = UnitTypes.Unit). TYMCZASOWE.
+const TRAIN_TIME_S: Array[int] = [20, 20, 25, 40, 30, 30, 45, 25, 50, 35, 60, 90, 15]
+## Limit armii (wyszkoleni i szkoleni): za każdy poziom Dworu i za każdy poziom Koszar (#89, #81).
+## TYMCZASOWE.
+const ARMY_PER_MANOR_LEVEL := 10
+const ARMY_PER_BARRACKS_LEVEL := 2
+## Najwięcej jednostek w jednym oddziale (oddział ma jeden rodzaj jednostek). TYMCZASOWE.
+const SQUAD_SIZE := 10
 
 
 ## Budynek rekrutacji klasy albo -1 (klasa specjalna).
@@ -46,3 +55,9 @@ static func training_slots(level: int) -> int:
 
 static func training_speed_percent(level: int) -> int:
 	return TRAINING_SPEED_PERCENT[clampi(level, 1, TRAINING_SPEED_PERCENT.size()) - 1]
+
+
+## Czas szkolenia jednostki `unit` w budynku na poziomie `level` (ms).
+static func train_ms(unit: int, level: int) -> int:
+	@warning_ignore("integer_division")
+	return TRAIN_TIME_S[unit] * 1000 * 100 / training_speed_percent(level)
