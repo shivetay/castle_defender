@@ -534,7 +534,7 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 			# łuk z cięciwą (drugi łuk na wyższych poziomach)
 			var bows := 2 if big else 1
 			for b in bows:
-				var bx := x + b * 2
+				var bx := x + b  # drugi łuk o 1 px w prawo: cięciwa w kolumnie 15, w obrazie
 				PixelCanvas.rect(img, Rect2i(bx + 1, y - 6, 1, 6), Palette.WOOD[2])
 				PixelCanvas.px(img, bx + 2, y - 7, Palette.WOOD[2])
 				PixelCanvas.px(img, bx + 2, y, Palette.WOOD[2])
