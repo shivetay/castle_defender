@@ -109,15 +109,19 @@ i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
   zasięg, szybkość, technologia, budynek rekrutacji i koszt w towarach (np. Łucznik: łuk i 20 strzał).
   Tabela przewag klas (`ADVANTAGE`, procenty) i ×2 drzewca przeciw konnicy; `duel()` to pojedynek w turach
   na liczbach całkowitych do testów, pełna bitwa to #14. Ikony klas 5×5 w `PixelIcons.CLASSES`.
-- `scripts/world/recruitment.gd` (`Recruitment`): armia i kolejki szkolenia (#89). Każdy budynek szkoli
-  po kolei jednostki ze swojej kolejki (długość i tempo rosną z poziomem), także offline. Koszt
+- `scripts/world/recruitment.gd` (`Recruitment`): armia w oddziałach i kolejki szkolenia (#89). Oddział ma
+  jeden rodzaj jednostek i najwyżej 10 jednostek (tymczasowe); nowa jednostka idzie do wskazanego oddziału
+  tego rodzaju albo do nowego. Globalny limit armii to tyle, ile zamek może teraz utrzymać: 10 za poziom
+  Dworu i 2 za poziom Koszar (tymczasowe); limit i miejsca w oddziale liczą też szkolonych. Każdy budynek
+  szkoli po kolei jednostki ze swojej kolejki (długość i tempo rosną z poziomem), także offline. Koszt
   w surowcach i towarach schodzi przy zleceniu; bez towaru szkolenie nie rusza. Jednostka szkoli się
-  tylko w budynku swojej klasy. Limit armii: 10 za poziom Dworu i 2 za poziom Koszar (tymczasowe),
-  liczy też szkolonych. `start_any()` dla widoku globalnego wybiera budynek z najkrótszą kolejką.
+  tylko w budynku swojej klasy. `start_any()` dla widoku globalnego wybiera budynek z najkrótszą kolejką.
 - `scripts/ui/recruit_panel.gd` (`RecruitPanel`): ekran Wojsko. Przycisk Wojsko w HUD (obok Oblężenia)
   pokazuje wszystkie jednostki; Szkol na karcie budynku rekrutacji tylko jednostki tego budynku.
-  Kafelki z ikoną klasy, liczbą w armii i w szkoleniu; zablokowane przygaszone z powodem (technologia,
-  epoka, brak budynku); brakujące towary na czerwono z budynkiem, który je robi.
+  Nagłówek: zajęte miejsca, limit i wolne miejsca w armii. Kafelki z ikoną klasy, liczbą w armii
+  i w szkoleniu; zablokowane przygaszone z powodem (technologia, epoka, brak budynku); brakujące towary
+  na czerwono z budynkiem, który je robi. Rząd wyboru oddziału: Nowy albo oddziały tego rodzaju
+  („2: 7/10”), pełne przygaszone; domyślnie pierwszy oddział z wolnym miejscem.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
