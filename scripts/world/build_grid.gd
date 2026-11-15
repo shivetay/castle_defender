@@ -100,6 +100,22 @@ func manor_id() -> int:
 	return 0
 
 
+## Miejsce na Dwór: pierwszy wolny prostokąt na kolejnych pierścieniach wokół środka mapy
+## (kolejność stała dla seeda), najdalej `max_ring` kratek od środka. Pusty prostokąt, gdy brak.
+func manor_spot(max_ring: int) -> Rect2i:
+	var c := terrain.center()
+	var kind := BuildingTypes.Kind.MANOR
+	for r in mini(max_ring, terrain.size) + 1:
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) != r:
+					continue
+				var rect := placement_for(c + Vector2i(dx, dy), kind)
+				if rect.has_area():
+					return rect
+	return Rect2i()
+
+
 ## Poziom zamku, czyli poziom Dworu (1, gdy Dworu nie ma albo jest w budowie).
 func manor_level() -> int:
 	var id := manor_id()
