@@ -160,9 +160,8 @@ static func _now_ms() -> int:
 func _tick() -> void:
 	var now := _now_ms()
 	var researching := research.active
-	var done := queue.update(now, grid, economy, research)
-	# towary po surowcach: wytwórcy zużywają drewno i żywność naliczone do teraz
-	goods.update(now, Goods.producers(grid), economy)
+	# towary po surowcach w każdym punkcie czasu: wytwórcy zużywają drewno i żywność naliczone do tej chwili
+	var done := queue.update(now, grid, economy, research, goods)
 	for o in done:
 		hud.message = "Ukończono: %s, poziom %d" % [BuildingTypes.NAMES[o.kind], o.level]
 	if not researching.is_empty() and research.is_done(researching):
