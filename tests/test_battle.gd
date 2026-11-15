@@ -73,12 +73,23 @@ func test_army_dict_order_does_not_matter() -> bool:
 	return true
 
 
-func test_strong_attack_destroys_objective() -> bool:
+func test_strong_attack_wins_before_time_limit() -> bool:
 	var c := _castle()
 	var b := Battle.create(c[0], c[1], _attackers(), _defenders(), SPAWN, 42)
-	assert_eq(b.run(), W.ATTACKER, "silny atak niszczy cel")
-	assert_eq(b.structures[c[1]].hp, 0, "cel zniszczony")
+	assert_eq(b.run(), W.ATTACKER, "silny atak wygrywa")
+	assert_true(b.end_reason == Battle.EndReason.DESTROYED or b.end_reason == Battle.EndReason.CAPTURED,
+			"przez zniszczenie albo zdobycie celu")
 	assert_true(b.tick < BattleConfig.time_limit_ticks(), "przed limitem czasu")
+	return true
+
+
+## Bez piechoty nie ma zdobycia (#120), więc silny atak konnicy i łuczników musi cel zniszczyć.
+func test_attack_without_infantry_destroys_objective() -> bool:
+	var c := _castle()
+	var b := Battle.create(c[0], c[1], {U.RIDER: 6, U.ARCHER: 6}, _defenders(), SPAWN, 42)
+	assert_eq(b.run(), W.ATTACKER, "atak wygrywa")
+	assert_eq(b.end_reason, Battle.EndReason.DESTROYED, "przez zniszczenie")
+	assert_eq(b.structures[c[1]].hp, 0, "cel zniszczony")
 	return true
 
 
