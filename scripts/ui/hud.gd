@@ -67,6 +67,8 @@ var card_cancel := false
 var card_middle_enabled := true
 ## Czas budowy w prawym górnym rogu; pusty, gdy kolejka stoi.
 var queue_text := ""
+## Czas do końca badania w prawym górnym rogu, np. „Bad. 0:42”; pusty, gdy nic się nie bada.
+var research_text := ""
 ## Epoka i rok w prawym górnym rogu, np. „Epoka I · 550 r.”.
 var age_text := ""
 ## Lewa i prawa granica treści w pikselach widoku (z marginesem narożników i wycięć).
@@ -82,7 +84,7 @@ var _dragging := false
 
 
 func _process(_delta: float) -> void:
-	var bounds := content_bounds(get_viewport_rect().size, _safe_area_in_view())
+	var bounds := content_bounds(get_viewport_rect().size, safe_area_in_view(get_viewport()))
 	content_left = bounds.x
 	content_right = bounds.y
 	queue_redraw()
@@ -103,12 +105,13 @@ static func content_bounds(view: Vector2, safe: Rect2) -> Vector2:
 	return Vector2(left, right)
 
 
-## Strefa bezpieczna ekranu przeliczona na piksele widoku (pusta, gdy system jej nie podaje).
-func _safe_area_in_view() -> Rect2:
+## Strefa bezpieczna ekranu przeliczona na piksele widoku `viewport` (pusta, gdy system jej nie
+## podaje). Używają jej HUD i ekrany na całą mapę, żeby przyciski stały w tych samych miejscach.
+static func safe_area_in_view(viewport: Viewport) -> Rect2:
 	var safe := Rect2(DisplayServer.get_display_safe_area())
 	if not safe.has_area():
 		return Rect2()
-	return get_viewport().get_final_transform().affine_inverse() * safe
+	return viewport.get_final_transform().affine_inverse() * safe
 
 
 ## Górna krawędź rzędu przycisków nad paskiem komunikatu.
@@ -256,9 +259,13 @@ static func resource_layout(amounts: Array[int], left: int) -> Array[int]:
 	return xs
 
 
-## Tekst w prawym górnym rogu: czas budowy (jeśli trwa) oraz epoka i rok.
-static func top_right_text(queue: String, age: String) -> String:
-	return age if queue.is_empty() else "%s  %s" % [queue, age]
+## Tekst w prawym górnym rogu: czas budowy i badania (jeśli trwają) oraz epoka i rok.
+static func top_right_text(queue: String, age: String, research: String = "") -> String:
+	var parts: PackedStringArray = []
+	for part: String in [queue, research, age]:
+		if not part.is_empty():
+			parts.append(part)
+	return "  ".join(parts)
 
 
 # --- Dotyk -------------------------------------------------------------------------------------
@@ -343,7 +350,7 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, view.x, BAR_H), Color(Palette.SHADOW, 0.8))
 	if economy != null:
 		_draw_resources()
-	PixelFont.draw_right(self, content_right, 1, top_right_text(queue_text, age_text), Palette.INK)
+	PixelFont.draw_right(self, content_right, 1, top_right_text(queue_text, age_text, research_text), Palette.INK)
 
 	if overlay:
 		pass
