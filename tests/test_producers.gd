@@ -106,3 +106,24 @@ func test_bar_slots_map_to_kinds() -> bool:
 		seen[kind] = true
 	assert_eq(seen.size(), BuildingTypes.BUILD_BAR.size(), "każdy rodzaj raz")
 	return true
+
+
+## Review PR 140: wytwórca ukończony w trakcie nieobecności produkuje dopiero od chwili ukończenia,
+## a nie za cały czas nadrabiania (towary liczą się w punktach czasu kolejki budowy). Chata myśliwego
+## czeka w kolejce za ulepszeniem Dworu (10 min), więc staje dopiero po ~10 min nieobecności.
+func test_producer_finished_during_absence_produces_from_completion() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var manor := grid.place(grid.manor_spot(64), K.MANOR, 1)
+	var r := Research.new()
+	r.done["G18"] = true
+	var e := Economy.new(T0)
+	var goods := Goods.new(T0)
+	var q := BuildQueue.new()
+	assert_eq(q.order_upgrade(grid, e, manor, T0), BuildQueue.Result.OK, "najpierw Dwór 2")
+	assert_eq(q.order_build(grid, e, _free_cell(grid, K.HUNTER), K.HUNTER, T0, r), BuildQueue.Result.OK, "potem Chata")
+	var built := T0 + BuildConfig.time_ms(K.MANOR, 2) + BuildConfig.time_ms(K.HUNTER, 1)
+	var half_hour := HOUR / 2
+	q.update(built + half_hour, grid, e, r, goods)
+	var cycles := GoodsConfig.cycles_per_hour(0, 1) * half_hour / HOUR
+	assert_eq(goods.amounts[GoodsConfig.Good.RAW_HIDE], cycles * 2, "skóry tylko za pół godziny od ukończenia (%d cykli)" % cycles)
+	return true
