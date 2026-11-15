@@ -143,6 +143,7 @@ func _start_battle_preview() -> void:
 			[UnitTypes.Unit.RIDER, 4], [UnitTypes.Unit.FIRE_RAISER, 3]]
 	var view := BattleView.new()
 	view.battle = Battle.create_squads(grid, grid.keep_id(), attackers, defenders, _edge_road(), world_seed)
+	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	add_child(view)
 	hud.message = "Podgląd bitwy"
 
