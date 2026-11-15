@@ -102,6 +102,13 @@ func test_lancer_charges_only_once() -> bool:
 	assert_eq(b.unit_damage(lancer, target), base * 2, "szarża: ×2")
 	b._strike_unit(lancer, target)
 	assert_eq(b.unit_damage(lancer, target), base, "po pierwszym uderzeniu bez szarży")
+	# szarża przepada też po uderzeniu w umocnienie (review #153)
+	var fresh := _fighter(U.LANCER, Battle.Side.ATTACKER, 10, 10)
+	var s: Battle.Structure = null
+	for id: int in b.structures:
+		s = b.structures[id]
+	b._strike_structure(fresh, s)
+	assert_eq(b.unit_damage(fresh, target), base, "po uderzeniu w budynek bez szarży")
 	return true
 
 

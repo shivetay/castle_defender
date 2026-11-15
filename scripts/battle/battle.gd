@@ -206,9 +206,12 @@ func checksum() -> int:
 		h = _mix(h, f.x)
 		h = _mix(h, f.y)
 		h = _mix(h, f.hp)
+		h = _mix(h, f.squad)
+		h = _mix(h, 1 if f.charged else 0)
 	for id: int in structures:
 		h = _mix(h, id)
 		h = _mix(h, structures[id].hp)
+		h = _mix(h, structures[id].burning)
 	return h
 
 
@@ -456,6 +459,7 @@ func _strike_structure(f: Fighter, s: Structure) -> void:
 		return
 	f.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS
 	s.hp -= _roll(structure_damage(f.unit, s.kind))
+	f.charged = true  # szarża to pierwsze uderzenie w ogóle, także w umocnienie
 	if f.unit == UnitTypes.Unit.FIRE_RAISER and BuildingTypes.is_wooden(s.kind):
 		s.burning = BattleConfig.FIRE_S * BattleConfig.TICK_HZ
 	if s.hp <= 0:
