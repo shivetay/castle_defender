@@ -62,8 +62,19 @@ static func draw_resource(ci: CanvasItem, pos: Vector2, res: int) -> void:
 
 
 ## Rysuje ikonę klasy jednostki `unit_class` (RecruitmentConfig.UnitClass) lewym górnym rogiem w `pos`.
+## Fragment atlasu klas dla `unit_class`; pusty dla klasy spoza zakresu (inżynieria,
+## UnitTypes.ENGINEERING = -1), która nie ma ikony.
+static func class_region(unit_class: int) -> Rect2:
+	if unit_class < 0 or unit_class >= CLASSES.size():
+		return Rect2()
+	return Rect2(unit_class * SIZE, 0, SIZE, SIZE)
+
+
+## Rysuje ikonę klasy; dla klasy bez ikony nic nie rysuje.
 static func draw_class(ci: CanvasItem, pos: Vector2, unit_class: int) -> void:
+	var region := class_region(unit_class)
+	if not region.has_area():
+		return
 	if _class_atlas == null:
 		_class_atlas = ImageTexture.create_from_image(make_atlas(CLASSES))
-	ci.draw_texture_rect_region(_class_atlas, Rect2(pos.floor(), Vector2(SIZE, SIZE)),
-			Rect2(unit_class * SIZE, 0, SIZE, SIZE))
+	ci.draw_texture_rect_region(_class_atlas, Rect2(pos.floor(), Vector2(SIZE, SIZE)), region)

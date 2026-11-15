@@ -536,7 +536,7 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 			# łuk z cięciwą (drugi łuk na wyższych poziomach)
 			var bows := 2 if big else 1
 			for b in bows:
-				var bx := x + b * 2
+				var bx := x + b  # drugi łuk o 1 px w prawo: cięciwa w kolumnie 15, w obrazie
 				PixelCanvas.rect(img, Rect2i(bx + 1, y - 6, 1, 6), Palette.WOOD[2])
 				PixelCanvas.px(img, bx + 2, y - 7, Palette.WOOD[2])
 				PixelCanvas.px(img, bx + 2, y, Palette.WOOD[2])
@@ -621,7 +621,7 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 
 
 ## Koń z boku, 5×4 px, stojący na wierszu `at.y` od kolumny `at.x`: tułów, głowa z grzywą
-## w prawo, cztery nogi.
+## w prawo i dwie nogi (z boku tylna i przednia para zlewają się w jedną).
 static func _draw_horse(img: Image, at: Vector2i, coat: Color) -> void:
 	PixelCanvas.rect(img, Rect2i(at.x, at.y - 3, 4, 2), coat)
 	PixelCanvas.rect(img, Rect2i(at.x + 4, at.y - 4, 1, 2), coat)

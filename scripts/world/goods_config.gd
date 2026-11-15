@@ -52,6 +52,8 @@ const G := Good
 ## Przepis: [wytwórca, od poziomu budynku, cykle na godzinę na poziomie 1,
 ##   wejścia surowców {Res: ilość}, wejścia towarów {Good: ilość},
 ##   wyjścia towarów {Good: ilość}, wyjścia surowców {Res: ilość}]. TYMCZASOWE liczby.
+## Ułamki cykli w zapisie (Goods._progress) są indeksowane pozycją przepisu w tej tablicy: nowe
+## przepisy dopisuj na końcu, a przy zmianie kolejności dopisz migrację zapisu (review PR 140).
 ## Budynek wykonuje naraz wszystkie przepisy, do których ma poziom (np. Łukmistrz 3 robi
 ## też łuki refleksyjne; to jedyny próg poziomu w notatce).
 const RECIPES: Array = [
