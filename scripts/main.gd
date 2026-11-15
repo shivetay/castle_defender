@@ -18,6 +18,9 @@ const GAP_TAP_TOLERANCE := 3
 ## Epoka gry. Przejście do epoki II dojdzie z #34.
 const CURRENT_AGE := 0
 
+## Komunikat, gdy Rybak nie styka się z wodą (#122).
+const FISHER_HINT := "Rybak musi stać tuż przy rzece"
+
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 
@@ -216,6 +219,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 			_save()
 		elif result == BuildQueue.Result.NEEDS_TECH:
 			hud.message = _tech_hint(kind)
+		elif result == BuildQueue.Result.NO_PLACE and kind == BuildingTypes.Kind.FISHER:
+			hud.message = FISHER_HINT
 		else:
 			hud.message = BuildQueue.MESSAGES[result]
 	queue_redraw()

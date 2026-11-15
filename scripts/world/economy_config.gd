@@ -18,6 +18,8 @@ const BASE_PER_HOUR: Array[int] = [20, 20, 20, 0]
 ## Produkcja budynków: rodzaj → [surowiec, stawki na godzinę dla poziomów 1–5].
 const BUILDING_PRODUCTION := {
 	BuildingTypes.Kind.LUMBER_HUT: [Res.WOOD, [60, 90, 120, 160, 200]],
+	## Rybak (#122): żywność, stawiany tylko przy wodzie. Stawki tymczasowe, w skali Chaty drwala.
+	BuildingTypes.Kind.FISHER: [Res.FOOD, [40, 60, 80, 110, 140]],
 }
 
 ## Najdłuższa nieobecność, za którą liczy się produkcję. Magazyny i tak zapełniają się

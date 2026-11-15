@@ -11,7 +11,7 @@ extends RefCounted
 
 const CELL := 8
 ## Ile pikseli budynek wystaje ponad swoje kratki (stałe dla rodzaju, niezależne od poziomu).
-const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
+const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10]
 
 
 ## Rozmiar obrazu. `vertical` obraca obrys budynku (brama w pionowej linii palisady).
@@ -48,6 +48,8 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 			_draw_hut(img, lv)
 		BuildingTypes.Kind.MANOR:
 			_draw_manor(img, lv)
+		BuildingTypes.Kind.FLAX_FIELD:
+			_draw_flax_field(img, lv)
 		_:
 			_draw_workshop(img, kind, lv)
 	_apply_state(img, kind, state, mask)
@@ -558,6 +560,19 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 				PixelCanvas.rect(img, Rect2i(x + 1, y - 8, 3, 1), Palette.WOOD[2])  # uprząż na kołku
 				PixelCanvas.rect(img, Rect2i(x + 1, y - 7, 1, 2), Palette.WOOD[2])
 				PixelCanvas.rect(img, Rect2i(x + 3, y - 7, 1, 2), Palette.WOOD[2])
+		BuildingTypes.Kind.FISHER:
+			# sieć rozpięta na dwóch żerdziach, pod nią ryby (na wyższych poziomach łódka)
+			for px: int in [x, x + 4]:
+				PixelCanvas.rect(img, Rect2i(px, y - 7, 1, 8), Palette.WOOD[0])
+			for yy in range(y - 6, y - 2):
+				for xx in range(x + 1, x + 4):
+					if (xx + yy) % 2 == 0:
+						PixelCanvas.px(img, xx, yy, Palette.THATCH[1])
+			PixelCanvas.rect(img, Rect2i(x + 1, y - 1, 2, 1), Palette.WATER[2])
+			if big:
+				PixelCanvas.rect(img, Rect2i(x - 1, y, 6, 1), Palette.WOOD[1])  # łódka
+				PixelCanvas.rect(img, Rect2i(x, y - 1, 1, 1), Palette.WOOD[1])
+				PixelCanvas.rect(img, Rect2i(x + 3, y - 1, 1, 1), Palette.WATER[2])
 		BuildingTypes.Kind.TAR_KILN:
 			# mielerz z otworem i beczką smoły
 			PixelCanvas.rect(img, Rect2i(x, y - 3, 5, 4), Palette.EARTH[2])
@@ -567,6 +582,38 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 			if big:
 				PixelCanvas.rect(img, Rect2i(x + 2, y - 7, 1, 3), Color(Palette.SHADOW, 0.5))  # dym
 				PixelCanvas.rect(img, Rect2i(x - 1, y - 2, 2, 3), Palette.SHADOW)  # beczka smoły
+
+
+## Pole lnu (2×2, #122): zaorana ziemia z rzędami lnu. Poziomy: 1 mała grządka z siewkami,
+## 2 całe pole w zielonych rzędach, 3 len kwitnie na niebiesko, 4 snopki na skraju pola,
+## 5 strach na wróble z czerwoną chustą.
+static func _draw_flax_field(img: Image, level: int) -> void:
+	var ex := EXTRA[BuildingTypes.Kind.FLAX_FIELD]
+	var field := Rect2i(1, ex + 2, 14, 12) if level >= 2 else Rect2i(3, ex + 5, 8, 7)
+	for y in range(field.position.y, field.end.y):
+		for x in range(field.position.x, field.end.x):
+			PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
+	# rzędy roślin co 3 piksele; łodygi sięgają 1–2 px ponad bruzdę
+	var stalk := 1 if level == 1 else 2
+	for y in range(field.position.y + 1, field.end.y, 3):
+		for x in range(field.position.x, field.end.x):
+			if (x + y) % 2 != 0:
+				continue
+			PixelCanvas.rect(img, Rect2i(x, y - stalk + 1, 1, stalk), Palette.GRASS[3])
+			if level >= 3 and PixelCanvas.hash2(x, y, 19) % 3 == 0:
+				PixelCanvas.px(img, x, y - stalk, Palette.WATER[2])  # niebieski kwiat lnu
+	if level >= 4:
+		# snopki lnu na skraju pola
+		for sx: int in [1, 4]:
+			PixelCanvas.rect(img, Rect2i(sx, ex - 2, 2, 5), Palette.THATCH[1])
+			PixelCanvas.px(img, sx, ex - 3, Palette.THATCH[2])
+			PixelCanvas.rect(img, Rect2i(sx, ex, 2, 1), Palette.THATCH[0])
+	if level == 5:
+		# strach na wróble
+		PixelCanvas.rect(img, Rect2i(12, ex - 6, 1, 10), Palette.WOOD[0])
+		PixelCanvas.rect(img, Rect2i(10, ex - 3, 5, 1), Palette.WOOD[1])
+		PixelCanvas.rect(img, Rect2i(11, ex - 8, 3, 2), Palette.THATCH[2])
+		PixelCanvas.rect(img, Rect2i(11, ex - 6, 3, 2), Palette.ACCENT)
 
 
 # --- Plac budowy -----------------------------------------------------------------------------
