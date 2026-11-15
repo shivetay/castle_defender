@@ -591,7 +591,7 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 
 
 ## Koń z boku, 5×4 px, stojący na wierszu `at.y` od kolumny `at.x`: tułów, głowa z grzywą
-## w prawo, cztery nogi.
+## w prawo i dwie nogi (z boku tylna i przednia para zlewają się w jedną).
 static func _draw_horse(img: Image, at: Vector2i, coat: Color) -> void:
 	PixelCanvas.rect(img, Rect2i(at.x, at.y - 3, 4, 2), coat)
 	PixelCanvas.rect(img, Rect2i(at.x + 4, at.y - 4, 1, 2), coat)
