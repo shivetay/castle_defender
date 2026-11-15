@@ -4,7 +4,7 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 9 (#131).
 
-## Stan: etap 5 z planu MVP
+## Stan: etap 6 z planu MVP
 
 Numeracja etapów i zadań idzie za issues na GitHubie (ticket zbiorczy etapu ma etykietę `etap`).
 Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
@@ -24,6 +24,7 @@ oraz Stajnia z #91 i budynki rekrutacji z #119 (Koszary, Dom drużyny, Strzelnic
 z #87: 13 jednostek MVP z klasą, statystykami i kosztem w towarach oraz tabela przewag klas.
 Rekrutacja z #89: kolejki szkolenia w budynkach klas, koszt w żywności i towarach, armia z limitem
 i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
+Etap 6 (#128) zaczyna deterministyczna symulacja bitwy z #14 (logika bez renderu).
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -118,6 +119,13 @@ i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
   pokazuje wszystkie jednostki; Szkol na karcie budynku rekrutacji tylko jednostki tego budynku.
   Kafelki z ikoną klasy, liczbą w armii i w szkoleniu; zablokowane przygaszone z powodem (technologia,
   epoka, brak budynku); brakujące towary na czerwono z budynkiem, który je robi.
+- `scripts/battle/battle.gd` (`Battle`): deterministyczna symulacja bitwy (#14). Stały krok 30 Hz, pozycje
+  w podjednostkach kratki (256 na kratkę), tylko liczby całkowite, własny RNG (`BattleRng`, xorshift32)
+  i ścieżki z AStarGrid2D, w którym budynki są drogie, ale przechodnie: atakujący burzą najsłabsze miejsce
+  linii umocnień. Atakujący idą do celu i walczą z obrońcami po drodze, obrońcy trzymają pozycję przy celu,
+  wieże strzelają (wolniej bez strzał w zbrojowni). Koniec: cel zniszczony, atakujący wybici albo limit
+  180 s. `checksum()` daje sumę kontrolną stanu do testów i przyszłej weryfikacji na serwerze. Celem będzie
+  donżon (#120); na razie podaje się dowolny budynek. Liczby w `BattleConfig` (poza palisadą) tymczasowe.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -239,7 +247,8 @@ poprzednią. Podpis release (Google Play) dojdzie później, z kluczem w sekreta
 scenes/          sceny Godota
 scripts/         logika gry
 scripts/gfx/     rysowanie proceduralne i palety
-scripts/world/   dane świata: teren, siatka budowy
+scripts/world/   dane świata: teren, siatka budowy, ekonomia, badania, armia
+scripts/battle/  deterministyczna symulacja bitwy (bez renderu)
 scripts/camera/  kamera z gestami
 scripts/ui/      HUD
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
@@ -251,7 +260,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 5 (#127): reszta efektów technologii z #12 razem z budynkami, które odblokowują. Wybór
-wyszkolonych jednostek w planie ataku i obronie (#89) dojdzie w etapach 7 i 8.
-Z etapu 4 zostaje #81, który czeka na jednostki, bitwę i epokę II. Z #97 zostaje strona serwera
-(#21, #23, #25 w etapie 9). Kolejność wybiera właściciel.
+Etap 6 (#128): donżon jako cel ataku (#120), zachowania jednostek i ludziki 3×5 px (#15, #92), morale (#98),
+samouczek PvE z 5 falami pod przyciskiem Oblężenie (#16) i efekty bitwy (#101). Z etapów 4–5 zostają części
+zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).
