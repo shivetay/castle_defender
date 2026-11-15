@@ -25,21 +25,24 @@ const BASE_COST := {
 	K.FLAX_FIELD: [30, 0, 20, 0],
 	K.FISHER: [70, 0, 10, 0],
 	K.STABLE: [100, 20, 40, 0],
+	K.BARRACKS: [100, 20, 40, 0],
+	K.WARBAND_HOUSE: [140, 30, 40, 0],
+	K.ARCHERY_RANGE: [120, 10, 40, 0],
 }
 ## Czas poziomu 1 w sekundach.
 const BASE_TIME_S := {
 	K.RAMPART: 5, K.PALISADE: 10, K.GATE: 30, K.TOWER: 60, K.LUMBER_HUT: 45,
 	K.HUNTER: 40, K.TANNERY: 50, K.LEATHERWORKER: 60, K.POLEARM: 50, K.BOWSTRING: 40, K.BOWYER: 60,
 	K.FLETCHER: 50, K.SADDLER: 60, K.TAR_KILN: 45, K.FLAX_FIELD: 30, K.FISHER: 40,
-	K.STABLE: 60,
+	K.STABLE: 60, K.BARRACKS: 60, K.WARBAND_HOUSE: 75, K.ARCHERY_RANGE: 70,
 }
 ## Technologia, bez której budynku nie da się postawić (Drzewko technologiczne). Ulepszenia
-## już postawionego budynku jej nie sprawdzają. Stajnia (#91) nie ma technologii w drzewku,
-## więc stoi od początku epoki I.
+## już postawionego budynku jej nie sprawdzają. Stajnia (#91) i Koszary (#119) nie mają technologii
+## w drzewku, więc stoją od początku epoki I.
 const REQUIRED_TECH := {
 	K.HUNTER: "G18", K.TANNERY: "G19", K.LEATHERWORKER: "A38", K.POLEARM: "A39", K.BOWSTRING: "A40",
 	K.BOWYER: "A41", K.FLETCHER: "A42", K.SADDLER: "A43", K.TAR_KILN: "G24",
-	K.FLAX_FIELD: "G20", K.FISHER: "G21",
+	K.FLAX_FIELD: "G20", K.FISHER: "G21", K.WARBAND_HOUSE: "A45", K.ARCHERY_RANGE: "A44",
 }
 ## Mnożnik kosztu poziomów 1–5 w procentach (×1, ×1,5, ×2,5, ×4, ×6).
 const COST_PERCENT: Array[int] = [100, 150, 250, 400, 600]
