@@ -206,6 +206,36 @@ static func missing_goods(unit: int, goods: Goods) -> Dictionary:
 ## do niego trafić jeszcze w trakcie szkolenia.
 func start(unit: int, building_id: int, squad_id: int, grid: BuildGrid, economy: Economy, goods: Goods,
 		research: Research, age: int, now_ms: int) -> Result:
+	var checked := check(unit, building_id, squad_id, grid, economy, goods, research, age)
+	if checked != Result.OK:
+		return checked
+	var res_cost := _resource_array(unit)
+	var goods_cost := UnitTypes.goods_cost(unit)
+	# koszt pobierany razem albo wcale: najpierw towary, a gdy surowce jednak nie wystarczą, towary wracają
+	if not goods.take(goods_cost):
+		return Result.NO_GOODS
+	if not economy.spend(res_cost):
+		for good: int in goods_cost:
+			goods.amounts[good] += int(goods_cost[good])
+		return Result.NO_RESOURCES
+	if squad_id == NEW_SQUAD:
+		squad_id = add_squad(unit)
+	var level := grid.levels[building_id]
+	var o := Order.new()
+	o.unit = unit
+	o.building_id = building_id
+	o.squad_id = squad_id
+	o.duration_ms = RecruitmentConfig.train_ms(unit, level)
+	o.start_ms = now_ms if queue_of(building_id).is_empty() else -1
+	orders.append(o)
+	last_building = building_id
+	last_squad = squad_id
+	return Result.OK
+
+
+## Czy szkolenie przejdzie, bez zmiany stanu: te same warunki co start() (przycisk Szkol, #147).
+func check(unit: int, building_id: int, squad_id: int, grid: BuildGrid, economy: Economy, goods: Goods,
+		research: Research, age: int) -> Result:
 	var available := availability(unit, grid, research, age)
 	if available != Result.OK:
 		return available
@@ -227,19 +257,6 @@ func start(unit: int, building_id: int, squad_id: int, grid: BuildGrid, economy:
 		return Result.NO_RESOURCES
 	if not missing_goods(unit, goods).is_empty():
 		return Result.NO_GOODS
-	economy.spend(res_cost)
-	goods.take(UnitTypes.goods_cost(unit))
-	if squad_id == NEW_SQUAD:
-		squad_id = add_squad(unit)
-	var o := Order.new()
-	o.unit = unit
-	o.building_id = building_id
-	o.squad_id = squad_id
-	o.duration_ms = RecruitmentConfig.train_ms(unit, level)
-	o.start_ms = now_ms if queue_of(building_id).is_empty() else -1
-	orders.append(o)
-	last_building = building_id
-	last_squad = squad_id
 	return Result.OK
 
 
@@ -250,6 +267,26 @@ func start_any(unit: int, squad_id: int, grid: BuildGrid, economy: Economy, good
 	var available := availability(unit, grid, research, age)
 	if available != Result.OK:
 		return available
+	var best := free_building(unit, grid)
+	if best == 0:
+		return Result.QUEUE_FULL
+	return start(unit, best, squad_id, grid, economy, goods, research, age, now_ms)
+
+
+## check() dla globalnego ekranu: budynek wybiera się jak w start_any().
+func check_any(unit: int, squad_id: int, grid: BuildGrid, economy: Economy, goods: Goods, research: Research,
+		age: int) -> Result:
+	var available := availability(unit, grid, research, age)
+	if available != Result.OK:
+		return available
+	var best := free_building(unit, grid)
+	if best == 0:
+		return Result.QUEUE_FULL
+	return check(unit, best, squad_id, grid, economy, goods, research, age)
+
+
+## Budynek dla `unit` z wolnym miejscem i najkrótszą kolejką (przy remisie najniższe id) albo 0.
+func free_building(unit: int, grid: BuildGrid) -> int:
 	var best := 0
 	var best_len := 1 << 30
 	for id in buildings_for(unit, grid):
@@ -257,9 +294,7 @@ func start_any(unit: int, squad_id: int, grid: BuildGrid, economy: Economy, good
 		if n < RecruitmentConfig.training_slots(grid.levels[id]) and n < best_len:
 			best = id
 			best_len = n
-	if best == 0:
-		return Result.QUEUE_FULL
-	return start(unit, best, squad_id, grid, economy, goods, research, age, now_ms)
+	return best
 
 
 ## Kończy szkolenia, których czas minął; w każdym budynku następne zaczyna się w chwili końca

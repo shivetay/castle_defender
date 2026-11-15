@@ -241,6 +241,14 @@ func _activate(t: int) -> void:
 
 # --- Rysowanie ---------------------------------------------------------------------------------
 
+## Wynik próby szkolenia wybranej jednostki do `target_squad`, bez zmiany stanu. Przycisk Szkol
+## gaśnie przy każdej przeszkodzie: pełna armia, kolejka albo oddział, brak surowców lub towarów.
+func train_check() -> Recruitment.Result:
+	if building_id != 0:
+		return recruitment.check(selected, building_id, target_squad, grid, economy, goods, research, age)
+	return recruitment.check_any(selected, target_squad, grid, economy, goods, research, age)
+
+
 func _draw() -> void:
 	if recruitment == null:
 		return
@@ -256,7 +264,7 @@ func _draw() -> void:
 	for i in list.size():
 		_draw_tile(tiles[i], list[i], list[i] == selected or _pressed == Target.TILE + i)
 	_draw_details()
-	var can_train := recruitment.availability(selected, grid, research, age) == Recruitment.Result.OK
+	var can_train := train_check() == Recruitment.Result.OK
 	Hud.paint_button(self, train_rect(view, content_right), TRAIN_LABEL, _pressed == Target.TRAIN, not can_train)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
 

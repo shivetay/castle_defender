@@ -230,6 +230,7 @@ func _tick() -> void:
 		_save()
 	if research_panel != null:
 		research_panel.now_ms = now
+	if recruit_panel != null:
 		recruit_panel.now_ms = now
 	var trained := recruitment.update(now)
 	for unit in trained:
