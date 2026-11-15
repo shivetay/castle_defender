@@ -4,7 +4,7 @@ extends RefCounted
 ## (docs/castle-defender-vault), w pięciu gałęziach, z epoką, oznaczeniem technologii kluczowej
 ## (★, warunek przejścia do następnej epoki, #34), efektem i zależnościami.
 ## Zależności są według notatki, łącznie z jej sekcją „Zmienione zależności”
-## (A21 ← A38, A7 ← A43, A3 ← G24).
+## (A21 ← A38, A3 ← G24, a A7 Strzemię wymaga A2 i A43).
 ## Działają już efekty, które mają w grze na co wpłynąć (PRODUCTION_BONUS). Pozostałe
 ## (budynki, jednostki, manewry, morale) włączą się razem z tymi systemami.
 
