@@ -182,3 +182,15 @@ func test_recipes_follow_note() -> bool:
 		wet = wet or (row[0] == "leatherworker" and (row[5] as Dictionary).has(G.WET_HIDE))
 	assert_true(wet, "mokre skóry na Taran od Wytwórcy zbroi skórzanych")
 	return true
+
+
+## Review PR 140: dwa budynki tego samego wytwórcy dają dwa razy więcej cykli.
+func test_two_buildings_of_one_producer_stack() -> bool:
+	var e := _economy()
+	var one := Goods.new(T0)
+	one.update(T0 + HOUR, {"flax_field": [1]}, e)
+	var two := Goods.new(T0)
+	two.update(T0 + HOUR, {"flax_field": [1, 1]}, e)
+	assert_eq(two.amounts[G.FLAX], 2 * one.amounts[G.FLAX], "dwa Pola lnu: 2× lnu")
+	return true
+

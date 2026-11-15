@@ -53,6 +53,11 @@ func test_technologies_from_tree() -> bool:
 			"Koszary bez badań")
 	assert_eq(q.order_build(grid, e, _free_cell(grid, K.ARCHERY_RANGE), K.ARCHERY_RANGE, T0, r),
 			BuildQueue.Result.NEEDS_TECH, "Strzelnica bez A44 nie")
+	assert_eq(q.order_build(grid, e, _free_cell(grid, K.WARBAND_HOUSE), K.WARBAND_HOUSE, T0, r),
+			BuildQueue.Result.NEEDS_TECH, "Dom drużyny bez A45 nie (review PR 145)")
+	r.done["A45"] = true
+	assert_eq(q.order_build(grid, e, _free_cell(grid, K.WARBAND_HOUSE), K.WARBAND_HOUSE, T0, r),
+			BuildQueue.Result.OK, "po A45 tak")
 	return true
 
 
