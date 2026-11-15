@@ -1,0 +1,5 @@
+# Stan okien i cache Obsidiana zmieniają się na każdym komputerze
+.obsidian/workspace*.json
+.obsidian/cache
+.obsidian/graph.json
+.trash/
