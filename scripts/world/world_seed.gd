@@ -1,8 +1,8 @@
 class_name WorldSeed
 extends RefCounted
-## Seed terenu zamku. Każda nowa gra losuje własny seed z kryptograficznego źródła (nie z czasu),
-## a potem seed zostaje w zapisie na całą grę. Wylosowany seed przechodzi walidację grywalności:
-## Dwór musi zmieścić się blisko środka wzgórza, a od Dworu musi biec droga do krawędzi mapy
+## Seed terenu zamku. Każdy gracz losuje raz własny seed z kryptograficznego źródła (nie z czasu)
+## i ma go na stałe w profilu (PlayerProfile); seed zamku z niego wynika i zostaje też w zapisie.
+## Seed przechodzi walidację grywalności: Dwór musi zmieścić się blisko środka wzgórza, a od Dworu musi biec droga do krawędzi mapy
 ## z miejscem na bramę. Gdy mapa nie przechodzi, kolejne seedy wynikają deterministycznie
 ## z pierwszego (ten sam pierwszy seed zawsze daje ten sam wynik).
 
@@ -22,13 +22,14 @@ const ROAD_REACH := 4
 const DEBUG_ARG := "--seed="
 
 
-## Seed dla nowej gry: wymuszony argumentem w wersji debug (bez walidacji), inaczej losowy
-## i zwalidowany.
-static func for_new_game() -> int:
+## Seed zamku dla nowej gry: wymuszony argumentem w wersji debug (bez walidacji i bez zmiany
+## profilu), inaczej pierwszy grywalny z seeda gracza. Seed gracza jest na stałe w profilu
+## (PlayerProfile), więc nowa gra tego samego gracza daje ten sam zamek.
+static func for_new_game(profile_path: String = PlayerProfile.PATH) -> int:
 	var forced := debug_override(OS.get_cmdline_user_args())
 	if forced > 0 and OS.is_debug_build():
 		return forced
-	return first_playable(random_seed())
+	return first_playable(PlayerProfile.ensure_seed(profile_path))
 
 
 ## Losowy seed 1..MAX_SEED z kryptograficznego źródła.

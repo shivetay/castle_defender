@@ -90,3 +90,29 @@ func test_seed_survives_save_round_trip() -> bool:
 		assert_eq(state.world_seed, s, "seed po odczycie")
 		assert_eq(state.grid.terrain.tiles, grid.terrain.tiles, "ten sam teren po odczycie")
 	return true
+
+
+## Seed gracza jest na stałe: drugi start nowej gry (np. po utracie zapisu) daje ten sam zamek.
+func test_player_seed_is_permanent() -> bool:
+	var path := "user://test_player.json"
+	PlayerProfile.delete(path)
+	var first := WorldSeed.for_new_game(path)
+	var stored := PlayerProfile.read_seed(path)
+	assert_true(stored > 0, "seed gracza trafia do profilu")
+	assert_eq(first, WorldSeed.first_playable(stored), "seed zamku wynika z seeda gracza")
+	assert_eq(WorldSeed.for_new_game(path), first, "nowa gra tego samego gracza: ten sam zamek")
+	assert_eq(PlayerProfile.read_seed(path), stored, "profil się nie zmienia")
+	PlayerProfile.delete(path)
+	return true
+
+
+## Stary zapis bez profilu: seed zamku z zapisu zostaje seedem gracza i daje ten sam zamek.
+func test_old_save_seed_becomes_player_seed() -> bool:
+	var path := "user://test_player.json"
+	PlayerProfile.delete(path)
+	var old := WorldSeed.first_playable(4242)
+	assert_eq(PlayerProfile.ensure_seed(path, old), old, "seed z zapisu przyjęty")
+	assert_eq(WorldSeed.for_new_game(path), old, "nowa gra: ten sam zamek co w starym zapisie")
+	assert_eq(PlayerProfile.ensure_seed(path, 99), old, "istniejący profil nie zmienia się")
+	PlayerProfile.delete(path)
+	return true
