@@ -110,3 +110,12 @@ func test_class_icons() -> bool:
 		assert_true(filled >= 10, "ikona klasy %d czytelna" % i)
 	assert_eq(seen.size(), PixelIcons.CLASSES.size(), "każda ikona klasy inna")
 	return true
+
+
+## Review PR 146: inżynieria nie ma ikony klasy, więc draw_class() dla -1 nic nie rysuje
+## zamiast brać zły fragment atlasu.
+func test_engineering_has_no_class_icon() -> bool:
+	assert_true(not PixelIcons.class_region(UnitTypes.ENGINEERING).has_area(), "inżynieria: brak fragmentu")
+	assert_true(not PixelIcons.class_region(PixelIcons.CLASSES.size()).has_area(), "poza zakresem: brak fragmentu")
+	assert_eq(PixelIcons.class_region(2), Rect2(10, 0, 5, 5), "strzelecka: trzecia ikona")
+	return true
