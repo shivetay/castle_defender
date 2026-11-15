@@ -3,11 +3,13 @@ extends Node2D
 ## Interfejs nad mapą (nie przesuwa się z kamerą), obsługiwany jednym kciukiem w poziomie.
 ## U góry: surowce z ikonami, a z prawej czas budowy (gdy kolejka pracuje) oraz epoka i rok.
 ## U dołu pasek komunikatu z FPS. Nad nim, zależnie od trybu:
-## - oglądanie: w lewym rogu Oblężenie, w prawym Buduj; dotknięcie budynku otwiera kartę,
+## - oglądanie: w lewym rogu Oblężenie, w prawym Buduj, obok niego Badania; dotknięcie budynku
+##   otwiera kartę,
 ## - budowa: przewijany w poziomie pasek budynków i Gotowe w prawym rogu; dotknięcia mapy
 ##   tylko stawiają budynki, niczego nie zaznaczają,
 ## - karta budynku: stan oraz Ulepsz, Rozbierz (Anuluj dla zlecenia) i Zamknij, wyśrodkowane.
-## Dotknięcia przycisków i przewijanie paska nie trafiają do kamery.
+## Dotknięcia przycisków i przewijanie paska nie trafiają do kamery. Gdy otwarty jest ekran
+## na całą mapę (np. drzewko badań, `overlay`), HUD rysuje tylko górny i dolny pasek.
 
 signal kind_selected(kind: int)
 signal build_mode_changed(building: bool)
@@ -15,10 +17,11 @@ signal siege_pressed
 signal upgrade_pressed
 signal demolish_pressed
 signal card_closed
+signal research_pressed
 
 enum CardButton { UPGRADE, DEMOLISH, CLOSE }
 ## Cele dotyku: przyciski w rogach, przyciski karty i rodzaje budynków na pasku (KIND + rodzaj).
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, CARD = 100, KIND = 200 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, CARD = 100, KIND = 200 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -40,6 +43,7 @@ const CANCEL_LABEL := "Anuluj"
 const SIEGE_LABEL := "Oblężenie"
 const BUILD_LABEL := "Buduj"
 const DONE_LABEL := "Gotowe"
+const RESEARCH_LABEL := "Badania"
 ## Komunikat w trybie oglądania i po dotknięciu wyszarzonego Oblężenia (bitwa dojdzie w #14).
 const VIEW_MESSAGE := "Dotknij budynku albo wybierz Buduj"
 const SIEGE_LATER_MESSAGE := "Oblężenia dojdą razem z bitwą"
@@ -63,11 +67,15 @@ var card_cancel := false
 var card_middle_enabled := true
 ## Czas budowy w prawym górnym rogu; pusty, gdy kolejka stoi.
 var queue_text := ""
+## Czas do końca badania w prawym górnym rogu, np. „Bad. 0:42”; pusty, gdy nic się nie bada.
+var research_text := ""
 ## Epoka i rok w prawym górnym rogu, np. „Epoka I · 550 r.”.
 var age_text := ""
 ## Lewa i prawa granica treści w pikselach widoku (z marginesem narożników i wycięć).
 var content_left := float(CORNER_INSET)
 var content_right := 320.0 - CORNER_INSET
+## Ekran na całą mapę (drzewko badań) przykrywa przyciski HUD i sam obsługuje dotyk.
+var overlay := false
 
 var _pressed: int = Target.NONE
 var _drag_start := Vector2.ZERO
@@ -76,7 +84,7 @@ var _dragging := false
 
 
 func _process(_delta: float) -> void:
-	var bounds := content_bounds(get_viewport_rect().size, _safe_area_in_view())
+	var bounds := content_bounds(get_viewport_rect().size, safe_area_in_view(get_viewport()))
 	content_left = bounds.x
 	content_right = bounds.y
 	queue_redraw()
@@ -97,12 +105,13 @@ static func content_bounds(view: Vector2, safe: Rect2) -> Vector2:
 	return Vector2(left, right)
 
 
-## Strefa bezpieczna ekranu przeliczona na piksele widoku (pusta, gdy system jej nie podaje).
-func _safe_area_in_view() -> Rect2:
+## Strefa bezpieczna ekranu przeliczona na piksele widoku `viewport` (pusta, gdy system jej nie
+## podaje). Używają jej HUD i ekrany na całą mapę, żeby przyciski stały w tych samych miejscach.
+static func safe_area_in_view(viewport: Viewport) -> Rect2:
 	var safe := Rect2(DisplayServer.get_display_safe_area())
 	if not safe.has_area():
 		return Rect2()
-	return get_viewport().get_final_transform().affine_inverse() * safe
+	return viewport.get_final_transform().affine_inverse() * safe
 
 
 ## Górna krawędź rzędu przycisków nad paskiem komunikatu.
@@ -117,6 +126,11 @@ static func left_corner_rect(view: Vector2, left: float) -> Rect2:
 
 static func right_corner_rect(view: Vector2, right: float) -> Rect2:
 	return Rect2(Vector2(right - BUTTON_SIZE.x, row_y(view)), BUTTON_SIZE)
+
+
+## Przycisk Badania na lewo od Buduj (w trybie oglądania).
+static func research_rect(view: Vector2, right: float) -> Rect2:
+	return Rect2(Vector2(right - 2 * BUTTON_SIZE.x - BUTTON_GAP, row_y(view)), BUTTON_SIZE)
 
 
 ## Ile rodzajów budynków mieści się na pasku między lewą granicą a przyciskiem Gotowe.
@@ -162,6 +176,8 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, is_b
 		return Target.KIND + first + k if k >= 0 else Target.NONE
 	if left_corner_rect(view, left).has_point(p):
 		return Target.SIEGE
+	if research_rect(view, right).has_point(p):
+		return Target.RESEARCH
 	return Target.NONE
 
 
@@ -243,14 +259,20 @@ static func resource_layout(amounts: Array[int], left: int) -> Array[int]:
 	return xs
 
 
-## Tekst w prawym górnym rogu: czas budowy (jeśli trwa) oraz epoka i rok.
-static func top_right_text(queue: String, age: String) -> String:
-	return age if queue.is_empty() else "%s  %s" % [queue, age]
+## Tekst w prawym górnym rogu: czas budowy i badania (jeśli trwają) oraz epoka i rok.
+static func top_right_text(queue: String, age: String, research: String = "") -> String:
+	var parts: PackedStringArray = []
+	for part: String in [queue, research, age]:
+		if not part.is_empty():
+			parts.append(part)
+	return "  ".join(parts)
 
 
 # --- Dotyk -------------------------------------------------------------------------------------
 
 func _target_at(p: Vector2) -> int:
+	if overlay:
+		return Target.NONE
 	return target_at(p, get_viewport_rect().size, content_left, content_right, building, is_card_open(), first_kind)
 
 
@@ -317,6 +339,8 @@ func _activate(t: int) -> void:
 		set_building(false)
 	elif t == Target.SIEGE:
 		siege_pressed.emit()
+	elif t == Target.RESEARCH:
+		research_pressed.emit()
 
 
 # --- Rysowanie ---------------------------------------------------------------------------------
@@ -326,9 +350,11 @@ func _draw() -> void:
 	draw_rect(Rect2(0, 0, view.x, BAR_H), Color(Palette.SHADOW, 0.8))
 	if economy != null:
 		_draw_resources()
-	PixelFont.draw_right(self, content_right, 1, top_right_text(queue_text, age_text), Palette.INK)
+	PixelFont.draw_right(self, content_right, 1, top_right_text(queue_text, age_text, research_text), Palette.INK)
 
-	if is_card_open():
+	if overlay:
+		pass
+	elif is_card_open():
 		_draw_card(view)
 	elif building:
 		_draw_build_bar(view)
@@ -337,6 +363,7 @@ func _draw() -> void:
 		# SIEGE_LATER_MESSAGE. Przy włączaniu bitwy (#14, #16) zdejmij wyszarzenie razem z komunikatem.
 		_draw_button(left_corner_rect(view, content_left), SIEGE_LABEL, _pressed == Target.SIEGE, true)
 		_draw_button(right_corner_rect(view, content_right), BUILD_LABEL, _pressed == Target.BUILD, false)
+		_draw_button(research_rect(view, content_right), RESEARCH_LABEL, _pressed == Target.RESEARCH, false)
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
 	PixelFont.draw_text(self, Vector2(content_left, view.y - BAR_H + 1), message, Palette.INK)
@@ -392,8 +419,13 @@ func _draw_resources() -> void:
 
 
 func _draw_button(r: Rect2, label: String, active: bool, disabled: bool) -> void:
-	draw_rect(r, Palette.WOOD[2] if active else Palette.WOOD[1])
-	draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), Palette.WOOD[3])
-	draw_rect(Rect2(r.position + Vector2(0, r.size.y - 1), Vector2(r.size.x, 1)), Palette.WOOD[0])
+	paint_button(self, r, label, active, disabled)
+
+
+## Przycisk z desek: jaśniejszy, gdy wciśnięty; wyszarzony napis, gdy nieaktywny.
+static func paint_button(ci: CanvasItem, r: Rect2, label: String, active: bool, disabled: bool) -> void:
+	ci.draw_rect(r, Palette.WOOD[2] if active else Palette.WOOD[1])
+	ci.draw_rect(Rect2(r.position, Vector2(r.size.x, 1)), Palette.WOOD[3])
+	ci.draw_rect(Rect2(r.position + Vector2(0, r.size.y - 1), Vector2(r.size.x, 1)), Palette.WOOD[0])
 	var col: Color = Palette.WOOD[0] if disabled else Palette.INK
-	PixelFont.draw_centered(self, r, label, col)
+	PixelFont.draw_centered(ci, r, label, col)

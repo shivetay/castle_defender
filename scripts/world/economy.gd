@@ -20,12 +20,21 @@ func _init(now_ms: int = 0) -> void:
 	last_update_ms = now_ms
 
 
-## Produkcja na godzinę dla zamku z siatki `grid`: gród plus budynki produkcyjne.
-static func rates(grid: BuildGrid) -> Array[int]:
+## Produkcja na godzinę dla zamku z siatki `grid`: gród plus budynki produkcyjne, razy premie
+## ze zbadanych technologii (`research`, np. G1 +20% drewna).
+static func rates(grid: BuildGrid, research: Research = null) -> Array[int]:
 	var out: Array[int] = []
 	out.assign(EconomyConfig.BASE_PER_HOUR)
-	if grid == null:
-		return out
+	if grid != null:
+		_add_buildings(grid, out)
+	if research != null:
+		for res in out.size():
+			@warning_ignore("integer_division")
+			out[res] = out[res] * research.production_percent(res) / 100
+	return out
+
+
+static func _add_buildings(grid: BuildGrid, out: Array[int]) -> void:
 	for id: int in grid.buildings:
 		var entry: Array = EconomyConfig.BUILDING_PRODUCTION.get(grid.kinds[id], [])
 		if entry.is_empty() or grid.levels[id] < 1:
@@ -33,7 +42,6 @@ static func rates(grid: BuildGrid) -> Array[int]:
 		var res: int = entry[0]
 		var per_level: Array = entry[1]
 		out[res] += per_level[clampi(grid.levels[id], 1, per_level.size()) - 1] as int
-	return out
 
 
 static func capacity(res: int) -> int:

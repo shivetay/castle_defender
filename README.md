@@ -14,6 +14,9 @@ Etap 4 (#126): HUD z trybami oglądania i budowy (#9), ekonomia (#10), progresja
 i Dworem jako poziomem zamku (#11), zapis lokalny (#13) i losowy seed mapy dla każdego gracza (#97,
 część kliencka). Z etapu 4 zostaje Dwór zmieniający się z epokami i garnizon (#81), który czeka
 na jednostki, bitwę i epokę II z późniejszych etapów.
+Etap 5 (#127) zaczyna badania z #12: 34 technologie z notatki Drzewko technologiczne z epokami,
+zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2; reszta efektów włączy się razem
+z budynkami, jednostkami i bitwą. Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -60,8 +63,19 @@ na jednostki, bitwę i epokę II z późniejszych etapów.
   z miejscem na bramę. Gdy nie, kolejne seedy wynikają deterministycznie z pierwszego (do 32 prób,
   potem seed zapasowy 1337). W wersji debug seed wymusza `godot --path . -- --seed=42`; wymuszony seed omija walidację,
   więc da się nim odtworzyć także mapę niegrywalną.
+- `scripts/world/tech_tree.gd` (`TechTree`): 34 technologie MVP z notatki Drzewko technologiczne
+  (`docs/castle-defender-vault/`) w gałęziach Atak (19), Obrona (3), Gospodarka (9), Użyteczne (1)
+  i Specjalne (2). Każda ma epokę, efekt, znacznik technologii kluczowej ★ (O1 dla I → II, G6 dla II → III)
+  i zależności z notatki. Epoka II: A5, A6, A22, A46, A47, G4, G6. Działają premie G1 +20% drewna
+  i G2 +15% żywności (`PRODUCTION_BONUS`).
+- `scripts/world/research_config.gd` (`ResearchConfig`): koszt i czas badań. Każda kolejna technologia
+  w epoce ×1,6 kosztu i ×2 czasu (#12). Bazowe liczby (epoka I: 100 Dr 50 Ka 50 Ży, 1 min) są tymczasowe.
+- `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga
+  epoki i zbadanych zależności, koszt schodzi przy starcie, a koniec liczy się z zegara, także w tle.
+  Kolejka budowy kończy budowy i badanie w porządku czasu, więc premia liczy się od chwili zbadania.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
-  i miejscem na migracje). Zapisuje seed terenu, budynki, surowce i kolejkę budowy. Pisze pełny plik
+  i miejscem na migracje; wersja 2 dodała badania). Zapisuje seed terenu, budynki, surowce, kolejkę
+  budowy i badania. Pisze pełny plik
   tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
   głównym, więc na dysku zawsze leży co najmniej jeden pełny zapis. Nieczytelny plik główny jest
   odkładany obok (`.broken`) i nie trafia do kopii; zapis z nowszej wersji gry też nie jest nadpisywany.
@@ -81,17 +95,22 @@ na jednostki, bitwę i epokę II z późniejszych etapów.
   budynku otwiera kartę (poziom albo czas budowy; Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy:
   przewijany w poziomie pasek budynków (koszt i czas w komunikacie) i Gotowe; dotknięcia mapy tylko
   stawiają, niczego nie zaznaczają. Przyciski 56×22 px (ok. 50 dp na typowym telefonie).
+- `scripts/ui/research_panel.gd` (`ResearchPanel`): ekran drzewka pod przyciskiem Badania (obok Buduj).
+  Pięć zakładek gałęzi, kafelki z kodami (zbadana na zielono, w toku kolorem strzechy, zablokowana
+  przygaszona, ★ z czerwonym znacznikiem w rogu), szczegóły zaznaczonej technologii z efektem, kosztem, czasem
+  i wymaganiami (ramki na wymaganych kafelkach) oraz Badaj i Zamknij w miejscu Badania i Buduj.
 - `scripts/world/ages.gd` (`Ages`): epoka i rok na pasku. Epoka I zaczyna się w 550 r., a rok rośnie
   z poziomem Dworu (550, 600, 650, 700, 750).
 
-Wymagania technologii dojdą z badaniami (#12).
+Wymagania technologii dla budynków i jednostek dojdą razem z efektami badań (#12).
 Gra zapisuje się po każdej akcji, po ukończeniu budowy i przy zejściu do tła, a po ponownym uruchomieniu
 nadrabia czas nieobecności (budowa i produkcja liczą się tak, jakby gra działała cały czas).
 
 Do ręcznego testu na telefonie: czy Buduj, Gotowe, pasek budynków i karta dają się obsłużyć jednym
 kciukiem, czy przewijanie paska palcem jest wygodne, czy budowa długiego wału kratka po kratce nie jest
 zbyt męcząca, czy po zejściu do tła na kilka minut surowce przybywają i czy po zamknięciu aplikacji
-(także „ubiciu” z listy ostatnich) zamek wraca z nadrobioną budową.
+(także „ubiciu” z listy ostatnich) zamek wraca z nadrobioną budową. Przy badaniach: czy kafelki
+drzewka (34×14 px) dają się trafić kciukiem, czy kody i opisy są czytelne i czy badanie kończy się w tle.
 
 ## Uruchomienie
 
@@ -187,7 +206,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Z etapu 4 zostaje #81 (Dwór przez epoki i garnizon), ale jego kryteria zależą od jednostek (#15),
-symulacji bitwy (#14) i epoki II (#34). Z #97 zostaje strona serwera: kolumna `castles.map_seed`
-i przekazanie seeda atakującemu (#21, #23, #25 w etapie 9). Następny w kolejności jest etap 5 (#127):
-badania (#12), klasy jednostek, towary, wytwórcy i rekrutacja. Kolejność wybiera właściciel.
+Etap 5 (#127): reszta efektów technologii z #12 razem z budynkami, które odblokowują, potem klasy jednostek (#87), towary i łańcuchy produkcji (#88), wytwórcy (#90),
+Stajnia (#91), budynki rekrutacji (#119), rekrutacja (#89) i budynki gospodarcze (#122).
+Z etapu 4 zostaje #81, który czeka na jednostki, bitwę i epokę II. Z #97 zostaje strona serwera
+(#21, #23, #25 w etapie 9). Kolejność wybiera właściciel.

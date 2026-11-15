@@ -6,12 +6,17 @@ extends Node2D
 ## a dotknięcie wolnej trawy zleca budowę (koszt schodzi od razu, na kratkach staje plac budowy,
 ## budynek powstaje po czasie z BuildConfig); Gotowe wraca do oglądania. Surowce i budowa
 ## idą dalej, gdy gra jest w tle albo zamknięta; po powrocie komunikat podaje, ile przybyło.
+## Przycisk Badania otwiera drzewko technologii (ResearchPanel); badanie trwa w czasie zegarowym
+## jak budowa, jedno naraz.
 ## Gra zapisuje się (SaveGame) po każdej akcji, po ukończeniu budowy i przy zejściu do tła,
 ## a przy starcie wczytuje zapis i nadrabia czas nieobecności.
 
 ## Ile pikseli od krawędzi wolnej luki w linii umocnień dotknięcie sąsiedniego odcinka
 ## w trybie budowy nadal stawia odcinek w luce (z 8 px kratki).
 const GAP_TAP_TOLERANCE := 3
+
+## Epoka gry. Przejście do epoki II dojdzie z #34.
+const CURRENT_AGE := 0
 
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
@@ -26,6 +31,8 @@ var hud: Hud
 var textures := BuildingTextures.new()
 var economy: Economy
 var queue := BuildQueue.new()
+var research := Research.new()
+var research_panel: ResearchPanel
 
 var _terrain_tex: ImageTexture
 var _selected_id := 0
@@ -42,6 +49,7 @@ func _ready() -> void:
 		grid = saved.grid
 		economy = saved.economy
 		queue = saved.queue
+		research = saved.research
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -76,6 +84,16 @@ func _ready() -> void:
 	hud.upgrade_pressed.connect(_on_upgrade)
 	hud.demolish_pressed.connect(_on_middle_button)
 	hud.card_closed.connect(_deselect)
+	hud.research_pressed.connect(_on_research_opened)
+
+	research_panel = ResearchPanel.new()
+	research_panel.research = research
+	research_panel.economy = economy
+	research_panel.age = CURRENT_AGE
+	research_panel.visible = false
+	layer.add_child(research_panel)
+	research_panel.research_requested.connect(_on_research_requested)
+	research_panel.closed.connect(_on_research_closed)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
 	_save()
@@ -124,7 +142,7 @@ func _catch_up(prefix: String) -> void:
 
 ## Zapisuje grę. Błąd zapisu nie przerywa gry, tylko trafia do logu.
 func _save() -> void:
-	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue))
+	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research))
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
 
@@ -137,10 +155,17 @@ static func _now_ms() -> int:
 ## każdą zmianą budynków, żeby czas sprzed zmiany liczył się po starych stawkach.
 func _tick() -> void:
 	var now := _now_ms()
-	var done := queue.update(now, grid, economy)
+	var researching := research.active
+	var done := queue.update(now, grid, economy, research)
 	for o in done:
 		hud.message = "Ukończono: %s, poziom %d" % [BuildingTypes.NAMES[o.kind], o.level]
+	if not researching.is_empty() and research.is_done(researching):
+		hud.message = "Zbadano: %s %s" % [researching, TechTree.tech_name(researching)]
+		_save()
+	if research_panel != null:
+		research_panel.now_ms = now
 	hud.queue_text = ""
+	hud.research_text = "" if not research.is_busy() else "Bad. %s" % Hud.format_time(research.remaining_ms(now))
 	hud.age_text = Ages.label(0, grid.manor_level())
 	if not queue.orders.is_empty():
 		hud.queue_text = Hud.format_time(queue.remaining_ms(queue.orders[0].building_id, now))
@@ -219,6 +244,33 @@ func _on_build_mode_changed(building: bool) -> void:
 
 func _on_siege_pressed() -> void:
 	hud.message = Hud.SIEGE_LATER_MESSAGE
+
+
+## Drzewko badań przykrywa mapę: karta budynku się zamyka, a HUD chowa swoje przyciski.
+func _on_research_opened() -> void:
+	_tick()
+	_selected_id = 0
+	hud.hide_card()
+	_cursor = Rect2i()
+	hud.overlay = true
+	research_panel.open()
+	hud.message = "Wybierz technologię"
+	queue_redraw()
+
+
+func _on_research_closed() -> void:
+	hud.overlay = false
+	hud.message = DEFAULT_MESSAGE
+
+
+func _on_research_requested(code: String) -> void:
+	_tick()
+	var result := research.start(code, CURRENT_AGE, economy, _now_ms())
+	if result == Research.Result.OK:
+		hud.message = "Badanie: %s, %s" % [TechTree.tech_name(code), Hud.format_time(research.duration_ms)]
+		_save()
+	else:
+		hud.message = Research.MESSAGES[result]
 
 
 func _refresh_card() -> void:
