@@ -200,6 +200,7 @@ func _tick() -> void:
 	for kind in BuildingTypes.BUILD_BAR:
 		if not BuildConfig.is_unlocked(kind, research):
 			hud.locked_kinds.append(kind)
+	hud.research_text = "" if not research.is_busy() else "Bad. %s" % Hud.format_time(research.remaining_ms(now))
 	hud.age_text = Ages.label(0, grid.manor_level())
 	if not queue.orders.is_empty():
 		hud.queue_text = Hud.format_time(queue.remaining_ms(queue.orders[0].building_id, now))
