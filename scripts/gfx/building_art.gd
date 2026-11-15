@@ -11,7 +11,7 @@ extends RefCounted
 
 const CELL := 8
 ## Ile pikseli budynek wystaje ponad swoje kratki (stałe dla rodzaju, niezależne od poziomu).
-const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10, 10]
+const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10, 10, 10, 10, 10]
 
 
 ## Rozmiar obrazu. `vertical` obraca obrys budynku (brama w pionowej linii palisady).
@@ -481,10 +481,10 @@ static func _draw_workshop(img: Image, kind: int, level: int) -> void:
 		PixelCanvas.px(img, wall.position.x + 5, base - 4, Palette.WOOD[0])  # wcięcie proporca
 
 
-## Garbarnia, Cięciwiarz, Strzałmistrz i Rymarz mają ściany z desek, reszta z bali.
+## Garbarnia, Cięciwiarz, Strzałmistrz, Rymarz i Strzelnica mają ściany z desek, reszta z bali.
 static func _plank_walls(kind: int) -> bool:
 	return kind in [BuildingTypes.Kind.TANNERY, BuildingTypes.Kind.BOWSTRING, BuildingTypes.Kind.FLETCHER,
-			BuildingTypes.Kind.SADDLER]
+			BuildingTypes.Kind.SADDLER, BuildingTypes.Kind.ARCHERY_RANGE]
 
 
 ## Rekwizyt wytwórcy 5 px szerokości, stojący na wierszu `at.y` od kolumny `at.x`.
@@ -579,6 +579,36 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 			PixelCanvas.rect(img, Rect2i(x - 1, y - 1, 1, 2), Palette.THATCH[1])  # siano
 			if big:
 				_draw_horse(img, Vector2i(x, y - 4), Palette.WOOD[1])
+		BuildingTypes.Kind.BARRACKS:
+			# manekin do ćwiczeń: słup z poprzeczką, słomiany tułów i głowa (na wyższych poziomach z tarczą)
+			PixelCanvas.rect(img, Rect2i(x + 2, y - 7, 1, 8), Palette.WOOD[0])
+			PixelCanvas.rect(img, Rect2i(x, y - 5, 5, 1), Palette.WOOD[1])
+			PixelCanvas.rect(img, Rect2i(x + 1, y - 4, 3, 3), Palette.THATCH[2])
+			PixelCanvas.rect(img, Rect2i(x + 2, y - 7, 1, 2), Palette.THATCH[1])
+			if big:
+				PixelCanvas.rect(img, Rect2i(x + 3, y - 4, 2, 3), Palette.EARTH[3])
+				PixelCanvas.px(img, x + 4, y - 3, Palette.ACCENT)
+		BuildingTypes.Kind.WARBAND_HOUSE:
+			# tarcze drużyny w rzędzie na kołkach (na wyższych poziomach dwa rzędy)
+			var rows := 2 if big else 1
+			for row in rows:
+				for i in 2:
+					var sx := x + i * 3 - row
+					var sy := y - 3 - row * 4
+					PixelCanvas.rect(img, Rect2i(sx, sy - 1, 3, 3), Palette.EARTH[3])
+					PixelCanvas.px(img, sx + 1, sy, Palette.ACCENT)
+			PixelCanvas.rect(img, Rect2i(x, y, 5, 1), Palette.WOOD[0])
+		BuildingTypes.Kind.ARCHERY_RANGE:
+			# słomiana tarcza strzelnicza z czerwonym środkiem na kozłach (na wyższych poziomach ze strzałą)
+			PixelCanvas.rect(img, Rect2i(x + 1, y - 6, 3, 5), Palette.THATCH[2])
+			PixelCanvas.rect(img, Rect2i(x, y - 5, 5, 3), Palette.THATCH[2])
+			PixelCanvas.rect(img, Rect2i(x + 1, y - 5, 3, 3), Palette.THATCH[1])
+			PixelCanvas.px(img, x + 2, y - 4, Palette.ACCENT)
+			for lx: int in [x, x + 4]:
+				PixelCanvas.rect(img, Rect2i(lx, y - 1, 1, 2), Palette.WOOD[0])
+			if big:
+				PixelCanvas.rect(img, Rect2i(x + 2, y - 4, 3, 1), Palette.WOOD[3])  # strzała w tarczy
+				PixelCanvas.px(img, x + 4, y - 4, Palette.THATCH[0])  # lotka
 		BuildingTypes.Kind.TAR_KILN:
 			# mielerz z otworem i beczką smoły
 			PixelCanvas.rect(img, Rect2i(x, y - 3, 5, 4), Palette.EARTH[2])
