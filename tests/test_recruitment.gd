@@ -304,3 +304,26 @@ func test_engineering_trains_in_barracks() -> bool:
 	assert_eq(rec.callv("start", [U.DIGGER, c["range_a"], Recruitment.NEW_SQUAD] + args), Recruitment.Result.NO_BUILDING,
 			"Kopacz nie w Strzelnicy")
 	return true
+
+
+## check() mówi to samo co start(), ale niczego nie zmienia (przycisk Szkol gaśnie przy każdej
+## przeszkodzie, review #147).
+func test_check_matches_start_without_side_effects() -> bool:
+	var c := _castle()
+	var e: Economy = c["e"]
+	var goods: Goods = c["goods"]
+	var rec := Recruitment.new()
+	assert_eq(rec.check_any(U.ARCHER, Recruitment.NEW_SQUAD, c["grid"], e, goods, c["r"], 0), Recruitment.Result.OK, "można")
+	assert_eq(rec.orders.size(), 0, "check niczego nie kolejkuje")
+	assert_eq(e.amounts[EconomyConfig.Res.FOOD], 1000, "check nie wydaje surowców")
+	e.amounts[EconomyConfig.Res.FOOD] = 0
+	assert_eq(rec.check_any(U.ARCHER, Recruitment.NEW_SQUAD, c["grid"], e, goods, c["r"], 0), Recruitment.Result.NO_RESOURCES,
+			"bez żywności")
+	assert_eq(rec.start_any(U.ARCHER, Recruitment.NEW_SQUAD, c["grid"], e, goods, c["r"], 0, T0), Recruitment.Result.NO_RESOURCES,
+			"start mówi to samo")
+	e.amounts[EconomyConfig.Res.FOOD] = 1000
+	var squad := rec.add_squad(U.ARCHER, RecruitmentConfig.SQUAD_SIZE)
+	assert_eq(rec.check(U.ARCHER, c["range_a"], squad, c["grid"], e, goods, c["r"], 0), Recruitment.Result.SQUAD_FULL,
+			"pełny oddział")
+	return true
+
