@@ -4,7 +4,7 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 9 (#131).
 
-## Stan: etap 4 z planu MVP
+## Stan: etap 5 z planu MVP
 
 Numeracja etapów i zadań idzie za issues na GitHubie (ticket zbiorczy etapu ma etykietę `etap`).
 Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
@@ -17,6 +17,8 @@ na jednostki, bitwę i epokę II z późniejszych etapów.
 Etap 5 (#127) zaczyna badania z #12: 34 technologie z notatki Drzewko technologiczne z epokami,
 zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2; reszta efektów włączy się razem
 z budynkami, jednostkami i bitwą. Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
+Do tego mechanizm towarów i łańcuchów produkcji z #88 (zbrojownia, przepisy wytwórców według notatki
+Klasy jednostek i produkcja); same budynki wytwórców dojdą w #90.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -73,9 +75,18 @@ z budynkami, jednostkami i bitwą. Bazowe koszty badań są tymczasowe (notatka 
 - `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga
   epoki i zbadanych zależności, koszt schodzi przy starcie, a koniec liczy się z zegara, także w tle.
   Kolejka budowy kończy budowy i badanie w porządku czasu, więc premia liczy się od chwili zbadania.
+- `scripts/world/goods_config.gd` (`GoodsConfig`): 22 towary epok I–II (skóry, kość, ścięgna, pióra, len,
+  zbroje, przeszywanice, tarcze, mokre skóry na Taran, broń drzewcowa, cięciwy, łuki, strzały, siodła,
+  uprząż, smoła, konie) i przepisy 11 wytwórców według notatki Klasy jednostek i produkcja. Bez metalu.
+  Zbrojownia ma limit jak magazyn surowców (1000). Ilości w przepisach i tempa są tymczasowe (notatka
+  zostawia je balansowi); budynki przypisze do wytwórców #90 (`PRODUCER_KINDS`).
+- `scripts/world/goods.gd` (`Goods`): zbrojownia i produkcja w czasie, także offline. Cykl przepisu
+  zużywa surowce i towary; brak wejścia albo pełna zbrojownia go zatrzymuje. Wyższy poziom budynku
+  przyspiesza i odblokowuje lepszy towar (Łukmistrz 3 → łuk refleksyjny). Pusta zbrojownia strzał
+  to −50% tempa strzelania (dla bitwy, #14).
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
-  i miejscem na migracje; wersja 2 dodała badania). Zapisuje seed terenu, budynki, surowce, kolejkę
-  budowy i badania. Pisze pełny plik
+  i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary). Zapisuje seed terenu, budynki, surowce,
+  towary, kolejkę budowy i badania. Pisze pełny plik
   tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
   głównym, więc na dysku zawsze leży co najmniej jeden pełny zapis. Nieczytelny plik główny jest
   odkładany obok (`.broken`) i nie trafia do kopii; zapis z nowszej wersji gry też nie jest nadpisywany.
@@ -206,7 +217,8 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 5 (#127): reszta efektów technologii z #12 razem z budynkami, które odblokowują, potem klasy jednostek (#87), towary i łańcuchy produkcji (#88), wytwórcy (#90),
+Etap 5 (#127): wytwórcy (#90) na mechanizmie towarów z #88 i reszta efektów technologii z #12 razem
+z budynkami, które odblokowują, potem klasy jednostek (#87),
 Stajnia (#91), budynki rekrutacji (#119), rekrutacja (#89) i budynki gospodarcze (#122).
 Z etapu 4 zostaje #81, który czeka na jednostki, bitwę i epokę II. Z #97 zostaje strona serwera
 (#21, #23, #25 w etapie 9). Kolejność wybiera właściciel.
