@@ -153,7 +153,8 @@ func load_data(d: Dictionary, now_ms: int) -> int:
 	var a := d.get("active", {}) as Dictionary
 	if a != null and not a.is_empty():
 		var code := str(a.get("code", ""))
-		if TechTree.has(code) and not is_done(code):
+		# trwające badanie wraca tylko wtedy, gdy spełnia wymagania jak przy check()
+		if TechTree.has(code) and not is_done(code) and missing(code).is_empty():
 			active = code
 			start_ms = int(a.get("start_ms", now_ms))
 			duration_ms = maxi(0, int(a.get("duration_ms", 0)))
