@@ -11,6 +11,31 @@ albo etykieta. Sekcja „Nieopublikowane” zostaje na ręczne wyjątki. Wydanie
 
 ## [Nieopublikowane]
 
+## [0.2.0] - 2026-11-13
+
+### Dodane
+
+- Etap 2: generator terenu 64×64, siatka budowy i kamera z gestami (#72)
+- Budynki epoki I: wał, palisada, brama, wieża i chata drwala z 5 poziomami (#76)
+- Budynki pękają, tracą blanki i rozsypują się w gruz (#78)
+- Zamek produkuje drewno, kamień i żywność, także gdy gra jest w tle (#79)
+- Budowa kosztuje surowce, trwa i czeka w kolejce, a Dwór wyznacza poziom zamku (#80)
+- Zamek zapisuje się i wraca po zamknięciu gry z nadrobioną budową (#83)
+
+### Zmienione
+
+- Organizacja projektu: Godot 4.7, reguły AI, wersjonowanie i CI/CD (#67)
+- CI: Bump the actions group with 4 updates (#68)
+- Reguły agenta: opisowe nazwy gałęzi, PR-y od agenta, merge tylko przez właściciela (#70)
+- Reguły agenta: stałe obserwowanie własnych PR-ów (#73)
+- CI: debug APK przy każdym pushu na main (#71)
+- Changelog generowany automatycznie ze scalonych PR-ów (#75)
+
+### Naprawione
+
+- Włącz kompresję ETC2/ASTC wymaganą przy eksporcie na Androida (#69)
+- Brama zajmuje 3 kratki i staje nad drogą, w poprzek niej (#82)
+
 ## [0.1.0] - 2026-11-13
 
 ### Dodane
