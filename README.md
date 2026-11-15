@@ -4,7 +4,7 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 9 (#131).
 
-## Stan: etap 5 z planu MVP
+## Stan: etap 4 z planu MVP
 
 Numeracja etapów i zadań idzie za issues na GitHubie (ticket zbiorczy etapu ma etykietę `etap`).
 Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
@@ -228,6 +228,7 @@ tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
 tools/           narzędzia (version.py, changelog.py i ich testy)
 .github/         workflowy CI/CD i skrypty instalacji Godota
 .claude/skills/  skille dla agenta AI (zob. CLAUDE.md)
+docs/castle-defender-vault/  vault Obsidiana z notatkami projektowymi (Godot go pomija)
 build/           eksportowane APK i logi (ignorowane przez git)
 ```
 
