@@ -24,15 +24,18 @@ const BASE_COST := {
 	K.TAR_KILN: [60, 40, 10, 0],
 	K.FLAX_FIELD: [30, 0, 20, 0],
 	K.FISHER: [70, 0, 10, 0],
+	K.STABLE: [100, 20, 40, 0],
 }
 ## Czas poziomu 1 w sekundach.
 const BASE_TIME_S := {
 	K.RAMPART: 5, K.PALISADE: 10, K.GATE: 30, K.TOWER: 60, K.LUMBER_HUT: 45,
 	K.HUNTER: 40, K.TANNERY: 50, K.LEATHERWORKER: 60, K.POLEARM: 50, K.BOWSTRING: 40, K.BOWYER: 60,
 	K.FLETCHER: 50, K.SADDLER: 60, K.TAR_KILN: 45, K.FLAX_FIELD: 30, K.FISHER: 40,
+	K.STABLE: 60,
 }
 ## Technologia, bez której budynku nie da się postawić (Drzewko technologiczne). Ulepszenia
-## już postawionego budynku jej nie sprawdzają.
+## już postawionego budynku jej nie sprawdzają. Stajnia (#91) nie ma technologii w drzewku,
+## więc stoi od początku epoki I.
 const REQUIRED_TECH := {
 	K.HUNTER: "G18", K.TANNERY: "G19", K.LEATHERWORKER: "A38", K.POLEARM: "A39", K.BOWSTRING: "A40",
 	K.BOWYER: "A41", K.FLETCHER: "A42", K.SADDLER: "A43", K.TAR_KILN: "G24",
