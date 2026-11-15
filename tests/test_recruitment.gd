@@ -48,7 +48,7 @@ func test_no_goods_no_training() -> bool:
 	goods.amounts[G.BOW] = 0
 	var rec := Recruitment.new()
 	var food := e.amounts[EconomyConfig.Res.FOOD]
-	assert_eq(rec.start(U.ARCHER, c["range_a"], c["grid"], e, goods, c["r"], 0, T0), Recruitment.Result.NO_GOODS,
+	assert_eq(rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, c["grid"], e, goods, c["r"], 0, T0), Recruitment.Result.NO_GOODS,
 			"Łucznik bez łuku")
 	assert_eq(rec.orders.size(), 0, "nic w kolejce")
 	assert_eq(e.amounts[EconomyConfig.Res.FOOD], food, "żywność nie zeszła")
@@ -62,18 +62,18 @@ func test_training_spends_cost_and_finishes_in_time() -> bool:
 	var goods: Goods = c["goods"]
 	var e: Economy = c["e"]
 	var rec := Recruitment.new()
-	assert_eq(rec.start(U.ARCHER, c["range_a"], c["grid"], e, goods, c["r"], 0, T0), Recruitment.Result.OK, "start")
+	assert_eq(rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, c["grid"], e, goods, c["r"], 0, T0), Recruitment.Result.OK, "start")
 	assert_eq(goods.amounts[G.BOW], 499, "łuk zszedł")
 	assert_eq(goods.amounts[G.ARROW], 480, "20 strzał zeszło")
 	assert_eq(e.amounts[EconomyConfig.Res.FOOD], 990, "10 żywności zeszło")
-	assert_eq(rec.start(U.ARCHER, c["range_a"], c["grid"], e, goods, c["r"], 0, T0), Recruitment.Result.OK, "drugi w kolejce")
+	assert_eq(rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, c["grid"], e, goods, c["r"], 0, T0), Recruitment.Result.OK, "drugi w kolejce")
 	var t := RecruitmentConfig.train_ms(U.ARCHER, 1)
 	assert_eq(rec.update(T0 + t - 1), [] as Array[int], "jeszcze trwa")
 	assert_eq(rec.update(T0 + t), [U.ARCHER] as Array[int], "pierwszy wyszkolony")
-	assert_eq(rec.army[U.ARCHER], 1, "w armii")
+	assert_eq(rec.army_of(U.ARCHER), 1, "w armii")
 	# drugi zaczyna się w chwili końca pierwszego, także gdy gra wraca po długiej nieobecności
 	assert_eq(rec.update(T0 + 100 * t), [U.ARCHER] as Array[int], "drugi po nieobecności")
-	assert_eq(rec.army[U.ARCHER], 2, "dwóch łuczników")
+	assert_eq(rec.army_of(U.ARCHER), 2, "dwóch łuczników")
 	return true
 
 
@@ -81,11 +81,11 @@ func test_training_spends_cost_and_finishes_in_time() -> bool:
 func test_only_in_building_of_its_class() -> bool:
 	var c := _castle()
 	var rec := Recruitment.new()
-	assert_eq(rec.start(U.ARCHER, c["barracks"], c["grid"], c["e"], c["goods"], c["r"], 0, T0),
+	assert_eq(rec.start(U.ARCHER, c["barracks"], Recruitment.NEW_SQUAD, c["grid"], c["e"], c["goods"], c["r"], 0, T0),
 			Recruitment.Result.NO_BUILDING, "Łucznik nie w Koszarach")
-	assert_eq(rec.start(U.AXE_WARRIOR, c["barracks"], c["grid"], c["e"], c["goods"], c["r"], 0, T0),
+	assert_eq(rec.start(U.AXE_WARRIOR, c["barracks"], Recruitment.NEW_SQUAD, c["grid"], c["e"], c["goods"], c["r"], 0, T0),
 			Recruitment.Result.OK, "Topornik w Koszarach")
-	assert_eq(rec.start(U.RIDER, 0, c["grid"], c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.NO_BUILDING,
+	assert_eq(rec.start(U.RIDER, 0, Recruitment.NEW_SQUAD, c["grid"], c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.NO_BUILDING,
 			"bez Stajni nie ma Jeźdźca")
 	return true
 
@@ -108,16 +108,16 @@ func test_global_training_picks_shortest_queue() -> bool:
 	var rec := Recruitment.new()
 	var a: int = c["range_a"]
 	var b: int = c["range_b"]
-	assert_eq(rec.start_any(U.ARCHER, c["grid"], c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.OK, "1")
+	assert_eq(rec.start_any(U.ARCHER, Recruitment.NEW_SQUAD, c["grid"], c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.OK, "1")
 	assert_eq(rec.last_building, mini(a, b), "remis: niższe id")
-	rec.start_any(U.ARCHER, c["grid"], c["e"], c["goods"], c["r"], 0, T0)
+	rec.start_any(U.ARCHER, Recruitment.NEW_SQUAD, c["grid"], c["e"], c["goods"], c["r"], 0, T0)
 	assert_eq(rec.last_building, maxi(a, b), "drugi do pustej kolejki")
 	assert_eq(rec.queue_of(a).size(), 1, "kolejki wyrównane")
 	assert_eq(rec.queue_of(b).size(), 1, "kolejki wyrównane")
 	# Strzelnice poziom 1 mieszczą po 2 w kolejce: łącznie 4, piąty się nie zmieści
 	for i in 2:
-		rec.start_any(U.ARCHER, c["grid"], c["e"], c["goods"], c["r"], 0, T0)
-	assert_eq(rec.start_any(U.ARCHER, c["grid"], c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.QUEUE_FULL,
+		rec.start_any(U.ARCHER, Recruitment.NEW_SQUAD, c["grid"], c["e"], c["goods"], c["r"], 0, T0)
+	assert_eq(rec.start_any(U.ARCHER, Recruitment.NEW_SQUAD, c["grid"], c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.QUEUE_FULL,
 			"obie kolejki pełne")
 	return true
 
@@ -129,9 +129,12 @@ func test_army_limit_counts_training_units() -> bool:
 	var limit := Recruitment.army_limit(grid)
 	assert_eq(limit, RecruitmentConfig.ARMY_PER_MANOR_LEVEL * 5 + RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL,
 			"Dwór 5 i Koszary 1")
-	rec.army[U.AXE_WARRIOR] = limit - 1
-	assert_eq(rec.start(U.ARCHER, c["range_a"], grid, c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.OK, "ostatnie miejsce")
-	assert_eq(rec.start(U.ARCHER, c["range_a"], grid, c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.ARMY_FULL,
+	var left := limit - 1
+	while left > 0:
+		rec.add_squad(U.AXE_WARRIOR, mini(left, RecruitmentConfig.SQUAD_SIZE))
+		left -= RecruitmentConfig.SQUAD_SIZE
+	assert_eq(rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, grid, c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.OK, "ostatnie miejsce")
+	assert_eq(rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, grid, c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.ARMY_FULL,
 			"limit liczy też szkolonych")
 	return true
 
@@ -145,7 +148,7 @@ func test_higher_level_trains_faster_and_more() -> bool:
 func test_demolished_building_drops_its_queue() -> bool:
 	var c := _castle()
 	var rec := Recruitment.new()
-	rec.start(U.ARCHER, c["range_a"], c["grid"], c["e"], c["goods"], c["r"], 0, T0)
+	rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, c["grid"], c["e"], c["goods"], c["r"], 0, T0)
 	rec.drop_building(c["range_a"])
 	assert_eq(rec.orders.size(), 0, "kolejka rozebranego budynku znika")
 	return true
@@ -155,9 +158,9 @@ func test_save_round_trip_and_migration() -> bool:
 	var c := _castle()
 	var grid: BuildGrid = c["grid"]
 	var rec := Recruitment.new()
-	rec.army[U.AXE_WARRIOR] = 3
-	rec.start(U.ARCHER, c["range_a"], grid, c["e"], c["goods"], c["r"], 0, T0)
-	rec.start(U.ARCHER, c["range_a"], grid, c["e"], c["goods"], c["r"], 0, T0)
+	rec.add_squad(U.AXE_WARRIOR, 3)
+	rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, grid, c["e"], c["goods"], c["r"], 0, T0)
+	rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, grid, c["e"], c["goods"], c["r"], 0, T0)
 	var d := SaveGame.to_dict(1337, grid, c["e"], BuildQueue.new(), c["r"], c["goods"], rec)
 	var s := SaveGame.from_dict(JSON.parse_string(JSON.stringify(d)) as Dictionary, T0)
 	assert_true(s != null, "zapis czytelny")
@@ -209,4 +212,80 @@ func test_hud_army_button_and_recruit_card() -> bool:
 	var plain := Hud.card_rects(VIEW)
 	assert_eq(Hud.target_at(plain[2].get_center(), VIEW, b.x, b.y, false, true, 0), Hud.Target.CARD + Hud.CardButton.CLOSE,
 			"zwykła karta: trzeci to Zamknij")
+	return true
+
+
+## Oddział ma jeden rodzaj jednostek; nowa jednostka trafia do wskazanego oddziału albo do nowego.
+func test_training_into_existing_or_new_squad() -> bool:
+	var c := _castle()
+	var rec := Recruitment.new()
+	var args: Array = [c["grid"], c["e"], c["goods"], c["r"], 0, T0]
+	assert_eq(rec.callv("start", [U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD] + args), Recruitment.Result.OK, "nowy oddział")
+	var first := rec.last_squad
+	assert_eq(rec.squads.size(), 1, "jeden oddział")
+	assert_eq(rec.callv("start", [U.ARCHER, c["range_b"], first] + args), Recruitment.Result.OK, "do istniejącego")
+	assert_eq(rec.squads.size(), 1, "dalej jeden oddział")
+	assert_eq(rec.pending_for(first), 2, "dwóch w drodze do oddziału")
+	assert_eq(rec.callv("start", [U.AXE_WARRIOR, c["barracks"], first] + args), Recruitment.Result.WRONG_SQUAD,
+			"Topornik nie wejdzie do oddziału łuczników")
+	rec.update(T0 + 10 * RecruitmentConfig.train_ms(U.ARCHER, 1))
+	assert_eq(rec.squad(first).count, 2, "obaj łucznicy w tym samym oddziale")
+	assert_eq(rec.default_squad(U.ARCHER), first, "domyślnie oddział z wolnym miejscem")
+	assert_eq(rec.default_squad(U.RIDER), Recruitment.NEW_SQUAD, "bez oddziału: nowy")
+	return true
+
+
+## Rozmiar oddziału liczy też jednostki w szkoleniu.
+func test_squad_size_limit() -> bool:
+	var c := _castle()
+	var rec := Recruitment.new()
+	var full := rec.add_squad(U.ARCHER, RecruitmentConfig.SQUAD_SIZE - 1)
+	var args: Array = [c["grid"], c["e"], c["goods"], c["r"], 0, T0]
+	assert_eq(rec.free_in_squad(full), 1, "jedno wolne miejsce")
+	assert_eq(rec.callv("start", [U.ARCHER, c["range_a"], full] + args), Recruitment.Result.OK, "ostatnie miejsce")
+	assert_eq(rec.free_in_squad(full), 0, "zajęte przez szkolonego")
+	assert_eq(rec.callv("start", [U.ARCHER, c["range_b"], full] + args), Recruitment.Result.SQUAD_FULL, "oddział pełny")
+	assert_eq(rec.default_squad(U.ARCHER), Recruitment.NEW_SQUAD, "pełny oddział: domyślnie nowy")
+	assert_eq(RecruitPanel.squad_label(rec, U.ARCHER, full), "1: 10/10", "napis z jednostkami w szkoleniu")
+	return true
+
+
+## Globalny limit: ile zamek może utrzymać, z wolnymi miejscami po odjęciu szkolonych.
+func test_free_army_counts_training() -> bool:
+	var c := _castle()
+	var grid: BuildGrid = c["grid"]
+	var rec := Recruitment.new()
+	var limit := Recruitment.army_limit(grid)
+	assert_eq(rec.free_army(grid), limit, "pusta armia: cały limit wolny")
+	rec.add_squad(U.AXE_WARRIOR, 5)
+	rec.callv("start", [U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, grid, c["e"], c["goods"], c["r"], 0, T0])
+	assert_eq(rec.free_army(grid), limit - 6, "5 w armii i 1 w szkoleniu")
+	return true
+
+
+func test_empty_squad_disappears_with_its_building() -> bool:
+	var c := _castle()
+	var rec := Recruitment.new()
+	rec.callv("start", [U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, c["grid"], c["e"], c["goods"], c["r"], 0, T0])
+	assert_eq(rec.squads.size(), 1, "oddział powstał przy zleceniu")
+	rec.drop_building(c["range_a"])
+	assert_eq(rec.squads.size(), 0, "pusty oddział bez szkolonych znika")
+	return true
+
+
+func test_squad_picker_layout() -> bool:
+	var b := Hud.content_bounds(VIEW, Rect2())
+	var rects := RecruitPanel.squad_rects(b.x, b.y, 10)
+	assert_true(rects.size() >= 4, "mieści się Nowy i co najmniej 3 oddziały")
+	for r in rects:
+		assert_true(r.size.x >= 12 and r.size.y >= 12, "cel ≥ 12×12")
+		assert_true(r.end.x <= b.y, "w granicach treści")
+		assert_true(r.end.y <= Hud.row_y(VIEW), "nad przyciskami Szkol i Zamknij")
+		assert_true(PixelFont.text_width("9: 10/10") <= r.size.x - 4, "napis oddziału mieści się")
+	var rec := Recruitment.new()
+	var sq := rec.add_squad(U.ARCHER, 4)
+	assert_eq(RecruitPanel.squad_options(rec, U.ARCHER), [Recruitment.NEW_SQUAD, sq] as Array[int], "Nowy i oddział łuczników")
+	assert_eq(RecruitPanel.squad_options(rec, U.RIDER), [Recruitment.NEW_SQUAD] as Array[int], "konnica: tylko Nowy")
+	assert_eq(RecruitPanel.target_at(rects[1].get_center(), VIEW, b.x, b.y, 13, 2), RecruitPanel.Target.SQUAD + 1,
+			"dotknięcie oddziału")
 	return true

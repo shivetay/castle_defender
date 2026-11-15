@@ -322,18 +322,22 @@ func _on_recruit_pressed() -> void:
 	_on_army_opened(_selected_id)
 
 
-func _on_train_requested(unit: int) -> void:
+func _on_train_requested(unit: int, squad_id: int) -> void:
 	_tick()
 	var now := _now_ms()
 	var result: Recruitment.Result
-	var where := recruit_panel.building_id
-	if where == 0:
-		result = recruitment.start_any(unit, grid, economy, goods, research, CURRENT_AGE, now)
-		where = recruitment.last_building
+	if recruit_panel.building_id == 0:
+		result = recruitment.start_any(unit, squad_id, grid, economy, goods, research, CURRENT_AGE, now)
 	else:
-		result = recruitment.start(unit, where, grid, economy, goods, research, CURRENT_AGE, now)
+		result = recruitment.start(unit, recruit_panel.building_id, squad_id, grid, economy, goods, research,
+				CURRENT_AGE, now)
 	if result == Recruitment.Result.OK:
-		hud.message = "Szkolenie: %s (%s)" % [UnitTypes.unit_name(unit), BuildingTypes.NAMES[grid.kinds[where]]]
+		hud.message = "Szkolenie: %s, oddział %s (%s)" % [UnitTypes.SHORT_NAMES[unit],
+				RecruitPanel.squad_label(recruitment, unit, recruitment.last_squad),
+				BuildingTypes.NAMES[grid.kinds[recruitment.last_building]]]
+		# kolejne jednostki domyślnie do tego samego oddziału, póki ma miejsce
+		var keep := recruitment.free_in_squad(recruitment.last_squad) > 0
+		recruit_panel.target_squad = recruitment.last_squad if keep else recruitment.default_squad(unit)
 		_save()
 	elif result == Recruitment.Result.NO_GOODS:
 		hud.message = RecruitPanel.missing_text(unit, goods)
