@@ -59,8 +59,11 @@ z #87: 13 jednostek MVP z klasą, statystykami i kosztem w towarach oraz tabela 
   przy zleceniu, nowy budynek od razu zajmuje kratki jako plac budowy, anulowanie oddaje cały koszt
   (do pojemności magazynu), a rozbiórka gotowego budynku nic nie zwraca. Zlecenia kończą się po kolei
   według zegara, także w tle, a ekonomia liczy się odcinkami między ukończeniami.
-- `scripts/world/world_seed.gd` (`WorldSeed`): seed terenu nowej gry. Losowany z `Crypto`
-  (31 bitów, nie z czasu), zapisywany w `world_seed` i stały przez całą grę. Wylosowana mapa przechodzi
+- `scripts/world/world_seed.gd` (`WorldSeed`), `scripts/world/player_profile.gd` (`PlayerProfile`): seed
+  zamku na stałe przypisany do gracza. Seed gracza losuje się raz z `Crypto` (31 bitów, nie z czasu)
+  i zostaje w `user://player.json`, osobno od zapisu zamku, więc nowa gra po utracie zapisu daje ten sam
+  zamek. Seed zamku wynika z seeda gracza i jest też w `world_seed` zapisu; stare zapisy przekazują swój
+  seed do profilu. Od etapu 8 seed gracza przejdzie na konto. Mapa z seeda przechodzi
   walidację: Dwór mieści się do 6 kratek od środka wzgórza, a od Dworu biegnie droga do krawędzi mapy
   z miejscem na bramę. Gdy nie, kolejne seedy wynikają deterministycznie z pierwszego (do 32 prób,
   potem seed zapasowy 1337). W wersji debug seed wymusza `godot --path . -- --seed=42`; wymuszony seed omija walidację,
