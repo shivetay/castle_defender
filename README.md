@@ -111,15 +111,19 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   zasięg, szybkość, technologia, budynek rekrutacji i koszt w towarach (np. Łucznik: łuk i 20 strzał).
   Tabela przewag klas (`ADVANTAGE`, procenty) i ×2 drzewca przeciw konnicy; `duel()` to pojedynek w turach
   na liczbach całkowitych do testów, pełna bitwa to #14. Ikony klas 5×5 w `PixelIcons.CLASSES`.
-- `scripts/world/recruitment.gd` (`Recruitment`): armia i kolejki szkolenia (#89). Każdy budynek szkoli
-  po kolei jednostki ze swojej kolejki (długość i tempo rosną z poziomem), także offline. Koszt
+- `scripts/world/recruitment.gd` (`Recruitment`): armia w oddziałach i kolejki szkolenia (#89). Oddział ma
+  jeden rodzaj jednostek i najwyżej 10 jednostek (tymczasowe); nowa jednostka idzie do wskazanego oddziału
+  tego rodzaju albo do nowego. Globalny limit armii to tyle, ile zamek może teraz utrzymać: 10 za poziom
+  Dworu i 2 za poziom Koszar (tymczasowe); limit i miejsca w oddziale liczą też szkolonych. Każdy budynek
+  szkoli po kolei jednostki ze swojej kolejki (długość i tempo rosną z poziomem), także offline. Koszt
   w surowcach i towarach schodzi przy zleceniu; bez towaru szkolenie nie rusza. Jednostka szkoli się
-  tylko w budynku swojej klasy. Limit armii: 10 za poziom Dworu i 2 za poziom Koszar (tymczasowe),
-  liczy też szkolonych. `start_any()` dla widoku globalnego wybiera budynek z najkrótszą kolejką.
+  tylko w budynku swojej klasy. `start_any()` dla widoku globalnego wybiera budynek z najkrótszą kolejką.
 - `scripts/ui/recruit_panel.gd` (`RecruitPanel`): ekran Wojsko. Przycisk Wojsko w HUD (obok Oblężenia)
   pokazuje wszystkie jednostki; Szkol na karcie budynku rekrutacji tylko jednostki tego budynku.
-  Kafelki z ikoną klasy, liczbą w armii i w szkoleniu; zablokowane przygaszone z powodem (technologia,
-  epoka, brak budynku); brakujące towary na czerwono z budynkiem, który je robi.
+  Nagłówek: zajęte miejsca, limit i wolne miejsca w armii. Kafelki z ikoną klasy, liczbą w armii
+  i w szkoleniu; zablokowane przygaszone z powodem (technologia, epoka, brak budynku); brakujące towary
+  na czerwono z budynkiem, który je robi. Rząd wyboru oddziału: Nowy albo oddziały tego rodzaju
+  („2: 7/10”), pełne przygaszone; domyślnie pierwszy oddział z wolnym miejscem.
 - `scripts/battle/battle.gd` (`Battle`): deterministyczna symulacja bitwy (#14). Stały krok 30 Hz, pozycje
   w podjednostkach kratki (256 na kratkę), tylko liczby całkowite, własny RNG (`BattleRng`, xorshift32)
   i ścieżki z AStarGrid2D, w którym budynki są drogie, ale przechodnie: atakujący burzą najsłabsze miejsce
