@@ -219,7 +219,7 @@ func _on_tapped(world_pos: Vector2) -> void:
 			_save()
 		elif result == BuildQueue.Result.NEEDS_TECH:
 			hud.message = _tech_hint(kind)
-		elif result == BuildQueue.Result.NO_PLACE and kind == BuildingTypes.Kind.FISHER:
+		elif result == BuildQueue.Result.NO_PLACE and _fisher_lacks_water(cell, kind):
 			hud.message = FISHER_HINT
 		else:
 			hud.message = BuildQueue.MESSAGES[result]
@@ -232,6 +232,15 @@ func _on_kind_selected(kind: int) -> void:
 		return
 	hud.message = "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, 1)),
 			Hud.format_time(BuildConfig.time_ms(kind, 1))]
+
+
+## Czy Rybak nie staje tylko przez brak wody: ten sam prostokąt bez warunku wody byłby wolny
+## (review PR 143). Przy innych przeszkodach zostaje zwykły komunikat „Tu nie można budować”.
+func _fisher_lacks_water(cell: Vector2i, kind: int) -> bool:
+	if kind != BuildingTypes.Kind.FISHER:
+		return false
+	var rect := Rect2i(cell, BuildingTypes.size_of(kind))
+	return grid.can_place(rect) and not grid.touches_water(rect)
 
 
 ## Komunikat o brakującej technologii, np. „Chata myśliwego: zbadaj G18 Łowiectwo”.
