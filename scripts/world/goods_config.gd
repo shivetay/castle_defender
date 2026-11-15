@@ -6,7 +6,7 @@ extends RefCounted
 ## notatki. Epoki I–II nie zużywają metalu; żelazo dojdzie jako surowiec od epoki III (#93).
 ##
 ## Notatka zostawia liczby (ilości, tempo, limity) jako decyzje balansowe, więc ilości w przepisach
-## i tempa są tymczasowe. Budynki wytwórców dojdą w #90 (PRODUCER_KINDS).
+## i tempa są tymczasowe. Budynki wytwórców przypisuje PRODUCER_KINDS (#90).
 
 enum Good {
 	RAW_HIDE, LEATHER, BONE, SINEW, FEATHER, FLAX,
@@ -37,8 +37,14 @@ const PRODUCER_NAMES := {
 	"leatherworker": "Wytwórca zbroi skórzanych", "saddler": "Rymarz", "tar_kiln": "Smolarnia",
 	"stable": "Stajnia",
 }
-## Rodzaj budynku (BuildingTypes.Kind) → wytwórca. Uzupełni #90, gdy budynki staną w grze.
-const PRODUCER_KINDS := {}
+## Rodzaj budynku (BuildingTypes.Kind) → wytwórca (#90). Pole lnu dojdzie w #122, Stajnia w #91.
+const PRODUCER_KINDS := {
+	BuildingTypes.Kind.HUNTER: "hunter", BuildingTypes.Kind.TANNERY: "tannery",
+	BuildingTypes.Kind.LEATHERWORKER: "leatherworker", BuildingTypes.Kind.POLEARM: "polearm",
+	BuildingTypes.Kind.BOWSTRING: "bowstring", BuildingTypes.Kind.BOWYER: "bowyer",
+	BuildingTypes.Kind.FLETCHER: "fletcher", BuildingTypes.Kind.SADDLER: "saddler",
+	BuildingTypes.Kind.TAR_KILN: "tar_kiln",
+}
 
 const R := EconomyConfig.Res
 const G := Good

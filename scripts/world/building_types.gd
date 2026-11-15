@@ -3,9 +3,13 @@ extends RefCounted
 ## Budynki epoki I: rozmiar w kratkach, nazwa w UI i reguły łączenia umocnień.
 ## Wał i palisada to odcinki 1×1, które same łączą się z sąsiadami (autotiling N/E/S/W).
 ## Dwór to siedziba władcy: jeden na zamek, stoi od startu, a jego poziom jest poziomem zamku.
-## Nie ma go na pasku budowy, więc pasek pokazuje rodzaje 0..buildable_count()-1.
+## Nie ma go na pasku budowy (BUILD_BAR). Wytwórcy (#90) dochodzą za Dworem, żeby numery rodzajów
+## w starszych zapisach się nie zmieniły.
 
-enum Kind { RAMPART, PALISADE, GATE, TOWER, LUMBER_HUT, MANOR }
+enum Kind {
+	RAMPART, PALISADE, GATE, TOWER, LUMBER_HUT, MANOR,
+	HUNTER, TANNERY, LEATHERWORKER, POLEARM, BOWSTRING, BOWYER, FLETCHER, SADDLER, TAR_KILN,
+}
 ## Stan budynku zależny od wytrzymałości: cały, pęknięcia, wyrwa w blankach, gruz.
 enum State { INTACT, CRACKED, BREACHED, RUBBLE }
 
@@ -19,19 +23,33 @@ const E := 2
 const S := 4
 const W := 8
 
-const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wieża drewniana", "Chata drwala", "Dwór"]
-const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór"]
+const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wieża drewniana", "Chata drwala", "Dwór",
+		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
+		"Strzałmistrz", "Rymarz", "Smolarnia"]
+## Napisy na przyciskach paska budowy (56 px).
+const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
+		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia"]
 const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(2, 2),
-		Vector2i(2, 2)]
+		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
+		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2)]
+## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu). Wytwórcy idą w kolejności łańcucha.
+const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.LUMBER_HUT,
+		Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER,
+		Kind.FLETCHER, Kind.SADDLER, Kind.TAR_KILN]
 
 
 static func count() -> int:
 	return NAMES.size()
 
 
-## Rodzaje, które gracz stawia z paska budowy (bez Dworu).
+## Liczba rodzajów, które gracz stawia z paska budowy (bez Dworu).
 static func buildable_count() -> int:
-	return Kind.MANOR
+	return BUILD_BAR.size()
+
+
+## Rodzaj budynku na miejscu `index` paska budowy.
+static func bar_kind(index: int) -> int:
+	return BUILD_BAR[clampi(index, 0, BUILD_BAR.size() - 1)]
 
 
 static func size_of(kind: int) -> Vector2i:

@@ -18,7 +18,8 @@ Etap 5 (#127) zaczyna badania z #12: 34 technologie z notatki Drzewko technologi
 zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2; reszta efektów włączy się razem
 z budynkami, jednostkami i bitwą. Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
 Do tego mechanizm towarów i łańcuchów produkcji z #88 (zbrojownia, przepisy wytwórców według notatki
-Klasy jednostek i produkcja); same budynki wytwórców dojdą w #90.
+Klasy jednostek i produkcja) oraz 9 budynków wytwórców z #90, które produkują towary
+i wymagają zbadania swojej technologii.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -84,6 +85,13 @@ Klasy jednostek i produkcja); same budynki wytwórców dojdą w #90.
   zużywa surowce i towary; brak wejścia albo pełna zbrojownia go zatrzymuje. Wyższy poziom budynku
   przyspiesza i odblokowuje lepszy towar (Łukmistrz 3 → łuk refleksyjny). Pusta zbrojownia strzał
   to −50% tempa strzelania (dla bitwy, #14).
+- Wytwórcy (#90): Chata myśliwego, Garbarnia, Wytwórca zbroi skórzanych, Drzewcarz, Cięciwiarz, Łukmistrz,
+  Strzałmistrz, Rymarz i Smolarnia (2×2, za Dworem w `BuildingTypes.Kind`, żeby numery w zapisach się nie
+  zmieniły). Na pasku budowy (`BUILD_BAR`) są wyszarzone, dopóki nie zbadasz technologii z
+  `BuildConfig.REQUIRED_TECH` (G18, G19, A38–A43, G24). Grafika: wspólny warsztat (wiata na poziomie 1,
+  potem izba z bali albo desek, szersza od poziomu 4, z flagą na 5) i rekwizyt rozpoznawczy z prawej:
+  skóra na ramie, kadź, tarcza, drzewca, sznury cięciw, łuk, beczka strzał, siodło, mielerz.
+  Koszty i czasy są tymczasowe, w skali Chaty drwala.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -120,7 +128,8 @@ nadrabia czas nieobecności (budowa i produkcja liczą się tak, jakby gra dzia�
 Do ręcznego testu na telefonie: czy Buduj, Gotowe, pasek budynków i karta dają się obsłużyć jednym
 kciukiem, czy przewijanie paska palcem jest wygodne, czy budowa długiego wału kratka po kratce nie jest
 zbyt męcząca, czy po zejściu do tła na kilka minut surowce przybywają i czy po zamknięciu aplikacji
-(także „ubiciu” z listy ostatnich) zamek wraca z nadrobioną budową. Przy badaniach: czy kafelki
+(także „ubiciu” z listy ostatnich) zamek wraca z nadrobioną budową. Przy wytwórcach: czy ich rekwizyty
+da się odróżnić na telefonie i czy pasek budowy z 14 budynkami przewija się wygodnie. Przy badaniach: czy kafelki
 drzewka (34×14 px) dają się trafić kciukiem, czy kody i opisy są czytelne i czy badanie kończy się w tle.
 
 ## Uruchomienie
@@ -217,8 +226,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 5 (#127): wytwórcy (#90) na mechanizmie towarów z #88 i reszta efektów technologii z #12 razem
-z budynkami, które odblokowują, potem klasy jednostek (#87),
-Stajnia (#91), budynki rekrutacji (#119), rekrutacja (#89) i budynki gospodarcze (#122).
+Etap 5 (#127): Pole lnu i Rybak (#122), Stajnia (#91), budynki rekrutacji (#119), klasy jednostek (#87),
+rekrutacja (#89) i reszta efektów technologii z #12 razem z budynkami, które odblokowują.
 Z etapu 4 zostaje #81, który czeka na jednostki, bitwę i epokę II. Z #97 zostaje strona serwera
 (#21, #23, #25 w etapie 9). Kolejność wybiera właściciel.

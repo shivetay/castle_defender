@@ -176,8 +176,10 @@ func test_texture_cache_reuses_textures() -> bool:
 	var d := tx.draw_building(BuildingTypes.Kind.TOWER, 2, BuildingTypes.State.INTACT, 0)
 	assert_true(c == d, "maska nie ma znaczenia dla wieży")
 	tx.warm_up()
-	# poziomy 0–5 (0 = plac budowy): wał i palisada w 16 maskach, brama w dwóch ułożeniach, wieża, chata, dwór
-	assert_eq(tx.cached_count(), 6 * (2 * 16 + 2 + 3), "warm_up rysuje wszystkie całe warianty i place budowy")
+	# poziomy 0–5 (0 = plac budowy): wał i palisada w 16 maskach, brama w dwóch ułożeniach,
+	# a pozostałe rodzaje (wieża, chata, dwór, wytwórcy) po jednym wariancie
+	var others := BuildingTypes.count() - 3
+	assert_eq(tx.cached_count(), 6 * (2 * 16 + 2 + others), "warm_up rysuje wszystkie całe warianty i place budowy")
 	return true
 
 
@@ -378,7 +380,8 @@ func test_construction_site() -> bool:
 
 func test_manor_is_not_on_toolbar() -> bool:
 	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 1, "pasek bez Dworu")
-	assert_eq(BuildingTypes.Kind.MANOR, BuildingTypes.count() - 1, "Dwór jest ostatni")
+	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.MANOR), "Dworu nie ma na pasku")
+	assert_eq(BuildingTypes.Kind.MANOR, 5, "Dwór ma stały numer (zapisy)")
 	var left := float(Hud.CORNER_INSET)
 	var right := 320.0 - Hud.CORNER_INSET
 	assert_eq(Hud.visible_kinds(left, right) + Hud.max_first_kind(left, right), BuildingTypes.buildable_count(),
