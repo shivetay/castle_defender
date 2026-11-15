@@ -20,7 +20,8 @@ z budynkami, jednostkami i bitwą. Bazowe koszty badań są tymczasowe (notatka 
 Do tego mechanizm towarów i łańcuchów produkcji z #88 (zbrojownia, przepisy wytwórców według notatki
 Klasy jednostek i produkcja) oraz 9 budynków wytwórców z #90, które produkują towary
 i wymagają zbadania swojej technologii. Doszły też budynki gospodarcze z #122: Pole lnu i Rybak,
-oraz Stajnia z #91 i budynki rekrutacji z #119 (Koszary, Dom drużyny, Strzelnica).
+oraz Stajnia z #91 i budynki rekrutacji z #119 (Koszary, Dom drużyny, Strzelnica). Klasy jednostek
+z #87: 13 jednostek MVP z klasą, statystykami i kosztem w towarach oraz tabela przewag klas.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -104,6 +105,11 @@ oraz Stajnia z #91 i budynki rekrutacji z #119 (Koszary, Dom drużyny, Strzelnic
   i Strzelnica (strzelecka, A44); szybką szkoli Stajnia. `RecruitmentConfig` trzyma klasę każdego budynku
   oraz limit i tempo szkolenia od poziomu (tymczasowe); Dwór nie rekrutuje. Samo szkolenie dojdzie w #89.
   Grafika: warsztat z manekinem do ćwiczeń, tarczami drużyny albo słomianą tarczą strzelniczą.
+- `scripts/world/unit_types.gd` (`UnitTypes`): 13 jednostek MVP z notatek Jednostki oraz Klasy jednostek
+  i produkcja: klasa (lekka, ciężka, strzelecka, szybka, specjalna; Taran i Kopacz to inżynieria), HP, atak,
+  zasięg, szybkość, technologia, budynek rekrutacji i koszt w towarach (np. Łucznik: łuk i 20 strzał).
+  Tabela przewag klas (`ADVANTAGE`, procenty) i ×2 drzewca przeciw konnicy; `duel()` to pojedynek w turach
+  na liczbach całkowitych do testów, pełna bitwa to #14. Ikony klas 5×5 w `PixelIcons.CLASSES`.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -238,7 +244,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 5 (#127): klasy jednostek (#87), rekrutacja (#89) i reszta efektów technologii z #12 razem
+Etap 5 (#127): rekrutacja (#89) i reszta efektów technologii z #12 razem
 z budynkami, które odblokowują.
 Z etapu 4 zostaje #81, który czeka na jednostki, bitwę i epokę II. Z #97 zostaje strona serwera
 (#21, #23, #25 w etapie 9). Kolejność wybiera właściciel.

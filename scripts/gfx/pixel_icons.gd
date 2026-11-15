@@ -1,7 +1,9 @@
 class_name PixelIcons
 extends RefCounted
-## Ikony surowców 5×5 zapisane w kodzie jako wzory znaków (bez plików graficznych).
-## Kolejność jak w EconomyConfig.Res: drewno (dwa bale), kamień, żywność (jabłko), złoto (moneta).
+## Ikony surowców i klas jednostek 5×5 zapisane w kodzie jako wzory znaków (bez plików graficznych).
+## Surowce w kolejności EconomyConfig.Res: drewno (dwa bale), kamień, żywność (jabłko), złoto (moneta).
+## Klasy (#87) w kolejności RecruitmentConfig.UnitClass: lekka (topór), ciężka (tarcza z umbem),
+## strzelecka (łuk ze strzałą), szybka (podkowa), specjalna (płomień).
 ## Atlas wszystkich ikon powstaje raz, przy pierwszym użyciu, i jest trzymany w cache.
 
 const SIZE := 5
@@ -21,14 +23,23 @@ const RESOURCES: Array = [
 	[".TTT.", "TiTTt", "TTTTt", "TTTtt", ".ttt."],
 ]
 
+const CLASSES: Array = [
+	["TT.k.", "TTTk.", "TT.k.", "...k.", "...k."],
+	[".mmm.", "mmmmm", "mmamm", "mmmmm", ".mmm."],
+	["..wT.", ".w.T.", "wlllT", ".w.T.", "..wT."],
+	["ll.ll", "l...l", "l...l", "ll.ll", ".lll."],
+	["..a..", ".aa..", ".aTa.", "aaTaa", ".aaa."],
+]
+
 static var _atlas: ImageTexture
+static var _class_atlas: ImageTexture
 
 
-## Obraz atlasu: ikony obok siebie, każda w kratce SIZE×SIZE.
-static func make_atlas() -> Image:
-	var img := Image.create(SIZE * RESOURCES.size(), SIZE, false, Image.FORMAT_RGBA8)
-	for i in RESOURCES.size():
-		var rows: Array = RESOURCES[i]
+## Obraz atlasu: ikony obok siebie, każda w kratce SIZE×SIZE (domyślnie surowce).
+static func make_atlas(icons: Array = RESOURCES) -> Image:
+	var img := Image.create(SIZE * icons.size(), SIZE, false, Image.FORMAT_RGBA8)
+	for i in icons.size():
+		var rows: Array = icons[i]
 		for y in SIZE:
 			var row: String = rows[y]
 			for x in SIZE:
@@ -48,3 +59,22 @@ static func atlas() -> ImageTexture:
 static func draw_resource(ci: CanvasItem, pos: Vector2, res: int) -> void:
 	ci.draw_texture_rect_region(atlas(), Rect2(pos.floor(), Vector2(SIZE, SIZE)),
 			Rect2(res * SIZE, 0, SIZE, SIZE))
+
+
+## Rysuje ikonę klasy jednostki `unit_class` (RecruitmentConfig.UnitClass) lewym górnym rogiem w `pos`.
+## Fragment atlasu klas dla `unit_class`; pusty dla klasy spoza zakresu (inżynieria,
+## UnitTypes.ENGINEERING = -1), która nie ma ikony.
+static func class_region(unit_class: int) -> Rect2:
+	if unit_class < 0 or unit_class >= CLASSES.size():
+		return Rect2()
+	return Rect2(unit_class * SIZE, 0, SIZE, SIZE)
+
+
+## Rysuje ikonę klasy; dla klasy bez ikony nic nie rysuje.
+static func draw_class(ci: CanvasItem, pos: Vector2, unit_class: int) -> void:
+	var region := class_region(unit_class)
+	if not region.has_area():
+		return
+	if _class_atlas == null:
+		_class_atlas = ImageTexture.create_from_image(make_atlas(CLASSES))
+	ci.draw_texture_rect_region(_class_atlas, Rect2(pos.floor(), Vector2(SIZE, SIZE)), region)
