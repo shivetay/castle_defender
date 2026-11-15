@@ -21,6 +21,11 @@ const AGGRO_EXTRA := 3
 ## Koszt przejścia przez kratkę z budynkiem w szukaniu drogi: atakujący idą przez najsłabsze
 ## miejsce linii umocnień zamiast obchodzić ją w nieskończoność.
 const BUILDING_PATH_WEIGHT := 12.0
+## Waga wolnej kratki (także po wyłomie).
+## Jedyne liczby zmiennoprzecinkowe bitwy: AStarGrid2D przyjmuje wagi tylko jako float. Wagi są
+## stałe i dokładne w IEEE (całe liczby), więc ten sam teren daje te same ścieżki. Test
+## test_battle_logic_uses_no_floats dopuszcza tylko te dwie stałe.
+const FREE_PATH_WEIGHT := 1.0
 ## Co ile ticków jednostka bez celu szuka drogi od nowa.
 const REPATH_TICKS := 15
 

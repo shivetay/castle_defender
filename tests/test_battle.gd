@@ -148,8 +148,53 @@ func test_rng_is_deterministic_and_in_range() -> bool:
 	return true
 
 
+## Logika bitwy bez floatów: bez typów i literałów zmiennoprzecinkowych w skryptach bitwy. Wyjątek
+## to dwie stałe wag A* w BattleConfig (AStarGrid2D przyjmuje tylko float), opisane przy nich.
 func test_battle_logic_uses_no_floats() -> bool:
-	var src := FileAccess.get_file_as_string("res://scripts/battle/battle.gd")
-	for word: String in [": float", "-> float", "randf", "randi()"]:
-		assert_true(not src.contains(word), "logika bitwy bez „%s”" % word)
+	var literal := RegEx.create_from_string("\\b\\d+\\.\\d+\\b")
+	var allowed := ["const BUILDING_PATH_WEIGHT := 12.0", "const FREE_PATH_WEIGHT := 1.0"]
+	for file: String in ["battle.gd", "battle_config.gd", "battle_rng.gd"]:
+		var src := FileAccess.get_file_as_string("res://scripts/battle/" + file)
+		assert_true(not src.is_empty(), "%s czytelny" % file)
+		for word: String in [": float", "-> float", "float(", "randf", "randi()"]:
+			assert_true(not src.contains(word), "%s bez „%s”" % [file, word])
+		for line in src.split("\n"):
+			var code := line.split("#")[0]
+			if code.strip_edges().is_empty() or allowed.has(code.strip_edges()):
+				continue
+			assert_true(literal.search(code) == null, "%s: literał zmiennoprzecinkowy w „%s”" % [file, line.strip_edges()])
+	return true
+
+
+## Pościg też idzie po ścieżce: nikt nie przechodzi przez żywą palisadę. Atakujący ją burzy,
+## a obrońca czeka za nią (review #148; wcześniej obrońcy wychodzili przez mur do atakujących).
+func test_chase_does_not_walk_through_walls() -> bool:
+	var c := _castle(true)
+	var grid: BuildGrid = c[0]
+	var b := Battle.create(grid, c[1], {U.AXE_WARRIOR: 6}, {U.SHIELDBEARER: 2}, SPAWN, 9)
+	var walls: Array[int] = []
+	for id: int in b.structures:
+		if b.structures[id].kind == K.PALISADE:
+			walls.append(id)
+	for t in BattleConfig.TICK_HZ * 60:
+		b.step()
+		for f in b.fighters:
+			if not f.alive():
+				continue
+			var id := grid.building_at(f.cell())
+			if walls.has(id) and b.structures[id].hp > 0:
+				assert_true(false, "jednostka %d (strona %d) stoi w żywej palisadzie (tick %d)" % [f.id, f.side, b.tick])
+				return true
+		if b.winner != W.NONE:
+			break
+	return true
+
+
+## Jednostka bez ataku (Tropiciel) nie wdaje się w walkę i nie burzy (nit z review #148).
+func test_unit_without_attack_does_not_engage() -> bool:
+	var c := _castle()
+	var b := Battle.create(c[0], c[1], {U.TRACKER: 1}, {U.ARCHER: 1}, SPAWN, 4)
+	for f in b.fighters:
+		if f.unit == U.TRACKER:
+			assert_true(b._enemy_for(f) == null, "tropiciel nie wybiera wroga")
 	return true
