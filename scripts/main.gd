@@ -44,6 +44,8 @@ func _ready() -> void:
 	var saved := SaveGame.load_state(SaveGame.PATH, _now_ms())
 	if saved != null:
 		world_seed = saved.world_seed
+		# zapis sprzed profilu: seed zamku zostaje seedem gracza (first_playable go nie zmieni)
+		PlayerProfile.ensure_seed(PlayerProfile.PATH, world_seed)
 		grid = saved.grid
 		economy = saved.economy
 		queue = saved.queue
