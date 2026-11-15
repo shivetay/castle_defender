@@ -59,7 +59,7 @@ func select(code: String) -> void:
 func _process(_delta: float) -> void:
 	if not visible:
 		return
-	var bounds := Hud.content_bounds(get_viewport_rect().size, Rect2())
+	var bounds := Hud.content_bounds(get_viewport_rect().size, Hud.safe_area_in_view(get_viewport()))
 	content_left = bounds.x
 	content_right = bounds.y
 	queue_redraw()
@@ -237,8 +237,11 @@ func _draw_details() -> void:
 	var title := "%s %s" % [selected, TechTree.tech_name(selected)]
 	if TechTree.is_key(selected):
 		title += " (kluczowa)"
-	PixelFont.draw_text(self, Vector2(x, y), title, Palette.INK)
-	PixelFont.draw_right(self, content_right, y, state_text(research, selected, age, now_ms), Palette.THATCH[2])
+	var state := state_text(research, selected, age, now_ms)
+	# tytuł przycięty tak, żeby nie wchodził na stan w tej samej linii
+	var title_width := width - PixelFont.text_width(state) - 6
+	PixelFont.draw_text(self, Vector2(x, y), fit_text(title, title_width), Palette.INK)
+	PixelFont.draw_right(self, content_right, y, state, Palette.THATCH[2])
 	y += PixelFont.LINE + 2
 	PixelFont.draw_text(self, Vector2(x, y), fit_text(TechTree.effect(selected), width), Palette.VALID)
 	y += PixelFont.LINE + 2

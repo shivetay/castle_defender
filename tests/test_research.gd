@@ -273,3 +273,27 @@ func _economy_at(t: int) -> Economy:
 	var e := Economy.new(t)
 	e.amounts = [500, 300, 300, 50] as Array[int]
 	return e
+
+
+## Review #139: odliczanie badania na górnym pasku mieści się obok surowców w najgorszym przypadku.
+func test_research_countdown_fits_top_bar() -> bool:
+	assert_eq(Hud.top_right_text("", "Epoka I · 550 r.", "Bad. 0:42"), "Bad. 0:42  Epoka I · 550 r.", "badanie i epoka")
+	assert_eq(Hud.top_right_text("0:05", "Epoka I · 550 r.", "Bad. 0:42"), "0:05  Bad. 0:42  Epoka I · 550 r.", "budowa, badanie, epoka")
+	var worst := Hud.top_right_text("12:00:00 +3", "Epoka I · 750 r.", "Bad. 12:00:00")
+	var amounts: Array[int] = [1000, 1000, 1000, 9999]
+	var xs := Hud.resource_layout(amounts, Hud.CORNER_INSET)
+	var right := 320 - Hud.CORNER_INSET
+	assert_true(xs[-1] + 4 <= right - PixelFont.text_width(worst), "„%s” nie wchodzi na surowce" % worst)
+	return true
+
+
+## Review #139: wczytane trwające badanie musi spełniać wymagania, jak przy check().
+func test_loaded_active_research_needs_requirements() -> bool:
+	var r := Research.new()
+	var skipped := r.load_data({"done": [], "active": {"code": "A7", "start_ms": T0, "duration_ms": 1000}}, T0)
+	assert_eq(skipped, 1, "A7 bez A2 i A43 pominięte")
+	assert_true(not r.is_busy(), "nic się nie bada")
+	skipped = r.load_data({"done": ["A2", "G18", "G19", "A43"], "active": {"code": "A7", "duration_ms": 1000}}, T0)
+	assert_eq(skipped, 0, "z wymaganiami wraca")
+	assert_eq(r.active, "A7", "A7 w toku")
+	return true
