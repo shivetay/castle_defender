@@ -589,7 +589,7 @@ func _finish(side: int, reason: int) -> void:
 ## Zdobywanie celu: piechota atakującego (klasa lekka albo ciężka) przy celu i żadnego obrońcy
 ## w tym samym pasie wokół niego. Przerwa w obsadzie zeruje licznik.
 func _update_capture() -> void:
-	if not structures.has(objective):
+	if not structures.has(objective) or structures[objective].hp <= 0:
 		return
 	var zone := structures[objective].rect.grow(BattleConfig.CAPTURE_RANGE)
 	var holders := 0

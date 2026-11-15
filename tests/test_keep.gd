@@ -114,3 +114,32 @@ func test_engineering_and_cavalry_do_not_capture() -> bool:
 	b.step()
 	assert_eq(b.capture_ticks, 0, "zdobywa tylko piechota (lekka i ciężka)")
 	return true
+
+
+## Pierścienie liczą się od całego Dworu, a nie od jego lewego górnego rogu (review #152): na pustej
+## łące pierwsze miejsce leży w pierścieniu 1 wokół Dworu z każdej strony tak samo daleko.
+func test_keep_rings_are_measured_from_the_whole_manor() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var manor := grid.place(grid.manor_spot(64), K.MANOR, 3)
+	var m := grid.buildings[manor]
+	var spot := grid.spot_around(m, K.KEEP, 6)
+	assert_true(spot.has_area(), "jest miejsce")
+	var gap_x := maxi(m.position.x - spot.end.x, spot.position.x - m.end.x)
+	var gap_y := maxi(m.position.y - spot.end.y, spot.position.y - m.end.y)
+	assert_true(maxi(gap_x, gap_y) <= 1, "donżon w pierwszym wolnym pierścieniu wokół Dworu")
+	return true
+
+
+## Po zniszczeniu celu licznik zdobycia stoi (review #152).
+func test_capture_stops_counting_on_destroyed_keep() -> bool:
+	var grid := _castle()
+	var b := Battle.for_castle(grid, {U.AXE_WARRIOR: 1}, {}, SPAWN, 1)
+	var keep := b.structures[grid.keep_id()]
+	for f in b.fighters:
+		f.x = keep.rect.position.x * BattleConfig.SUB
+		f.y = (keep.rect.position.y - 1) * BattleConfig.SUB
+	keep.hp = 0
+	b.capture_ticks = 5
+	b._update_capture()
+	assert_eq(b.capture_ticks, 5, "zniszczony cel nie liczy zdobycia")
+	return true

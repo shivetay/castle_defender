@@ -22,6 +22,7 @@ const CURRENT_AGE := 0
 
 ## Komunikat, gdy Rybak nie styka się z wodą (#122).
 const FISHER_HINT := "Rybak musi stać tuż przy rzece"
+const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
@@ -73,6 +74,7 @@ func _ready() -> void:
 		_place_manor()
 	if grid.keep_id() == 0:
 		_place_keep()
+	var keep_missing := grid.keep_id() == 0
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
 	textures.warm_up()
 
@@ -92,7 +94,7 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.economy = economy
 	layer.add_child(hud)
-	hud.message = DEFAULT_MESSAGE
+	hud.message = KEEP_NO_ROOM if keep_missing else DEFAULT_MESSAGE
 	hud.kind_selected.connect(_on_kind_selected)
 	hud.build_mode_changed.connect(_on_build_mode_changed)
 	hud.siege_pressed.connect(_on_siege_pressed)
@@ -169,6 +171,9 @@ func _place_keep() -> void:
 	var spot := grid.keep_spot(terrain.size)
 	if spot.has_area():
 		grid.place(spot, BuildingTypes.Kind.KEEP)
+	else:
+		# stary zapis bez miejsca na donżon: bitwa nie ma celu, więc HUD to pokaże (KEEP_NO_ROOM)
+		push_warning("Brak miejsca na donżon obok Dworu")
 
 
 func _process(_delta: float) -> void:

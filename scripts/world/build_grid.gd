@@ -134,8 +134,26 @@ func keep_id() -> int:
 ## Miejsce na donżon: pierwszy wolny prostokąt wokół Dworu (albo środka mapy, gdy Dworu nie ma).
 func keep_spot(max_ring: int) -> Rect2i:
 	var id := manor_id()
-	var c := buildings[id].position if id != 0 else terrain.center()
-	return spot_near(c, BuildingTypes.Kind.KEEP, max_ring)
+	if id == 0:
+		return spot_near(terrain.center(), BuildingTypes.Kind.KEEP, max_ring)
+	return spot_around(buildings[id], BuildingTypes.Kind.KEEP, max_ring)
+
+
+## Pierwszy wolny prostokąt dla `kind` na pierścieniach wokół całego prostokąta `around`
+## (pierścień r to brzeg `around.grow(r)`), najdalej `max_ring` kratek. Odległość liczy się od
+## każdego boku jednakowo, więc żadna strona nie ma przewagi z samej odległości; w pierścieniu
+## kolejność jest stała (wierszami od góry). Pusty prostokąt, gdy brak.
+func spot_around(around: Rect2i, kind: int, max_ring: int) -> Rect2i:
+	for r in range(1, mini(max_ring, terrain.size) + 1):
+		var ring := around.grow(r)
+		for y in range(ring.position.y, ring.end.y):
+			for x in range(ring.position.x, ring.end.x):
+				if y != ring.position.y and y != ring.end.y - 1 and x != ring.position.x and x != ring.end.x - 1:
+					continue
+				var rect := placement_for(Vector2i(x, y), kind)
+				if rect.has_area():
+					return rect
+	return Rect2i()
 
 
 ## Pierwszy wolny prostokąt dla rodzaju `kind` na kolejnych pierścieniach wokół `c`, najdalej
