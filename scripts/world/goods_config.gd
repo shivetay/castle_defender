@@ -90,6 +90,14 @@ static func capacity(_good: int) -> int:
 	return ARMORY_CAPACITY
 
 
+## Nazwa budynku, który produkuje towar `good` (pierwszy przepis z tym wyjściem), np. „Łukmistrz”.
+static func producer_name(good: int) -> String:
+	for row: Array in RECIPES:
+		if (row[5] as Dictionary).has(good):
+			return PRODUCER_NAMES[row[0]] as String
+	return ""
+
+
 ## Cykle na godzinę przepisu `recipe` w budynku na poziomie `level` (0, gdy poziom za niski).
 static func cycles_per_hour(recipe: int, level: int) -> int:
 	var row: Array = RECIPES[recipe]

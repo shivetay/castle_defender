@@ -22,6 +22,8 @@ Klasy jednostek i produkcja) oraz 9 budynków wytwórców z #90, które produkuj
 i wymagają zbadania swojej technologii. Doszły też budynki gospodarcze z #122: Pole lnu i Rybak,
 oraz Stajnia z #91 i budynki rekrutacji z #119 (Koszary, Dom drużyny, Strzelnica). Klasy jednostek
 z #87: 13 jednostek MVP z klasą, statystykami i kosztem w towarach oraz tabela przewag klas.
+Rekrutacja z #89: kolejki szkolenia w budynkach klas, koszt w żywności i towarach, armia z limitem
+i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -107,8 +109,17 @@ z #87: 13 jednostek MVP z klasą, statystykami i kosztem w towarach oraz tabela 
   zasięg, szybkość, technologia, budynek rekrutacji i koszt w towarach (np. Łucznik: łuk i 20 strzał).
   Tabela przewag klas (`ADVANTAGE`, procenty) i ×2 drzewca przeciw konnicy; `duel()` to pojedynek w turach
   na liczbach całkowitych do testów, pełna bitwa to #14. Ikony klas 5×5 w `PixelIcons.CLASSES`.
+- `scripts/world/recruitment.gd` (`Recruitment`): armia i kolejki szkolenia (#89). Każdy budynek szkoli
+  po kolei jednostki ze swojej kolejki (długość i tempo rosną z poziomem), także offline. Koszt
+  w surowcach i towarach schodzi przy zleceniu; bez towaru szkolenie nie rusza. Jednostka szkoli się
+  tylko w budynku swojej klasy. Limit armii: 10 za poziom Dworu i 2 za poziom Koszar (tymczasowe),
+  liczy też szkolonych. `start_any()` dla widoku globalnego wybiera budynek z najkrótszą kolejką.
+- `scripts/ui/recruit_panel.gd` (`RecruitPanel`): ekran Wojsko. Przycisk Wojsko w HUD (obok Oblężenia)
+  pokazuje wszystkie jednostki; Szkol na karcie budynku rekrutacji tylko jednostki tego budynku.
+  Kafelki z ikoną klasy, liczbą w armii i w szkoleniu; zablokowane przygaszone z powodem (technologia,
+  epoka, brak budynku); brakujące towary na czerwono z budynkiem, który je robi.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
-  i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary). Zapisuje seed terenu, budynki, surowce,
+  i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
   tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
   głównym, więc na dysku zawsze leży co najmniej jeden pełny zapis. Nieczytelny plik główny jest
@@ -240,7 +251,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 5 (#127): rekrutacja (#89) i reszta efektów technologii z #12 razem
-z budynkami, które odblokowują.
+Etap 5 (#127): reszta efektów technologii z #12 razem z budynkami, które odblokowują. Wybór
+wyszkolonych jednostek w planie ataku i obronie (#89) dojdzie w etapach 7 i 8.
 Z etapu 4 zostaje #81, który czeka na jednostki, bitwę i epokę II. Z #97 zostaje strona serwera
 (#21, #23, #25 w etapie 9). Kolejność wybiera właściciel.

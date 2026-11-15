@@ -6,6 +6,8 @@ extends Node2D
 ## a dotknięcie wolnej trawy zleca budowę (koszt schodzi od razu, na kratkach staje plac budowy,
 ## budynek powstaje po czasie z BuildConfig); Gotowe wraca do oglądania. Surowce i budowa
 ## idą dalej, gdy gra jest w tle albo zamknięta; po powrocie komunikat podaje, ile przybyło.
+## Przycisk Wojsko otwiera ekran rekrutacji wszystkich jednostek, a Szkol na karcie budynku rekrutacji
+## ten sam ekran tylko z jednostkami tego budynku (RecruitPanel).
 ## Przycisk Badania otwiera drzewko technologii (ResearchPanel); badanie trwa w czasie zegarowym
 ## jak budowa, jedno naraz.
 ## Gra zapisuje się (SaveGame) po każdej akcji, po ukończeniu budowy i przy zejściu do tła,
@@ -36,6 +38,8 @@ var economy: Economy
 var queue := BuildQueue.new()
 var research := Research.new()
 var goods: Goods
+var recruitment := Recruitment.new()
+var recruit_panel: RecruitPanel
 var research_panel: ResearchPanel
 
 var _terrain_tex: ImageTexture
@@ -53,6 +57,7 @@ func _ready() -> void:
 		queue = saved.queue
 		research = saved.research
 		goods = saved.goods
+		recruitment = saved.recruitment
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -97,7 +102,21 @@ func _ready() -> void:
 	research_panel.visible = false
 	layer.add_child(research_panel)
 	research_panel.research_requested.connect(_on_research_requested)
-	research_panel.closed.connect(_on_research_closed)
+	research_panel.closed.connect(_on_overlay_closed)
+	hud.army_pressed.connect(_on_army_opened.bind(0))
+	hud.recruit_pressed.connect(_on_recruit_pressed)
+
+	recruit_panel = RecruitPanel.new()
+	recruit_panel.recruitment = recruitment
+	recruit_panel.grid = grid
+	recruit_panel.economy = economy
+	recruit_panel.goods = goods
+	recruit_panel.research = research
+	recruit_panel.age = CURRENT_AGE
+	recruit_panel.visible = false
+	layer.add_child(recruit_panel)
+	recruit_panel.train_requested.connect(_on_train_requested)
+	recruit_panel.closed.connect(_on_overlay_closed)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
 	_save()
@@ -146,7 +165,7 @@ func _catch_up(prefix: String) -> void:
 
 ## Zapisuje grę. Błąd zapisu nie przerywa gry, tylko trafia do logu.
 func _save() -> void:
-	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods))
+	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment))
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
 
@@ -170,6 +189,12 @@ func _tick() -> void:
 		_save()
 	if research_panel != null:
 		research_panel.now_ms = now
+		recruit_panel.now_ms = now
+	var trained := recruitment.update(now)
+	for unit in trained:
+		hud.message = "Wyszkolono: %s" % UnitTypes.unit_name(unit)
+	if not trained.is_empty():
+		_save()
 	hud.queue_text = ""
 	hud.locked_kinds.clear()
 	for kind in BuildingTypes.BUILD_BAR:
@@ -280,7 +305,42 @@ func _on_research_opened() -> void:
 	queue_redraw()
 
 
-func _on_research_closed() -> void:
+## Ekran Wojsko: `id` = 0 to widok globalny, inaczej budynek rekrutacji z karty.
+func _on_army_opened(id: int) -> void:
+	_tick()
+	_selected_id = 0
+	hud.hide_card()
+	_cursor = Rect2i()
+	hud.overlay = true
+	recruit_panel.open(id)
+	hud.message = "Wybierz jednostkę"
+	queue_redraw()
+
+
+func _on_recruit_pressed() -> void:
+	_on_army_opened(_selected_id)
+
+
+func _on_train_requested(unit: int) -> void:
+	_tick()
+	var now := _now_ms()
+	var result: Recruitment.Result
+	var where := recruit_panel.building_id
+	if where == 0:
+		result = recruitment.start_any(unit, grid, economy, goods, research, CURRENT_AGE, now)
+		where = recruitment.last_building
+	else:
+		result = recruitment.start(unit, where, grid, economy, goods, research, CURRENT_AGE, now)
+	if result == Recruitment.Result.OK:
+		hud.message = "Szkolenie: %s (%s)" % [UnitTypes.unit_name(unit), BuildingTypes.NAMES[grid.kinds[where]]]
+		_save()
+	elif result == Recruitment.Result.NO_GOODS:
+		hud.message = RecruitPanel.missing_text(unit, goods)
+	else:
+		hud.message = Recruitment.MESSAGES[result]
+
+
+func _on_overlay_closed() -> void:
 	hud.overlay = false
 	hud.message = DEFAULT_MESSAGE
 
@@ -307,6 +367,7 @@ func _refresh_card() -> void:
 		status = "budowa %s" % Hud.format_time(queue.remaining_ms(_selected_id, _now_ms()))
 	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level())
 	var middle_enabled := pending or kind != BuildingTypes.Kind.MANOR
+	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
 
@@ -340,6 +401,7 @@ func _on_middle_button() -> void:
 		return
 	_cursor = grid.buildings[_selected_id]
 	_cursor_ok = true
+	recruitment.drop_building(_selected_id)
 	grid.remove(_selected_id)
 	_deselect()
 	hud.message = "Rozebrano: %s" % title

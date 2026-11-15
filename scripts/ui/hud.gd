@@ -3,11 +3,12 @@ extends Node2D
 ## Interfejs nad mapą (nie przesuwa się z kamerą), obsługiwany jednym kciukiem w poziomie.
 ## U góry: surowce z ikonami, a z prawej czas budowy (gdy kolejka pracuje) oraz epoka i rok.
 ## U dołu pasek komunikatu z FPS. Nad nim, zależnie od trybu:
-## - oglądanie: w lewym rogu Oblężenie, w prawym Buduj, obok niego Badania; dotknięcie budynku
-##   otwiera kartę,
+## - oglądanie: w lewym rogu Oblężenie, obok niego Wojsko, w prawym Buduj, obok niego Badania;
+##   dotknięcie budynku otwiera kartę,
 ## - budowa: przewijany w poziomie pasek budynków i Gotowe w prawym rogu; dotknięcia mapy
 ##   tylko stawiają budynki, niczego nie zaznaczają,
-## - karta budynku: stan oraz Ulepsz, Rozbierz (Anuluj dla zlecenia) i Zamknij, wyśrodkowane.
+## - karta budynku: stan oraz Ulepsz, Rozbierz (Anuluj dla zlecenia), przy budynku rekrutacji Szkol,
+##   i Zamknij, wyśrodkowane.
 ## Dotknięcia przycisków i przewijanie paska nie trafiają do kamery. Gdy otwarty jest ekran
 ## na całą mapę (np. drzewko badań, `overlay`), HUD rysuje tylko górny i dolny pasek.
 
@@ -18,10 +19,12 @@ signal upgrade_pressed
 signal demolish_pressed
 signal card_closed
 signal research_pressed
+signal army_pressed
+signal recruit_pressed
 
-enum CardButton { UPGRADE, DEMOLISH, CLOSE }
+enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE }
 ## Cele dotyku: przyciski w rogach, przyciski karty i miejsca paska budowy (KIND + indeks w BUILD_BAR).
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, CARD = 100, KIND = 200 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CARD = 100, KIND = 200 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -39,6 +42,9 @@ const MESSAGE_MAX_WIDTH := 320 - 2 * CORNER_INSET - FPS_WIDTH
 ## Przesunięcie palca, od którego dotknięcie paska budynków staje się przewijaniem.
 const DRAG_THRESHOLD := 6
 const CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Zamknij"]
+## Karta budynku rekrutacji ma czwarty przycisk Szkol przed Zamknij.
+const RECRUIT_CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Szkol", "Zamknij"]
+const ARMY_LABEL := "Wojsko"
 const CANCEL_LABEL := "Anuluj"
 const SIEGE_LABEL := "Oblężenie"
 const BUILD_LABEL := "Buduj"
@@ -68,6 +74,8 @@ var card_can_upgrade := true
 ## Środkowy przycisk: Rozbierz, a dla budynku w kolejce Anuluj.
 var card_cancel := false
 var card_middle_enabled := true
+## Karta budynku rekrutacji (z przyciskiem Szkol).
+var card_recruit := false
 ## Czas budowy w prawym górnym rogu; pusty, gdy kolejka stoi.
 var queue_text := ""
 ## Epoka i rok w prawym górnym rogu, np. „Epoka I · 550 r.”.
@@ -128,6 +136,11 @@ static func right_corner_rect(view: Vector2, right: float) -> Rect2:
 	return Rect2(Vector2(right - BUTTON_SIZE.x, row_y(view)), BUTTON_SIZE)
 
 
+## Przycisk Wojsko na prawo od Oblężenia (w trybie oglądania).
+static func army_rect(view: Vector2, left: float) -> Rect2:
+	return Rect2(Vector2(left + BUTTON_SIZE.x + BUTTON_GAP, row_y(view)), BUTTON_SIZE)
+
+
 ## Przycisk Badania na lewo od Buduj (w trybie oglądania).
 static func research_rect(view: Vector2, right: float) -> Rect2:
 	return Rect2(Vector2(right - 2 * BUTTON_SIZE.x - BUTTON_GAP, row_y(view)), BUTTON_SIZE)
@@ -152,9 +165,9 @@ static func kind_rects(view: Vector2, left: float, right: float) -> Array[Rect2]
 	return out
 
 
-## Przyciski karty budynku (Ulepsz, Rozbierz, Zamknij), wyśrodkowane nad paskiem komunikatu.
-static func card_rects(view: Vector2) -> Array[Rect2]:
-	var n := CARD_LABELS.size()
+## Przyciski karty budynku (Ulepsz, Rozbierz, [Szkol,] Zamknij), wyśrodkowane nad paskiem komunikatu.
+static func card_rects(view: Vector2, recruit: bool = false) -> Array[Rect2]:
+	var n := RECRUIT_CARD_LABELS.size() if recruit else CARD_LABELS.size()
 	var total := n * BUTTON_SIZE.x + (n - 1) * BUTTON_GAP
 	var x := floorf((view.x - total) / 2.0)
 	var out: Array[Rect2] = []
@@ -163,12 +176,19 @@ static func card_rects(view: Vector2) -> Array[Rect2]:
 	return out
 
 
-## Cel pod punktem `p` w danym stanie interfejsu.
+## Przycisk karty (CardButton) na miejscu `i`: bez Szkol trzecie miejsce to Zamknij.
+static func card_button(i: int, recruit: bool) -> int:
+	if not recruit and i == 2:
+		return CardButton.CLOSE
+	return i
+
+
+## Cel pod punktem `p` w danym stanie interfejsu. Przyciski karty to CARD + CardButton.
 static func target_at(p: Vector2, view: Vector2, left: float, right: float, is_building: bool, card_open: bool,
-		first: int) -> int:
+		first: int, recruit_card: bool = false) -> int:
 	if card_open:
-		var i := hit(card_rects(view), p)
-		return Target.CARD + i if i >= 0 else Target.NONE
+		var i := hit(card_rects(view, recruit_card), p)
+		return Target.CARD + card_button(i, recruit_card) if i >= 0 else Target.NONE
 	if right_corner_rect(view, right).has_point(p):
 		return Target.DONE if is_building else Target.BUILD
 	if is_building:
@@ -178,6 +198,8 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, is_b
 		return Target.SIEGE
 	if research_rect(view, right).has_point(p):
 		return Target.RESEARCH
+	if army_rect(view, left).has_point(p):
+		return Target.ARMY
 	return Target.NONE
 
 
@@ -269,7 +291,8 @@ static func top_right_text(queue: String, age: String) -> String:
 func _target_at(p: Vector2) -> int:
 	if overlay:
 		return Target.NONE
-	return target_at(p, get_viewport_rect().size, content_left, content_right, building, is_card_open(), first_kind)
+	return target_at(p, get_viewport_rect().size, content_left, content_right, building, is_card_open(), first_kind,
+			card_recruit)
 
 
 func _input(event: InputEvent) -> void:
@@ -326,6 +349,8 @@ func _activate(t: int) -> void:
 				upgrade_pressed.emit()
 			CardButton.DEMOLISH:
 				demolish_pressed.emit()
+			CardButton.RECRUIT:
+				recruit_pressed.emit()
 			CardButton.CLOSE:
 				card_closed.emit()
 	elif t == Target.BUILD:
@@ -337,6 +362,8 @@ func _activate(t: int) -> void:
 		siege_pressed.emit()
 	elif t == Target.RESEARCH:
 		research_pressed.emit()
+	elif t == Target.ARMY:
+		army_pressed.emit()
 
 
 # --- Rysowanie ---------------------------------------------------------------------------------
@@ -360,6 +387,7 @@ func _draw() -> void:
 		_draw_button(left_corner_rect(view, content_left), SIEGE_LABEL, _pressed == Target.SIEGE, true)
 		_draw_button(right_corner_rect(view, content_right), BUILD_LABEL, _pressed == Target.BUILD, false)
 		_draw_button(research_rect(view, content_right), RESEARCH_LABEL, _pressed == Target.RESEARCH, false)
+		_draw_button(army_rect(view, content_left), ARMY_LABEL, _pressed == Target.ARMY, false)
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
 	PixelFont.draw_text(self, Vector2(content_left, view.y - BAR_H + 1), message, Palette.INK)
@@ -368,17 +396,19 @@ func _draw() -> void:
 
 
 func _draw_card(view: Vector2) -> void:
-	var rects := card_rects(view)
+	var rects := card_rects(view, card_recruit)
+	var labels := RECRUIT_CARD_LABELS if card_recruit else CARD_LABELS
 	var r0 := rects[0]
 	var panel := Rect2(r0.position - Vector2(4, 16), Vector2(rects[-1].end.x - r0.position.x + 8, r0.size.y + 20))
 	draw_rect(panel, Color(Palette.SHADOW, 0.85))
 	PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
 	PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])
 	for i in rects.size():
-		var label := CANCEL_LABEL if i == CardButton.DEMOLISH and card_cancel else CARD_LABELS[i]
-		var disabled := (i == CardButton.UPGRADE and not card_can_upgrade) \
-				or (i == CardButton.DEMOLISH and not card_middle_enabled)
-		_draw_button(rects[i], label, _pressed == Target.CARD + i, disabled)
+		var button := card_button(i, card_recruit)
+		var label := CANCEL_LABEL if button == CardButton.DEMOLISH and card_cancel else labels[i]
+		var disabled := (button == CardButton.UPGRADE and not card_can_upgrade) \
+				or (button == CardButton.DEMOLISH and not card_middle_enabled)
+		_draw_button(rects[i], label, _pressed == Target.CARD + button, disabled)
 
 
 ## Pasek budowy: widoczne rodzaje, strzałki, gdy część rodzajów jest poza paskiem, i Gotowe.
