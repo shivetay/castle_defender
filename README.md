@@ -19,7 +19,7 @@ zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2; reszta e
 z budynkami, jednostkami i bitwą. Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
 Do tego mechanizm towarów i łańcuchów produkcji z #88 (zbrojownia, przepisy wytwórców według notatki
 Klasy jednostek i produkcja) oraz 9 budynków wytwórców z #90, które produkują towary
-i wymagają zbadania swojej technologii.
+i wymagają zbadania swojej technologii. Doszły też budynki gospodarcze z #122: Pole lnu i Rybak.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -92,6 +92,10 @@ i wymagają zbadania swojej technologii.
   potem izba z bali albo desek, szersza od poziomu 4, z flagą na 5) i rekwizyt rozpoznawczy z prawej:
   skóra na ramie, kadź, tarcza, drzewca, sznury cięciw, łuk, beczka strzał, siodło, mielerz.
   Koszty i czasy są tymczasowe, w skali Chaty drwala.
+- Budynki gospodarcze (#122): Pole lnu (G20) daje len do zbrojowni dla Cięciwiarza i przeszywanic;
+  Rybak (G21) daje żywność i staje tylko tak, żeby bokiem stykał się z rzeką (`BuildGrid.touches_water`).
+  Pole to płaska grządka: siewki, rzędy, kwitnący len, snopki, strach na wróble. Rybak to warsztat z siecią,
+  rybami i łódką. Stawki są tymczasowe.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -226,7 +230,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 5 (#127): Pole lnu i Rybak (#122), Stajnia (#91), budynki rekrutacji (#119), klasy jednostek (#87),
+Etap 5 (#127): Stajnia (#91), budynki rekrutacji (#119), klasy jednostek (#87),
 rekrutacja (#89) i reszta efektów technologii z #12 razem z budynkami, które odblokowują.
 Z etapu 4 zostaje #81, który czeka na jednostki, bitwę i epokę II. Z #97 zostaje strona serwera
 (#21, #23, #25 w etapie 9). Kolejność wybiera właściciel.

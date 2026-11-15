@@ -18,7 +18,8 @@ func _init(map: TerrainMap) -> void:
 	cells.resize(map.size * map.size)
 
 
-## Czy cały prostokąt mieści się na mapie, leży na trawie i jest wolny.
+## Czy cały prostokąt mieści się na mapie, leży na trawie i jest wolny. Rybak (`kind` = FISHER)
+## musi też stykać się bokiem z wodą (rzeka z generatora terenu, #122).
 ## Brama (`kind` = GATE) może też stać na drodze, ale tylko w poprzek: pozioma brama na drodze
 ## biegnącej z północy na południe, pionowa na drodze ze wschodu na zachód.
 func can_place(rect: Rect2i, kind: int = -1) -> bool:
@@ -38,7 +39,23 @@ func can_place(rect: Rect2i, kind: int = -1) -> bool:
 			if gate_across == Vector2i.ZERO or terrain.get_tile(c) != TerrainMap.Tile.PATH \
 					or road_axis(c) != gate_across:
 				return false
+	if kind == BuildingTypes.Kind.FISHER and not touches_water(rect):
+		return false
 	return true
+
+
+## Czy któraś kratka stykająca się bokiem z prostokątem jest wodą (most się nie liczy).
+func touches_water(rect: Rect2i) -> bool:
+	for y in range(rect.position.y - 1, rect.end.y + 1):
+		for x in range(rect.position.x - 1, rect.end.x + 1):
+			var inside_x := x >= rect.position.x and x < rect.end.x
+			var inside_y := y >= rect.position.y and y < rect.end.y
+			if inside_x == inside_y:
+				continue  # środek prostokąta albo narożnik po skosie
+			var c := Vector2i(x, y)
+			if terrain.in_bounds(c) and terrain.get_tile(c) == TerrainMap.Tile.WATER:
+				return true
+	return false
 
 
 ## Kierunek drogi na kratce: Vector2i.DOWN (z północy na południe) albo Vector2i.RIGHT (ze wschodu

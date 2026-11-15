@@ -9,6 +9,7 @@ extends RefCounted
 enum Kind {
 	RAMPART, PALISADE, GATE, TOWER, LUMBER_HUT, MANOR,
 	HUNTER, TANNERY, LEATHERWORKER, POLEARM, BOWSTRING, BOWYER, FLETCHER, SADDLER, TAR_KILN,
+	FLAX_FIELD, FISHER,
 }
 ## Stan budynku zależny od wytrzymałości: cały, pęknięcia, wyrwa w blankach, gruz.
 enum State { INTACT, CRACKED, BREACHED, RUBBLE }
@@ -25,16 +26,18 @@ const W := 8
 
 const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wieża drewniana", "Chata drwala", "Dwór",
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
-		"Strzałmistrz", "Rymarz", "Smolarnia"]
+		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak"]
 ## Napisy na przyciskach paska budowy (56 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
-		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia"]
+		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
+		"Len", "Rybak"]
 const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
-		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2)]
-## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu). Wytwórcy idą w kolejności łańcucha.
+		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2)]
+## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu): umocnienia, gospodarka (#122),
+## potem wytwórcy w kolejności łańcucha.
 const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.LUMBER_HUT,
-		Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER,
+		Kind.FISHER, Kind.FLAX_FIELD, Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER,
 		Kind.FLETCHER, Kind.SADDLER, Kind.TAR_KILN]
 
 
