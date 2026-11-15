@@ -80,7 +80,7 @@ static func recruits(kind: int) -> bool:
 func _process(_delta: float) -> void:
 	if not visible:
 		return
-	var bounds := Hud.content_bounds(get_viewport_rect().size, Rect2())
+	var bounds := Hud.content_bounds(get_viewport_rect().size, Hud.safe_area_in_view(get_viewport()))
 	content_left = bounds.x
 	content_right = bounds.y
 	queue_redraw()
