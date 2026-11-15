@@ -289,3 +289,18 @@ func test_squad_picker_layout() -> bool:
 	assert_eq(RecruitPanel.target_at(rects[1].get_center(), VIEW, b.x, b.y, 13, 2), RecruitPanel.Target.SQUAD + 1,
 			"dotknięcie oddziału")
 	return true
+
+
+## Review PR 146: Taran i Kopacz (inżynieria) szkolą się w Koszarach, choć Koszary to budynek
+## klasy lekkiej; budynek bierze się z danych jednostki (UnitTypes.building), nie z klasy.
+func test_engineering_trains_in_barracks() -> bool:
+	var c := _castle()
+	var rec := Recruitment.new()
+	var args: Array = [c["grid"], c["e"], c["goods"], c["r"], 1, T0]
+	assert_eq(rec.callv("start", [U.DIGGER, c["barracks"], Recruitment.NEW_SQUAD] + args), Recruitment.Result.OK,
+			"Kopacz w Koszarach")
+	assert_eq(rec.callv("start", [U.RAM, c["barracks"], Recruitment.NEW_SQUAD] + args), Recruitment.Result.OK,
+			"Taran w Koszarach (epoka II)")
+	assert_eq(rec.callv("start", [U.DIGGER, c["range_a"], Recruitment.NEW_SQUAD] + args), Recruitment.Result.NO_BUILDING,
+			"Kopacz nie w Strzelnicy")
+	return true
