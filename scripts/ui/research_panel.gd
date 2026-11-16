@@ -3,7 +3,8 @@ extends Node2D
 ## Ekran drzewka badań (#12) na całą mapę, między górnym a dolnym paskiem HUD.
 ## U góry zakładki gałęzi (Atak, Obrona, Gospodarka, Użyteczne, Specjalne), pod nimi kafelki technologii
 ## z kodem. Kafelek pokazuje stan kolorem napisu: zbadana, w toku, dostępna, zablokowana
-## (brak wymaganej technologii albo późniejsza epoka); technologia kluczowa ★ ma znacznik w rogu.
+## (brak wymaganej technologii albo późniejsza epoka); zbadana ma zielony kafelek ze znaczkiem
+## w lewym rogu, a technologia kluczowa ★ czerwony znacznik w prawym.
 ## Dotknięcie kafelka pokazuje szczegóły: nazwę, stan, efekt, koszt i czas, wymagania, co technologia
 ## odblokowuje i z czym łączy się przez towary (TechLinks). Ramki na kafelkach: wymagane czerwone
 ## (zielone, gdy zbadane), odblokowywane złote, powiązane niebieskie. Badaj rozpoczyna badanie,
@@ -219,10 +220,11 @@ func _draw() -> void:
 
 
 func _draw_tile(r: Rect2, code: String, active: bool, frame: Color) -> void:
-	draw_rect(r, Palette.WOOD[2] if active else Palette.WOOD[1])
+	draw_rect(r, tile_color(research.is_done(code), active))
 	var col: Color = Palette.INK
 	if research.is_done(code):
-		col = Palette.VALID
+		# zbadana: zielony kafelek z jasnym kodem i znaczkiem w lewym górnym rogu
+		draw_rect(Rect2(r.position.x + 1, r.position.y + 1, 2, 2), Palette.VALID)
 	elif research.active == code:
 		col = Palette.THATCH[2]
 	elif TechTree.age(code) > age or not research.missing(code).is_empty():
@@ -236,6 +238,13 @@ func _draw_tile(r: Rect2, code: String, active: bool, frame: Color) -> void:
 		draw_rect(Rect2(r.position.x, r.end.y - 1, r.size.x, 1), frame)
 		draw_rect(Rect2(r.position.x, r.position.y, 1, r.size.y), frame)
 		draw_rect(Rect2(r.end.x - 1, r.position.y, 1, r.size.y), frame)
+
+
+## Tło kafelka: zbadane mają zielone (trawa), reszta drewniane; zaznaczony jest jaśniejszy.
+static func tile_color(done: bool, active: bool) -> Color:
+	if done:
+		return Palette.GRASS[2] if active else Palette.GRASS[0]
+	return Palette.WOOD[2] if active else Palette.WOOD[1]
 
 
 ## Linie szczegółów technologii [tekst, kolor, tekst z prawej], zawinięte do `width` px i najwyżej
@@ -260,6 +269,11 @@ static func detail_lines(r: Research, code: String, current_age: int, now: int, 
 	var linked := TechLinks.related(code)
 	if not linked.is_empty():
 		links.append([codes_text("Powiązane: ", linked, width), Palette.WATER[2], ""])
+	# brak miejsca: odblokowuje i powiązane w jednej linii, same kody
+	if head.size() + 1 + links.size() > DETAIL_LINES and not next.is_empty() and not linked.is_empty():
+		links.resize(1)
+		links.append([fit_text("Odblokowuje: %s; powiązane: %s" % [", ".join(PackedStringArray(next)),
+				", ".join(PackedStringArray(linked))], width), Palette.THATCH[2], ""])
 	var tail: Array = []
 	if r.is_busy() and r.active != code:
 		tail.append([fit_text("Trwa: %s %s, %s" % [r.active, TechTree.tech_name(r.active),

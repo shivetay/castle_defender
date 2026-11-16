@@ -55,3 +55,21 @@ func test_details_fit_on_narrow_screens() -> bool:
 	assert_true(ResearchPanel.DETAIL_Y + ResearchPanel.DETAIL_LINES * ResearchPanel.LINE_STEP
 			<= Hud.row_y(Vector2(320, 180)), "szczegóły nad przyciskami")
 	return true
+
+
+## Zbadane technologie wyróżniają się kafelkiem, nie tylko kolorem napisu.
+func test_researched_tiles_look_different() -> bool:
+	assert_true(ResearchPanel.tile_color(true, false) != ResearchPanel.tile_color(false, false), "zbadana inna niż niezbadana")
+	assert_true(ResearchPanel.tile_color(true, true) != ResearchPanel.tile_color(true, false), "zaznaczona zbadana jaśniejsza")
+	return true
+
+
+## Gdy brakuje linii, odblokowuje i powiązane łączą się w jedną (A41: A44 i A47).
+func test_links_merge_when_short_of_lines() -> bool:
+	var lines := ResearchPanel.detail_lines(Research.new(), "A41", 0, 0, 296)
+	var text := ""
+	for l: Array in lines:
+		text += (l[0] as String) + "|"
+	assert_true(text.contains("A44"), "odblokowuje A44 widać")
+	assert_true(text.contains("A47"), "powiązane A47 widać")
+	return true
