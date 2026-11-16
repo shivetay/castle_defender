@@ -153,6 +153,8 @@ i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
   Pięć zakładek gałęzi, kafelki z kodami (zbadana na zielono, w toku kolorem strzechy, zablokowana
   przygaszona, ★ z czerwonym znacznikiem w rogu), szczegóły zaznaczonej technologii z efektem, kosztem, czasem
   i wymaganiami (ramki na wymaganych kafelkach) oraz Badaj i Zamknij w miejscu Badania i Buduj.
+  Szczegóły pokazują też, co technologia odblokowuje (złota ramka) i z czym łączy się przez towary
+  (`TechLinks`, niebieska ramka; np. A39 Drzewcarz robi kopię dla Kopijnika z A22). Teksty zawijają się.
 - `scripts/world/ages.gd` (`Ages`): epoka i rok na pasku. Epoka I zaczyna się w 550 r., a rok rośnie
   z poziomem Dworu (550, 600, 650, 700, 750).
 
