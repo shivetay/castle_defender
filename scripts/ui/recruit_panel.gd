@@ -79,10 +79,15 @@ func units() -> Array[int]:
 	return units_for(building_kind)
 
 
+## Jednostki do szkolenia w budynku `kind` (wszystkie przy -1). Jednostki epoki I bez wymagań
+## (Chłop) stoją na początku listy, bo od nich zaczyna się gra.
 static func units_for(kind: int) -> Array[int]:
 	var out: Array[int] = []
-	for unit in UnitTypes.count():
+	for unit: int in UnitTypes.ERA_I_ONLY:
 		if kind < 0 or UnitTypes.building(unit) == kind:
+			out.append(unit)
+	for unit in UnitTypes.count():
+		if not UnitTypes.ERA_I_ONLY.has(unit) and (kind < 0 or UnitTypes.building(unit) == kind):
 			out.append(unit)
 	return out
 
@@ -169,6 +174,8 @@ static func state_text(r: Recruitment, unit: int, g: BuildGrid, res: Research, c
 	match r.availability(unit, g, res, current_age):
 		Recruitment.Result.WRONG_AGE:
 			return TechTree.age_label(UnitTypes.age(unit))
+		Recruitment.Result.ERA_PASSED:
+			return "tylko epoka I"
 		Recruitment.Result.NEEDS_TECH:
 			return "zbadaj %s" % UnitTypes.required_tech(unit)
 		Recruitment.Result.NO_BUILDING:

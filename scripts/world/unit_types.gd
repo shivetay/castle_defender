@@ -18,6 +18,7 @@ enum Unit {
 	AXE_WARRIOR, JAVELINEER, ARCHER, SHIELDBEARER, FIRE_RAISER, TRACKER, RIDER,
 	SPEARMAN, GAMBESON_WARRIOR, REFLEX_ARCHER, LANCER,
 	RAM, DIGGER,
+	PEASANT,
 }
 
 ## Klasa „inżynieria”: poza 5 klasami bojowymi.
@@ -44,11 +45,17 @@ const UNITS: Array = [
 			{G.HORSE: 1, G.SADDLE: 1, G.LANCE: 1}],
 	["Taran", ENGINEERING, 1, 300, 40, 1, 1, "A6", K.BARRACKS, {R.WOOD: 60}, {G.WET_HIDE: 2}],
 	["Kopacz", ENGINEERING, 0, 40, 2, 1, 3, "", K.BARRACKS, {R.FOOD: 10}, {}],
+	# Jednostka poziomu 0 (po teście na telefonie): bez technologii i bez towarów, tylko w epoce I.
+	# Statystyki TYMCZASOWE, decyzja właściciela.
+	["Chłop", C.LIGHT, 0, 40, 5, 1, 3, "", K.BARRACKS, {R.FOOD: 5}, {}],
 ]
+
+## Jednostki tylko na epokę I (pospolite ruszenie): od epoki II nie da się ich szkolić.
+const ERA_I_ONLY: Array[int] = [Unit.PEASANT]
 
 ## Krótkie nazwy na kafelkach ekranu Wojsko (szerokość ok. 60 px).
 const SHORT_NAMES: Array[String] = ["Topornik", "Oszczepnik", "Łucznik", "Tarczownik", "Podpalacz", "Tropiciel",
-		"Jeździec", "Włócznik", "Drużynnik", "Strz. refl.", "Kopijnik", "Taran", "Kopacz"]
+		"Jeździec", "Włócznik", "Drużynnik", "Strz. refl.", "Kopijnik", "Taran", "Kopacz", "Chłop"]
 
 ## Jednostki z drzewcem: ×2 obrażeń przeciw konnicy (Włócznik w notatce Jednostki).
 const ANTI_CAVALRY: Array[int] = [Unit.SPEARMAN]
