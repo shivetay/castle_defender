@@ -2,7 +2,7 @@ class_name BattleView
 extends Node2D
 ## Widok bitwy na mapie zamku (#15). Jednostki nie są ludzikami: jeden oddział to ikona klasy
 ## na ciemnym tle z ramką w kolorze strony, liczba żywych jednostek, nad ikoną pasek morale (#98)
-## i pod nią pasek zdrowia oddziału.
+## i pod nią pasek zdrowia oddziału. Pod odznakami efekty (#101): pociski, pył, ogień i dym.
 ## Symulacja liczy się w _physics_process w stałym kroku (BattleConfig.TICK_HZ), a rysowanie
 ## tylko czyta jej stan, więc widok nie wpływa na przebieg.
 
@@ -17,23 +17,39 @@ var battle: Battle
 var running := true
 ## Tempo bitwy (1, 2 albo 4): ile kroków symulacji na krok czasu; samouczek #16 pozwala tylko na to.
 var speed := 1
+var effects := BattleEffects.new()
+## Czas efektów w tickach: w trakcie bitwy to battle.tick, po jej końcu liczy dalej, żeby pociski
+## doleciały, a pył opadł, zamiast zastygnąć na ostatniej klatce.
+var fx_tick := 0
 var _acc_us := 0
 
 
+func _ready() -> void:
+	if battle != null:
+		battle.record_fx = true
+
+
 func _physics_process(delta: float) -> void:
-	if battle == null or not running or battle.winner != Battle.Winner.NONE:
+	if battle == null or not running:
 		return
 	_acc_us += int(delta * 1000000.0) * speed
 	var tick_us := 1000000 / BattleConfig.TICK_HZ
-	while _acc_us >= tick_us and battle.winner == Battle.Winner.NONE:
+	while _acc_us >= tick_us:
 		_acc_us -= tick_us
-		battle.step()
+		if battle.winner == Battle.Winner.NONE:
+			battle.step()
+			fx_tick = battle.tick
+		else:
+			fx_tick += 1
+	effects.add_events(battle.take_fx())
+	effects.prune(fx_tick)
 	queue_redraw()
 
 
 func _draw() -> void:
 	if battle == null:
 		return
+	effects.draw(self, battle, fx_tick)
 	var squads: Array[Dictionary] = []
 	var sides: Array[int] = []
 	for side: int in [Battle.Side.DEFENDER, Battle.Side.ATTACKER]:

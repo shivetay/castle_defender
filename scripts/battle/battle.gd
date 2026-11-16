@@ -16,6 +16,10 @@ enum Side { ATTACKER, DEFENDER }
 enum Winner { NONE = -1, ATTACKER, DEFENDER }
 ## ATTACKERS_ROUTED: żaden atakujący nie walczy, bo reszta się wycofała (#98).
 enum EndReason { NONE, DESTROYED, CAPTURED, ATTACKERS_DEAD, TIME_LIMIT, ATTACKERS_ROUTED }
+## Zdarzenia dla efektów bitwy (#101): strzał (od strzelca do celu), uderzenie w budynek, zawalenie.
+enum Fx { SHOT, HIT, COLLAPSE }
+## Strzelec „wieża” w zdarzeniu SHOT (wieża nie jest jednostką).
+const FX_TOWER := -1
 
 
 class Fighter:
@@ -88,6 +92,12 @@ var _ram_astar := AStarGrid2D.new()
 var _retreat_astar := AStarGrid2D.new()
 var _rng: BattleRng
 var _next_id := 1
+## Czy zapisywać zdarzenia dla efektów (#101). Włącza je tylko widok; symulacja ich nie czyta
+## i nie liczy w sumie kontrolnej, więc efekty nie zmieniają przebiegu. Bez widoku lista nie rośnie.
+var record_fx := false
+## Zdarzenie: [tick, Fx, jednostka albo FX_TOWER, x0, y0, x1, y1]. SHOT i HIT w podjednostkach
+## (HIT: x1, y1 to punkt trafienia), COLLAPSE w kratkach (pozycja i rozmiar budynku).
+var _fx: Array[PackedInt32Array] = []
 
 
 ## Bitwa na zamku z `grid`. `attackers` i `defenders`: {UnitTypes.Unit: liczba}; każdy rodzaj staje
@@ -178,6 +188,18 @@ func step() -> void:
 		if s.hp > 0 and s.burning > 0:
 			_burn(s)
 	_check_end()
+
+
+## Zdarzenia efektów od ostatniego odczytu (#101); lista się czyści.
+func take_fx() -> Array[PackedInt32Array]:
+	var out := _fx
+	_fx = []
+	return out
+
+
+func _record(kind: int, who: int, x0: int, y0: int, x1: int, y1: int) -> void:
+	if record_fx:
+		_fx.append(PackedInt32Array([tick, kind, who, x0, y0, x1, y1]))
 
 
 ## Jednostki strony, które jeszcze walczą: żywe i niewycofane.
@@ -541,6 +563,8 @@ func _strike_unit(f: Fighter, enemy: Fighter) -> void:
 	f.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS
 	_hurt(enemy, _roll(unit_damage(f, enemy)))
 	f.charged = true
+	if UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE:
+		_record(Fx.SHOT, f.unit, f.x, f.y, enemy.x, enemy.y)
 
 
 ## Obrażenia uderzenia `f` w `enemy` przed rozrzutem: przewagi klas (#87) i cechy jednostek (#15, #92).
@@ -584,6 +608,11 @@ func _strike_structure(f: Fighter, s: Structure) -> void:
 	f.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS
 	s.hp -= _roll(morale_damage(f, structure_damage(f.unit, s.kind)))
 	f.charged = true  # szarża to pierwsze uderzenie w ogóle, także w umocnienie
+	if record_fx:
+		var hx := clampi(f.x, s.rect.position.x * BattleConfig.SUB, s.rect.end.x * BattleConfig.SUB - 1)
+		var hy := clampi(f.y, s.rect.position.y * BattleConfig.SUB, s.rect.end.y * BattleConfig.SUB - 1)
+		var ranged := UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE
+		_record(Fx.SHOT if ranged else Fx.HIT, f.unit, f.x, f.y, hx, hy)
 	if f.unit == UnitTypes.Unit.FIRE_RAISER and BuildingTypes.is_wooden(s.kind):
 		s.burning = BattleConfig.FIRE_S * BattleConfig.TICK_HZ
 	if s.hp <= 0:
@@ -602,12 +631,25 @@ static func structure_damage(unit: int, kind: int) -> int:
 
 
 ## Płonący budynek traci FIRE_DAMAGE_PER_S punktów co sekundę, aż ogień zgaśnie albo budynek padnie.
+## Po FIRE_SPREAD_S sekundach ogień przechodzi na sąsiednie drewno.
 func _burn(s: Structure) -> void:
 	s.burning -= 1
+	if s.burning == (BattleConfig.FIRE_S - BattleConfig.FIRE_SPREAD_S) * BattleConfig.TICK_HZ:
+		_spread_fire(s)
 	if s.burning % BattleConfig.TICK_HZ == 0:
 		s.hp -= BattleConfig.FIRE_DAMAGE_PER_S
 		if s.hp <= 0:
 			_destroy(s)
+
+
+## Ogień z `s` zajmuje sąsiednie żywe drewniane budynki, które jeszcze nie płoną (#101).
+## Kolejność budynków jest stała, więc rozprzestrzenianie też.
+func _spread_fire(s: Structure) -> void:
+	var near := s.rect.grow(1)
+	for id: int in structures:
+		var o := structures[id]
+		if o != s and o.hp > 0 and o.burning == 0 and BuildingTypes.is_wooden(o.kind) and near.intersects(o.rect):
+			o.burning = BattleConfig.FIRE_S * BattleConfig.TICK_HZ
 
 
 ## Taran (#15): nie walczy z jednostkami, jedzie do najbliższej żywej bramy i tylko ją bije.
@@ -663,6 +705,7 @@ func _roll(base: int) -> int:
 func _destroy(s: Structure) -> void:
 	s.hp = 0
 	s.burning = 0
+	_record(Fx.COLLAPSE, s.kind, s.rect.position.x, s.rect.position.y, s.rect.size.x, s.rect.size.y)
 	for y in range(s.rect.position.y, s.rect.end.y):
 		for x in range(s.rect.position.x, s.rect.end.x):
 			_cells[y * _terrain.size + x] = 0
@@ -696,6 +739,7 @@ func _tower_act(s: Structure) -> void:
 	@warning_ignore("integer_division")
 	s.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS * 100 / maxi(1, tower_fire_percent)
 	_hurt(best, _roll(BattleConfig.TOWER_ATTACK))
+	_record(Fx.SHOT, FX_TOWER, cx, cy, best.x, best.y)
 
 
 func _check_end() -> void:
