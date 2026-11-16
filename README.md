@@ -4,7 +4,7 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 9 (#131).
 
-## Stan: etap 6 z planu MVP
+## Stan: etap 7 z planu MVP
 
 Numeracja etapów i zadań idzie za issues na GitHubie (ticket zbiorczy etapu ma etykietę `etap`).
 Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
@@ -181,6 +181,17 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   (`Battle.for_castle(..., research)` dolicza to samo),
   a `add_squad_morale` jest gotowe na śmierć generała (−20, #31/#32). W widoku bitwy nad ikoną
   oddziału jest złoty pasek morale (czerwony poniżej progu). Start i strata za poległego są tymczasowe.
+- Plan ataku i manewry (#18, `scripts/battle/attack_plan.gd`, notatka Manewry i zadania): każdy oddział
+  atakującego dostaje przed bitwą rozkaz i wykonuje go sam.
+  - **Manewry:** Szturm frontalny, Ostrzał z dystansu, Podpalenie, Oskrzydlenie, Szturm z drabinami
+    i Taranowanie bramy (dwa ostatnie od epoki II).
+  - **Parametry:** cel (kratka budynku), trasa (0–3 punkty), start (od razu, po X s, po zadaniu innego
+    oddziału) i odwrót (przy X% strat).
+  - **Limit:** plan mieści 3 oddziały w epoce I, do 8 w epoce VI.
+  - `Battle.set_plan()` przyjmuje plan; bez planu wszyscy idą jak dotąd, czyli Szturmem frontalnym
+    na donżon. Plan to liczby całkowite z zapisem do słownika, więc przebieg jest powtarzalny.
+  - Czas wspinaczki po drabinie, odsunięcie obejścia i promień osłony taranu są tymczasowe.
+  - Ekran planowania to #17.
 - Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
   - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
   - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
@@ -334,7 +345,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 6 (#128): po symulacji (#14), donżonie (#120), jednostkach w bitwie (#15, #92), morale (#98)
-i samouczku PvE (#16) zostaje z efektów bitwy (#101) gaszenie pożarów, które czeka na Studnię (#35)
-i zadania obrony (#20). Z etapów 4–5 zostają części
+Etap 7 (#129): po manewrach ataku (#18) zostaje ekran planowania ataku (#17). Z etapu 6 (#128) zostaje
+z efektów bitwy (#101) gaszenie pożarów, które czeka na Studnię (#35) i zadania obrony (#20). Z etapów 4–5
+zostają części
 zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).

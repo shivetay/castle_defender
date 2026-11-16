@@ -93,6 +93,14 @@ const FIRE_DAMAGE_PER_S := 4
 ## sekund (#101). Bez losowania, więc przebieg jest powtarzalny. TYMCZASOWE.
 const FIRE_SPREAD_S := 4
 
+## Plan ataku (#18). TYMCZASOWE.
+## Szturm z drabinami: tyle sekund przy murze, zanim jednostka zejdzie po drugiej stronie.
+const LADDER_CLIMB_S := 3
+## Oskrzydlenie bez własnej trasy: punkt obejścia co najmniej tyle kratek w bok od prostej drogi.
+const FLANK_MIN_CELLS := 6
+## Taranowanie bramy: osłona walczy tylko z wrogami w tylu kratkach od taranu, inaczej idzie przy nim.
+const ESCORT_RADIUS := 3
+
 ## Wieża drewniana strzela do atakujących (łucznicy na wieży). TYMCZASOWE.
 const TOWER_ATTACK := 6
 const TOWER_RANGE := 6
