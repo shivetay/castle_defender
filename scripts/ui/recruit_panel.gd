@@ -74,7 +74,7 @@ func close() -> void:
 	closed.emit()
 
 
-## Jednostki widoczne w bieżącym trybie, w kolejności UnitTypes.Unit.
+## Jednostki widoczne w bieżącym trybie, w kolejności units_for (Chłop i inne ERA_I_ONLY na początku).
 func units() -> Array[int]:
 	return units_for(building_kind)
 
