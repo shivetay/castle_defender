@@ -88,10 +88,12 @@ func test_construction_site_does_not_produce() -> bool:
 	return true
 
 
+## Krótkie nazwy mieszczą się na kafelkach panelu budowy także na zwężonym ekranie (240 px treści).
 func test_bar_labels_fit_buttons() -> bool:
+	var tile := BuildPanel.tile_rects(40, 280, 1)[0]
 	for kind in BuildingTypes.BUILD_BAR:
 		var label := BuildingTypes.SHORT_NAMES[kind]
-		assert_true(PixelFont.text_width(label) <= Hud.BUTTON_SIZE.x - 4, "„%s” mieści się na przycisku" % label)
+		assert_true(PixelFont.text_width(label) <= tile.size.x - 4, "„%s” mieści się na kafelku" % label)
 		var hint := "%s: zbadaj %s %s" % [BuildingTypes.NAMES[kind], "A38", TechTree.tech_name("A38")]
 		assert_true(PixelFont.text_width(hint) <= Hud.MESSAGE_MAX_WIDTH, "„%s” mieści się w pasku" % hint)
 	return true
