@@ -157,12 +157,11 @@ static func detail_lines(kind: int, r: Research, e: Economy, width: int) -> Arra
 	var state := state_text(kind, r)
 	out.append([ResearchPanel.fit_text(title, width - PixelFont.text_width(state) - 6), Palette.INK, state])
 	var cost := BuildConfig.cost(kind, 1)
-	var affordable := e == null or e.can_afford(cost)
+	var missing := Hud.missing_tokens(cost, e.amounts) if e != null else PackedStringArray()
 	var cost_line := "Koszt: %s, %s" % [Hud.cost_text(cost), Hud.format_time(BuildConfig.time_ms(kind, 1))]
-	if not affordable:
-		cost_line += ", brak surowców"
 	for l in PixelFont.wrap(cost_line, width, 2):
-		out.append([l, Palette.INK if affordable else Palette.ACCENT, ""])
+		# brakujące surowce na czerwono (4. pole: fragmenty do wyróżnienia)
+		out.append([l, Palette.INK, "", missing])
 	var tech := BuildConfig.required_tech(kind)
 	if not tech.is_empty():
 		var done := r != null and r.is_done(tech)
@@ -227,7 +226,8 @@ func _draw() -> void:
 				kinds[i] == selected or _pressed == Target.TILE + i, locked)
 	var y := float(DETAIL_Y)
 	for l: Array in detail_lines(selected, research, economy, int(content_right - content_left)):
-		PixelFont.draw_text(self, Vector2(content_left, y), l[0] as String, l[1] as Color)
+		var tokens: PackedStringArray = l[3] if l.size() > 3 else PackedStringArray()
+		Hud.draw_highlighted(self, Vector2(content_left, y), l[0] as String, l[1] as Color, tokens, Palette.ACCENT)
 		if not (l[2] as String).is_empty():
 			PixelFont.draw_right(self, content_right, y, l[2] as String, Palette.THATCH[2])
 		y += LINE_STEP

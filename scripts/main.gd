@@ -469,6 +469,8 @@ func _refresh_card() -> void:
 	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
+	hud.card_info_missing = PackedStringArray() if pending or level >= BuildingTypes.MAX_LEVEL \
+			else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
 

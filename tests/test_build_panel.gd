@@ -71,7 +71,9 @@ func test_details_show_cost_requirement_and_effect() -> bool:
 	assert_true(BuildPanel.describe(K.BOWYER).contains("poz. 3"), "łuk refleksyjny od poziomu 3")
 	e.amounts[EconomyConfig.Res.WOOD] = 0
 	var poor := BuildPanel.detail_lines(K.TOWER, r, e, 296)
-	assert_true((poor[1][0] as String).contains("brak surowców"), "brak surowców widać")
+	var wood := "%d Dr" % BuildConfig.cost(K.TOWER, 1)[EconomyConfig.Res.WOOD]
+	assert_true((poor[1][3] as PackedStringArray).has(wood), "brakujące drewno na czerwono")
+	assert_eq((poor[1][3] as PackedStringArray).size(), 1, "tylko drewno, reszty starcza")
 	return true
 
 
@@ -96,4 +98,14 @@ func test_closing_panel_keeps_the_mode() -> bool:
 	assert_true(in_build.begins_with(BuildingTypes.NAMES[K.TOWER]), "tryb budowy: komunikat o wieży")
 	assert_true(in_build.contains(Hud.cost_text(BuildConfig.cost(K.TOWER, 1))), "z kosztem")
 	assert_eq(main_script.closed_message(false, K.TOWER), main_script.DEFAULT_MESSAGE, "oglądanie: zwykły komunikat")
+	return true
+
+
+
+## Po teście na telefonie: brakujące surowce do budowy i ulepszenia są na czerwono.
+func test_missing_resource_tokens() -> bool:
+	var cost: Array[int] = [120, 40, 40, 0]
+	assert_eq(Hud.missing_tokens(cost, [500, 300, 300, 50] as Array[int]).size(), 0, "na wszystko stać")
+	assert_eq(Hud.missing_tokens(cost, [100, 300, 10, 50] as Array[int]), PackedStringArray(["120 Dr", "40 Ży"]), "brak drewna i żywności")
+	assert_true(Hud.cost_text(cost).contains("120 Dr") and Hud.cost_text(cost).contains("40 Ży"), "fragmenty pochodzą z tekstu kosztu")
 	return true
