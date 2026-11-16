@@ -2,17 +2,18 @@ class_name Hud
 extends Node2D
 ## Interfejs nad mapą (nie przesuwa się z kamerą), obsługiwany jednym kciukiem w poziomie.
 ## U góry: surowce z ikonami, a z prawej czas budowy (gdy kolejka pracuje) oraz epoka i rok.
-## U dołu pasek komunikatu z FPS. Nad nim, zależnie od trybu:
-## - oglądanie: w lewym rogu Oblężenie, obok niego Wojsko, w prawym Buduj, obok niego Badania;
-##   dotknięcie budynku otwiera kartę,
-## - budowa: przewijany w poziomie pasek budynków i Gotowe w prawym rogu; dotknięcia mapy
-##   tylko stawiają budynki, niczego nie zaznaczają,
-## - karta budynku: stan oraz Ulepsz, Rozbierz (Anuluj dla zlecenia), przy budynku rekrutacji Szkol,
-##   i Zamknij, wyśrodkowane.
-## Dotknięcia przycisków i przewijanie paska nie trafiają do kamery. Gdy otwarty jest ekran
+## U dołu pasek komunikatu z FPS. Przyciski trybów stoją w kolumnie przy prawej krawędzi, od góry
+## (po teście na telefonie: mniejsze i nie zasłaniają środka mapy):
+## - oglądanie: Buduj, Badania, Wojsko, Oblężenie; dotknięcie budynku otwiera kartę,
+## - budowa: Gotowe i Zmień (wraca do panelu budowy); dotknięcia mapy tylko stawiają wybrany
+##   budynek, niczego nie zaznaczają,
+## - karta budynku: stan, koszt ulepszenia oraz Ulepsz, Rozbierz (Anuluj dla zlecenia), przy budynku
+##   rekrutacji Szkol, i Zamknij, wyśrodkowane nad paskiem komunikatu.
+## Dotknięcia przycisków nie trafiają do kamery. Gdy otwarty jest ekran
 ## na całą mapę (np. drzewko badań, `overlay`), HUD rysuje tylko górny i dolny pasek.
 
-signal kind_selected(kind: int)
+signal build_pressed
+signal change_pressed
 signal build_mode_changed(building: bool)
 signal siege_pressed
 signal upgrade_pressed
@@ -23,24 +24,23 @@ signal army_pressed
 signal recruit_pressed
 
 enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE }
-## Cele dotyku: przyciski w rogach, przyciski karty i miejsca paska budowy (KIND + indeks w BUILD_BAR).
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CARD = 100, KIND = 200 }
+## Cele dotyku: przyciski kolumny i przyciski karty.
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, CARD = 100 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
 ## ok. 10 px logicznych przy samej górze i dole, a Android nie zgłasza ich jako strefy
 ## niebezpiecznej, więc margines jest stały; wycięcia (np. na kamerę) dokładają do niego.
 const CORNER_INSET := 12
-## Przycisk 56×22 px logicznych: przy typowym telefonie (skala 6, ok. 420 dpi) to ok. 50 dp
-## wysokości, czyli powyżej zalecanych 48 dp na cel dotyku.
-const BUTTON_SIZE := Vector2(56, 22)
-const BUTTON_GAP := 4
+## Przycisk 48×16 px logicznych (po teście na telefonie mniejszy niż wcześniejsze 56×22; decyzja
+## właściciela). Przy skali 6 to ok. 37 dp wysokości, mniej niż zalecane 48 dp, ale ponad
+## minimum 12×12 px z CLAUDE.md.
+const BUTTON_SIZE := Vector2(48, 16)
+const BUTTON_GAP := 3
 ## Miejsce na FPS z prawej strony paska komunikatu (do testów wydajności na telefonie).
 const FPS_WIDTH := 40
 ## Najszerszy komunikat, który mieści się w dolnym pasku obok FPS na ekranie 320 px.
 const MESSAGE_MAX_WIDTH := 320 - 2 * CORNER_INSET - FPS_WIDTH
-## Przesunięcie palca, od którego dotknięcie paska budynków staje się przewijaniem.
-const DRAG_THRESHOLD := 6
 const CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Zamknij"]
 ## Karta budynku rekrutacji ma czwarty przycisk Szkol przed Zamknij.
 const RECRUIT_CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Szkol", "Zamknij"]
@@ -49,6 +49,7 @@ const CANCEL_LABEL := "Anuluj"
 const SIEGE_LABEL := "Oblężenie"
 const BUILD_LABEL := "Buduj"
 const DONE_LABEL := "Gotowe"
+const CHANGE_LABEL := "Zmień"
 const RESEARCH_LABEL := "Badania"
 ## Komunikat w trybie oglądania i po dotknięciu wyszarzonego Oblężenia (bitwa dojdzie w #14).
 const VIEW_MESSAGE := "Dotknij budynku albo wybierz Buduj"
@@ -58,19 +59,17 @@ const RESOURCE_GAP := 7
 
 var economy: Economy
 var message := ""
-## Tryb budowy: pasek budynków zamiast przycisków Buduj i Oblężenie.
+## Tryb budowy: w kolumnie Gotowe i Zmień zamiast przycisków trybów.
 var building := false
-## Wybrany rodzaj budynku (BuildingTypes.Kind).
+## Wybrany rodzaj budynku (BuildingTypes.Kind), ustawia go panel budowy.
 var selected_kind := 0
-## Rodzaje, których nie da się jeszcze postawić (brak technologii); na pasku są wyszarzone.
-var locked_kinds: Array[int] = []
-## Pierwszy rodzaj widoczny na przewijanym pasku budynków.
-var first_kind := 0
 ## Karta budynku: widoczna, gdy card_title nie jest pusty.
 var card_title := ""
 ## Tekst z prawej strony karty, np. „poziom 2/5” albo „budowa 0:42”.
 var card_status := ""
 var card_can_upgrade := true
+## Linia pod tytułem karty: koszt i czas ulepszenia albo informacja o maksymalnym poziomie.
+var card_info := ""
 ## Środkowy przycisk: Rozbierz, a dla budynku w kolejce Anuluj.
 var card_cancel := false
 var card_middle_enabled := true
@@ -89,9 +88,6 @@ var content_right := 320.0 - CORNER_INSET
 var overlay := false
 
 var _pressed: int = Target.NONE
-var _drag_start := Vector2.ZERO
-var _drag_first := 0
-var _dragging := false
 
 
 func _process(_delta: float) -> void:
@@ -130,42 +126,26 @@ static func row_y(view: Vector2) -> float:
 	return view.y - BAR_H - BUTTON_SIZE.y - 4
 
 
-## Przycisk w lewym rogu (Oblężenie) i w prawym (Buduj albo Gotowe).
-static func left_corner_rect(view: Vector2, left: float) -> Rect2:
-	return Rect2(Vector2(left, row_y(view)), BUTTON_SIZE)
-
-
+## Prawy dolny róg (Zamknij na ekranach na całą mapę).
 static func right_corner_rect(view: Vector2, right: float) -> Rect2:
 	return Rect2(Vector2(right - BUTTON_SIZE.x, row_y(view)), BUTTON_SIZE)
 
 
-## Przycisk Wojsko na prawo od Oblężenia (w trybie oglądania).
-static func army_rect(view: Vector2, left: float) -> Rect2:
-	return Rect2(Vector2(left + BUTTON_SIZE.x + BUTTON_GAP, row_y(view)), BUTTON_SIZE)
-
-
-## Przycisk Badania na lewo od Buduj (w trybie oglądania).
+## Przycisk na lewo od prawego dolnego rogu (Badaj, Szkol, Postaw na ekranach na całą mapę).
 static func research_rect(view: Vector2, right: float) -> Rect2:
 	return Rect2(Vector2(right - 2 * BUTTON_SIZE.x - BUTTON_GAP, row_y(view)), BUTTON_SIZE)
 
 
-## Ile rodzajów budynków mieści się na pasku między lewą granicą a przyciskiem Gotowe.
-static func visible_kinds(left: float, right: float) -> int:
-	var area := right - BUTTON_SIZE.x - BUTTON_GAP - left
-	return clampi(int((area + BUTTON_GAP) / (BUTTON_SIZE.x + BUTTON_GAP)), 1, BuildingTypes.buildable_count())
+## Przycisk `i` kolumny przy prawej krawędzi, licząc od góry (pod górnym paskiem).
+static func column_rect(right: float, i: int) -> Rect2:
+	return Rect2(Vector2(right - BUTTON_SIZE.x, BAR_H + 4 + i * (BUTTON_SIZE.y + BUTTON_GAP)), BUTTON_SIZE)
 
 
-## Najdalsze przewinięcie paska (pierwszy widoczny rodzaj).
-static func max_first_kind(left: float, right: float) -> int:
-	return BuildingTypes.buildable_count() - visible_kinds(left, right)
-
-
-## Prostokąty widocznych miejsc na pasku budowy (od lewej). Miejsce `i` pokazuje rodzaj first_kind + i.
-static func kind_rects(view: Vector2, left: float, right: float) -> Array[Rect2]:
-	var out: Array[Rect2] = []
-	for i in visible_kinds(left, right):
-		out.append(Rect2(Vector2(left + i * (BUTTON_SIZE.x + BUTTON_GAP), row_y(view)), BUTTON_SIZE))
-	return out
+## Przyciski kolumny w danym trybie, od góry.
+static func column_targets(is_building: bool) -> Array[int]:
+	if is_building:
+		return [Target.DONE, Target.CHANGE] as Array[int]
+	return [Target.BUILD, Target.RESEARCH, Target.ARMY, Target.SIEGE] as Array[int]
 
 
 ## Przyciski karty budynku (Ulepsz, Rozbierz, [Szkol,] Zamknij), wyśrodkowane nad paskiem komunikatu.
@@ -187,22 +167,15 @@ static func card_button(i: int, recruit: bool) -> int:
 
 
 ## Cel pod punktem `p` w danym stanie interfejsu. Przyciski karty to CARD + CardButton.
-static func target_at(p: Vector2, view: Vector2, left: float, right: float, is_building: bool, card_open: bool,
-		first: int, recruit_card: bool = false) -> int:
+static func target_at(p: Vector2, view: Vector2, right: float, is_building: bool, card_open: bool,
+		recruit_card: bool = false) -> int:
 	if card_open:
 		var i := hit(card_rects(view, recruit_card), p)
 		return Target.CARD + card_button(i, recruit_card) if i >= 0 else Target.NONE
-	if right_corner_rect(view, right).has_point(p):
-		return Target.DONE if is_building else Target.BUILD
-	if is_building:
-		var k := hit(kind_rects(view, left, right), p)
-		return Target.KIND + first + k if k >= 0 else Target.NONE
-	if left_corner_rect(view, left).has_point(p):
-		return Target.SIEGE
-	if research_rect(view, right).has_point(p):
-		return Target.RESEARCH
-	if army_rect(view, left).has_point(p):
-		return Target.ARMY
+	var targets := column_targets(is_building)
+	for i in targets.size():
+		if column_rect(right, i).has_point(p):
+			return targets[i]
 	return Target.NONE
 
 
@@ -298,59 +271,32 @@ static func top_right_text(queue: String, age: String, research: String = "") ->
 func _target_at(p: Vector2) -> int:
 	if overlay:
 		return Target.NONE
-	return target_at(p, get_viewport_rect().size, content_left, content_right, building, is_card_open(), first_kind,
-			card_recruit)
+	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit)
 
 
 func _input(event: InputEvent) -> void:
-	var drag := event as InputEventScreenDrag
-	if drag != null:
-		_on_drag(drag)
-		return
 	var touch := event as InputEventScreenTouch
 	if touch == null:
 		return
 	var t := _target_at(touch.position)
 	if touch.pressed:
 		_pressed = t
-		_dragging = false
-		_drag_start = touch.position
-		_drag_first = first_kind
 		if t != Target.NONE:
 			get_viewport().set_input_as_handled()
 		return
-	# przycisk działa, gdy palec puszczono na tym samym przycisku, na którym go położono,
-	# i nie był to ruch przewijania paska
+	# przycisk działa, gdy palec puszczono na tym samym przycisku, na którym go położono
 	var was := _pressed
-	var dragged := _dragging
 	_pressed = Target.NONE
-	_dragging = false
 	if was == Target.NONE:
 		return
 	get_viewport().set_input_as_handled()
-	if dragged or t != was:
+	if t != was:
 		return
 	_activate(was)
 
 
-## Przewijanie paska budynków: przesunięcie palca o szerokość przycisku przesuwa pasek o jeden rodzaj.
-func _on_drag(drag: InputEventScreenDrag) -> void:
-	if not building or _pressed < Target.KIND:
-		return
-	get_viewport().set_input_as_handled()
-	var dx := drag.position.x - _drag_start.x
-	if not _dragging and absf(dx) < DRAG_THRESHOLD:
-		return
-	_dragging = true
-	var step := int(roundf(-dx / (BUTTON_SIZE.x + BUTTON_GAP)))
-	first_kind = clampi(_drag_first + step, 0, max_first_kind(content_left, content_right))
-
-
 func _activate(t: int) -> void:
-	if t >= Target.KIND:
-		selected_kind = BuildingTypes.bar_kind(t - Target.KIND)
-		kind_selected.emit(selected_kind)
-	elif t >= Target.CARD:
+	if t >= Target.CARD:
 		match t - Target.CARD:
 			CardButton.UPGRADE:
 				upgrade_pressed.emit()
@@ -361,8 +307,9 @@ func _activate(t: int) -> void:
 			CardButton.CLOSE:
 				card_closed.emit()
 	elif t == Target.BUILD:
-		set_building(true)
-		kind_selected.emit(selected_kind)
+		build_pressed.emit()
+	elif t == Target.CHANGE:
+		change_pressed.emit()
 	elif t == Target.DONE:
 		set_building(false)
 	elif t == Target.SIEGE:
@@ -386,15 +333,13 @@ func _draw() -> void:
 		pass
 	elif is_card_open():
 		_draw_card(view)
-	elif building:
-		_draw_build_bar(view)
 	else:
 		# Oblężenie jest wyszarzone tylko wizualnie: dotknięcie emituje siege_pressed, a gra pokazuje
 		# SIEGE_LATER_MESSAGE. Przy włączaniu bitwy (#14, #16) zdejmij wyszarzenie razem z komunikatem.
-		_draw_button(left_corner_rect(view, content_left), SIEGE_LABEL, _pressed == Target.SIEGE, true)
-		_draw_button(right_corner_rect(view, content_right), BUILD_LABEL, _pressed == Target.BUILD, false)
-		_draw_button(research_rect(view, content_right), RESEARCH_LABEL, _pressed == Target.RESEARCH, false)
-		_draw_button(army_rect(view, content_left), ARMY_LABEL, _pressed == Target.ARMY, false)
+		var targets := column_targets(building)
+		for i in targets.size():
+			_draw_button(column_rect(content_right, i), column_label(targets[i]), _pressed == targets[i],
+					targets[i] == Target.SIEGE)
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
 	PixelFont.draw_text(self, Vector2(content_left, view.y - BAR_H + 1), message, Palette.INK)
@@ -402,44 +347,40 @@ func _draw() -> void:
 			Palette.WOOD[3])
 
 
+static func column_label(t: int) -> String:
+	match t:
+		Target.BUILD:
+			return BUILD_LABEL
+		Target.RESEARCH:
+			return RESEARCH_LABEL
+		Target.ARMY:
+			return ARMY_LABEL
+		Target.SIEGE:
+			return SIEGE_LABEL
+		Target.DONE:
+			return DONE_LABEL
+		Target.CHANGE:
+			return CHANGE_LABEL
+	return ""
+
+
 func _draw_card(view: Vector2) -> void:
 	var rects := card_rects(view, card_recruit)
 	var labels := RECRUIT_CARD_LABELS if card_recruit else CARD_LABELS
 	var r0 := rects[0]
-	var panel := Rect2(r0.position - Vector2(4, 16), Vector2(rects[-1].end.x - r0.position.x + 8, r0.size.y + 20))
+	var panel := Rect2(r0.position - Vector2(4, 26), Vector2(rects[-1].end.x - r0.position.x + 8, r0.size.y + 30))
 	draw_rect(panel, Color(Palette.SHADOW, 0.85))
 	PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
 	PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])
+	var info_width := int(panel.size.x - 8)
+	PixelFont.draw_text(self, panel.position + Vector2(4, 13), ResearchPanel.fit_text(card_info, info_width),
+			Palette.WOOD[3])
 	for i in rects.size():
 		var button := card_button(i, card_recruit)
 		var label := CANCEL_LABEL if button == CardButton.DEMOLISH and card_cancel else labels[i]
 		var disabled := (button == CardButton.UPGRADE and not card_can_upgrade) \
 				or (button == CardButton.DEMOLISH and not card_middle_enabled)
 		_draw_button(rects[i], label, _pressed == Target.CARD + button, disabled)
-
-
-## Pasek budowy: widoczne rodzaje, strzałki, gdy część rodzajów jest poza paskiem, i Gotowe.
-func _draw_build_bar(view: Vector2) -> void:
-	var rects := kind_rects(view, content_left, content_right)
-	for i in rects.size():
-		var slot := first_kind + i
-		var kind := BuildingTypes.bar_kind(slot)
-		var active := kind == selected_kind or _pressed == Target.KIND + slot
-		_draw_button(rects[i], BuildingTypes.SHORT_NAMES[kind], active, locked_kinds.has(kind))
-	var y := row_y(view) + BUTTON_SIZE.y / 2.0 - 2.0
-	if first_kind > 0:
-		_draw_arrow(Vector2(rects[0].position.x - 3, y), -1)
-	if first_kind < max_first_kind(content_left, content_right):
-		_draw_arrow(Vector2(rects[-1].end.x + 1, y), 1)
-	_draw_button(right_corner_rect(view, content_right), DONE_LABEL, _pressed == Target.DONE, false)
-
-
-## Mała strzałka 2×5 px wskazująca, że pasek można przewinąć w stronę `dir`.
-func _draw_arrow(at: Vector2, dir: int) -> void:
-	for i in 3:
-		var h := 5 - 2 * i
-		var x := at.x + (i if dir > 0 else 2 - i)
-		draw_rect(Rect2(x, at.y + i, 1, h), Palette.INK)
 
 
 ## Ikona 5×5 na wysokości wielkich liter, obok liczba. Pełny magazyn świeci kolorem strzechy.
