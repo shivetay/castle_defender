@@ -148,10 +148,15 @@ i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
 - `scripts/ui/hud.gd`: interfejs na jeden kciuk w poziomie. Treść trzyma się 12 px od bocznych krawędzi
   (zaokrąglone narożniki), a wycięcia ekranu odsuwają ją dalej. U góry surowce z ikonami (pełny magazyn
   ma żółtą liczbę), a z prawej czas budowy z liczbą czekających zleceń oraz epoka i rok. U dołu komunikat
-  i FPS. Tryb oglądania: Oblężenie w lewym rogu (wyszarzone, dojdzie z bitwą), Buduj w prawym, dotknięcie
-  budynku otwiera kartę (poziom albo czas budowy; Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy:
-  przewijany w poziomie pasek budynków (koszt i czas w komunikacie) i Gotowe; dotknięcia mapy tylko
-  stawiają, niczego nie zaznaczają. Przyciski 56×22 px (ok. 50 dp na typowym telefonie).
+  i FPS. Przyciski trybów stoją w kolumnie przy prawej krawędzi, od góry (48×16 px, po teście na
+  telefonie mniejsze niż dawne 56×22). Tryb oglądania: Buduj, Badania, Wojsko, Oblężenie (wyszarzone,
+  dojdzie z bitwą); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
+  Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
+  wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
+- `scripts/ui/build_panel.gd` (`BuildPanel`): panel pod Buduj, w układzie jak drzewko i Wojsko. Zakładki
+  kategorii (Umocnienia, Gospodarka, Wytwórcy, Wojsko; `BuildingTypes.CATEGORIES`), kafelki budynków
+  (zablokowane przygaszone) i szczegóły: rozmiar, stan, koszt i czas, wymagana technologia oraz co budynek
+  daje (produkcja, towary wytwórcy, szkolone jednostki). Postaw włącza stawianie, Zamknij wraca do mapy.
 - `scripts/ui/research_panel.gd` (`ResearchPanel`): ekran drzewka pod przyciskiem Badania (obok Buduj).
   Pięć zakładek gałęzi, kafelki z kodami (zbadana na zielono, w toku kolorem strzechy, zablokowana
   przygaszona, ★ z czerwonym znacznikiem w rogu), szczegóły zaznaczonej technologii z efektem, kosztem, czasem
@@ -256,7 +261,7 @@ scenes/          sceny Godota
 scripts/         logika gry
 scripts/gfx/     rysowanie proceduralne i palety
 scripts/world/   dane świata: teren, siatka budowy
-scripts/camera/  kamera z gestami
+scripts/camera/  kamera z gestami (zoom 0,5×/1×/2×/4×)
 scripts/ui/      HUD
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
 tools/           narzędzia (version.py, changelog.py i ich testy)
