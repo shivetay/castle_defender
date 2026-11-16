@@ -7,16 +7,18 @@ extends RefCounted
 ## pełnego .tmp (awaria między zmianami nazw) i kopii. Nieczytelny plik główny jest odkładany
 ## obok (.broken), żeby następny zapis nie zrobił z niego kopii. Zapis z nowszej wersji gry
 ## też nie jest nadpisywany, tylko odkładany, a gra zaczyna od nowa.
-## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, towary, kolejkę, badania i armię.
+## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, towary, kolejkę, badania, armię,
+## plany ataku i ustawienia obrony.
 
-const FORMAT_VERSION := 6
+const FORMAT_VERSION := 7
 const PATH := "user://castle.json"
 
 ## Migracje: wersja → funkcja przerabiająca słownik tej wersji na wersję o 1 wyższą.
 ## Przy zmianie formatu podnieś FORMAT_VERSION i dopisz tu migrację z poprzedniej wersji.
 ## Wersja 2 dodała badania (#12), wersja 3 towary w zbrojowni (#88), wersja 4 armię i szkolenie (#89),
-## wersja 5 postęp samouczka PvE (#16), wersja 6 plan ataku i zdobyte zamki (#17).
-static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3, 4: _from_v4, 5: _from_v5}
+## wersja 5 postęp samouczka PvE (#16), wersja 6 plan ataku i zdobyte zamki (#17), wersja 7 ustawienia
+## obrony (#19).
+static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3, 4: _from_v4, 5: _from_v5, 6: _from_v6}
 
 ## Stan gry odczytany z pliku.
 class State:
@@ -27,6 +29,8 @@ class State:
 	## Zapisany plan ataku (#17) i ile zamków-celów gracz już zdobył.
 	var attack_plan := AttackPlan.new()
 	var bots_beaten := 0
+	## Ustawienia obrony (#19): posterunki oddziałów załogi.
+	var defense := DefensePlan.new()
 	var grid: BuildGrid
 	var economy: Economy
 	var queue: BuildQueue
@@ -40,7 +44,7 @@ class State:
 ## Słownik zapisu dla stanu gry.
 static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: BuildQueue,
 		research: Research = null, goods: Goods = null, recruitment: Recruitment = null, pve_cleared: int = 0,
-		attack_plan: AttackPlan = null, bots_beaten: int = 0) -> Dictionary:
+		attack_plan: AttackPlan = null, bots_beaten: int = 0, defense: DefensePlan = null) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -52,6 +56,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		"recruitment": recruitment.save_data() if recruitment != null else {},
 		"pve": {"cleared": pve_cleared},
 		"attack": {"plan": attack_plan.to_dict() if attack_plan != null else {}, "beaten": bots_beaten},
+		"defense": defense.to_dict() if defense != null else {},
 	}
 
 
@@ -78,6 +83,8 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	var attack := d.get("attack", {}) as Dictionary
 	s.attack_plan = AttackPlan.from_dict(attack.get("plan", {}) as Dictionary)
 	s.bots_beaten = maxi(0, int(attack.get("beaten", 0)))
+	s.defense = DefensePlan.from_dict(d.get("defense", {}) as Dictionary)
+	s.defense.prune(s.recruitment)
 	return s
 
 
@@ -108,6 +115,12 @@ static func _from_v4(d: Dictionary) -> Dictionary:
 ## Wersja 5 → 6: zapis sprzed planu ataku dostaje pusty plan i zero zdobytych zamków.
 static func _from_v5(d: Dictionary) -> Dictionary:
 	d["attack"] = {"plan": {}, "beaten": 0}
+	return d
+
+
+## Wersja 6 → 7: zapis sprzed ustawień obrony: cała załoga stoi przy donżonie.
+static func _from_v6(d: Dictionary) -> Dictionary:
+	d["defense"] = {}
 	return d
 
 

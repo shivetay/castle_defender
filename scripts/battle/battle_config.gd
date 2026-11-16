@@ -46,6 +46,9 @@ const KIND_HP_PERCENT := {
 }
 ## Zdobycie donżonu (#120): piechota atakującego stoi przy nim tyle sekund bez obrońców w pobliżu.
 const CAPTURE_S := 10
+## Ile kolejnych kratek sprawdza rozstawienie, gdy kratkę zajęła jednostka z sąsiedniego
+## posterunku obrony (#19); potem jednostka staje na niej mimo to (mapa bez wolnego miejsca).
+const SPAWN_RETRIES := 64
 ## Jak blisko donżonu (w kratkach od jego krawędzi) liczy się zajmowanie i obrona.
 const CAPTURE_RANGE := 1
 ## Morale oddziałów (#98), liczby całkowite 0–100. Z notatki Drzewko technologiczne: poniżej 30 oddział

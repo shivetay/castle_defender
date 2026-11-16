@@ -138,9 +138,11 @@ static func _dict_to_squads(army: Dictionary) -> Array:
 
 
 ## Bitwa z oddziałami (#89, #15): `attackers` i `defenders` to listy oddziałów [rodzaj, liczba]
-## (np. z Recruitment.battle_squads()), w kolejności ustawienia.
+## (np. z Recruitment.battle_squads()), w kolejności ustawienia. `defender_posts` (#19): kratka
+## posterunku każdego oddziału obrońcy w tej samej kolejności (DefensePlan.battle_posts); oddział
+## bez posterunku (NO_POST, poza mapą albo poza listą) staje przy celu.
 static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, defenders: Array, spawn: Vector2i,
-		seed_value: int) -> Battle:
+		seed_value: int, defender_posts: Array[Vector2i] = []) -> Battle:
 	var b := Battle.new()
 	b._rng = BattleRng.new(seed_value)
 	b._terrain = grid.terrain
@@ -160,7 +162,12 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 	b._spawn = spawn
 	b._spawn_squads(attackers, Side.ATTACKER, spawn)
 	var center := grid.buildings[objective_id].get_center() if grid.buildings.has(objective_id) else Vector2i(spawn)
-	b._spawn_squads(defenders, Side.DEFENDER, Vector2i(center) + Vector2i(0, 2))
+	var home := Vector2i(center) + Vector2i(0, 2)
+	var anchors: Array[Vector2i] = []
+	for i in defenders.size():
+		var post := defender_posts[i] if i < defender_posts.size() else DefensePlan.NO_POST
+		anchors.append(post if b._terrain.in_bounds(post) else home)
+	b._spawn_squads(defenders, Side.DEFENDER, home, anchors)
 	return b
 
 
@@ -175,9 +182,10 @@ static func for_castle(grid: BuildGrid, attackers: Dictionary, defenders: Dictio
 
 
 ## for_castle z oddziałami [rodzaj, liczba] (fale PvE #16 i armia z rekrutacji).
+## `defender_posts`: posterunki oddziałów obrońcy z ustawień obrony (#19), jak w create_squads.
 static func for_castle_squads(grid: BuildGrid, attackers: Array, defenders: Array, spawn: Vector2i,
-		seed_value: int, research: Research = null) -> Battle:
-	var b := create_squads(grid, grid.keep_id(), attackers, defenders, spawn, seed_value)
+		seed_value: int, research: Research = null, defender_posts: Array[Vector2i] = []) -> Battle:
+	var b := create_squads(grid, grid.keep_id(), attackers, defenders, spawn, seed_value, defender_posts)
 	b.add_side_morale(Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	return b
 
@@ -397,7 +405,11 @@ func _setup_astar() -> void:
 				_retreat_astar.set_point_solid(c, true)
 
 
-func _spawn_squads(squads: Array, side: int, at: Vector2i) -> void:
+## Stawia oddziały strony `side` na wolnych kratkach wokół `at`, a oddział `i` wokół `anchors[i]`,
+## gdy lista go obejmuje (posterunki obrony, #19). Każdy punkt zaczepienia wypełnia się od środka
+## w stałej kolejności, a kratka zajęta przez wcześniejszą jednostkę jest pomijana, więc dwa
+## sąsiednie posterunki nie stawiają ludzi na sobie. Z jednym punktem wynik jest taki jak dawniej.
+func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector2i] = []) -> void:
 	var units: Array[int] = []
 	var squad_of: Array[int] = []
 	for i in squads.size():
@@ -405,7 +417,9 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i) -> void:
 		for n in int(sq[1]):
 			units.append(int(sq[0]))
 			squad_of.append(i + 1)
-	var placed := 0
+	# punkt zaczepienia → ile kratek wokół niego już sprawdzono
+	var placed: Dictionary[Vector2i, int] = {}
+	var taken: Dictionary[Vector2i, bool] = {}
 	for k in units.size():
 		var unit := units[k]
 		var f := Fighter.new()
@@ -415,8 +429,16 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i) -> void:
 		f.unit = unit
 		f.side = side
 		f.hp = UnitTypes.hp(unit)
-		var cell := _free_cell_near(at, placed)
-		placed += 1
+		var anchor := anchors[f.squad - 1] if f.squad - 1 < anchors.size() else at
+		var cell := _free_cell_near(anchor, int(placed.get(anchor, 0)))
+		placed[anchor] = int(placed.get(anchor, 0)) + 1
+		# zajęte przez sąsiedni posterunek: kolejne kratki pierścieni (z limitem na pełną mapę)
+		var tries := 0
+		while taken.has(cell) and tries < BattleConfig.SPAWN_RETRIES:
+			cell = _free_cell_near(anchor, int(placed[anchor]))
+			placed[anchor] = int(placed[anchor]) + 1
+			tries += 1
+		taken[cell] = true
 		f.x = cell.x * BattleConfig.SUB + BattleConfig.SUB / 2
 		f.y = cell.y * BattleConfig.SUB + BattleConfig.SUB / 2
 		f.post = cell
