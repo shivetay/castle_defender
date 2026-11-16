@@ -47,6 +47,9 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   oraz z bramą i wieżą, więc mieszana linia nie ma szpar. Przy wybranym wale lub palisadzie dotknięcie
   kratki obok luki w linii (np. nad nią, gdzie widać wierzch palisady) albo sąsiedniego odcinka do 3 px od
   krawędzi luki stawia odcinek w luce zamiast zaznaczać sąsiada.
+  Brama może też stanąć na ciągłej linii wału albo palisady: zastępuje odcinki pod sobą (bez zwrotu
+  kosztu), a linia łączy się z nią po obu stronach. Luka w linii ma pierwszeństwo, a odcinki w budowie
+  i inne budynki zostają.
   Dwór stoi od startu na środku mapy, jest jeden, nie ma go na pasku budowy i nie da się go rozebrać.
   `state_for_hp(hp, max_hp)` wybiera stan z procentu wytrzymałości: od 76% cały, od 41% pęknięcia,
   od 1% wyrwa, 0 to gruz.

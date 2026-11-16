@@ -389,3 +389,41 @@ func test_manor_is_not_on_toolbar() -> bool:
 	assert_eq(in_panel, BuildingTypes.buildable_count(), "panel budowy pokazuje wszystkie rodzaje z paska, bez Dworu")
 	assert_eq(BuildingTypes.category(BuildingTypes.Kind.MANOR), -1, "Dworu nie ma w panelu")
 	return true
+
+
+## Po teście na telefonie: brama może stanąć na ciągłej linii wału albo palisady i zastępuje
+## odcinki pod sobą; linia łączy się z bramą po obu stronach.
+func test_gate_replaces_wall_segments() -> bool:
+	for wall: int in [BuildingTypes.Kind.PALISADE, BuildingTypes.Kind.RAMPART]:
+		var grid := BuildGrid.new(TerrainMap.generate(1337))
+		var o := _free_area(grid, Vector2i(7, 3))
+		var c := o + Vector2i(0, 1)
+		for dx in 7:
+			grid.place_kind(c + Vector2i(dx, 0), wall)
+		var before := grid.buildings.size()
+		var gate := grid.place_kind(c + Vector2i(3, 0), BuildingTypes.Kind.GATE)
+		assert_true(gate > 0, "brama na linii (%s)" % BuildingTypes.NAMES[wall])
+		assert_eq(grid.buildings[gate], Rect2i(c + Vector2i(2, 0), Vector2i(3, 1)), "pozioma, środek na dotkniętej kratce")
+		assert_eq(grid.buildings.size(), before - 3 + 1, "trzy odcinki zastąpione bramą")
+		assert_eq(grid.wall_mask(grid.building_at(c + Vector2i(1, 0))) & BuildingTypes.E, BuildingTypes.E, "linia łączy się z bramą od zachodu")
+		assert_eq(grid.wall_mask(grid.building_at(c + Vector2i(5, 0))) & BuildingTypes.W, BuildingTypes.W, "i od wschodu")
+	return true
+
+
+## Brama nie zastępuje innych budynków ani odcinków w budowie.
+func test_gate_does_not_replace_other_buildings_or_pending_walls() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var o := _free_area(grid, Vector2i(7, 3))
+	var c := o + Vector2i(0, 1)
+	grid.place_kind(c + Vector2i(2, 0), BuildingTypes.Kind.LUMBER_HUT)
+	assert_eq(grid.placement_for(c + Vector2i(3, 0), BuildingTypes.Kind.GATE).intersects(grid.buildings[grid.building_at(c + Vector2i(2, 0))]),
+			false, "chaty nie zastępuje")
+	var grid2 := BuildGrid.new(TerrainMap.generate(1337))
+	var e := Economy.new(0)
+	var q := BuildQueue.new()
+	var c2 := _free_area(grid2, Vector2i(7, 3)) + Vector2i(0, 1)
+	for dx in 2:
+		assert_eq(q.order_build(grid2, e, c2 + Vector2i(dx, 0), BuildingTypes.Kind.PALISADE, 0), BuildQueue.Result.OK, "palisada w kolejce")
+	assert_eq(q.order_build(grid2, e, c2 + Vector2i(1, 0), BuildingTypes.Kind.GATE, 0), BuildQueue.Result.NO_PLACE,
+			"odcinki w budowie zostają")
+	return true

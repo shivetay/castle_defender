@@ -21,7 +21,8 @@ func _init(map: TerrainMap) -> void:
 ## Czy cały prostokąt mieści się na mapie, leży na trawie i jest wolny. Rybak (`kind` = FISHER)
 ## musi też stykać się bokiem z wodą (rzeka z generatora terenu, #122).
 ## Brama (`kind` = GATE) może też stać na drodze, ale tylko w poprzek: pozioma brama na drodze
-## biegnącej z północy na południe, pionowa na drodze ze wschodu na zachód.
+## biegnącej z północy na południe, pionowa na drodze ze wschodu na zachód. Brama może też stanąć
+## na odcinkach wału i palisady (po teście na telefonie): place() je wtedy zastępuje.
 func can_place(rect: Rect2i, kind: int = -1) -> bool:
 	if rect.size.x <= 0 or rect.size.y <= 0:
 		return false
@@ -32,7 +33,12 @@ func can_place(rect: Rect2i, kind: int = -1) -> bool:
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):
 			var c := Vector2i(x, y)
-			if not terrain.in_bounds(c) or cells[y * terrain.size + x] != 0:
+			if not terrain.in_bounds(c):
+				return false
+			var occupant := cells[y * terrain.size + x]
+			if occupant != 0:
+				if kind == BuildingTypes.Kind.GATE and BuildingTypes.is_wall(kinds.get(occupant, -1)):
+					continue
 				return false
 			if terrain.is_buildable(c):
 				continue
@@ -81,6 +87,9 @@ func _is_road(c: Vector2i) -> bool:
 func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int = 1) -> int:
 	if not can_place(rect, kind):
 		return 0
+	if kind == BuildingTypes.Kind.GATE:
+		for wall in walls_under(rect):
+			remove(wall)
 	var id := _next_id
 	_next_id += 1
 	buildings[id] = rect
@@ -95,15 +104,19 @@ func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int =
 ## żeby dotknięta kratka była jej końcem. Staje pionowo (1×3), gdy obok jest pionowa palisada.
 ## Dotknięta droga ustawia bramę w poprzek drogi, z drogą pośrodku.
 func place_kind(c: Vector2i, kind: int, level: int = 1) -> int:
-	for rect in placement_candidates(c, kind):
-		if can_place(rect, kind):
-			return place(rect, kind, level)
-	return 0
+	var rect := placement_for(c, kind)
+	return place(rect, kind, level) if rect.has_area() else 0
 
 
 ## Pierwsze miejsce, w które place_kind() postawiłby budynek dla kratki `c`, albo pusty prostokąt.
+## Brama najpierw szuka miejsca bez zastępowania umocnień (luka w linii), a dopiero potem stawia
+## się na odcinkach wału albo palisady.
 func placement_for(c: Vector2i, kind: int) -> Rect2i:
-	for rect in placement_candidates(c, kind):
+	var candidates := placement_candidates(c, kind)
+	for rect in candidates:
+		if can_place(rect, kind) and (kind != BuildingTypes.Kind.GATE or walls_under(rect).is_empty()):
+			return rect
+	for rect in candidates:
 		if can_place(rect, kind):
 			return rect
 	return Rect2i()
@@ -257,7 +270,18 @@ func is_vertical(id: int) -> bool:
 
 func _is_palisade(c: Vector2i) -> bool:
 	var id := building_at(c)
-	return id != 0 and kinds[id] == BuildingTypes.Kind.PALISADE
+	return id != 0 and BuildingTypes.is_wall(kinds[id])
+
+
+## Odcinki wału i palisady pod prostokątem (brama w linii umocnień je zastępuje).
+func walls_under(rect: Rect2i) -> Array[int]:
+	var out: Array[int] = []
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			var id := building_at(Vector2i(x, y))
+			if id != 0 and BuildingTypes.is_wall(kinds[id]) and not out.has(id):
+				out.append(id)
+	return out
 
 
 ## Podnosi poziom o 1. Zwraca false, gdy budynku nie ma albo ma już najwyższy poziom.
