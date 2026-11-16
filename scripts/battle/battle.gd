@@ -147,6 +147,14 @@ static func for_castle(grid: BuildGrid, attackers: Dictionary, defenders: Dictio
 	return b
 
 
+## for_castle z oddziałami [rodzaj, liczba] (fale PvE #16 i armia z rekrutacji).
+static func for_castle_squads(grid: BuildGrid, attackers: Array, defenders: Array, spawn: Vector2i,
+		seed_value: int, research: Research = null) -> Battle:
+	var b := create_squads(grid, grid.keep_id(), attackers, defenders, spawn, seed_value)
+	b.add_side_morale(Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
+	return b
+
+
 ## Puszcza bitwę do końca albo do `max_ticks`. Zwraca zwycięzcę (Winner).
 func run(max_ticks: int = -1) -> int:
 	var limit := BattleConfig.time_limit_ticks() if max_ticks < 0 else max_ticks

@@ -45,6 +45,10 @@ var recruitment := Recruitment.new()
 var recruit_panel: RecruitPanel
 var research_panel: ResearchPanel
 var build_panel: BuildPanel
+## Ile fal samouczka PvE (#16) gracz obronił; trwająca bitwa (null poza bitwą).
+var pve_cleared := 0
+var battle_view: BattleView
+var _battle_wave := -1
 
 var _terrain_tex: ImageTexture
 var _selected_id := 0
@@ -64,6 +68,7 @@ func _ready() -> void:
 		research = saved.research
 		goods = saved.goods
 		recruitment = saved.recruitment
+		pve_cleared = saved.pve_cleared
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -100,6 +105,7 @@ func _ready() -> void:
 	hud.change_pressed.connect(_on_build_panel_opened)
 	hud.build_mode_changed.connect(_on_build_mode_changed)
 	hud.siege_pressed.connect(_on_siege_pressed)
+	hud.speed_pressed.connect(_on_speed_pressed)
 	hud.upgrade_pressed.connect(_on_upgrade)
 	hud.demolish_pressed.connect(_on_middle_button)
 	hud.card_closed.connect(_deselect)
@@ -189,6 +195,8 @@ func _place_keep() -> void:
 
 func _process(_delta: float) -> void:
 	_tick()
+	if battle_view != null:
+		_update_battle()
 	if not queue.orders.is_empty():
 		queue_redraw()
 		if _selected_id != 0:
@@ -223,7 +231,8 @@ func _catch_up(prefix: String) -> void:
 
 ## Zapisuje grę. Błąd zapisu nie przerywa gry, tylko trafia do logu.
 func _save() -> void:
-	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment))
+	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
+			pve_cleared))
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
 
@@ -270,6 +279,8 @@ func _tick() -> void:
 ## Dotknięcie mapy. W trybie oglądania zaznacza budynek (albo zamyka kartę), w trybie budowy
 ## tylko stawia wybrany budynek i niczego nie zaznacza.
 func _on_tapped(world_pos: Vector2) -> void:
+	if battle_view != null:
+		return  # w trakcie fali tylko tempo (#16)
 	_tick()
 	var cell := Vector2i((world_pos / TerrainMap.CELL).floor())
 	var id := grid.building_at(cell)
@@ -385,8 +396,79 @@ func _on_build_mode_changed(building: bool) -> void:
 	queue_redraw()
 
 
+## Oblężenie (#16): startuje kolejną falę samouczka na zamku gracza.
 func _on_siege_pressed() -> void:
-	hud.message = Hud.SIEGE_LATER_MESSAGE
+	_tick()
+	var problem := siege_problem(pve_cleared, recruitment.battle_squads().size(), grid.keep_id())
+	if not problem.is_empty():
+		hud.message = problem
+		return
+	_selected_id = 0
+	hud.hide_card()
+	hud.set_building(false)
+	_cursor = Rect2i()
+	_battle_wave = pve_cleared
+	var b := Battle.for_castle_squads(grid, PveWaves.squads(_battle_wave), recruitment.battle_squads(), _edge_road(),
+			PveWaves.battle_seed(world_seed, _battle_wave), research)
+	battle_view = BattleView.new()
+	battle_view.battle = b
+	add_child(battle_view)
+	hud.battle = true
+	hud.speed_label = speed_label(battle_view.speed)
+	camera.look_at_world(Vector2(grid.buildings[grid.keep_id()].get_center() * TerrainMap.CELL))
+	hud.message = "Fala %d/%d: %d wrogów idzie na donżon" % [_battle_wave + 1, PveWaves.COUNT, PveWaves.size(_battle_wave)]
+	queue_redraw()
+
+
+## Dlaczego nie da się zacząć fali, albo pusty tekst. Samouczek uczy rekrutacji: bez wojska fala
+## nie rusza (#16).
+static func siege_problem(cleared: int, squads: int, keep_id: int) -> String:
+	if cleared >= PveWaves.COUNT:
+		return Hud.SIEGE_LATER_MESSAGE
+	if keep_id == 0:
+		return KEEP_NO_ROOM
+	if squads == 0:
+		return "Najpierw wyszkol wojsko: Koszary i Wojsko"
+	return ""
+
+
+func _on_speed_pressed() -> void:
+	if battle_view == null:
+		return
+	battle_view.speed = next_speed(battle_view.speed)
+	hud.speed_label = speed_label(battle_view.speed)
+
+
+## Tempo bitwy: 1 → 2 → 4 → 1.
+static func next_speed(speed: int) -> int:
+	return 1 if speed >= 4 else speed * 2
+
+
+static func speed_label(speed: int) -> String:
+	return "Tempo x%d" % speed
+
+
+## Pasek i koniec fali: czas do limitu w prawym górnym rogu, po końcu wynik, nagroda i zapis.
+func _update_battle() -> void:
+	var b := battle_view.battle
+	var left_ms := (BattleConfig.time_limit_ticks() - b.tick) * 1000 / BattleConfig.TICK_HZ
+	hud.queue_text = "Fala %d %s" % [_battle_wave + 1, Hud.format_time(left_ms)]
+	if b.winner == Battle.Winner.NONE:
+		return
+	if b.winner == Battle.Winner.DEFENDER:
+		var reward := PveWaves.reward(_battle_wave)
+		for res in reward.size():
+			economy.add(res, reward[res])
+		pve_cleared = maxi(pve_cleared, _battle_wave + 1)
+		hud.message = "Fala %d obroniona! +%s" % [_battle_wave + 1, Hud.cost_text(reward)]
+	else:
+		hud.message = "Fala %d przegrana: wzmocnij obronę" % (_battle_wave + 1)
+	battle_view.queue_free()
+	battle_view = null
+	hud.battle = false
+	_battle_wave = -1
+	_save()
+	queue_redraw()
 
 
 ## Drzewko badań przykrywa mapę: karta budynku się zamyka, a HUD chowa swoje przyciski.

@@ -154,6 +154,12 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   tymczasowa. `BattleView`: jednostki nie są ludzikami, oddział to ikona klasy w ramce koloru strony,
   liczba żywych i pasek zdrowia; odznaki nie nachodzą na siebie. Podgląd w wersji debug:
   `godot --path . -- --battle-preview`; bitwę z gry uruchomi samouczek (#16).
+- Samouczek PvE (#16, `scripts/battle/pve_waves.gd`): Oblężenie startuje kolejną z 5 fal o rosnącej
+  trudności (od 4 Chłopów do armii z konnicą i Podpalaczami). Fala idzie z drogi przy krawędzi mapy na
+  donżon, a bronią go wyszkolone oddziały (`Battle.for_castle_squads`, premia U1). Bez wojska fala nie
+  rusza. W trakcie fali kolumna ma tylko Tempo (×1, ×2, ×4), a górny pasek pokazuje czas do limitu. Wygrana
+  daje surowce i odblokowuje następną falę; postęp jest w zapisie (wersja 5). Fale nie zabierają
+  wojska ani nie niszczą budynków na stałe. Skład fal i nagrody są tymczasowe.
 - Morale (#98): każdy oddział ma morale 0–100 (liczby całkowite, start 70). Poległy zabiera
   oddziałowi 80 / początkowa liczebność, więc oddział łamie się po stracie ponad połowy ludzi.
   Poniżej 30 oddział sam się wycofuje na swoją kratkę startową i już nie walczy; gdy wycofają się
@@ -306,6 +312,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 6 (#128): po symulacji (#14), donżonie (#120), jednostkach w bitwie (#15, #92) i morale (#98) zostają
-samouczek PvE z 5 falami pod przyciskiem Oblężenie (#16) i efekty bitwy (#101). Z etapów 4–5 zostają części
+Etap 6 (#128): po symulacji (#14), donżonie (#120), jednostkach w bitwie (#15, #92), morale (#98)
+i samouczku PvE (#16) zostają efekty bitwy (#101), które czekają na zadania obrony (#20) i powtórkę (#29). Z etapów 4–5 zostają części
 zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).
