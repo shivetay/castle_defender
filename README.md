@@ -145,6 +145,15 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   za cel: atakujący wygrywa po jej upadku albo zdobyciu (piechota lekka lub ciężka trzyma się przy niej
   10 s bez obrońców w pobliżu). Zniszczenie Dworu bitwy nie kończy. Walidacja seeda mapy (#97) sprawdza
   też miejsce na donżon. Grafika: wieża z bali na ziemnej podmurówce, z gankiem od poziomu 3.
+- Jednostki w bitwie (#15, #92): bitwa przyjmuje oddziały z rekrutacji (`Battle.create_squads`,
+  `Recruitment.battle_squads()`); symulacja liczy każdą jednostkę osobno, ale zna jej oddział. Cechy
+  z notatki Jednostki: Tarczownik (−40% od strzał dla siebie i sąsiadów), Drużynnik w przeszywanicy
+  (−25% wręcz), Kopijnik (szarża ×2 w pierwszym uderzeniu), Wojownik z toporem (×1,5 w drewno),
+  Taran (bije tylko bramy, jedzie do najbliższej), Jeździec (omija wolne cele), Oszczepnik (rzut
+  z 3 kratek), Podpalacz (podpala drewniane budynki na 10 s). Wartości w `BattleConfig`, część
+  tymczasowa. `BattleView`: jednostki nie są ludzikami, oddział to ikona klasy w ramce koloru strony,
+  liczba żywych i pasek zdrowia; odznaki nie nachodzą na siebie. Podgląd w wersji debug:
+  `godot --path . -- --battle-preview`; bitwę z gry uruchomi samouczek (#16).
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -289,6 +298,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 6 (#128): zachowania jednostek i ludziki 3×5 px (#15, #92), morale (#98),
+Etap 6 (#128): po symulacji (#14), donżonie (#120) i jednostkach w bitwie (#15, #92) zostają morale (#98),
 samouczek PvE z 5 falami pod przyciskiem Oblężenie (#16) i efekty bitwy (#101). Z etapów 4–5 zostają części
 zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).

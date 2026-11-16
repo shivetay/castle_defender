@@ -45,6 +45,23 @@ const KIND_HP_PERCENT := {
 const CAPTURE_S := 10
 ## Jak blisko donżonu (w kratkach od jego krawędzi) liczy się zajmowanie i obrona.
 const CAPTURE_RANGE := 1
+## Cechy jednostek z notatki Jednostki (#15, #92), w procentach otrzymywanych albo zadawanych obrażeń.
+## Od tego zasięgu (w kratkach) atak jest dystansowy: łuki, oszczepy, ogień. Włócznia (2) to wciąż walka wręcz.
+const RANGED_MIN_RANGE := 3
+## Tarczownik: ściana tarcz, −40% obrażeń od strzał dla siebie i sąsiadów (do 1 kratki).
+const SHIELD_WALL_PERCENT := 60
+## Drużynnik w przeszywanicy: −25% obrażeń wręcz.
+const GAMBESON_MELEE_PERCENT := 75
+## Kopijnik: szarża, ×2 obrażeń w pierwszym uderzeniu.
+const CHARGE_PERCENT := 200
+## Wojownik z toporem: ×1,5 obrażeń przeciw drewnu (budynki poza wałem ziemnym).
+const AXE_VS_WOOD_PERCENT := 150
+## Jeździec omija wolne cele (szybkość do tej wartości), chyba że stoją tuż obok.
+const RIDER_IGNORES_SPEED := 2
+## Podpalacz: trafiony drewniany budynek płonie tyle sekund i traci tyle punktów na sekundę. TYMCZASOWE.
+const FIRE_S := 10
+const FIRE_DAMAGE_PER_S := 4
+
 ## Wieża drewniana strzela do atakujących (łucznicy na wieży). TYMCZASOWE.
 const TOWER_ATTACK := 6
 const TOWER_RANGE := 6

@@ -110,6 +110,16 @@ func default_squad(unit: int) -> int:
 	return NEW_SQUAD
 
 
+## Wyszkolone oddziały jako lista [rodzaj, liczba] dla Battle.create_squads (#15), w kolejności
+## tworzenia; puste oddziały pomija.
+func battle_squads() -> Array:
+	var out: Array = []
+	for s in squads:
+		if s.count > 0:
+			out.append([s.unit, s.count])
+	return out
+
+
 ## Wyszkolone jednostki rodzaju `unit` we wszystkich oddziałach.
 func army_of(unit: int) -> int:
 	var n := 0
