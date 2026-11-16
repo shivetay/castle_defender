@@ -5,6 +5,9 @@ extends Node2D
 ## i pod nią pasek zdrowia oddziału.
 ## Symulacja liczy się w _physics_process w stałym kroku (BattleConfig.TICK_HZ), a rysowanie
 ## tylko czyta jej stan, więc widok nie wpływa na przebieg.
+## `speed` (1/2/4) to przewijanie czasu z Interfejsu (#16); `finished` po rozstrzygnięciu bitwy.
+
+signal finished(winner: int, end_reason: int)
 
 ## Ramka oddziału: ikona 5×5 z obwódką 1 px.
 const BADGE := PixelIcons.SIZE + 2
@@ -15,18 +18,36 @@ const ROW := BAR_H + BADGE + BAR_H + 1
 
 var battle: Battle
 var running := true
+## Przyspieszenie symulacji: 1, 2 albo 4 (#16).
+var speed := 1
 var _acc_us := 0
+var _reported := false
 
 
 func _physics_process(delta: float) -> void:
-	if battle == null or not running or battle.winner != Battle.Winner.NONE:
+	if battle == null or not running:
+		return
+	if battle.winner != Battle.Winner.NONE:
+		_emit_finished()
 		return
 	_acc_us += int(delta * 1000000.0)
 	var tick_us := 1000000 / BattleConfig.TICK_HZ
-	while _acc_us >= tick_us and battle.winner == Battle.Winner.NONE:
-		_acc_us -= tick_us
+	@warning_ignore("integer_division")
+	var step_us := maxi(1, tick_us / clampi(speed, 1, 4))
+	while _acc_us >= step_us and battle.winner == Battle.Winner.NONE:
+		_acc_us -= step_us
 		battle.step()
+	if battle.winner != Battle.Winner.NONE:
+		_emit_finished()
 	queue_redraw()
+
+
+func _emit_finished() -> void:
+	if _reported:
+		return
+	_reported = true
+	running = false
+	finished.emit(battle.winner, battle.end_reason)
 
 
 func _draw() -> void:

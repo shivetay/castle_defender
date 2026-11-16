@@ -22,10 +22,13 @@ signal card_closed
 signal research_pressed
 signal army_pressed
 signal recruit_pressed
+## Przyspieszenie bitwy (#16): 1, 2 albo 4.
+signal speed_pressed(mult: int)
 
 enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, CARD = 100 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6,
+		SPEED1 = 7, SPEED2 = 8, SPEED4 = 9, CARD = 100 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -51,9 +54,11 @@ const BUILD_LABEL := "Buduj"
 const DONE_LABEL := "Gotowe"
 const CHANGE_LABEL := "Zmień"
 const RESEARCH_LABEL := "Badania"
-## Komunikat w trybie oglądania i po dotknięciu wyszarzonego Oblężenia (bitwa dojdzie w #14).
+## Komunikat w trybie oglądania.
 const VIEW_MESSAGE := "Dotknij budynku albo wybierz Buduj"
-const SIEGE_LATER_MESSAGE := "Oblężenia dojdą razem z bitwą"
+## Brak załogi przed oblężeniem (#16, #89): gracz ma najpierw wyszkolć oddziały.
+const SIEGE_NEED_ARMY := "Wyszkol oddziały w Wojsku"
+const SIEGE_NO_KEEP := "Brak donżonu: nie ma celu ataku"
 const ICON_GAP := 2
 const RESOURCE_GAP := 7
 
@@ -61,6 +66,10 @@ var economy: Economy
 var message := ""
 ## Tryb budowy: w kolumnie Gotowe i Zmień zamiast przycisków trybów.
 var building := false
+## Trwa bitwa (#16): kolumna to ×1/×2/×4, bez budowy i rekrutacji.
+var battle := false
+## Aktualne przyspieszenie bitwy (1, 2 albo 4), do podświetlenia przycisku.
+var battle_speed := 1
 ## Wybrany rodzaj budynku (BuildingTypes.Kind), ustawia go panel budowy.
 var selected_kind := 0
 ## Karta budynku: widoczna, gdy card_title nie jest pusty.
@@ -141,8 +150,10 @@ static func column_rect(right: float, i: int) -> Rect2:
 	return Rect2(Vector2(right - BUTTON_SIZE.x, BAR_H + 4 + i * (BUTTON_SIZE.y + BUTTON_GAP)), BUTTON_SIZE)
 
 
-## Przyciski kolumny w danym trybie, od góry.
-static func column_targets(is_building: bool) -> Array[int]:
+## Przyciski kolumny w danym trybie, od góry. W bitwie tylko przewijanie czasu (#16).
+static func column_targets(is_building: bool, in_battle: bool = false) -> Array[int]:
+	if in_battle:
+		return [Target.SPEED1, Target.SPEED2, Target.SPEED4] as Array[int]
 	if is_building:
 		return [Target.DONE, Target.CHANGE] as Array[int]
 	return [Target.BUILD, Target.RESEARCH, Target.ARMY, Target.SIEGE] as Array[int]
@@ -168,11 +179,13 @@ static func card_button(i: int, recruit: bool) -> int:
 
 ## Cel pod punktem `p` w danym stanie interfejsu. Przyciski karty to CARD + CardButton.
 static func target_at(p: Vector2, view: Vector2, right: float, is_building: bool, card_open: bool,
-		recruit_card: bool = false) -> int:
+		recruit_card: bool = false, in_battle: bool = false) -> int:
+	if in_battle:
+		card_open = false
 	if card_open:
 		var i := hit(card_rects(view, recruit_card), p)
 		return Target.CARD + card_button(i, recruit_card) if i >= 0 else Target.NONE
-	var targets := column_targets(is_building)
+	var targets := column_targets(is_building, in_battle)
 	for i in targets.size():
 		if column_rect(right, i).has_point(p):
 			return targets[i]
@@ -271,7 +284,7 @@ static func top_right_text(queue: String, age: String, research: String = "") ->
 func _target_at(p: Vector2) -> int:
 	if overlay:
 		return Target.NONE
-	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit)
+	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit, battle)
 
 
 func _input(event: InputEvent) -> void:
@@ -318,6 +331,12 @@ func _activate(t: int) -> void:
 		research_pressed.emit()
 	elif t == Target.ARMY:
 		army_pressed.emit()
+	elif t == Target.SPEED1:
+		speed_pressed.emit(1)
+	elif t == Target.SPEED2:
+		speed_pressed.emit(2)
+	elif t == Target.SPEED4:
+		speed_pressed.emit(4)
 
 
 # --- Rysowanie ---------------------------------------------------------------------------------
@@ -331,20 +350,35 @@ func _draw() -> void:
 
 	if overlay:
 		pass
+	elif battle:
+		var targets := column_targets(false, true)
+		for i in targets.size():
+			var t: int = targets[i]
+			var active := _pressed == t or speed_of(t) == battle_speed
+			_draw_button(column_rect(content_right, i), column_label(t), active, false)
 	elif is_card_open():
 		_draw_card(view)
 	else:
-		# Oblężenie jest wyszarzone tylko wizualnie: dotknięcie emituje siege_pressed, a gra pokazuje
-		# SIEGE_LATER_MESSAGE. Przy włączaniu bitwy (#14, #16) zdejmij wyszarzenie razem z komunikatem.
 		var targets := column_targets(building)
 		for i in targets.size():
-			_draw_button(column_rect(content_right, i), column_label(targets[i]), _pressed == targets[i],
-					targets[i] == Target.SIEGE)
+			_draw_button(column_rect(content_right, i), column_label(targets[i]), _pressed == targets[i], false)
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
 	PixelFont.draw_text(self, Vector2(content_left, view.y - BAR_H + 1), message, Palette.INK)
 	PixelFont.draw_right(self, content_right, view.y - BAR_H + 1, "%d FPS" % Engine.get_frames_per_second(),
 			Palette.WOOD[3])
+
+
+## Przyspieszenie przypisane do przycisku SPEED*, albo 0.
+static func speed_of(t: int) -> int:
+	match t:
+		Target.SPEED1:
+			return 1
+		Target.SPEED2:
+			return 2
+		Target.SPEED4:
+			return 4
+	return 0
 
 
 static func column_label(t: int) -> String:
@@ -361,6 +395,12 @@ static func column_label(t: int) -> String:
 			return DONE_LABEL
 		Target.CHANGE:
 			return CHANGE_LABEL
+		Target.SPEED1:
+			return "×1"
+		Target.SPEED2:
+			return "×2"
+		Target.SPEED4:
+			return "×4"
 	return ""
 
 

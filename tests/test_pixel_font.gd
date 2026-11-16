@@ -3,11 +3,11 @@ extends TestCase
 
 
 func test_ui_texts_use_only_known_glyphs() -> bool:
-	var texts: Array[String] = [Hud.VIEW_MESSAGE, Hud.SIEGE_LATER_MESSAGE, "60 FPS", Ages.label(0, 5),
+	var texts: Array[String] = [Hud.VIEW_MESSAGE, Hud.SIEGE_NEED_ARMY, Hud.SIEGE_NO_KEEP, "60 FPS", Ages.label(0, 5),
 			"Podczas nieobecności: +200 Dr +20 Ka", "Tu stoi Wieża drewniana", "poziom 5/5", "budowa 1:30:00",
-			"Tu nie można budować", "Najwyższy poziom", "zażółć gęślą jaźń", "ĄĆĘŁŃÓŚŹŻ 0123456789 .,:;-+/%()!?"]
+			"Tu nie można budować", "Najwyższy poziom", "zażółć gęślą jaźń", "ĄĆĘŁŃÓŚŹŻ 0123456789 .,:;-+/%()!?×"]
 	texts.append_array(Hud.CARD_LABELS)
-	texts.append_array([Hud.CANCEL_LABEL, Hud.SIEGE_LABEL, Hud.BUILD_LABEL, Hud.DONE_LABEL])
+	texts.append_array([Hud.CANCEL_LABEL, Hud.SIEGE_LABEL, Hud.BUILD_LABEL, Hud.DONE_LABEL, "×1", "×2", "×4"])
 	texts.append_array(BuildingTypes.NAMES)
 	texts.append_array(BuildingTypes.SHORT_NAMES)
 	for t in texts:
@@ -22,7 +22,8 @@ func test_widths_and_fit() -> bool:
 	assert_eq(PixelFont.text_width("ż"), PixelFont.text_width("Z"), "polska litera ma szerokość bazowej")
 	for label in Hud.CARD_LABELS + [Hud.CANCEL_LABEL, Hud.SIEGE_LABEL, Hud.BUILD_LABEL, Hud.DONE_LABEL]:
 		assert_true(PixelFont.text_width(label) <= int(Hud.BUTTON_SIZE.x) - 2, "„%s” mieści się na przycisku" % label)
-	var messages: Array[String] = [Hud.VIEW_MESSAGE, Hud.SIEGE_LATER_MESSAGE]
+	var messages: Array[String] = [Hud.VIEW_MESSAGE, Hud.SIEGE_NEED_ARMY, Hud.SIEGE_NO_KEEP,
+			"Fala 5/5", "Ukończono! +40 Dr", "Fala 1 przegrana - szkol załogę"]
 	for name in BuildingTypes.NAMES:
 		messages.append("Tu stoi %s" % name)
 	for msg in messages:

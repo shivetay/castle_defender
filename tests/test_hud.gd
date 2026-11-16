@@ -37,6 +37,7 @@ func test_column_buttons_stack_on_the_right() -> bool:
 					assert_true(r.position.y > Hud.column_rect(b.y, i - 1).end.y, "od góry, bez nakładania")
 	assert_eq(Hud.column_targets(false), [T.BUILD, T.RESEARCH, T.ARMY, T.SIEGE] as Array[int], "oglądanie: kolejność")
 	assert_eq(Hud.column_targets(true), [T.DONE, T.CHANGE] as Array[int], "budowa: Gotowe i Zmień")
+	assert_eq(Hud.column_targets(false, true), [T.SPEED1, T.SPEED2, T.SPEED4] as Array[int], "bitwa: tylko tempo")
 	return true
 
 

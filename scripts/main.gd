@@ -26,7 +26,7 @@ const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
-## Podgląd bitwy w wersji debug (#15): godot --path . -- --battle-preview. Bitwę z gry uruchomi #16.
+## Podgląd bitwy w wersji debug (#15): godot --path . -- --battle-preview.
 const BATTLE_PREVIEW_ARG := "--battle-preview"
 
 ## Seed terenu: nowa gra losuje go (WorldSeed), wczytana bierze z zapisu.
@@ -42,14 +42,18 @@ var queue := BuildQueue.new()
 var research := Research.new()
 var goods: Goods
 var recruitment := Recruitment.new()
+var siege := SiegeTutorial.new()
 var recruit_panel: RecruitPanel
 var research_panel: ResearchPanel
 var build_panel: BuildPanel
+var _battle_view: BattleView
 
 var _terrain_tex: ImageTexture
 var _selected_id := 0
 var _cursor := Rect2i()
 var _cursor_ok := true
+## Indeks fali trwającej bitwy (−1 = brak).
+var _siege_wave := -1
 
 
 func _ready() -> void:
@@ -64,6 +68,7 @@ func _ready() -> void:
 		research = saved.research
 		goods = saved.goods
 		recruitment = saved.recruitment
+		siege = saved.siege
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -100,6 +105,7 @@ func _ready() -> void:
 	hud.change_pressed.connect(_on_build_panel_opened)
 	hud.build_mode_changed.connect(_on_build_mode_changed)
 	hud.siege_pressed.connect(_on_siege_pressed)
+	hud.speed_pressed.connect(_on_speed_pressed)
 	hud.upgrade_pressed.connect(_on_upgrade)
 	hud.demolish_pressed.connect(_on_middle_button)
 	hud.card_closed.connect(_deselect)
@@ -223,7 +229,8 @@ func _catch_up(prefix: String) -> void:
 
 ## Zapisuje grę. Błąd zapisu nie przerywa gry, tylko trafia do logu.
 func _save() -> void:
-	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment))
+	var err := SaveGame.write(SaveGame.PATH,
+			SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment, siege))
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
 
@@ -268,8 +275,10 @@ func _tick() -> void:
 
 
 ## Dotknięcie mapy. W trybie oglądania zaznacza budynek (albo zamyka kartę), w trybie budowy
-## tylko stawia wybrany budynek i niczego nie zaznacza.
+## tylko stawia wybrany budynek i niczego nie zaznacza. W bitwie mapa służy tylko kamerze (#16).
 func _on_tapped(world_pos: Vector2) -> void:
+	if hud.battle:
+		return
 	_tick()
 	var cell := Vector2i((world_pos / TerrainMap.CELL).floor())
 	var id := grid.building_at(cell)
@@ -308,6 +317,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 
 ## Panel budowy (Buduj w trybie oglądania albo Zmień w trybie budowy).
 func _on_build_panel_opened() -> void:
+	if hud.battle:
+		return
 	_tick()
 	_selected_id = 0
 	hud.hide_card()
@@ -385,12 +396,90 @@ func _on_build_mode_changed(building: bool) -> void:
 	queue_redraw()
 
 
+## Oblężenie (#16): startuje kolejną falę samouczka PvE na donżon. W trakcie bitwy tylko kamera
+## i ×1/×2/×4. Bez załogi kieruje do Wojska (#89).
 func _on_siege_pressed() -> void:
-	hud.message = Hud.SIEGE_LATER_MESSAGE
+	if hud.battle:
+		return
+	_tick()
+	if grid.keep_id() == 0:
+		hud.message = Hud.SIEGE_NO_KEEP
+		return
+	var defenders := recruitment.battle_squads()
+	if defenders.is_empty():
+		_on_army_opened(0)  # samouczek pokazuje rekrutację (#89)
+		hud.message = Hud.SIEGE_NEED_ARMY
+		return
+	if siege.is_complete():
+		siege.restart()
+	_start_siege_wave(siege.next_wave, defenders)
+
+
+func _on_speed_pressed(mult: int) -> void:
+	if _battle_view == null:
+		return
+	hud.battle_speed = mult
+	_battle_view.speed = mult
+
+
+## Jedna fala samouczka: atakujący z SiegeWaves, obrońcy z rekrutacji, seed stały dla fali.
+func _start_siege_wave(wave: int, defenders: Array) -> void:
+	_close_overlays_for_battle()
+	_siege_wave = wave
+	var view := BattleView.new()
+	view.battle = Battle.create_squads(grid, grid.keep_id(), SiegeWaves.attackers(wave), defenders,
+			_edge_road(), world_seed + wave + 1)
+	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
+	view.speed = 1
+	view.finished.connect(_on_siege_finished)
+	_battle_view = view
+	add_child(view)
+	hud.battle = true
+	hud.battle_speed = 1
+	hud.message = "Fala %d/%d" % [wave + 1, SiegeWaves.WAVE_COUNT]
+	queue_redraw()
+
+
+func _close_overlays_for_battle() -> void:
+	_selected_id = 0
+	hud.hide_card()
+	hud.set_building(false)
+	hud.overlay = false
+	if build_panel != null:
+		build_panel.visible = false
+	if research_panel != null:
+		research_panel.visible = false
+	if recruit_panel != null:
+		recruit_panel.visible = false
+	_cursor = Rect2i()
+
+
+## Koniec fali: obrona daje nagrodę i postęp; przegrana zostawia tę samą falę do powtórki.
+func _on_siege_finished(winner: int, _end_reason: int) -> void:
+	var wave := _siege_wave
+	_siege_wave = -1
+	if _battle_view != null:
+		_battle_view.queue_free()
+		_battle_view = null
+	hud.battle = false
+	hud.battle_speed = 1
+	if winner == Battle.Winner.DEFENDER:
+		var loot := SiegeWaves.grant_reward(economy, wave)
+		var done := siege.advance()
+		if done:
+			hud.message = "Ukończono! %s" % loot
+		else:
+			hud.message = "Fala %d OK. %s" % [wave + 1, loot]
+		_save()
+	else:
+		hud.message = "Fala %d przegrana - szkol załogę" % [wave + 1]
+	queue_redraw()
 
 
 ## Drzewko badań przykrywa mapę: karta budynku się zamyka, a HUD chowa swoje przyciski.
 func _on_research_opened() -> void:
+	if hud.battle:
+		return
 	_tick()
 	_selected_id = 0
 	hud.hide_card()
@@ -403,6 +492,8 @@ func _on_research_opened() -> void:
 
 ## Ekran Wojsko: `id` = 0 to widok globalny, inaczej budynek rekrutacji z karty.
 func _on_army_opened(id: int) -> void:
+	if hud.battle:
+		return
 	_tick()
 	_selected_id = 0
 	hud.hide_card()

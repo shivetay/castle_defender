@@ -153,7 +153,12 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   z 3 kratek), Podpalacz (podpala drewniane budynki na 10 s). Wartości w `BattleConfig`, część
   tymczasowa. `BattleView`: jednostki nie są ludzikami, oddział to ikona klasy w ramce koloru strony,
   liczba żywych i pasek zdrowia; odznaki nie nachodzą na siebie. Podgląd w wersji debug:
-  `godot --path . -- --battle-preview`; bitwę z gry uruchomi samouczek (#16).
+  `godot --path . -- --battle-preview`.
+- Samouczek PvE (#16): przycisk Oblężenie startuje jedną z 5 fal o rosnącej trudności na donżon.
+  Obrońcy to wyszkolone oddziały (`Recruitment.battle_squads`); bez załogi komunikat kieruje do
+  Wojska. W trakcie bitwy kolumna HUD to tylko ×1/×2/×4 (przewijanie czasu), bez budowy i rekrutacji.
+  Obrona fali daje surowce i złoto; przegrana zostawia tę samą falę. Postęp zapisuje się w
+  `SaveGame` (format 5). Po 5 falach samouczek można odpalić od nowa.
 - Morale (#98): każdy oddział ma morale 0–100 (liczby całkowite, start 70). Poległy zabiera
   oddziałowi 80 / początkowa liczebność, więc oddział łamie się po stracie ponad połowy ludzi.
   Poniżej 30 oddział sam się wycofuje na swoją kratkę startową i już nie walczy; gdy wycofają się
@@ -163,7 +168,7 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   a `add_squad_morale` jest gotowe na śmierć generała (−20, #31/#32). W widoku bitwy nad ikoną
   oddziału jest złoty pasek morale (czerwony poniżej progu). Start i strata za poległego są tymczasowe.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
-  i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
+  i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię, wersja 5 samouczek PvE). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
   tymczasowy, a potem tylko zmienia nazwy: poprzedni zapis staje się kopią (`.bak`), a nowy plikiem
   głównym, więc na dysku zawsze leży co najmniej jeden pełny zapis. Nieczytelny plik główny jest
@@ -181,8 +186,8 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   (zaokrąglone narożniki), a wycięcia ekranu odsuwają ją dalej. U góry surowce z ikonami (pełny magazyn
   ma żółtą liczbę), a z prawej czas budowy z liczbą czekających zleceń oraz epoka i rok. U dołu komunikat
   i FPS. Przyciski trybów stoją w kolumnie przy prawej krawędzi, od góry (48×16 px, po teście na
-  telefonie mniejsze niż dawne 56×22). Tryb oglądania: Buduj, Badania, Wojsko, Oblężenie (wyszarzone,
-  dojdzie z bitwą); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
+  telefonie mniejsze niż dawne 56×22). Tryb oglądania: Buduj, Badania, Wojsko, Oblężenie (samouczek
+  PvE, #16); w bitwie kolumna to ×1/×2/×4. Dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
   Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
 - `scripts/ui/build_panel.gd` (`BuildPanel`): panel pod Buduj, w układzie jak drzewko i Wojsko. Zakładki
@@ -293,7 +298,7 @@ scenes/          sceny Godota
 scripts/         logika gry
 scripts/gfx/     rysowanie proceduralne i palety
 scripts/world/   dane świata: teren, siatka budowy, ekonomia, badania, armia
-scripts/battle/  deterministyczna symulacja bitwy (bez renderu)
+scripts/battle/  deterministyczna symulacja bitwy, widok, fale samouczka PvE
 scripts/camera/  kamera z gestami (zoom 0,5×/1×/2×/4×)
 scripts/ui/      HUD
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
@@ -306,6 +311,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 6 (#128): po symulacji (#14), donżonie (#120), jednostkach w bitwie (#15, #92) i morale (#98) zostają
-samouczek PvE z 5 falami pod przyciskiem Oblężenie (#16) i efekty bitwy (#101). Z etapów 4–5 zostają części
+Etap 6 (#128): po symulacji (#14), donżonie (#120), jednostkach w bitwie (#15, #92), morale (#98) i
+samouczku PvE (#16) zostają efekty bitwy (#101). Z etapów 4–5 zostają części
 zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).

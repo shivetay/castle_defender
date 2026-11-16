@@ -9,13 +9,14 @@ extends RefCounted
 ## też nie jest nadpisywany, tylko odkładany, a gra zaczyna od nowa.
 ## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, towary, kolejkę, badania i armię.
 
-const FORMAT_VERSION := 4
+const FORMAT_VERSION := 5
 const PATH := "user://castle.json"
 
 ## Migracje: wersja → funkcja przerabiająca słownik tej wersji na wersję o 1 wyższą.
 ## Przy zmianie formatu podnieś FORMAT_VERSION i dopisz tu migrację z poprzedniej wersji.
-## Wersja 2 dodała badania (#12), wersja 3 towary w zbrojowni (#88), wersja 4 armię i szkolenie (#89).
-static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3}
+## Wersja 2 dodała badania (#12), wersja 3 towary w zbrojowni (#88), wersja 4 armię i szkolenie (#89),
+## wersja 5 postęp samouczka PvE (#16).
+static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3, 4: _from_v4}
 
 ## Stan gry odczytany z pliku.
 class State:
@@ -27,13 +28,15 @@ class State:
 	var research: Research
 	var goods: Goods
 	var recruitment: Recruitment
+	var siege := SiegeTutorial.new()
 	## Ile wpisów zapisu pominięto, bo nie pasowały (0 przy zdrowym zapisie).
 	var skipped := 0
 
 
 ## Słownik zapisu dla stanu gry.
 static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: BuildQueue,
-		research: Research = null, goods: Goods = null, recruitment: Recruitment = null) -> Dictionary:
+		research: Research = null, goods: Goods = null, recruitment: Recruitment = null,
+		siege: SiegeTutorial = null) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -43,6 +46,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		"research": research.save_data() if research != null else {},
 		"goods": goods.save_data() if goods != null else {},
 		"recruitment": recruitment.save_data() if recruitment != null else {},
+		"siege": siege.save_data() if siege != null else {},
 	}
 
 
@@ -65,6 +69,8 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	s.goods.load_data(d.get("goods", {}) as Dictionary)
 	s.recruitment = Recruitment.new()
 	s.skipped += s.recruitment.load_data(d.get("recruitment", {}) as Dictionary, s.grid, now_ms)
+	s.siege = SiegeTutorial.new()
+	s.skipped += s.siege.load_data(d.get("siege", {}) as Dictionary)
 	return s
 
 
@@ -83,6 +89,12 @@ static func _from_v2(d: Dictionary) -> Dictionary:
 ## Wersja 3 → 4: zapis sprzed rekrutacji dostaje pustą armię.
 static func _from_v3(d: Dictionary) -> Dictionary:
 	d["recruitment"] = {}
+	return d
+
+
+## Wersja 4 → 5: zapis sprzed samouczka PvE zaczyna od pierwszej fali.
+static func _from_v4(d: Dictionary) -> Dictionary:
+	d["siege"] = {}
 	return d
 
 
