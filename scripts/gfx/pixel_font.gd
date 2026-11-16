@@ -101,6 +101,42 @@ static func draw_text(ci: CanvasItem, pos: Vector2, text: String, col: Color) ->
 		x += w + 1
 
 
+## Dzieli tekst na linie najwyżej `max_width` px, po słowach. Słowo dłuższe niż linia zostaje
+## przycięte do szerokości (bez zawijania w środku słowa). Najwyżej `max_lines` linii (0 = bez
+## limitu); gdy tekst się nie mieści, ostatnia linia kończy się „...”.
+static func wrap(text: String, max_width: int, max_lines: int = 0) -> PackedStringArray:
+	var lines: PackedStringArray = []
+	var line := ""
+	for word in text.split(" ", false):
+		var candidate := word if line.is_empty() else line + " " + word
+		if text_width(candidate) <= max_width or line.is_empty():
+			line = candidate
+		else:
+			lines.append(line)
+			line = word
+	if not line.is_empty():
+		lines.append(line)
+	for i in lines.size():
+		lines[i] = _fit(lines[i], max_width)
+	if max_lines > 0 and lines.size() > max_lines:
+		var rest := lines.slice(0, max_lines)
+		rest[max_lines - 1] = _fit(rest[max_lines - 1] + "...", max_width, true)
+		return rest
+	return lines
+
+
+## Przycina linię do `max_width` px, z „...” na końcu, gdy coś ucina (albo gdy `force_dots`).
+static func _fit(text: String, max_width: int, force_dots: bool = false) -> String:
+	if text_width(text) <= max_width:
+		return text
+	if max_width < text_width("..."):
+		return ""  # patologiczna strefa bezpieczna: nawet wielokropek się nie mieści
+	var out := text.trim_suffix("...") if force_dots else text
+	while out.length() > 0 and text_width(out + "...") > max_width:
+		out = out.substr(0, out.length() - 1)
+	return out.strip_edges() + "..."
+
+
 ## Tekst wyśrodkowany w poziomie i w pionie w prostokącie.
 static func draw_centered(ci: CanvasItem, r: Rect2, text: String, col: Color) -> void:
 	var x := r.position.x + floorf((r.size.x - text_width(text)) / 2.0)

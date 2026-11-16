@@ -279,9 +279,15 @@ func test_squad_picker_layout() -> bool:
 	assert_true(rects.size() >= 4, "mieści się Nowy i co najmniej 3 oddziały")
 	for r in rects:
 		assert_true(r.size.x >= 12 and r.size.y >= 12, "cel ≥ 12×12")
-		assert_true(r.end.x <= b.y, "w granicach treści")
+		assert_true(r.position.x >= b.x and r.end.x <= b.y, "w granicach treści")
 		assert_true(r.end.y <= Hud.row_y(VIEW), "nad przyciskami Szkol i Zamknij")
+		assert_true(r.position.y >= RecruitPanel.DETAIL_Y + RecruitPanel.DETAIL_LINES * RecruitPanel.LINE_STEP,
+				"pod szczegółami")
 		assert_true(PixelFont.text_width("9: 10/10") <= r.size.x - 4, "napis oddziału mieści się")
+	# review #156: telefon ze strefą bezpieczną zwęża treść; Nowy i 3 oddziały mieszczą się dalej
+	for width: int in [200, 240]:
+		var narrow := RecruitPanel.squad_rects(40, 40 + width, 10)
+		assert_true(narrow.size() >= 4, "%d px treści: Nowy i co najmniej 3 oddziały" % width)
 	var rec := Recruitment.new()
 	var sq := rec.add_squad(U.ARCHER, 4)
 	assert_eq(RecruitPanel.squad_options(rec, U.ARCHER), [Recruitment.NEW_SQUAD, sq] as Array[int], "Nowy i oddział łuczników")
@@ -327,3 +333,39 @@ func test_check_matches_start_without_side_effects() -> bool:
 			"pełny oddział")
 	return true
 
+
+
+
+## Telefon: długie teksty w szczegółach zawijają się po słowach i nie wychodzą poza ekran.
+func test_long_details_wrap_inside_the_panel() -> bool:
+	var g := Goods.new(T0)
+	for width: int in [200, 240, 296]:
+		var missing := RecruitPanel.missing_text(U.REFLEX_ARCHER, g)
+		var lines := RecruitPanel.detail_lines(UnitTypes.unit_name(U.REFLEX_ARCHER), "Epoka II",
+				"Koszt: " + RecruitPanel.cost_text(U.REFLEX_ARCHER) + ", 0:35", missing, Palette.ACCENT, width)
+		assert_true(lines.size() <= RecruitPanel.DETAIL_LINES, "najwyżej %d linii przy %d px" % [RecruitPanel.DETAIL_LINES, width])
+		for l: Array in lines:
+			var w := PixelFont.text_width(l[0] as String)
+			if not (l[2] as String).is_empty():
+				w += 6 + PixelFont.text_width(l[2] as String)
+			assert_true(w <= width, "linia „%s” mieści się w %d px" % [l[0], width])
+		var has_missing := false
+		for l: Array in lines:
+			if (l[1] as Color) == Palette.ACCENT:
+				has_missing = true
+		assert_true(has_missing, "braki widać przy %d px" % width)
+	assert_true(RecruitPanel.DETAIL_Y + RecruitPanel.DETAIL_LINES * RecruitPanel.LINE_STEP <= Hud.row_y(VIEW),
+			"szczegóły nad rzędem przycisków")
+	return true
+
+
+func test_wrap_splits_on_words() -> bool:
+	var lines := PixelFont.wrap("jeden dwa trzy cztery piec szesc", PixelFont.text_width("jeden dwa"))
+	assert_eq(lines[0], "jeden dwa", "pierwsza linia")
+	assert_true(lines.size() >= 3, "kilka linii")
+	var cut := PixelFont.wrap("jeden dwa trzy cztery piec szesc", PixelFont.text_width("jeden dwa"), 2)
+	assert_eq(cut.size(), 2, "limit linii")
+	assert_true(cut[1].ends_with("..."), "ucięty tekst kończy się kropkami")
+	assert_eq(PixelFont.wrap("", 50).size(), 0, "pusty tekst")
+	assert_eq(PixelFont.wrap("bardzo dlugi tekst", 2, 1)[0], "", "szerokość mniejsza niż wielokropek: pusto, nic nie wystaje")
+	return true

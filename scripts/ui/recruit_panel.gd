@@ -23,9 +23,13 @@ const GAP := 2
 const MAX_ROWS := 5
 const DETAIL_Y := GRID_Y + MAX_ROWS * (TILE_H + GAP) + 1
 ## Nazwa i stan, koszt, brakujące towary albo szkolenie, wybór oddziału.
-const DETAIL_LINES := 4
-const SQUAD_Y := DETAIL_Y + 3 * (PixelFont.LINE + 2)
-const SQUAD_W := 54
+## Linie szczegółów między kafelkami a rzędem oddziałów.
+const DETAIL_LINES := 3
+const LINE_STEP := PixelFont.LINE + 2
+## Rząd wyboru oddziału na pełnej szerokości treści, tuż nad przyciskami Szkol i Zamknij (review #156:
+## w rzędzie przycisków na wąskim ekranie mieściły się tylko dwa miejsca).
+const SQUAD_Y := DETAIL_Y + DETAIL_LINES * LINE_STEP
+const SQUAD_W := 40
 const SQUAD_H := 12
 const NEW_SQUAD_LABEL := "Nowy"
 const TRAIN_LABEL := "Szkol"
@@ -113,12 +117,38 @@ static func tile_rects(left: float, right: float, count: int) -> Array[Rect2]:
 	return out
 
 
-## Miejsca w rzędzie wyboru oddziału: pierwsze to Nowy, dalej istniejące oddziały.
+## Miejsca w rzędzie wyboru oddziału na całej szerokości treści: pierwsze to Nowy, dalej istniejące
+## oddziały.
 static func squad_rects(left: float, right: float, count: int) -> Array[Rect2]:
 	var fit := int((right - left + GAP) / (SQUAD_W + GAP))
 	var out: Array[Rect2] = []
 	for i in mini(count, fit):
 		out.append(Rect2(left + i * (SQUAD_W + GAP), SQUAD_Y, SQUAD_W, SQUAD_H))
+	return out
+
+
+## Linie szczegółów jednostki, już zawinięte do `width` px: [tekst, kolor]. Nazwa i stan dzielą
+## pierwszą linię, gdy się mieszczą; inaczej stan idzie do drugiej. Koszt i braki zawijają się
+## po słowach, a całość mieści się w DETAIL_LINES.
+static func detail_lines(name: String, state: String, cost: String, extra: String, extra_col: Color,
+		width: int) -> Array:
+	var out: Array = []
+	if PixelFont.text_width(name) + 6 + PixelFont.text_width(state) <= width:
+		out.append([name, Palette.INK, state])
+	else:
+		for l in PixelFont.wrap(name, width, 1):
+			out.append([l, Palette.INK, ""])
+		out.append([PixelFont.wrap(state, width, 1)[0] if not state.is_empty() else "", Palette.THATCH[2], ""])
+	var room := DETAIL_LINES - out.size()
+	var extra_lines := PixelFont.wrap(extra, width) if not extra.is_empty() else PackedStringArray()
+	# koszt dostaje tyle linii, ile zostaje po brakach (braki co najmniej jedną)
+	var cost_room := maxi(1, room - mini(extra_lines.size(), room - 1))
+	for l in PixelFont.wrap(cost, width, cost_room):
+		out.append([l, Palette.INK, ""])
+	room = DETAIL_LINES - out.size()
+	if room > 0 and not extra.is_empty():
+		for l in PixelFont.wrap(extra, width, room):
+			out.append([l, extra_col, ""])
 	return out
 
 
@@ -289,27 +319,27 @@ func _draw_tile(r: Rect2, unit: int, active: bool) -> void:
 
 
 func _draw_details() -> void:
-	var x := content_left
-	var y := float(DETAIL_Y)
-	PixelFont.draw_text(self, Vector2(x, y), UnitTypes.unit_name(selected), Palette.INK)
-	PixelFont.draw_right(self, content_right, y, state_text(recruitment, selected, grid, research, age), Palette.THATCH[2])
-	y += PixelFont.LINE + 2
 	var width := int(content_right - content_left)
 	var cost := "Koszt: %s, %s" % [cost_text(selected),
 			Hud.format_time(RecruitmentConfig.train_ms(selected, 1))]
-	PixelFont.draw_text(self, Vector2(x, y), ResearchPanel.fit_text(cost, width), Palette.INK)
-	y += PixelFont.LINE + 2
-	var missing := missing_text(selected, goods)
+	var extra := missing_text(selected, goods)
+	var extra_col: Color = Palette.ACCENT
 	var queued := recruitment.orders.size()
 	if building_id != 0:
 		queued = recruitment.queue_of(building_id).size()
-	if not missing.is_empty():
-		PixelFont.draw_text(self, Vector2(x, y), ResearchPanel.fit_text(missing, width), Palette.ACCENT)
-	elif queued > 0:
-		var line := "W szkoleniu: %d" % queued
+	if extra.is_empty() and queued > 0:
+		extra = "W szkoleniu: %d" % queued
 		if building_id != 0:
-			line += ", koniec za %s" % Hud.format_time(recruitment.remaining_ms(building_id, now_ms))
-		PixelFont.draw_text(self, Vector2(x, y), line, Palette.WOOD[3])
+			extra += ", koniec za %s" % Hud.format_time(recruitment.remaining_ms(building_id, now_ms))
+		extra_col = Palette.WOOD[3]
+	var lines := detail_lines(UnitTypes.unit_name(selected), state_text(recruitment, selected, grid, research, age),
+			cost, extra, extra_col, width)
+	var y := float(DETAIL_Y)
+	for l: Array in lines:
+		PixelFont.draw_text(self, Vector2(content_left, y), l[0] as String, l[1] as Color)
+		if not (l[2] as String).is_empty():
+			PixelFont.draw_right(self, content_right, y, l[2] as String, Palette.THATCH[2])
+		y += LINE_STEP
 	_draw_squads()
 
 
