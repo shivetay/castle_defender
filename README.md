@@ -123,8 +123,10 @@ i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
   pokazuje wszystkie jednostki; Szkol na karcie budynku rekrutacji tylko jednostki tego budynku.
   Nagłówek: zajęte miejsca, limit i wolne miejsca w armii. Kafelki z ikoną klasy, liczbą w armii
   i w szkoleniu; zablokowane przygaszone z powodem (technologia, epoka, brak budynku); brakujące towary
-  na czerwono z budynkiem, który je robi. Rząd wyboru oddziału: Nowy albo oddziały tego rodzaju
-  („2: 7/10”), pełne przygaszone; domyślnie pierwszy oddział z wolnym miejscem.
+  na czerwono z budynkiem, który je robi. Długie teksty (nazwa, koszt, braki) zawijają się po słowach
+  (`PixelFont.wrap`) w 4 liniach szczegółów. Rząd wyboru oddziału stoi w dolnym rzędzie przycisków obok
+  Szkol: Nowy albo oddziały tego rodzaju („2: 7/10”), pełne przygaszone; domyślnie pierwszy oddział
+  z wolnym miejscem.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
