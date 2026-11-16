@@ -49,6 +49,8 @@ var build_panel: BuildPanel
 var pve_cleared := 0
 var battle_view: BattleView
 var _battle_wave := -1
+## Oddziały armii w kolejności oddziałów bitwy, do rozliczenia strat po fali (#164).
+var _battle_ids: Array[int] = []
 
 var _terrain_tex: ImageTexture
 var _selected_id := 0
@@ -410,6 +412,7 @@ func _on_siege_pressed() -> void:
 	hud.set_building(false)
 	_cursor = Rect2i()
 	_battle_wave = pve_cleared
+	_battle_ids = recruitment.battle_ids()
 	var b := Battle.for_castle_squads(grid, PveWaves.squads(_battle_wave), recruitment.battle_squads(), _edge_road(),
 			PveWaves.battle_seed(world_seed, _battle_wave), research)
 	battle_view = BattleView.new()
@@ -451,20 +454,32 @@ static func speed_label(speed: int) -> String:
 
 
 ## Pasek i koniec fali: czas do limitu w prawym górnym rogu, po końcu wynik, nagroda i zapis.
+## Komunikat po fali: wynik, polegli (gdy są) i nagroda za wygraną.
+static func wave_end_message(wave: int, won: bool, reward: Array[int], fallen: int) -> String:
+	if won:
+		if fallen > 0:
+			return "Fala %d obroniona, polegli: %d. +%s" % [wave + 1, fallen, Hud.cost_text(reward)]
+		return "Fala %d obroniona! +%s" % [wave + 1, Hud.cost_text(reward)]
+	if fallen > 0:
+		return "Fala %d przegrana, polegli: %d. Wzmocnij obronę" % [wave + 1, fallen]
+	return "Fala %d przegrana: wzmocnij obronę" % (wave + 1)
+
+
 func _update_battle() -> void:
 	var b := battle_view.battle
 	var left_ms := (BattleConfig.time_limit_ticks() - b.tick) * 1000 / BattleConfig.TICK_HZ
 	hud.queue_text = "Fala %d %s" % [_battle_wave + 1, Hud.format_time(left_ms)]
 	if b.winner == Battle.Winner.NONE:
 		return
-	if b.winner == Battle.Winner.DEFENDER:
-		var reward := PveWaves.reward(_battle_wave)
+	# polegli znikają z armii, ocalali (także wycofani) wracają do swoich oddziałów (#164)
+	var fallen := recruitment.apply_losses(_battle_ids, b.survivors(Battle.Side.DEFENDER))
+	var won := b.winner == Battle.Winner.DEFENDER
+	var reward: Array[int] = PveWaves.reward(_battle_wave) if won else []
+	if won:
 		for res in reward.size():
 			economy.add(res, reward[res])
 		pve_cleared = maxi(pve_cleared, _battle_wave + 1)
-		hud.message = "Fala %d obroniona! +%s" % [_battle_wave + 1, Hud.cost_text(reward)]
-	else:
-		hud.message = "Fala %d przegrana: wzmocnij obronę" % (_battle_wave + 1)
+	hud.message = wave_end_message(_battle_wave, won, reward, fallen)
 	battle_view.queue_free()
 	battle_view = null
 	hud.battle = false

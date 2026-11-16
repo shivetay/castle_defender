@@ -160,11 +160,12 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   liczba żywych i pasek zdrowia; odznaki nie nachodzą na siebie. Podgląd w wersji debug:
   `godot --path . -- --battle-preview`; bitwę z gry uruchomi samouczek (#16).
 - Samouczek PvE (#16, `scripts/battle/pve_waves.gd`): Oblężenie startuje kolejną z 5 fal o rosnącej
-  trudności (od 4 Chłopów do armii z konnicą i Podpalaczami). Fala idzie z drogi przy krawędzi mapy na
+  trudności (od 3 Chłopów do armii z konnicą). Fala idzie z drogi przy krawędzi mapy na
   donżon, a bronią go wyszkolone oddziały (`Battle.for_castle_squads`, premia U1). Bez wojska fala nie
   rusza. W trakcie fali kolumna ma tylko Tempo (×1, ×2, ×4), a górny pasek pokazuje czas do limitu. Wygrana
-  daje surowce i odblokowuje następną falę; postęp jest w zapisie (wersja 5). Fale nie zabierają
-  wojska ani nie niszczą budynków na stałe. Skład fal i nagrody są tymczasowe.
+  daje surowce i odblokowuje następną falę; postęp jest w zapisie (wersja 5). Polegli obrońcy
+  znikają z armii razem z wyposażeniem (Jeździec z koniem), a ocalali, także wycofani, wracają do swoich
+  oddziałów (#164). Budynki nie niszczą się na stałe. Skład fal i nagrody są tymczasowe.
 - Morale (#98): każdy oddział ma morale 0–100 (liczby całkowite, start 70). Poległy zabiera
   oddziałowi 80 / początkowa liczebność, więc oddział łamie się po stracie ponad połowy ludzi.
   Poniżej 30 oddział sam się wycofuje na swoją kratkę startową i już nie walczy; gdy wycofają się

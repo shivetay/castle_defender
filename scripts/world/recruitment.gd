@@ -120,6 +120,31 @@ func battle_squads() -> Array:
 	return out
 
 
+## Id oddziałów z battle_squads(), w tej samej kolejności (oddział bitwy i → battle_ids()[i]).
+func battle_ids() -> Array[int]:
+	var out: Array[int] = []
+	for s in squads:
+		if s.count > 0:
+			out.append(s.id)
+	return out
+
+
+## Straty po bitwie (#164): oddział `ids[i]` zostaje z `alive[i]` jednostkami. Polegli znikają
+## z armii razem ze swoim wyposażeniem (Jeździec z koniem), ocalali zostają w oddziale ze swoim.
+## Pusty oddział bez nikogo w szkoleniu znika. Zwraca, ilu poległo.
+func apply_losses(ids: Array[int], alive: Array[int]) -> int:
+	var fallen := 0
+	for i in mini(ids.size(), alive.size()):
+		var s := squad(ids[i])
+		if s == null:
+			continue
+		var left := clampi(alive[i], 0, s.count)
+		fallen += s.count - left
+		s.count = left
+	_drop_empty_squads()
+	return fallen
+
+
 ## Wyszkolone jednostki rodzaju `unit` we wszystkich oddziałach.
 func army_of(unit: int) -> int:
 	var n := 0

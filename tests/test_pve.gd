@@ -113,3 +113,44 @@ func test_progress_survives_save_and_migration() -> bool:
 	old.erase("pve")
 	assert_eq(SaveGame.from_dict(old, 0).pve_cleared, 0, "zapis v4 zaczyna od fali 1")
 	return true
+
+
+## #164: po fali polegli znikają z armii (z koniem), ocalali zostają w swoich oddziałach.
+func test_fallen_leave_the_army_survivors_keep_horses() -> bool:
+	var grid := _castle()
+	var rec := Recruitment.new()
+	var riders := rec.add_squad(U.RIDER, 4)
+	var empty := rec.add_squad(U.ARCHER, 0)
+	var peasants := rec.add_squad(U.PEASANT, 6)
+	assert_eq(rec.battle_ids(), [riders, peasants] as Array[int], "oddziały bitwy bez pustych")
+	var b := Battle.for_castle_squads(grid, PveWaves.squads(4), rec.battle_squads(), _spawn(grid), PveWaves.battle_seed(1337, 4))
+	b.run()
+	var alive := b.survivors(Battle.Side.DEFENDER)
+	assert_eq(alive.size(), 2, "żywi dla obu oddziałów")
+	var fallen := rec.apply_losses(rec.battle_ids(), alive)
+	assert_eq(fallen, 10 - alive[0] - alive[1], "polegli to różnica")
+	assert_true(fallen > 0, "fala 5 kosztuje straty")
+	assert_eq(rec.army_of(U.RIDER), alive[0], "ocalali Jeźdźcy zostają (z końmi)")
+	assert_eq(rec.army_of(U.PEASANT), alive[1], "ocalali Chłopi zostają")
+	assert_true(rec.squad(empty) == null, "pusty oddział bez szkolenia znika")
+	# ten sam seed, te same straty
+	var again := Battle.for_castle_squads(grid, PveWaves.squads(4), [[U.RIDER, 4], [U.PEASANT, 6]], _spawn(grid),
+			PveWaves.battle_seed(1337, 4))
+	again.run()
+	assert_eq(again.survivors(Battle.Side.DEFENDER), alive, "deterministycznie")
+	return true
+
+
+func test_wave_without_losses_keeps_everyone_and_messages_fit() -> bool:
+	var rec := Recruitment.new()
+	var a := rec.add_squad(U.PEASANT, 5)
+	assert_eq(rec.apply_losses([a] as Array[int], [5] as Array[int]), 0, "nikt nie poległ")
+	assert_eq(rec.army_of(U.PEASANT), 5, "armia ta sama")
+	assert_eq(rec.apply_losses([a] as Array[int], [0] as Array[int]), 5, "wszyscy polegli")
+	assert_true(rec.squad(a) == null, "wybity oddział znika")
+	var reward := PveWaves.reward(4)
+	for t: String in [MAIN.wave_end_message(4, true, reward, 30), MAIN.wave_end_message(4, false, [] as Array[int], 30),
+			MAIN.wave_end_message(4, true, reward, 0), MAIN.wave_end_message(4, false, [] as Array[int], 0)]:
+		assert_true(PixelFont.text_width(t) <= Hud.MESSAGE_MAX_WIDTH, "„%s” mieści się w pasku" % t)
+	assert_eq(MAIN.wave_end_message(0, true, reward, 0), "Fala 1 obroniona! +%s" % Hud.cost_text(reward), "bez strat")
+	return true
