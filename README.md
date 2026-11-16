@@ -152,7 +152,8 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   oddziałowi 80 / początkowa liczebność, więc oddział łamie się po stracie ponad połowy ludzi.
   Poniżej 30 oddział sam się wycofuje na swoją kratkę startową i już nie walczy; gdy wycofają się
   wszyscy atakujący, bitwa kończy się wygraną obrońcy (`ATTACKERS_ROUTED`). Powyżej 80 oddział
-  zadaje +10% obrażeń. U1 Wiec grodowy daje załodze +5 (`BattleConfig.defender_morale_bonus`),
+  zadaje +10% obrażeń (co najmniej +1). Wycofani omijają żywe budynki. U1 Wiec grodowy daje załodze +5
+  (`Battle.for_castle(..., research)` dolicza to samo),
   a `add_squad_morale` jest gotowe na śmierć generała (−20, #31/#32). W widoku bitwy nad ikoną
   oddziału jest złoty pasek morale (czerwony poniżej progu). Start i strata za poległego są tymczasowe.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu

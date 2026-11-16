@@ -40,6 +40,8 @@ class Fighter:
 	var squad := 0
 	## Kopijnik już zaszarżował (szarża działa tylko w pierwszym uderzeniu).
 	var charged := false
+	## Oddział jednostki się złamał i ona wraca na start (#98).
+	var retreating := false
 
 	func cell() -> Vector2i:
 		@warning_ignore("integer_division")
@@ -81,6 +83,9 @@ var _cells: PackedInt32Array
 var _astar := AStarGrid2D.new()
 ## Drogi Tarana: tylko do bram, inne budynki są dla niego nieprzechodnie.
 var _ram_astar := AStarGrid2D.new()
+## Drogi wycofania (#98): każdy żywy budynek jest nieprzechodni, więc wycofany oddział omija mury
+## i wraca przez bramy wyłomów, zamiast stać w murze.
+var _retreat_astar := AStarGrid2D.new()
 var _rng: BattleRng
 var _next_id := 1
 
@@ -133,9 +138,13 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 
 
 ## Bitwa o donżon zamku z `grid` (#120): cel to Wieża grodowa.
+## `research` obrońcy daje premie morale załogi (U1 Wiec grodowy, #98); każda bitwa z gry ma iść
+## przez tę fabrykę, żeby premii nie zgubić.
 static func for_castle(grid: BuildGrid, attackers: Dictionary, defenders: Dictionary, spawn: Vector2i,
-		seed_value: int) -> Battle:
-	return create(grid, grid.keep_id(), attackers, defenders, spawn, seed_value)
+		seed_value: int, research: Research = null) -> Battle:
+	var b := create(grid, grid.keep_id(), attackers, defenders, spawn, seed_value)
+	b.add_side_morale(Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
+	return b
 
 
 ## Puszcza bitwę do końca albo do `max_ticks`. Zwraca zwycięzcę (Winner).
@@ -307,6 +316,15 @@ func _setup_astar() -> void:
 				_ram_astar.set_point_solid(c, true)
 			elif id != 0 and structures.has(id) and structures[id].kind != BuildingTypes.Kind.GATE:
 				_ram_astar.set_point_solid(c, true)
+	_retreat_astar.region = _astar.region
+	_retreat_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
+	_retreat_astar.update()
+	for y in _terrain.size:
+		for x in _terrain.size:
+			var c := Vector2i(x, y)
+			var id := _cells[y * _terrain.size + x]
+			if _terrain.get_tile(c) == TerrainMap.Tile.WATER or (id != 0 and structures.has(id)):
+				_retreat_astar.set_point_solid(c, true)
 
 
 func _spawn_squads(squads: Array, side: int, at: Vector2i) -> void:
@@ -362,9 +380,13 @@ func _act(f: Fighter) -> void:
 	if f.cooldown > 0:
 		f.cooldown -= 1
 	if routed(f):
-		# wycofanie (#98): bez walki do swojej kratki startowej, nie burzy niczego po drodze
+		# wycofanie (#98): bez walki do swojej kratki startowej, drogą omijającą żywe budynki
 		f.target = 0
-		_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2, false)
+		if not f.retreating:
+			f.retreating = true
+			f.path.clear()
+		_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
+				false, _retreat_astar)
 		return
 	if f.unit == UnitTypes.Unit.RAM:
 		_ram_act(f)
@@ -422,11 +444,11 @@ func _advance(f: Fighter) -> void:
 ## Żaden ruch nie wchodzi na kratkę żywego budynku: z `breach` jednostka z atakiem go burzy,
 ## inaczej czeka. Ścieżka liczy się od nowa co REPATH_TICKS, po wyłomie albo gdy cel odszedł
 ## dalej niż o kratkę od końca ścieżki.
-func _walk(f: Fighter, goal: Vector2i, px: int, py: int, breach: bool) -> void:
+func _walk(f: Fighter, goal: Vector2i, px: int, py: int, breach: bool, grid: AStarGrid2D = null) -> void:
 	f.repath_in -= 1
 	var moved_goal := absi(goal.x - f.path_goal.x) > 1 or absi(goal.y - f.path_goal.y) > 1
 	if f.path.is_empty() or f.path_index >= f.path.size() or f.repath_in <= 0 or moved_goal:
-		f.path = _astar.get_id_path(f.cell(), goal)
+		f.path = (grid if grid != null else _astar).get_id_path(f.cell(), goal)
 		f.path_index = 1
 		f.path_goal = goal
 		f.repath_in = BattleConfig.REPATH_TICKS
@@ -513,11 +535,12 @@ func unit_damage(f: Fighter, enemy: Fighter) -> int:
 	return morale_damage(f, dmg)
 
 
-## Wysokie morale (powyżej MORALE_HIGH): +10% obrażeń (#98).
+## Wysokie morale (powyżej MORALE_HIGH): +10% obrażeń (#98), co najmniej +1, żeby premia działała
+## też przy słabych atakach (łucznik 7, tarczownik 5).
 func morale_damage(f: Fighter, dmg: int) -> int:
-	if squad_morale(f.side, f.squad) > BattleConfig.MORALE_HIGH:
+	if dmg > 0 and squad_morale(f.side, f.squad) > BattleConfig.MORALE_HIGH:
 		@warning_ignore("integer_division")
-		return dmg * BattleConfig.MORALE_HIGH_DAMAGE_PERCENT / 100
+		return dmg + maxi(1, dmg * (BattleConfig.MORALE_HIGH_DAMAGE_PERCENT - 100) / 100)
 	return dmg
 
 
@@ -624,6 +647,7 @@ func _destroy(s: Structure) -> void:
 			_cells[y * _terrain.size + x] = 0
 			_astar.set_point_weight_scale(Vector2i(x, y), BattleConfig.FREE_PATH_WEIGHT)
 			_ram_astar.set_point_solid(Vector2i(x, y), false)
+			_retreat_astar.set_point_solid(Vector2i(x, y), false)
 	for f in fighters:
 		f.repath_in = 0  # wyłom zmienia najkrótszą drogę
 
