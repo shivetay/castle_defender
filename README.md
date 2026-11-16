@@ -355,8 +355,8 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 7 (#129): manewry (#18) i ekran planu (#17) czekają na review; potem etap 8 (#130, ustawienia
-obrony, zadania i pułapki). Z etapu 6 (#128) zostaje
+Etap 7 (#129): po manewrach (#18) i ekranie planu (#17) zostaje etap 8 (#130, ustawienia obrony,
+zadania i pułapki). Z etapu 6 (#128) zostaje
 z efektów bitwy (#101) gaszenie pożarów, które czeka na Studnię (#35) i zadania obrony (#20). Z etapów 4–5
 zostają części
 zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).
