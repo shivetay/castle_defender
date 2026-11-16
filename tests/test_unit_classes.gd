@@ -127,3 +127,32 @@ func test_per_unit_tables_cover_all_units() -> bool:
 	assert_eq(UnitTypes.SHORT_NAMES.size(), UnitTypes.count(), "krótkie nazwy")
 	assert_eq(RecruitmentConfig.TRAIN_TIME_S.size(), UnitTypes.count(), "czasy szkolenia")
 	return true
+
+
+## Opis jednostek (po teście na telefonie): rola, przeciw komu jednostka jest silna i kto ją kontruje.
+func test_every_unit_has_role_and_counters() -> bool:
+	assert_eq(UnitTypes.ROLES.size(), UnitTypes.count(), "rola dla każdej jednostki")
+	assert_true(UnitTypes.strong_against(U.SPEARMAN).has(C.FAST), "Włócznik silny przeciw konnicy")
+	assert_true(UnitTypes.weak_against(U.RIDER).has(C.HEAVY), "Jeździec słaby przeciw ciężkiej")
+	assert_true(UnitTypes.weak_against(U.RIDER).has(C.LIGHT), "i przeciw drzewcom (lekka)")
+	assert_true(UnitTypes.strong_against(U.ARCHER).has(C.LIGHT), "Łucznik silny przeciw lekkiej")
+	assert_true(UnitTypes.weak_against(U.ARCHER).has(C.LIGHT), "i kontrowany przez lekką w zwarciu")
+	assert_true(UnitTypes.counters_text(U.RAM).begins_with("Inżynieria"), "Taran bez przewag klas")
+	assert_true(UnitTypes.counters_text(U.AXE_WARRIOR).contains("Silny:") and UnitTypes.counters_text(U.AXE_WARRIOR).contains("Słaby:"),
+			"linia przewag")
+	return true
+
+
+## Opis mieści się w szczegółach ekranu Wojsko przy wąskiej treści.
+func test_info_lines_fit() -> bool:
+	for width: int in [200, 240, 296]:
+		for unit in UnitTypes.count():
+			var lines := RecruitPanel.info_lines(unit, width, RecruitPanel.DETAIL_LINES - 1)
+			assert_true(lines.size() <= RecruitPanel.DETAIL_LINES - 1, "%s: najwyżej 3 linie" % UnitTypes.unit_name(unit))
+			var has_counters := false
+			for l: Array in lines:
+				assert_true(PixelFont.text_width(l[0] as String) <= width, "„%s” w %d px" % [l[0], width])
+				if (l[0] as String).begins_with("Silny") or (l[0] as String).begins_with("Inżynieria"):
+					has_counters = true
+			assert_true(has_counters, "%s przy %d px: przewagi widać" % [UnitTypes.unit_name(unit), width])
+	return true

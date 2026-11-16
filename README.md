@@ -117,6 +117,8 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   Do tego Chłop (pospolite ruszenie, jednostka poziomu 0): lekka piechota z Koszar bez technologii
   i bez towarów, za 5 żywności, tylko w epoce I (`ERA_I_ONLY`); stoi pierwszy na ekranie Wojsko.
   Statystyki tymczasowe.
+  Każda jednostka ma krótki opis roli (`ROLES`) i linię przewag liczoną z tabeli klas
+  (`counters_text`: przeciw komu jest silna i kto ją kontruje); na ekranie Wojsko pokazuje je przycisk Opis.
 - `scripts/world/recruitment.gd` (`Recruitment`): armia w oddziałach i kolejki szkolenia (#89). Oddział ma
   jeden rodzaj jednostek i najwyżej 10 jednostek (tymczasowe); nowa jednostka idzie do wskazanego oddziału
   tego rodzaju albo do nowego. Globalny limit armii to tyle, ile zamek może teraz utrzymać: 10 za poziom

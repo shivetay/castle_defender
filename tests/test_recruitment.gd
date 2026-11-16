@@ -416,3 +416,16 @@ func test_missing_goods_fit_in_two_lines() -> bool:
 			assert_true(shown.size() <= RecruitPanel.EXTRA_LINES, "%s: braki w najwyżej 2 liniach" % UnitTypes.unit_name(unit))
 			assert_eq(" ".join(shown), m, "%s przy %d px: braki w całości, bez ucinania" % [UnitTypes.unit_name(unit), width])
 	return true
+
+
+func test_info_button_layout() -> bool:
+	var b := Hud.content_bounds(VIEW, Rect2())
+	var info := RecruitPanel.info_rect(VIEW, b.x)
+	assert_true(not info.intersects(RecruitPanel.train_rect(VIEW, b.y)), "Opis nie na Szkol")
+	for r in RecruitPanel.squad_rects(b.x, b.y, 5):
+		assert_true(not info.intersects(r), "Opis pod rzędem oddziałów")
+	assert_eq(RecruitPanel.target_at(info.get_center(), VIEW, b.x, b.y, UnitTypes.count()), RecruitPanel.Target.INFO, "dotknięcie Opis")
+	# wąska treść: Opis, Szkol i Zamknij mieszczą się obok siebie
+	var narrow_info := RecruitPanel.info_rect(VIEW, 60)
+	assert_true(narrow_info.end.x <= RecruitPanel.train_rect(VIEW, 260).position.x, "200 px treści: bez nakładania")
+	return true
