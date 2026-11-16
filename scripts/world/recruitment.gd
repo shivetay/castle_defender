@@ -16,11 +16,11 @@ extends RefCounted
 ## wtedy start_any() wybiera budynek danego rodzaju z najkrótszą kolejką.
 
 enum Result { OK, NO_BUILDING, NEEDS_TECH, WRONG_AGE, QUEUE_FULL, ARMY_FULL, NO_RESOURCES, NO_GOODS,
-		SQUAD_FULL, WRONG_SQUAD }
+		SQUAD_FULL, WRONG_SQUAD, ERA_PASSED }
 
 const MESSAGES: Array[String] = ["", "Brak budynku do szkolenia", "Najpierw zbadaj technologię",
 		"Wymaga późniejszej epoki", "Kolejka szkolenia pełna", "Limit armii osiągnięty", "Brak surowców",
-		"Brak towarów", "Oddział pełny", "W oddziale jest inny rodzaj jednostek"]
+		"Brak towarów", "Oddział pełny", "W oddziale jest inny rodzaj jednostek", "Tylko w epoce I"]
 
 ## Id „nowego oddziału” przy zleceniu szkolenia.
 const NEW_SQUAD := 0
@@ -182,6 +182,8 @@ static func buildings_for(unit: int, grid: BuildGrid) -> Array[int]:
 func availability(unit: int, grid: BuildGrid, research: Research, age: int) -> Result:
 	if UnitTypes.age(unit) > age:
 		return Result.WRONG_AGE
+	if UnitTypes.ERA_I_ONLY.has(unit) and age > 0:
+		return Result.ERA_PASSED
 	var tech := UnitTypes.required_tech(unit)
 	if not tech.is_empty() and (research == null or not research.is_done(tech)):
 		return Result.NEEDS_TECH
