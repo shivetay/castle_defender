@@ -191,7 +191,17 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   - `Battle.set_plan()` przyjmuje plan; bez planu wszyscy idą jak dotąd, czyli Szturmem frontalnym
     na donżon. Plan to liczby całkowite z zapisem do słownika, więc przebieg jest powtarzalny.
   - Czas wspinaczki po drabinie, odsunięcie obejścia i promień osłony taranu są tymczasowe.
-  - Ekran planowania to #17.
+- Ekran planowania ataku (#17, `scripts/ui/attack_planner.gd` i `attack_panel.gd`): przycisk Atak
+  w kolumnie otwiera mapę zamku-celu.
+  - **Zamek-cel:** `BotCastle` z seeda gracza, zanim będzie PvP. Ma Dwór i donżon w palisadzie z bramą
+    od strony drogi, chaty poza pierścieniem i załogę. Każdy zdobyty zamek odblokowuje następny,
+    mocniejszy (wieże, wyższe poziomy, większa załoga; liczby tymczasowe).
+  - **Ekran:** strefa rozstawienia przy wejściu, strzałki planu i pasek oddziałów (w ataku pierwsze
+    3 oddziały armii, limit epoki I). Przyciski: Manewr, Start (od razu, po 10/20/30 s, po oddziale),
+    Odwrót (nigdy, 30/50/70% strat), Wyczyść, Atakuj i Wróć.
+  - **Dotyk mapy:** budynek to cel, trawa to punkt trasy (do 3).
+  - **Zapis:** plan jest w save'ie (wersja 6 z migracją). Po ataku polegli znikają z armii.
+  - **Bez łupu:** atak nie daje jeszcze łupu (#99). Strefa rozstawienia jest jedna, przy drodze.
 - Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
   - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
   - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
@@ -345,7 +355,8 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 7 (#129): po manewrach ataku (#18) zostaje ekran planowania ataku (#17). Z etapu 6 (#128) zostaje
+Etap 7 (#129): manewry (#18) i ekran planu (#17) czekają na review; potem etap 8 (#130, ustawienia
+obrony, zadania i pułapki). Z etapu 6 (#128) zostaje
 z efektów bitwy (#101) gaszenie pożarów, które czeka na Studnię (#35) i zadania obrony (#20). Z etapów 4–5
 zostają części
 zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).
