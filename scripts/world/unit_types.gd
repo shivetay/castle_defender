@@ -68,7 +68,7 @@ const ROLES: Array[String] = [
 	"Strzela z łuku z 6 kratek. Słaby wręcz.",
 	"Ściana tarcz: −40% obrażeń od strzał dla siebie i sąsiadów.",
 	"Podpala drewniane budynki; płoną 10 s.",
-	"Zwiadowca. Nie walczy, szybko dociera daleko.",
+	"Tropiciel. Nie walczy, szybko dociera daleko.",
 	"Szybki jeździec. Omija wolną piechotę i dopada strzelców.",
 	"Włócznia z 2 kratek, ×2 obrażeń przeciw konnicy.",
 	"Ciężka piechota w przeszywanicy: −25% obrażeń wręcz, trzyma wyłom.",

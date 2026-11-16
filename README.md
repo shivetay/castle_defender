@@ -115,7 +115,8 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 - Dom zwiadowców (#92): budynek epoki II w zakładce Wojsko, odblokowuje go S3 (po S1 Tropiciele).
   Szkoli tylko Zwiadowcę. Grafika: warsztat z czatownią (żerdź z pomostem i rogiem sygnałowym),
   a od poziomu 4 z proporcem. Koszt i czas są tymczasowe.
-- `scripts/world/unit_types.gd` (`UnitTypes`): 13 jednostek MVP z notatek Jednostki oraz Klasy jednostek
+- `scripts/world/unit_types.gd` (`UnitTypes`): 15 jednostek, czyli 13 jednostek MVP oraz Chłop i Zwiadowca
+  (opisani niżej), z notatek Jednostki oraz Klasy jednostek
   i produkcja: klasa (lekka, ciężka, strzelecka, szybka, specjalna; Taran i Kopacz to inżynieria), HP, atak,
   zasięg, szybkość, technologia, budynek rekrutacji i koszt w towarach (np. Łucznik: łuk i 20 strzał).
   Tabela przewag klas (`ADVANTAGE`, procenty) i ×2 drzewca przeciw konnicy; `duel()` to pojedynek w turach
