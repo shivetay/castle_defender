@@ -19,6 +19,7 @@ enum Unit {
 	SPEARMAN, GAMBESON_WARRIOR, REFLEX_ARCHER, LANCER,
 	RAM, DIGGER,
 	PEASANT,
+	SCOUT,
 }
 
 ## Klasa „inżynieria”: poza 5 klasami bojowymi.
@@ -48,6 +49,9 @@ const UNITS: Array = [
 	# Jednostka poziomu 0 (po teście na telefonie): bez technologii i bez towarów, tylko w epoce I.
 	# Statystyki TYMCZASOWE, decyzja właściciela.
 	["Chłop", C.LIGHT, 0, 40, 5, 1, 3, "", K.BARRACKS, {R.FOOD: 5}, {}],
+	# Konny zwiad epoki II (#92): statystyki z notatki Jednostki, koszt z notatki Klasy jednostek
+	# i produkcja (koń ze Stajni, siodło od Rymarza); ilość żywności TYMCZASOWA.
+	["Zwiadowca", C.SPECIAL, 1, 35, 2, 1, 5, "S3", K.SCOUT_HOUSE, {R.FOOD: 15}, {G.HORSE: 1, G.SADDLE: 1}],
 ]
 
 ## Jednostki tylko na epokę I (pospolite ruszenie): od epoki II nie da się ich szkolić.
@@ -55,7 +59,7 @@ const ERA_I_ONLY: Array[int] = [Unit.PEASANT]
 
 ## Krótkie nazwy na kafelkach ekranu Wojsko (szerokość ok. 60 px).
 const SHORT_NAMES: Array[String] = ["Topornik", "Oszczepnik", "Łucznik", "Tarczownik", "Podpalacz", "Tropiciel",
-		"Jeździec", "Włócznik", "Drużynnik", "Strz. refl.", "Kopijnik", "Taran", "Kopacz", "Chłop"]
+		"Jeździec", "Włócznik", "Drużynnik", "Strz. refl.", "Kopijnik", "Taran", "Kopacz", "Chłop", "Zwiadowca"]
 
 ## Krótki opis roli każdej jednostki (ekran Wojsko, przycisk Opis), z notatki Jednostki.
 const ROLES: Array[String] = [
@@ -73,6 +77,7 @@ const ROLES: Array[String] = [
 	"Bije tylko bramy, ale bardzo mocno. Bardzo wolny.",
 	"Kopie wyłomy i przygotowuje podkopy. Słaby w walce.",
 	"Pospolite ruszenie: tanie, bez towarów i badań, tylko w epoce I.",
+	"Konny zwiad z większym zasięgiem niż Tropiciel. W walce słaby.",
 ]
 
 ## Klasy, przeciw którym jednostka zadaje więcej obrażeń (przewaga > 100%), i te, które zadają jej
