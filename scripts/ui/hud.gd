@@ -4,7 +4,7 @@ extends Node2D
 ## U góry: surowce z ikonami, a z prawej czas budowy (gdy kolejka pracuje) oraz epoka i rok.
 ## U dołu pasek komunikatu z FPS. Przyciski trybów stoją w kolumnie przy prawej krawędzi, od góry
 ## (po teście na telefonie: mniejsze i nie zasłaniają środka mapy):
-## - oglądanie: Buduj, Badania, Wojsko, Oblężenie; dotknięcie budynku otwiera kartę,
+## - oglądanie: Buduj, Badania, Wojsko, Oblężenie, Atak, Obrona; dotknięcie budynku otwiera kartę,
 ## - budowa: Gotowe i Zmień (wraca do panelu budowy); dotknięcia mapy tylko stawiają wybrany
 ##   budynek, niczego nie zaznaczają,
 ## - karta budynku: stan, koszt ulepszenia oraz Ulepsz, Rozbierz (Anuluj dla zlecenia), przy budynku
@@ -24,10 +24,11 @@ signal research_pressed
 signal army_pressed
 signal recruit_pressed
 signal attack_pressed
+signal defence_pressed
 
 enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, CARD = 100 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, CARD = 100 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -50,6 +51,7 @@ const ARMY_LABEL := "Wojsko"
 const CANCEL_LABEL := "Anuluj"
 const SIEGE_LABEL := "Oblężenie"
 const ATTACK_LABEL := "Atak"
+const DEFENCE_LABEL := "Obrona"
 const BUILD_LABEL := "Buduj"
 const DONE_LABEL := "Gotowe"
 const CHANGE_LABEL := "Zmień"
@@ -156,7 +158,7 @@ static func column_targets(is_building: bool, in_battle: bool = false) -> Array[
 		return [Target.SPEED] as Array[int]
 	if is_building:
 		return [Target.DONE, Target.CHANGE] as Array[int]
-	return [Target.BUILD, Target.RESEARCH, Target.ARMY, Target.SIEGE, Target.ATTACK] as Array[int]
+	return [Target.BUILD, Target.RESEARCH, Target.ARMY, Target.SIEGE, Target.ATTACK, Target.DEFENCE] as Array[int]
 
 
 ## Przyciski karty budynku (Ulepsz, Rozbierz, [Szkol,] Zamknij), wyśrodkowane nad paskiem komunikatu.
@@ -367,6 +369,8 @@ func _activate(t: int) -> void:
 		army_pressed.emit()
 	elif t == Target.ATTACK:
 		attack_pressed.emit()
+	elif t == Target.DEFENCE:
+		defence_pressed.emit()
 
 
 # --- Rysowanie ---------------------------------------------------------------------------------
@@ -406,6 +410,8 @@ static func column_label(t: int) -> String:
 			return SIEGE_LABEL
 		Target.ATTACK:
 			return ATTACK_LABEL
+		Target.DEFENCE:
+			return DEFENCE_LABEL
 		Target.DONE:
 			return DONE_LABEL
 		Target.CHANGE:
