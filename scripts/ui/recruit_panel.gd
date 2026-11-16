@@ -13,7 +13,7 @@ extends Node2D
 signal train_requested(unit: int, squad_id: int)
 signal closed
 
-enum Target { NONE = -1, CLOSE = 1, TRAIN = 2, TILE = 200, SQUAD = 300 }
+enum Target { NONE = -1, CLOSE = 1, TRAIN = 2, INFO = 3, TILE = 200, SQUAD = 300 }
 
 const TITLE_Y := Hud.BAR_H + 3
 const GRID_Y := TITLE_Y + 11
@@ -36,6 +36,8 @@ const SQUAD_W := 40
 const SQUAD_H := 12
 const NEW_SQUAD_LABEL := "Nowy"
 const TRAIN_LABEL := "Szkol"
+const INFO_LABEL := "Opis"
+const COST_LABEL := "Koszt"
 const CLOSE_LABEL := "Zamknij"
 
 var recruitment: Recruitment
@@ -52,6 +54,8 @@ var building_id := 0
 var selected := 0
 ## Oddział, do którego trafi następna jednostka (Recruitment.NEW_SQUAD = nowy).
 var target_squad := Recruitment.NEW_SQUAD
+## Szczegóły pokazują opis jednostki (rola i przewagi) zamiast kosztu i braków.
+var show_info := false
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
 
@@ -188,9 +192,29 @@ static func close_rect(view: Vector2, right: float) -> Rect2:
 	return Hud.right_corner_rect(view, right)
 
 
+## Przycisk Opis w dolnym rzędzie przy lewej granicy treści: przełącza szczegóły między kosztem
+## a opisem jednostki (rola, przewagi).
+static func info_rect(view: Vector2, left: float) -> Rect2:
+	return Rect2(Vector2(left, Hud.row_y(view)), Hud.BUTTON_SIZE)
+
+
+## Linie opisu jednostki [tekst, kolor, tekst z prawej] pod linią nazwy: rola (zawinięta) i przewagi.
+static func info_lines(unit: int, width: int, room: int) -> Array:
+	var out: Array = []
+	var counters := PixelFont.wrap(UnitTypes.counters_text(unit), width, 2)
+	for l in PixelFont.wrap(UnitTypes.ROLES[unit], width, maxi(1, room - counters.size())):
+		out.append([l, Palette.THATCH[2], ""])
+	for l in counters:
+		if out.size() < room:
+			out.append([l, Palette.INK, ""])
+	return out
+
+
 static func target_at(p: Vector2, view: Vector2, left: float, right: float, count: int, squad_count: int = 0) -> int:
 	if close_rect(view, right).has_point(p):
 		return Target.CLOSE
+	if info_rect(view, left).has_point(p):
+		return Target.INFO
 	if train_rect(view, right).has_point(p):
 		return Target.TRAIN
 	var sq := Hud.hit(squad_rects(left, right, squad_count), p)
@@ -283,6 +307,8 @@ func _activate(t: int) -> void:
 		select(units()[t - Target.TILE])
 	elif t == Target.TRAIN:
 		train_requested.emit(selected, target_squad)
+	elif t == Target.INFO:
+		show_info = not show_info
 	elif t == Target.CLOSE:
 		close()
 
@@ -314,6 +340,8 @@ func _draw() -> void:
 	_draw_details()
 	var can_train := train_check() == Recruitment.Result.OK
 	Hud.paint_button(self, train_rect(view, content_right), TRAIN_LABEL, _pressed == Target.TRAIN, not can_train)
+	Hud.paint_button(self, info_rect(view, content_left), COST_LABEL if show_info else INFO_LABEL,
+			_pressed == Target.INFO or show_info, false)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
 
 
@@ -352,6 +380,8 @@ func _draw_details() -> void:
 		extra_col = Palette.WOOD[3]
 	var lines := detail_lines(UnitTypes.unit_name(selected), state_text(recruitment, selected, grid, research, age),
 			cost, extra, extra_col, width)
+	if show_info:
+		lines = lines.slice(0, 1) + info_lines(selected, width, DETAIL_LINES - 1)
 	var y := float(DETAIL_Y)
 	for l: Array in lines:
 		PixelFont.draw_text(self, Vector2(content_left, y), l[0] as String, l[1] as Color)

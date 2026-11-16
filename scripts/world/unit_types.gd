@@ -57,6 +57,68 @@ const ERA_I_ONLY: Array[int] = [Unit.PEASANT]
 const SHORT_NAMES: Array[String] = ["Topornik", "Oszczepnik", "Łucznik", "Tarczownik", "Podpalacz", "Tropiciel",
 		"Jeździec", "Włócznik", "Drużynnik", "Strz. refl.", "Kopijnik", "Taran", "Kopacz", "Chłop"]
 
+## Krótki opis roli każdej jednostki (ekran Wojsko, przycisk Opis), z notatki Jednostki.
+const ROLES: Array[String] = [
+	"Piechota z toporem. Rąbie bramy i palisady (×1,5 przeciw drewnu).",
+	"Rzuca oszczepami z 3 kratek, zanim wróg podejdzie.",
+	"Strzela z łuku z 6 kratek. Słaby wręcz.",
+	"Ściana tarcz: −40% obrażeń od strzał dla siebie i sąsiadów.",
+	"Podpala drewniane budynki; płoną 10 s.",
+	"Zwiadowca. Nie walczy, szybko dociera daleko.",
+	"Szybki jeździec. Omija wolną piechotę i dopada strzelców.",
+	"Włócznia z 2 kratek, ×2 obrażeń przeciw konnicy.",
+	"Ciężka piechota w przeszywanicy: −25% obrażeń wręcz, trzyma wyłom.",
+	"Strzela dalej i mocniej niż Łucznik (7 kratek).",
+	"Ciężka jazda. Pierwsze uderzenie to szarża ×2.",
+	"Bije tylko bramy, ale bardzo mocno. Bardzo wolny.",
+	"Kopie wyłomy i przygotowuje podkopy. Słaby w walce.",
+	"Pospolite ruszenie: tanie, bez towarów i badań, tylko w epoce I.",
+]
+
+## Klasy, przeciw którym jednostka zadaje więcej obrażeń (przewaga > 100%), i te, które zadają jej
+## więcej. Z tabeli ADVANTAGE i drzewca, w kolejności klas.
+static func strong_against(unit: int) -> Array[int]:
+	var out: Array[int] = []
+	for d in RecruitmentConfig.CLASS_NAMES.size():
+		var a := unit_class(unit)
+		var percent := 100 if a == ENGINEERING else int((ADVANTAGE[a] as Array)[d])
+		if ANTI_CAVALRY.has(unit) and d == C.FAST:
+			percent = percent * ANTI_CAVALRY_PERCENT / 100
+		if percent > 100:
+			out.append(d)
+	return out
+
+
+static func weak_against(unit: int) -> Array[int]:
+	var out: Array[int] = []
+	var mine := unit_class(unit)
+	if mine == ENGINEERING:
+		return out
+	for a in RecruitmentConfig.CLASS_NAMES.size():
+		if int((ADVANTAGE[a] as Array)[mine]) > 100:
+			out.append(a)
+	# drzewce (Włócznik) kontruje konnicę, choć to klasa lekka
+	if mine == C.FAST and not out.has(C.LIGHT):
+		out.append(C.LIGHT)
+	return out
+
+
+## Linia przewag do ekranu Wojsko, np. „Silny: strzelecka. Słaby: ciężka, strzelecka.”
+static func counters_text(unit: int) -> String:
+	if unit_class(unit) == ENGINEERING:
+		return "Inżynieria: bez przewag klas."
+	var parts: PackedStringArray = []
+	var strong := PackedStringArray()
+	for c in strong_against(unit):
+		strong.append(RecruitmentConfig.CLASS_NAMES[c])
+	var weak := PackedStringArray()
+	for c in weak_against(unit):
+		weak.append(RecruitmentConfig.CLASS_NAMES[c] + (" (drzewce)" if c == C.LIGHT and unit_class(unit) == C.FAST else ""))
+	parts.append("Silny: " + (", ".join(strong) if not strong.is_empty() else "—"))
+	parts.append("Słaby: " + (", ".join(weak) if not weak.is_empty() else "—"))
+	return ". ".join(parts) + "."
+
+
 ## Jednostki z drzewcem: ×2 obrażeń przeciw konnicy (Włócznik w notatce Jednostki).
 const ANTI_CAVALRY: Array[int] = [Unit.SPEARMAN]
 const ANTI_CAVALRY_PERCENT := 200
