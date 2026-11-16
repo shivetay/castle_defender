@@ -14,7 +14,8 @@ extends RefCounted
 
 enum Side { ATTACKER, DEFENDER }
 enum Winner { NONE = -1, ATTACKER, DEFENDER }
-enum EndReason { NONE, DESTROYED, CAPTURED, ATTACKERS_DEAD, TIME_LIMIT }
+## ATTACKERS_ROUTED: żaden atakujący nie walczy, bo reszta się wycofała (#98).
+enum EndReason { NONE, DESTROYED, CAPTURED, ATTACKERS_DEAD, TIME_LIMIT, ATTACKERS_ROUTED }
 
 
 class Fighter:
@@ -39,6 +40,8 @@ class Fighter:
 	var squad := 0
 	## Kopijnik już zaszarżował (szarża działa tylko w pierwszym uderzeniu).
 	var charged := false
+	## Oddział jednostki się złamał i ona wraca na start (#98).
+	var retreating := false
 
 	func cell() -> Vector2i:
 		@warning_ignore("integer_division")
@@ -65,6 +68,10 @@ var winner: int = Winner.NONE
 var end_reason: int = EndReason.NONE
 ## Ile ticków z rzędu piechota atakującego trzyma cel bez obrońców w pobliżu.
 var capture_ticks := 0
+## Morale oddziałów (#98): klucz _squad_key(strona, oddział) → 0..MORALE_MAX.
+var morale: Dictionary[int, int] = {}
+## Początkowa liczebność oddziałów (ten sam klucz), do straty morale za poległego.
+var squad_size: Dictionary[int, int] = {}
 var fighters: Array[Fighter] = []
 var structures: Dictionary[int, Structure] = {}
 var objective := 0
@@ -76,6 +83,9 @@ var _cells: PackedInt32Array
 var _astar := AStarGrid2D.new()
 ## Drogi Tarana: tylko do bram, inne budynki są dla niego nieprzechodnie.
 var _ram_astar := AStarGrid2D.new()
+## Drogi wycofania (#98): każdy żywy budynek jest nieprzechodni, więc wycofany oddział omija mury
+## i wraca przez bramy wyłomów, zamiast stać w murze.
+var _retreat_astar := AStarGrid2D.new()
 var _rng: BattleRng
 var _next_id := 1
 
@@ -128,9 +138,13 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 
 
 ## Bitwa o donżon zamku z `grid` (#120): cel to Wieża grodowa.
+## `research` obrońcy daje premie morale załogi (U1 Wiec grodowy, #98); każda bitwa z gry ma iść
+## przez tę fabrykę, żeby premii nie zgubić.
 static func for_castle(grid: BuildGrid, attackers: Dictionary, defenders: Dictionary, spawn: Vector2i,
-		seed_value: int) -> Battle:
-	return create(grid, grid.keep_id(), attackers, defenders, spawn, seed_value)
+		seed_value: int, research: Research = null) -> Battle:
+	var b := create(grid, grid.keep_id(), attackers, defenders, spawn, seed_value)
+	b.add_side_morale(Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
+	return b
 
 
 ## Puszcza bitwę do końca albo do `max_ticks`. Zwraca zwycięzcę (Winner).
@@ -158,6 +172,61 @@ func step() -> void:
 	_check_end()
 
 
+## Jednostki strony, które jeszcze walczą: żywe i niewycofane.
+func fighting_count(side: int) -> int:
+	var n := 0
+	for f in fighters:
+		if f.side == side and f.alive() and not routed(f):
+			n += 1
+	return n
+
+
+# --- Morale (#98) ----------------------------------------------------------------------------------
+
+static func _squad_key(side: int, squad: int) -> int:
+	return side * 10000 + squad
+
+
+func squad_morale(side: int, squad: int) -> int:
+	return int(morale.get(_squad_key(side, squad), BattleConfig.MORALE_START))
+
+
+## Zmienia morale oddziału o `amount` (np. śmierć generała, MORALE_GENERAL_DEATH), w granicach 0..100.
+func add_squad_morale(side: int, squad: int, amount: int) -> void:
+	var key := _squad_key(side, squad)
+	if morale.has(key):
+		morale[key] = clampi(int(morale[key]) + amount, 0, BattleConfig.MORALE_MAX)
+
+
+## Zmienia morale wszystkich oddziałów strony, np. premia załogi z badań przed startem bitwy
+## (BattleConfig.defender_morale_bonus).
+func add_side_morale(side: int, amount: int) -> void:
+	for key: int in morale:
+		@warning_ignore("integer_division")
+		if key / 10000 == side:
+			morale[key] = clampi(int(morale[key]) + amount, 0, BattleConfig.MORALE_MAX)
+
+
+## Oddział poniżej MORALE_ROUT wycofuje się sam i już nie walczy.
+func routed(f: Fighter) -> bool:
+	return squad_morale(f.side, f.squad) < BattleConfig.MORALE_ROUT
+
+
+## Obrażenia dla jednostki; śmierć zabiera morale jej oddziałowi (loss_morale).
+func _hurt(f: Fighter, dmg: int) -> void:
+	if not f.alive():
+		return
+	f.hp -= dmg
+	if not f.alive():
+		add_squad_morale(f.side, f.squad, -loss_morale(f.side, f.squad))
+
+
+## Strata morale oddziału za jednego poległego: MORALE_SQUAD_LOSS rozłożone na początkowy skład.
+func loss_morale(side: int, squad: int) -> int:
+	@warning_ignore("integer_division")
+	return maxi(1, BattleConfig.MORALE_SQUAD_LOSS / maxi(1, int(squad_size.get(_squad_key(side, squad), 1))))
+
+
 func alive_count(side: int) -> int:
 	var n := 0
 	for f in fighters:
@@ -167,7 +236,7 @@ func alive_count(side: int) -> int:
 
 
 ## Oddziały jednej strony do rysowania (#15): dla każdego oddziału z żywymi jednostkami
-## {squad, unit, alive, hp, max_hp, x, y}, gdzie x, y to średnia pozycja żywych w podjednostkach.
+## {squad, unit, alive, hp, max_hp, x, y, morale}, gdzie x, y to średnia pozycja żywych w podjednostkach.
 func squads_view(side: int) -> Array[Dictionary]:
 	var by_squad := {}
 	var order: Array[int] = []
@@ -175,7 +244,8 @@ func squads_view(side: int) -> Array[Dictionary]:
 		if f.side != side:
 			continue
 		if not by_squad.has(f.squad):
-			by_squad[f.squad] = {"squad": f.squad, "unit": f.unit, "alive": 0, "hp": 0, "max_hp": 0, "x": 0, "y": 0}
+			by_squad[f.squad] = {"squad": f.squad, "unit": f.unit, "alive": 0, "hp": 0, "max_hp": 0, "x": 0, "y": 0,
+					"morale": squad_morale(side, f.squad)}
 			order.append(f.squad)
 		var v: Dictionary = by_squad[f.squad]
 		v["max_hp"] = int(v["max_hp"]) + UnitTypes.hp(f.unit)
@@ -212,6 +282,9 @@ func checksum() -> int:
 		h = _mix(h, id)
 		h = _mix(h, structures[id].hp)
 		h = _mix(h, structures[id].burning)
+	for key: int in morale:
+		h = _mix(h, key)
+		h = _mix(h, int(morale[key]))
 	return h
 
 
@@ -243,6 +316,15 @@ func _setup_astar() -> void:
 				_ram_astar.set_point_solid(c, true)
 			elif id != 0 and structures.has(id) and structures[id].kind != BuildingTypes.Kind.GATE:
 				_ram_astar.set_point_solid(c, true)
+	_retreat_astar.region = _astar.region
+	_retreat_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
+	_retreat_astar.update()
+	for y in _terrain.size:
+		for x in _terrain.size:
+			var c := Vector2i(x, y)
+			var id := _cells[y * _terrain.size + x]
+			if _terrain.get_tile(c) == TerrainMap.Tile.WATER or (id != 0 and structures.has(id)):
+				_retreat_astar.set_point_solid(c, true)
 
 
 func _spawn_squads(squads: Array, side: int, at: Vector2i) -> void:
@@ -270,6 +352,9 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i) -> void:
 		f.post = cell
 		f.cooldown = _rng.range_int(0, BattleConfig.ATTACK_COOLDOWN_TICKS - 1)
 		fighters.append(f)
+		var key := _squad_key(side, f.squad)
+		morale[key] = BattleConfig.MORALE_START
+		squad_size[key] = int(squad_size.get(key, 0)) + 1
 
 
 ## `n`-ta wolna kratka w pierścieniach wokół `c` (kolejność stała).
@@ -294,6 +379,15 @@ func _free_cell_near(c: Vector2i, n: int) -> Vector2i:
 func _act(f: Fighter) -> void:
 	if f.cooldown > 0:
 		f.cooldown -= 1
+	if routed(f):
+		# wycofanie (#98): bez walki do swojej kratki startowej, drogą omijającą żywe budynki
+		f.target = 0
+		if not f.retreating:
+			f.retreating = true
+			f.path.clear()
+		_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
+				false, _retreat_astar)
+		return
 	if f.unit == UnitTypes.Unit.RAM:
 		_ram_act(f)
 		return
@@ -350,11 +444,11 @@ func _advance(f: Fighter) -> void:
 ## Żaden ruch nie wchodzi na kratkę żywego budynku: z `breach` jednostka z atakiem go burzy,
 ## inaczej czeka. Ścieżka liczy się od nowa co REPATH_TICKS, po wyłomie albo gdy cel odszedł
 ## dalej niż o kratkę od końca ścieżki.
-func _walk(f: Fighter, goal: Vector2i, px: int, py: int, breach: bool) -> void:
+func _walk(f: Fighter, goal: Vector2i, px: int, py: int, breach: bool, grid: AStarGrid2D = null) -> void:
 	f.repath_in -= 1
 	var moved_goal := absi(goal.x - f.path_goal.x) > 1 or absi(goal.y - f.path_goal.y) > 1
 	if f.path.is_empty() or f.path_index >= f.path.size() or f.repath_in <= 0 or moved_goal:
-		f.path = _astar.get_id_path(f.cell(), goal)
+		f.path = (grid if grid != null else _astar).get_id_path(f.cell(), goal)
 		f.path_index = 1
 		f.path_goal = goal
 		f.repath_in = BattleConfig.REPATH_TICKS
@@ -424,7 +518,7 @@ func _strike_unit(f: Fighter, enemy: Fighter) -> void:
 	if f.cooldown > 0:
 		return
 	f.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS
-	enemy.hp -= _roll(unit_damage(f, enemy))
+	_hurt(enemy, _roll(unit_damage(f, enemy)))
 	f.charged = true
 
 
@@ -438,6 +532,15 @@ func unit_damage(f: Fighter, enemy: Fighter) -> int:
 		dmg = dmg * BattleConfig.SHIELD_WALL_PERCENT / 100
 	if not ranged and enemy.unit == UnitTypes.Unit.GAMBESON_WARRIOR:
 		dmg = dmg * BattleConfig.GAMBESON_MELEE_PERCENT / 100
+	return morale_damage(f, dmg)
+
+
+## Wysokie morale (powyżej MORALE_HIGH): +10% obrażeń (#98), co najmniej +1, żeby premia działała
+## też przy słabych atakach (łucznik 7, tarczownik 5).
+func morale_damage(f: Fighter, dmg: int) -> int:
+	if dmg > 0 and squad_morale(f.side, f.squad) > BattleConfig.MORALE_HIGH:
+		@warning_ignore("integer_division")
+		return dmg + maxi(1, dmg * (BattleConfig.MORALE_HIGH_DAMAGE_PERCENT - 100) / 100)
 	return dmg
 
 
@@ -458,7 +561,7 @@ func _strike_structure(f: Fighter, s: Structure) -> void:
 	if f.cooldown > 0:
 		return
 	f.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS
-	s.hp -= _roll(structure_damage(f.unit, s.kind))
+	s.hp -= _roll(morale_damage(f, structure_damage(f.unit, s.kind)))
 	f.charged = true  # szarża to pierwsze uderzenie w ogóle, także w umocnienie
 	if f.unit == UnitTypes.Unit.FIRE_RAISER and BuildingTypes.is_wooden(s.kind):
 		s.burning = BattleConfig.FIRE_S * BattleConfig.TICK_HZ
@@ -544,6 +647,7 @@ func _destroy(s: Structure) -> void:
 			_cells[y * _terrain.size + x] = 0
 			_astar.set_point_weight_scale(Vector2i(x, y), BattleConfig.FREE_PATH_WEIGHT)
 			_ram_astar.set_point_solid(Vector2i(x, y), false)
+			_retreat_astar.set_point_solid(Vector2i(x, y), false)
 	for f in fighters:
 		f.repath_in = 0  # wyłom zmienia najkrótszą drogę
 
@@ -570,7 +674,7 @@ func _tower_act(s: Structure) -> void:
 		return
 	@warning_ignore("integer_division")
 	s.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS * 100 / maxi(1, tower_fire_percent)
-	best.hp -= _roll(BattleConfig.TOWER_ATTACK)
+	_hurt(best, _roll(BattleConfig.TOWER_ATTACK))
 
 
 func _check_end() -> void:
@@ -581,6 +685,8 @@ func _check_end() -> void:
 		_finish(Winner.ATTACKER, EndReason.CAPTURED)
 	elif alive_count(Side.ATTACKER) == 0:
 		_finish(Winner.DEFENDER, EndReason.ATTACKERS_DEAD)
+	elif fighting_count(Side.ATTACKER) == 0:
+		_finish(Winner.DEFENDER, EndReason.ATTACKERS_ROUTED)
 	elif tick >= BattleConfig.time_limit_ticks():
 		_finish(Winner.DEFENDER, EndReason.TIME_LIMIT)
 
@@ -598,7 +704,8 @@ func _update_capture() -> void:
 	var zone := structures[objective].rect.grow(BattleConfig.CAPTURE_RANGE)
 	var holders := 0
 	for f in fighters:
-		if not f.alive() or not zone.has_point(f.cell()):
+		# wycofany oddział ani nie zdobywa, ani nie broni celu
+		if not f.alive() or routed(f) or not zone.has_point(f.cell()):
 			continue
 		if f.side == Side.DEFENDER:
 			capture_ticks = 0

@@ -1,7 +1,8 @@
 class_name BattleView
 extends Node2D
 ## Widok bitwy na mapie zamku (#15). Jednostki nie są ludzikami: jeden oddział to ikona klasy
-## na ciemnym tle z ramką w kolorze strony, liczba żywych jednostek i pasek zdrowia oddziału.
+## na ciemnym tle z ramką w kolorze strony, liczba żywych jednostek, nad ikoną pasek morale (#98)
+## i pod nią pasek zdrowia oddziału.
 ## Symulacja liczy się w _physics_process w stałym kroku (BattleConfig.TICK_HZ), a rysowanie
 ## tylko czyta jej stan, więc widok nie wpływa na przebieg.
 
@@ -9,7 +10,8 @@ extends Node2D
 const BADGE := PixelIcons.SIZE + 2
 const BAR_H := 1
 ## Wysokość wiersza przy rozsuwaniu odznak: odznaka, pasek i 1 px odstępu.
-const ROW := BADGE + BAR_H + 1
+## Odznaka od góry: pasek morale, ikona, pasek zdrowia.
+const ROW := BAR_H + BADGE + BAR_H + 1
 
 var battle: Battle
 var running := true
@@ -68,6 +70,17 @@ static func badge_size(sq: Dictionary) -> Vector2i:
 	return Vector2i(BADGE + PixelFont.text_width(str(int(sq["alive"]))) + 2, ROW - 1)
 
 
+## Szerokość wypełnienia paska morale (0..BADGE).
+static func morale_fill(sq: Dictionary) -> int:
+	@warning_ignore("integer_division")
+	return clampi(BADGE * int(sq.get("morale", 0)) / BattleConfig.MORALE_MAX, 0, BADGE)
+
+
+## Kolor paska morale: złoty, a poniżej progu wycofania w kolorze akcentu.
+static func morale_color(sq: Dictionary) -> Color:
+	return Palette.ACCENT if int(sq.get("morale", 0)) < BattleConfig.MORALE_ROUT else Palette.THATCH[2]
+
+
 ## Lewy górny róg odznaki oddziału w pikselach mapy (całe piksele, środek na pozycji oddziału).
 static func badge_origin(sq: Dictionary) -> Vector2i:
 	@warning_ignore("integer_division")
@@ -89,7 +102,10 @@ static func side_color(side: int) -> Color:
 	return Palette.SIDE_ATTACKER if side == Battle.Side.ATTACKER else Palette.SIDE_DEFENDER
 
 
-static func draw_squad(ci: CanvasItem, sq: Dictionary, side: int, at: Vector2i) -> void:
+static func draw_squad(ci: CanvasItem, sq: Dictionary, side: int, top: Vector2i) -> void:
+	ci.draw_rect(Rect2(top.x, top.y, BADGE, BAR_H), Palette.SHADOW)
+	ci.draw_rect(Rect2(top.x, top.y, morale_fill(sq), BAR_H), morale_color(sq))
+	var at := top + Vector2i(0, BAR_H)
 	var col := side_color(side)
 	ci.draw_rect(Rect2(at.x, at.y, BADGE, BADGE), col)
 	ci.draw_rect(Rect2(at.x + 1, at.y + 1, BADGE - 2, BADGE - 2), Palette.SHADOW)

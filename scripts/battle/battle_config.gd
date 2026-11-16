@@ -45,6 +45,31 @@ const KIND_HP_PERCENT := {
 const CAPTURE_S := 10
 ## Jak blisko donżonu (w kratkach od jego krawędzi) liczy się zajmowanie i obrona.
 const CAPTURE_RANGE := 1
+## Morale oddziałów (#98), liczby całkowite 0–100. Z notatki Drzewko technologiczne: poniżej 30 oddział
+## sam się wycofuje, powyżej 80 dostaje +10% obrażeń. Start i strata za poległego są TYMCZASOWE.
+const MORALE_MAX := 100
+const MORALE_START := 70
+const MORALE_ROUT := 30
+const MORALE_HIGH := 80
+const MORALE_HIGH_DAMAGE_PERCENT := 110
+## Ile morale traci oddział, gdy polegnie cały jego skład; za jednego poległego traci
+## MORALE_SQUAD_LOSS / początkowa liczebność (co najmniej 1). Przy starcie 70 oddział łamie się,
+## gdy straci ponad połowę ludzi, niezależnie od liczebności.
+const MORALE_SQUAD_LOSS := 80
+## Śmierć generała (notatka Władca i generałowie): −20 morale jego oddziałów. Generałowie to #31, #32.
+const MORALE_GENERAL_DEATH := -20
+## U1 Wiec grodowy: +5 morale załogi.
+const MORALE_U1_DEFENDERS := 5
+
+
+## Premia morale załogi z badań (#98): na razie U1 Wiec grodowy. Perki władcy (Ukochany władca)
+## i Kaplica dojdą z #31, #32 i epoką II.
+static func defender_morale_bonus(research: Research) -> int:
+	if research != null and research.is_done("U1"):
+		return MORALE_U1_DEFENDERS
+	return 0
+
+
 ## Cechy jednostek z notatki Jednostki (#15, #92), w procentach otrzymywanych albo zadawanych obrażeń.
 ## Od tego zasięgu (w kratkach) atak jest dystansowy: łuki, oszczepy, ogień. Włócznia (2) to wciąż walka wręcz.
 const RANGED_MIN_RANGE := 3
