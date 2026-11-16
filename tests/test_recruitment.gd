@@ -176,7 +176,7 @@ func test_save_round_trip_and_migration() -> bool:
 
 func test_panel_modes_and_layout() -> bool:
 	assert_eq(RecruitPanel.units_for(-1).size(), UnitTypes.count(), "globalnie wszystkie jednostki")
-	assert_eq(RecruitPanel.units_for(K.BARRACKS), [U.AXE_WARRIOR, U.JAVELINEER, U.SPEARMAN, U.RAM, U.DIGGER] as Array[int],
+	assert_eq(RecruitPanel.units_for(K.BARRACKS), [U.PEASANT, U.AXE_WARRIOR, U.JAVELINEER, U.SPEARMAN, U.RAM, U.DIGGER] as Array[int],
 			"Koszary: lekka piechota i inżynieria")
 	assert_eq(RecruitPanel.units_for(K.STABLE), [U.RIDER, U.LANCER] as Array[int], "Stajnia: konnica")
 	assert_true(not RecruitPanel.recruits(K.MANOR), "Dwór nie szkoli")
@@ -191,8 +191,9 @@ func test_panel_modes_and_layout() -> bool:
 	assert_true(RecruitPanel.DETAIL_Y + RecruitPanel.DETAIL_LINES * (PixelFont.LINE + 2) <= Hud.row_y(VIEW),
 			"szczegóły nad przyciskami")
 	var T := RecruitPanel.Target
-	assert_eq(RecruitPanel.target_at(tiles[12].get_center(), VIEW, b.x, b.y, 13), T.TILE + 12, "ostatni kafelek")
-	assert_eq(RecruitPanel.target_at(RecruitPanel.train_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y, 13), T.TRAIN, "Szkol")
+	var n := UnitTypes.count()
+	assert_eq(RecruitPanel.target_at(tiles[n - 1].get_center(), VIEW, b.x, b.y, n), T.TILE + n - 1, "ostatni kafelek")
+	assert_eq(RecruitPanel.target_at(RecruitPanel.train_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y, n), T.TRAIN, "Szkol")
 	return true
 
 
@@ -332,6 +333,31 @@ func test_check_matches_start_without_side_effects() -> bool:
 	return true
 
 
+
+## Jednostka poziomu 0 (po teście na telefonie): Chłop szkoli się w Koszarach od startu, bez
+## technologii i bez towarów, za samą żywność; tylko w epoce I.
+func test_peasant_needs_no_tech_and_no_goods() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	grid.place_kind(_free_cell(grid, K.MANOR), K.MANOR, 1)
+	var barracks := grid.place_kind(_free_cell(grid, K.BARRACKS), K.BARRACKS, 1)
+	var e := Economy.new(T0)
+	var goods := Goods.new(T0)
+	var rec := Recruitment.new()
+	assert_eq(UnitTypes.required_tech(U.PEASANT), "", "bez technologii")
+	assert_true(UnitTypes.goods_cost(U.PEASANT).is_empty(), "bez towarów")
+	var food := e.amounts[EconomyConfig.Res.FOOD]
+	assert_eq(rec.start(U.PEASANT, barracks, Recruitment.NEW_SQUAD, grid, e, goods, Research.new(), 0, T0),
+			Recruitment.Result.OK, "od startu, bez badań i pustą zbrojownią")
+	assert_eq(e.amounts[EconomyConfig.Res.FOOD], food - 5, "zeszło 5 żywności (review #158)")
+	assert_eq(rec.availability(U.PEASANT, grid, Research.new(), 1), Recruitment.Result.ERA_PASSED, "w epoce II już nie")
+	assert_eq(rec.check(U.PEASANT, barracks, Recruitment.NEW_SQUAD, grid, e, goods, Research.new(), 1),
+			Recruitment.Result.ERA_PASSED, "check w epoce II")
+	assert_eq(rec.start(U.PEASANT, barracks, Recruitment.NEW_SQUAD, grid, e, goods, Research.new(), 1, T0),
+			Recruitment.Result.ERA_PASSED, "start w epoce II")
+	assert_eq(RecruitPanel.units_for(-1)[0], U.PEASANT, "pierwszy na liście Wojsko")
+	assert_eq(RecruitPanel.units_for(K.BARRACKS)[0], U.PEASANT, "pierwszy w Koszarach")
+	assert_eq(Recruitment.MESSAGES.size(), Recruitment.Result.size(), "komunikat dla każdego wyniku")
+	return true
 
 
 ## Telefon: długie teksty w szczegółach zawijają się po słowach i nie wychodzą poza ekran.
