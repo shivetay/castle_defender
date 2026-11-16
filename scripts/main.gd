@@ -291,6 +291,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 			_deselect()
 		queue_redraw()
 		return
+	if id != 0 and hud.selected_kind == BuildingTypes.Kind.GATE and BuildingTypes.is_wall(grid.kinds[id]):
+		id = 0  # brama na wale albo palisadzie: zastępuje odcinki w linii (po teście na telefonie)
 	if id != 0 and BuildingTypes.is_wall(hud.selected_kind):
 		# palec w wąskiej luce linii umocnień trafił w sąsiedni odcinek: budujemy w luce
 		var gap := grid.gap_near(world_pos, hud.selected_kind, GAP_TAP_TOLERANCE)
@@ -551,6 +553,8 @@ func _refresh_card() -> void:
 	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
+	hud.card_info_missing = PackedStringArray() if pending or level >= BuildingTypes.MAX_LEVEL \
+			else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
 

@@ -59,8 +59,13 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 		return Result.NEEDS_TECH
 	if is_full():
 		return Result.QUEUE_FULL
-	if grid.placement_for(c, kind) == Rect2i():
+	var rect := grid.placement_for(c, kind)
+	if rect == Rect2i():
 		return Result.NO_PLACE
+	# brama w linii umocnień: odcinki w budowie zostają (najpierw trzeba je skończyć albo anulować)
+	for wall in grid.walls_under(rect):
+		if has_order(wall):
+			return Result.NO_PLACE
 	var cost := BuildConfig.cost(kind, 1)
 	if not economy.spend(cost):
 		return Result.NO_RESOURCES

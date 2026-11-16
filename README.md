@@ -47,6 +47,9 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   oraz z bramą i wieżą, więc mieszana linia nie ma szpar. Przy wybranym wale lub palisadzie dotknięcie
   kratki obok luki w linii (np. nad nią, gdzie widać wierzch palisady) albo sąsiedniego odcinka do 3 px od
   krawędzi luki stawia odcinek w luce zamiast zaznaczać sąsiada.
+  Brama może też stanąć na ciągłej linii wału albo palisady: zastępuje odcinki pod sobą (bez zwrotu
+  kosztu), a linia łączy się z nią po obu stronach. Luka w linii ma pierwszeństwo, a odcinki w budowie
+  i inne budynki zostają.
   Dwór stoi od startu na środku mapy, jest jeden, nie ma go na pasku budowy i nie da się go rozebrać.
   `state_for_hp(hp, max_hp)` wybiera stan z procentu wytrzymałości: od 76% cały, od 41% pęknięcia,
   od 1% wyrwa, 0 to gruz.
@@ -117,6 +120,8 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   Do tego Chłop (pospolite ruszenie, jednostka poziomu 0): lekka piechota z Koszar bez technologii
   i bez towarów, za 5 żywności, tylko w epoce I (`ERA_I_ONLY`); stoi pierwszy na ekranie Wojsko.
   Statystyki tymczasowe.
+  Każda jednostka ma krótki opis roli (`ROLES`) i linię przewag liczoną z tabeli klas
+  (`counters_text`: przeciw komu jest silna i kto ją kontruje); na ekranie Wojsko pokazuje je przycisk Opis.
 - `scripts/world/recruitment.gd` (`Recruitment`): armia w oddziałach i kolejki szkolenia (#89). Oddział ma
   jeden rodzaj jednostek i najwyżej 10 jednostek (tymczasowe); nowa jednostka idzie do wskazanego oddziału
   tego rodzaju albo do nowego. Globalny limit armii to tyle, ile zamek może teraz utrzymać: 10 za poziom
