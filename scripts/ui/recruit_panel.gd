@@ -23,10 +23,14 @@ const GAP := 2
 const MAX_ROWS := 5
 const DETAIL_Y := GRID_Y + MAX_ROWS * (TILE_H + GAP) + 1
 ## Nazwa i stan, koszt, brakujące towary albo szkolenie, wybór oddziału.
-## Linie szczegółów między kafelkami a rzędem przycisków (rząd oddziałów stoi obok Szkol).
-const DETAIL_LINES := 4
+## Linie szczegółów między kafelkami a rzędem oddziałów.
+const DETAIL_LINES := 3
 const LINE_STEP := PixelFont.LINE + 2
+## Rząd wyboru oddziału na pełnej szerokości treści, tuż nad przyciskami Szkol i Zamknij (review #156:
+## w rzędzie przycisków na wąskim ekranie mieściły się tylko dwa miejsca).
+const SQUAD_Y := DETAIL_Y + DETAIL_LINES * LINE_STEP
 const SQUAD_W := 40
+const SQUAD_H := 12
 const NEW_SQUAD_LABEL := "Nowy"
 const TRAIN_LABEL := "Szkol"
 const CLOSE_LABEL := "Zamknij"
@@ -113,15 +117,13 @@ static func tile_rects(left: float, right: float, count: int) -> Array[Rect2]:
 	return out
 
 
-## Miejsca w rzędzie wyboru oddziału, w dolnym rzędzie przycisków na lewo od Szkol: pierwsze to Nowy,
-## dalej istniejące oddziały. Wysokie jak przyciski, więc łatwo w nie trafić kciukiem.
-static func squad_rects(view: Vector2, left: float, right: float, count: int) -> Array[Rect2]:
-	var row_right := train_rect(view, right).position.x - GAP
-	var fit := int((row_right - left + GAP) / (SQUAD_W + GAP))
-	var y := Hud.row_y(view)
+## Miejsca w rzędzie wyboru oddziału na całej szerokości treści: pierwsze to Nowy, dalej istniejące
+## oddziały.
+static func squad_rects(left: float, right: float, count: int) -> Array[Rect2]:
+	var fit := int((right - left + GAP) / (SQUAD_W + GAP))
 	var out: Array[Rect2] = []
 	for i in mini(count, fit):
-		out.append(Rect2(left + i * (SQUAD_W + GAP), y, SQUAD_W, Hud.BUTTON_SIZE.y))
+		out.append(Rect2(left + i * (SQUAD_W + GAP), SQUAD_Y, SQUAD_W, SQUAD_H))
 	return out
 
 
@@ -136,7 +138,7 @@ static func detail_lines(name: String, state: String, cost: String, extra: Strin
 	else:
 		for l in PixelFont.wrap(name, width, 1):
 			out.append([l, Palette.INK, ""])
-		out.append([state, Palette.THATCH[2], ""])
+		out.append([PixelFont.wrap(state, width, 1)[0] if not state.is_empty() else "", Palette.THATCH[2], ""])
 	var room := DETAIL_LINES - out.size()
 	var extra_lines := PixelFont.wrap(extra, width) if not extra.is_empty() else PackedStringArray()
 	# koszt dostaje tyle linii, ile zostaje po brakach (braki co najmniej jedną)
@@ -183,7 +185,7 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, coun
 		return Target.CLOSE
 	if train_rect(view, right).has_point(p):
 		return Target.TRAIN
-	var sq := Hud.hit(squad_rects(view, left, right, squad_count), p)
+	var sq := Hud.hit(squad_rects(left, right, squad_count), p)
 	if sq >= 0:
 		return Target.SQUAD + sq
 	var tile := Hud.hit(tile_rects(left, right, count), p)
@@ -344,7 +346,7 @@ func _draw_details() -> void:
 ## Rząd wyboru oddziału: Nowy i oddziały wybranej jednostki; pełne są przygaszone.
 func _draw_squads() -> void:
 	var options := squad_options(recruitment, selected)
-	var rects := squad_rects(get_viewport_rect().size, content_left, content_right, options.size())
+	var rects := squad_rects(content_left, content_right, options.size())
 	for i in rects.size():
 		var sq := options[i]
 		var full := sq != Recruitment.NEW_SQUAD and recruitment.free_in_squad(sq) <= 0

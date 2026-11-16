@@ -275,15 +275,19 @@ func test_empty_squad_disappears_with_its_building() -> bool:
 
 func test_squad_picker_layout() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
-	var rects := RecruitPanel.squad_rects(VIEW, b.x, b.y, 10)
+	var rects := RecruitPanel.squad_rects(b.x, b.y, 10)
 	assert_true(rects.size() >= 4, "mieści się Nowy i co najmniej 3 oddziały")
-	var train := RecruitPanel.train_rect(VIEW, b.y)
 	for r in rects:
 		assert_true(r.size.x >= 12 and r.size.y >= 12, "cel ≥ 12×12")
-		assert_true(r.position.x >= b.x, "w granicach treści")
-		assert_true(r.end.x <= train.position.x, "na lewo od Szkol")
-		assert_eq(r.position.y, Hud.row_y(VIEW), "w rzędzie przycisków")
+		assert_true(r.position.x >= b.x and r.end.x <= b.y, "w granicach treści")
+		assert_true(r.end.y <= Hud.row_y(VIEW), "nad przyciskami Szkol i Zamknij")
+		assert_true(r.position.y >= RecruitPanel.DETAIL_Y + RecruitPanel.DETAIL_LINES * RecruitPanel.LINE_STEP,
+				"pod szczegółami")
 		assert_true(PixelFont.text_width("9: 10/10") <= r.size.x - 4, "napis oddziału mieści się")
+	# review #156: telefon ze strefą bezpieczną zwęża treść; Nowy i 3 oddziały mieszczą się dalej
+	for width: int in [200, 240]:
+		var narrow := RecruitPanel.squad_rects(40, 40 + width, 10)
+		assert_true(narrow.size() >= 4, "%d px treści: Nowy i co najmniej 3 oddziały" % width)
 	var rec := Recruitment.new()
 	var sq := rec.add_squad(U.ARCHER, 4)
 	assert_eq(RecruitPanel.squad_options(rec, U.ARCHER), [Recruitment.NEW_SQUAD, sq] as Array[int], "Nowy i oddział łuczników")
@@ -363,4 +367,5 @@ func test_wrap_splits_on_words() -> bool:
 	assert_eq(cut.size(), 2, "limit linii")
 	assert_true(cut[1].ends_with("..."), "ucięty tekst kończy się kropkami")
 	assert_eq(PixelFont.wrap("", 50).size(), 0, "pusty tekst")
+	assert_eq(PixelFont.wrap("bardzo dlugi tekst", 2, 1)[0], "", "szerokość mniejsza niż wielokropek: pusto, nic nie wystaje")
 	return true
