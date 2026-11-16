@@ -41,6 +41,7 @@ var goods: Goods
 var recruitment := Recruitment.new()
 var recruit_panel: RecruitPanel
 var research_panel: ResearchPanel
+var build_panel: BuildPanel
 
 var _terrain_tex: ImageTexture
 var _selected_id := 0
@@ -89,13 +90,22 @@ func _ready() -> void:
 	hud.economy = economy
 	layer.add_child(hud)
 	hud.message = DEFAULT_MESSAGE
-	hud.kind_selected.connect(_on_kind_selected)
+	hud.build_pressed.connect(_on_build_panel_opened)
+	hud.change_pressed.connect(_on_build_panel_opened)
 	hud.build_mode_changed.connect(_on_build_mode_changed)
 	hud.siege_pressed.connect(_on_siege_pressed)
 	hud.upgrade_pressed.connect(_on_upgrade)
 	hud.demolish_pressed.connect(_on_middle_button)
 	hud.card_closed.connect(_deselect)
 	hud.research_pressed.connect(_on_research_opened)
+
+	build_panel = BuildPanel.new()
+	build_panel.research = research
+	build_panel.economy = economy
+	build_panel.visible = false
+	layer.add_child(build_panel)
+	build_panel.place_requested.connect(_on_place_requested)
+	build_panel.closed.connect(_on_overlay_closed)
 
 	research_panel = ResearchPanel.new()
 	research_panel.research = research
@@ -198,10 +208,6 @@ func _tick() -> void:
 	if not trained.is_empty():
 		_save()
 	hud.queue_text = ""
-	hud.locked_kinds.clear()
-	for kind in BuildingTypes.BUILD_BAR:
-		if not BuildConfig.is_unlocked(kind, research):
-			hud.locked_kinds.append(kind)
 	hud.research_text = "" if not research.is_busy() else "Bad. %s" % Hud.format_time(research.remaining_ms(now))
 	hud.age_text = Ages.label(0, grid.manor_level())
 	if not queue.orders.is_empty():
@@ -254,12 +260,26 @@ func _on_tapped(world_pos: Vector2) -> void:
 	queue_redraw()
 
 
-func _on_kind_selected(kind: int) -> void:
-	if not BuildConfig.is_unlocked(kind, research):
-		hud.message = _tech_hint(kind)
-		return
+## Panel budowy (Buduj w trybie oglądania albo Zmień w trybie budowy).
+func _on_build_panel_opened() -> void:
+	_tick()
+	_selected_id = 0
+	hud.hide_card()
+	hud.overlay = true
+	build_panel.select(hud.selected_kind)
+	build_panel.open()
+	hud.message = "Wybierz budynek"
+	queue_redraw()
+
+
+## Postaw z panelu budowy: tryb budowy z wybranym budynkiem, kolejne dotknięcia mapy go stawiają.
+func _on_place_requested(kind: int) -> void:
+	hud.overlay = false
+	hud.selected_kind = kind
+	hud.set_building(true)
 	hud.message = "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, 1)),
 			Hud.format_time(BuildConfig.time_ms(kind, 1))]
+	queue_redraw()
 
 
 ## Czy Rybak nie staje tylko przez brak wody: ten sam prostokąt bez warunku wody byłby wolny
@@ -384,8 +404,22 @@ func _refresh_card() -> void:
 	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level())
 	var middle_enabled := pending or kind != BuildingTypes.Kind.MANOR
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
+	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
+
+
+## Linia karty z kosztem ulepszenia, np. „Ulepsz: 180 Dr 60 Ka 60 Ży, 3:00”.
+static func upgrade_info(kind: int, level: int, manor_level: int, pending: bool) -> String:
+	if pending:
+		return "Trwa budowa"
+	if level >= BuildingTypes.MAX_LEVEL:
+		return "Najwyższy poziom"
+	var text := "Ulepsz: %s, %s" % [Hud.cost_text(BuildConfig.cost(kind, level + 1)),
+			Hud.format_time(BuildConfig.time_ms(kind, level + 1))]
+	if level >= BuildConfig.max_level(kind, manor_level):
+		text += ", najpierw Dwór"
+	return text
 
 
 func _on_upgrade() -> void:

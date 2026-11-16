@@ -198,19 +198,17 @@ func test_panel_modes_and_layout() -> bool:
 
 func test_hud_army_button_and_recruit_card() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
-	var army := Hud.army_rect(VIEW, b.x)
-	assert_true(not army.intersects(Hud.left_corner_rect(VIEW, b.x)), "Wojsko obok Oblężenia")
-	assert_true(not army.intersects(Hud.research_rect(VIEW, b.y)), "Wojsko nie na Badaniach")
-	assert_eq(Hud.target_at(army.get_center(), VIEW, b.x, b.y, false, false, 0), Hud.Target.ARMY, "Wojsko")
+	var army := Hud.column_rect(b.y, Hud.column_targets(false).find(Hud.Target.ARMY))
+	assert_eq(Hud.target_at(army.get_center(), VIEW, b.y, false, false), Hud.Target.ARMY, "Wojsko w kolumnie")
 	var card := Hud.card_rects(VIEW, true)
 	assert_eq(card.size(), 4, "karta budynku rekrutacji: 4 przyciski")
 	assert_true(card[0].position.x >= b.x and card[-1].end.x <= b.y, "karta mieści się na 320 px")
-	assert_eq(Hud.target_at(card[2].get_center(), VIEW, b.x, b.y, false, true, 0, true), Hud.Target.CARD + Hud.CardButton.RECRUIT,
+	assert_eq(Hud.target_at(card[2].get_center(), VIEW, b.y, false, true, true), Hud.Target.CARD + Hud.CardButton.RECRUIT,
 			"trzeci przycisk: Szkol")
-	assert_eq(Hud.target_at(card[3].get_center(), VIEW, b.x, b.y, false, true, 0, true), Hud.Target.CARD + Hud.CardButton.CLOSE,
+	assert_eq(Hud.target_at(card[3].get_center(), VIEW, b.y, false, true, true), Hud.Target.CARD + Hud.CardButton.CLOSE,
 			"czwarty: Zamknij")
 	var plain := Hud.card_rects(VIEW)
-	assert_eq(Hud.target_at(plain[2].get_center(), VIEW, b.x, b.y, false, true, 0), Hud.Target.CARD + Hud.CardButton.CLOSE,
+	assert_eq(Hud.target_at(plain[2].get_center(), VIEW, b.y, false, true), Hud.Target.CARD + Hud.CardButton.CLOSE,
 			"zwykła karta: trzeci to Zamknij")
 	return true
 

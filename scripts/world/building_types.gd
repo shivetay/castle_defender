@@ -44,6 +44,33 @@ const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWE
 		Kind.ARCHERY_RANGE]
 
 
+## Kategorie w panelu budowy (po teście na telefonie): zakładki zamiast jednego długiego paska.
+enum Category { DEFENSE, ECONOMY, PRODUCERS, MILITARY }
+const CATEGORY_NAMES: Array[String] = ["Umocnienia", "Gospodarka", "Wytwórcy", "Wojsko"]
+## Rodzaje w kategoriach, w kolejności kafelków (ta sama kolejność co BUILD_BAR).
+const CATEGORIES: Array = [
+	[Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER],
+	[Kind.LUMBER_HUT, Kind.FISHER, Kind.FLAX_FIELD],
+	[Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER, Kind.FLETCHER,
+			Kind.SADDLER, Kind.TAR_KILN],
+	[Kind.BARRACKS, Kind.WARBAND_HOUSE, Kind.ARCHERY_RANGE, Kind.STABLE],
+]
+
+
+static func in_category(cat: int) -> Array[int]:
+	var out: Array[int] = []
+	out.assign(CATEGORIES[cat] as Array)
+	return out
+
+
+## Kategoria rodzaju albo -1 (Dwór nie stoi w panelu).
+static func category(kind: int) -> int:
+	for i in CATEGORIES.size():
+		if (CATEGORIES[i] as Array).has(kind):
+			return i
+	return -1
+
+
 static func count() -> int:
 	return NAMES.size()
 
