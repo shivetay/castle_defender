@@ -140,7 +140,7 @@ static func requires_text(code: String, max_width: int) -> String:
 	var text := "Wymaga: " + ", ".join(named)
 	if PixelFont.text_width(text) <= max_width:
 		return text
-	return "Wymaga: " + ", ".join(PackedStringArray(reqs))
+	return fit_text("Wymaga: " + ", ".join(PackedStringArray(reqs)), max_width)
 
 
 ## Tekst przycięty do szerokości `max_width` (z wielokropkiem „...”).
@@ -195,22 +195,20 @@ func _draw() -> void:
 		return
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, Hud.BAR_H, view.x, view.y - 2 * Hud.BAR_H), Color(Palette.SHADOW, 0.92))
-	var tabs := tab_rects(content_left, content_right)
-	for i in tabs.size():
-		Hud.paint_button(self, tabs[i], TechTree.BRANCH_NAMES[i], i == branch or _pressed == Target.TAB + i, false)
-	var codes := TechTree.in_branch(branch)
-	var tiles := tile_rects(content_left, content_right, codes.size())
 	var reqs := TechTree.requires(selected)
 	var next := TechLinks.unlocks(selected)
 	var linked := TechLinks.related(selected)
+	var tabs := tab_rects(content_left, content_right)
+	for i in tabs.size():
+		Hud.paint_button(self, tabs[i], TechTree.BRANCH_NAMES[i], i == branch or _pressed == Target.TAB + i, false)
+		var mark := tab_marker(i, reqs, next, linked)
+		if i != branch and mark.a > 0.0:
+			# powiązanie w innej gałęzi: pasek w kolorze ramki na dole zakładki (review #157)
+			draw_rect(Rect2(tabs[i].position.x + 2, tabs[i].end.y - 3, tabs[i].size.x - 4, 2), mark)
+	var codes := TechTree.in_branch(branch)
+	var tiles := tile_rects(content_left, content_right, codes.size())
 	for i in codes.size():
-		var frame := Color(0, 0, 0, 0)
-		if reqs.has(codes[i]):
-			frame = Palette.VALID if research.is_done(codes[i]) else Palette.ACCENT
-		elif next.has(codes[i]):
-			frame = Palette.THATCH[2]
-		elif linked.has(codes[i]):
-			frame = Palette.WATER[2]
+		var frame := link_color(codes[i], reqs, next, linked, research.is_done(codes[i]))
 		_draw_tile(tiles[i], codes[i], codes[i] == selected or _pressed == Target.TILE + i, frame)
 	_draw_details()
 	var can_start := research.check(selected, age) == Research.Result.OK \
@@ -240,6 +238,34 @@ func _draw_tile(r: Rect2, code: String, active: bool, frame: Color) -> void:
 		draw_rect(Rect2(r.end.x - 1, r.position.y, 1, r.size.y), frame)
 
 
+## Kolor ramki kafelka `code` względem zaznaczonej technologii: wymagana czerwona (spełniona jasna,
+## żeby była widoczna na zielonym kafelku zbadanej, review #157), odblokowywana złota, powiązana
+## niebieska; przezroczysty, gdy brak powiązania.
+static func link_color(code: String, reqs: Array[String], next: Array[String], linked: Array[String],
+		done: bool) -> Color:
+	if reqs.has(code):
+		return Palette.INK if done else Palette.ACCENT
+	if next.has(code):
+		return Palette.THATCH[2]
+	if linked.has(code):
+		return Palette.WATER[2]
+	return Color(0, 0, 0, 0)
+
+
+## Znacznik zakładki gałęzi `i`, w której leży coś powiązanego z zaznaczoną technologią (ramki
+## widać tylko w bieżącej zakładce): kolor najważniejszego powiązania albo przezroczysty.
+static func tab_marker(i: int, reqs: Array[String], next: Array[String], linked: Array[String]) -> Color:
+	var best := Color(0, 0, 0, 0)
+	for code in TechTree.in_branch(i):
+		if reqs.has(code):
+			return Palette.ACCENT
+		if next.has(code):
+			best = Palette.THATCH[2]
+		elif linked.has(code) and best.a == 0.0:
+			best = Palette.WATER[2]
+	return best
+
+
 ## Tło kafelka: zbadane mają zielone (trawa), reszta drewniane; zaznaczony jest jaśniejszy.
 static func tile_color(done: bool, active: bool) -> Color:
 	if done:
@@ -259,8 +285,8 @@ static func detail_lines(r: Research, code: String, current_age: int, now: int, 
 	head.append([fit_text(title, width - PixelFont.text_width(state) - 6), Palette.INK, state])
 	var effect := PixelFont.wrap(TechTree.effect(code), width, 2)
 	if not r.is_done(code) and r.active != code:
-		head.append(["%s, %s, %s" % [TechTree.age_label(TechTree.age(code)), Hud.cost_text(r.cost_of(code)),
-				Hud.format_time(r.time_of(code))], Palette.INK, ""])
+		head.append([fit_text("%s, %s, %s" % [TechTree.age_label(TechTree.age(code)), Hud.cost_text(r.cost_of(code)),
+				Hud.format_time(r.time_of(code))], width), Palette.INK, ""])
 	var links: Array = []
 	links.append([requires_text(code, width), Palette.INK, ""])
 	var next := TechLinks.unlocks(code)

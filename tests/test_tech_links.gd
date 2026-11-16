@@ -67,9 +67,28 @@ func test_researched_tiles_look_different() -> bool:
 ## Gdy brakuje linii, odblokowuje i powiązane łączą się w jedną (A41: A44 i A47).
 func test_links_merge_when_short_of_lines() -> bool:
 	var lines := ResearchPanel.detail_lines(Research.new(), "A41", 0, 0, 296)
-	var text := ""
+	var merged := false
 	for l: Array in lines:
-		text += (l[0] as String) + "|"
-	assert_true(text.contains("A44"), "odblokowuje A44 widać")
-	assert_true(text.contains("A47"), "powiązane A47 widać")
+		var t := l[0] as String
+		if t.begins_with("Odblokowuje:") and t.contains("A44") and t.contains("powiązane") and t.contains("A47"):
+			merged = true
+	assert_true(merged, "A44 i A47 w jednej linii (review #157)")
+	return true
+
+
+## Powiązania widać też na zakładkach innych gałęzi (review #157): ramki są tylko w bieżącej zakładce.
+func test_tab_marks_related_branch() -> bool:
+	var reqs := TechTree.requires("A39")
+	var next := TechLinks.unlocks("A39")
+	var linked := TechLinks.related("A39")
+	var atak := TechTree.branch("A22")
+	assert_true(ResearchPanel.tab_marker(atak, reqs, next, linked).a > 0.0, "gałąź z A22 ma znacznik")
+	var none := 0
+	for i in TechTree.BRANCH_NAMES.size():
+		if ResearchPanel.tab_marker(i, [] as Array[String], [] as Array[String], [] as Array[String]).a == 0.0:
+			none += 1
+	assert_eq(none, TechTree.BRANCH_NAMES.size(), "bez powiązań bez znaczników")
+	# spełnione wymaganie ma inny kolor niż zielony znaczek zbadanej technologii
+	var done_req := ResearchPanel.link_color("A40", ["A40"] as Array[String], [] as Array[String], [] as Array[String], true)
+	assert_true(done_req != Palette.VALID, "ramka spełnionego wymagania widoczna na zielonym kafelku")
 	return true
