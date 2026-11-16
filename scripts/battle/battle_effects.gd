@@ -63,7 +63,7 @@ static func to_px(sub: int) -> int:
 	return sub * TerrainMap.CELL / BattleConfig.SUB
 
 
-## Dodaje efekty ze zdarzeń bitwy.
+## Dodaje efekty ze zdarzeń bitwy. Nadmiar ponad MAX_ITEMS (najstarsze) wypada raz, na końcu.
 func add_events(events: Array[PackedInt32Array]) -> void:
 	for e in events:
 		var t := e[0]
@@ -78,12 +78,12 @@ func add_events(events: Array[PackedInt32Array]) -> void:
 			Battle.Fx.COLLAPSE:
 				var c := TerrainMap.CELL
 				_push(PackedInt32Array([Kind.COLLAPSE, t, COLLAPSE_TICKS, e[3] * c, e[4] * c, e[5] * c, e[6] * c, 0]))
+	if items.size() > MAX_ITEMS:
+		items = items.slice(items.size() - MAX_ITEMS)
 
 
 func _push(item: PackedInt32Array) -> void:
 	items.append(item)
-	if items.size() > MAX_ITEMS:
-		items.remove_at(0)
 
 
 ## Usuwa efekty, które już się skończyły.
@@ -189,9 +189,9 @@ static func smoke_pixels(rect: Rect2i, tick: int) -> Array[Vector3i]:
 	return out
 
 
-## Rysuje efekty z listy i ogień płonących budynków bitwy.
-func draw(ci: CanvasItem, battle: Battle) -> void:
-	var tick := battle.tick
+## Rysuje efekty z listy i ogień płonących budynków bitwy w chwili `tick` (ticki bitwy; po jej końcu
+## widok liczy dalej, żeby pociski doleciały, a pył opadł).
+func draw(ci: CanvasItem, battle: Battle, tick: int) -> void:
 	for id: int in battle.structures:
 		var s := battle.structures[id]
 		if s.hp <= 0 or s.burning <= 0:

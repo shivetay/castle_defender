@@ -157,3 +157,21 @@ func test_fire_spreads_to_neighbouring_wood() -> bool:
 	assert_true(s[p2].burning > 0, "ogień idzie dalej po palisadzie")
 	assert_eq(s[far].burning, 0, "daleki budynek nie płonie")
 	return true
+
+
+## Po końcu bitwy widok liczy czas efektów dalej: pociski dolatują, pył opada, nic nie zastyga.
+func test_effects_finish_after_the_battle_ends() -> bool:
+	var view := BattleView.new()
+	view.battle = _battle(true)
+	_run_collecting(view.battle)
+	assert_true(view.battle.winner != Battle.Winner.NONE, "bitwa skończona")
+	var end_tick := view.battle.tick
+	view.fx_tick = end_tick
+	var sub := BattleConfig.SUB
+	view.effects.add_events([PackedInt32Array([end_tick, Battle.Fx.SHOT, U.ARCHER, 0, 0, 8 * sub, 0])] as Array[PackedInt32Array])
+	view._physics_process(1.0)
+	assert_eq(view.battle.tick, end_tick, "symulacja stoi")
+	assert_eq(view.fx_tick, end_tick + BattleConfig.TICK_HZ, "efekty liczą dalej")
+	assert_eq(view.effects.items.size(), 0, "strzała doleciała i zniknęła")
+	view.free()
+	return true
