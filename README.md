@@ -173,6 +173,14 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   (`Battle.for_castle(..., research)` dolicza to samo),
   a `add_squad_morale` jest gotowe na śmierć generała (−20, #31/#32). W widoku bitwy nad ikoną
   oddziału jest złoty pasek morale (czerwony poniżej progu). Start i strata za poległego są tymczasowe.
+- Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
+  - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
+  - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
+  - nad płonącym budynkiem migocze ogień i unosi się dym.
+
+  Efekty powstają ze zdarzeń, które bitwa zapisuje tylko dla widoku (`Battle.take_fx`). Nie wchodzą do
+  sumy kontrolnej, więc nie zmieniają przebiegu. Rozprzestrzenianie ognia i gaszenie wodą ze Studni
+  zmieniają wynik, więc czekają na #29 i #20.
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -318,5 +326,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 ## Następny etap
 
 Etap 6 (#128): po symulacji (#14), donżonie (#120), jednostkach w bitwie (#15, #92), morale (#98)
-i samouczku PvE (#16) zostają efekty bitwy (#101), które czekają na zadania obrony (#20) i powtórkę (#29). Z etapów 4–5 zostają części
+i samouczku PvE (#16) zostają z efektów bitwy (#101) rozprzestrzenianie ognia i gaszenie, które czekają
+na zadania obrony (#20) i powtórkę (#29). Z etapów 4–5 zostają części
 zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).

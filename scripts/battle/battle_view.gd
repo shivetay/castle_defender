@@ -2,7 +2,7 @@ class_name BattleView
 extends Node2D
 ## Widok bitwy na mapie zamku (#15). Jednostki nie są ludzikami: jeden oddział to ikona klasy
 ## na ciemnym tle z ramką w kolorze strony, liczba żywych jednostek, nad ikoną pasek morale (#98)
-## i pod nią pasek zdrowia oddziału.
+## i pod nią pasek zdrowia oddziału. Pod odznakami efekty (#101): pociski, pył, ogień i dym.
 ## Symulacja liczy się w _physics_process w stałym kroku (BattleConfig.TICK_HZ), a rysowanie
 ## tylko czyta jej stan, więc widok nie wpływa na przebieg.
 
@@ -17,7 +17,13 @@ var battle: Battle
 var running := true
 ## Tempo bitwy (1, 2 albo 4): ile kroków symulacji na krok czasu; samouczek #16 pozwala tylko na to.
 var speed := 1
+var effects := BattleEffects.new()
 var _acc_us := 0
+
+
+func _ready() -> void:
+	if battle != null:
+		battle.record_fx = true
 
 
 func _physics_process(delta: float) -> void:
@@ -28,12 +34,15 @@ func _physics_process(delta: float) -> void:
 	while _acc_us >= tick_us and battle.winner == Battle.Winner.NONE:
 		_acc_us -= tick_us
 		battle.step()
+	effects.add_events(battle.take_fx())
+	effects.prune(battle.tick)
 	queue_redraw()
 
 
 func _draw() -> void:
 	if battle == null:
 		return
+	effects.draw(self, battle)
 	var squads: Array[Dictionary] = []
 	var sides: Array[int] = []
 	for side: int in [Battle.Side.DEFENDER, Battle.Side.ATTACKER]:
