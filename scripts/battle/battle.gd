@@ -220,6 +220,11 @@ func routed(f: Fighter) -> bool:
 	return squad_morale(f.side, f.squad) < BattleConfig.MORALE_ROUT
 
 
+## Wycofana jednostka, która już stoi na swojej kratce startowej i nie ma dokąd uciekać.
+func cornered(f: Fighter) -> bool:
+	return absi(f.cell().x - f.post.x) <= 1 and absi(f.cell().y - f.post.y) <= 1
+
+
 ## Obrażenia dla jednostki; śmierć zabiera morale jej oddziałowi (loss_morale).
 func _hurt(f: Fighter, dmg: int) -> void:
 	if not f.alive():
@@ -393,6 +398,13 @@ func _act(f: Fighter) -> void:
 		if not f.retreating:
 			f.retreating = true
 			f.path.clear()
+		if cornered(f):
+			# osaczony na swojej kratce (obrońca przy donżonie): nie ściga, ale oddaje wrogom w zasięgu (#16)
+			var near := _enemy_for(f)
+			if near != null and _in_range(f, near.x, near.y, UnitTypes.attack_range(f.unit)):
+				f.target = near.id
+				_strike_unit(f, near)
+				return
 		_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
 				false, _retreat_astar)
 		return
@@ -422,7 +434,8 @@ func _enemy_for(f: Fighter) -> Fighter:
 		return null
 	var best: Fighter = null
 	var best_d := 0
-	var sight := (UnitTypes.attack_range(f.unit) + BattleConfig.AGGRO_EXTRA) * BattleConfig.SUB
+	var extra := BattleConfig.DEFENDER_AGGRO_EXTRA if f.side == Side.DEFENDER else BattleConfig.AGGRO_EXTRA
+	var sight := (UnitTypes.attack_range(f.unit) + extra) * BattleConfig.SUB
 	var rider := f.unit == UnitTypes.Unit.RIDER
 	for o in fighters:
 		if o.side == f.side or not o.alive():
@@ -712,8 +725,10 @@ func _update_capture() -> void:
 	var zone := structures[objective].rect.grow(BattleConfig.CAPTURE_RANGE)
 	var holders := 0
 	for f in fighters:
-		# wycofany oddział ani nie zdobywa, ani nie broni celu
-		if not f.alive() or routed(f) or not zone.has_point(f.cell()):
+		# wycofany atakujący nie zdobywa; wycofany obrońca broni celu tylko osaczony na swojej kratce (#16)
+		if not f.alive() or not zone.has_point(f.cell()):
+			continue
+		if routed(f) and not (f.side == Side.DEFENDER and cornered(f)):
 			continue
 		if f.side == Side.DEFENDER:
 			capture_ticks = 0

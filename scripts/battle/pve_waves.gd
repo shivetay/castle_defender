@@ -7,14 +7,24 @@ extends RefCounted
 
 const COUNT := 5
 const U := UnitTypes.Unit
-## Fale: lista oddziałów [rodzaj, liczba] jak w Battle.create_squads. Same jednostki epoki I,
-## od pospolitego ruszenia po taran.
+## Fale: lista oddziałów [rodzaj, liczba] jak w Battle.create_squads. Same jednostki epoki I.
+## Każda jest wyraźnie słabsza niż EXPECTED_DEFENCE, bo atakujący ma przewagę zdobywania (10 s).
 const WAVES: Array = [
-	[[U.PEASANT, 4]],
-	[[U.PEASANT, 6], [U.AXE_WARRIOR, 3]],
-	[[U.AXE_WARRIOR, 6], [U.JAVELINEER, 4]],
-	[[U.AXE_WARRIOR, 8], [U.ARCHER, 5], [U.RIDER, 2]],
-	[[U.AXE_WARRIOR, 10], [U.JAVELINEER, 6], [U.ARCHER, 6], [U.RIDER, 4], [U.FIRE_RAISER, 3]],
+	[[U.PEASANT, 3]],
+	[[U.PEASANT, 5]],
+	[[U.PEASANT, 3], [U.AXE_WARRIOR, 2]],
+	[[U.AXE_WARRIOR, 4], [U.JAVELINEER, 3], [U.ARCHER, 2]],
+	[[U.AXE_WARRIOR, 8], [U.JAVELINEER, 3], [U.ARCHER, 3], [U.RIDER, 1]],
+]
+## Obrona, którą gracz może mieć w danym momencie samouczka (wzorzec do testu balansu): na start
+## Dwór 1 i Koszary 1 dają limit 12, a Chłop to jedyna jednostka bez badań; potem toporniki (A39),
+## łucznicy (A44) i Dwór 2.
+const EXPECTED_DEFENCE: Array = [
+	[[U.PEASANT, 6]],
+	[[U.PEASANT, 10]],
+	[[U.PEASANT, 8], [U.AXE_WARRIOR, 4]],
+	[[U.PEASANT, 4], [U.AXE_WARRIOR, 8], [U.ARCHER, 4]],
+	[[U.AXE_WARRIOR, 10], [U.ARCHER, 6], [U.JAVELINEER, 6]],
 ]
 ## Nagroda za pierwszą wygraną falę: [drewno, kamień, żywność, złoto].
 const REWARDS: Array = [

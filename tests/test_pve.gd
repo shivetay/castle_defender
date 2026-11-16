@@ -8,17 +8,37 @@ const W := Battle.Winner
 const MAIN := preload("res://scripts/main.gd")
 
 
-func _castle() -> BuildGrid:
-	var grid := BuildGrid.new(TerrainMap.generate(1337))
-	grid.place(grid.manor_spot(64), K.MANOR, 3)
-	grid.place(grid.keep_spot(64), K.KEEP, 2)
+## Zamek startowy gracza: Dwór 1 i Koszary (donżon) 1 na pierwszej grywalnej mapie seeda.
+func _castle(world_seed: int = 1337) -> BuildGrid:
+	var grid := BuildGrid.new(TerrainMap.generate(WorldSeed.first_playable(world_seed)))
+	grid.place(grid.manor_spot(64), K.MANOR, 1)
+	grid.place(grid.keep_spot(64), K.KEEP, 1)
 	return grid
+
+
+## Wejście fali: pierwsze pole drogi na krawędzi mapy.
+func _spawn(grid: BuildGrid) -> Vector2i:
+	var last := grid.terrain.size - 1
+	for i in grid.terrain.size:
+		for c: Vector2i in [Vector2i(i, last), Vector2i(i, 0), Vector2i(0, i), Vector2i(last, i)]:
+			if grid.terrain.get_tile(c) == TerrainMap.Tile.PATH:
+				return c
+	return Vector2i(32, last - 1)
+
+
+## Siła fali: suma HP × atak jej jednostek (prosta miara do porównania fal).
+func _strength(wave: int) -> int:
+	var total := 0
+	for sq: Array in PveWaves.squads(wave):
+		total += int(sq[1]) * UnitTypes.hp(int(sq[0])) * UnitTypes.attack(int(sq[0]))
+	return total
 
 
 func test_five_waves_grow() -> bool:
 	assert_eq(PveWaves.COUNT, 5, "5 fal")
 	for i in range(1, PveWaves.COUNT):
-		assert_true(PveWaves.size(i) > PveWaves.size(i - 1), "fala %d większa niż %d" % [i + 1, i])
+		assert_true(PveWaves.size(i) >= PveWaves.size(i - 1), "fala %d nie mniejsza niż %d" % [i + 1, i])
+		assert_true(_strength(i) > _strength(i - 1), "fala %d silniejsza niż %d" % [i + 1, i])
 		var a := 0
 		var b := 0
 		for r in PveWaves.reward(i):
@@ -32,14 +52,27 @@ func test_five_waves_grow() -> bool:
 	return true
 
 
-## Trudność naprawdę rośnie: ten sam oddział obrońców broni pierwszej fali, a ostatniej już nie.
-func test_difficulty_rises_against_same_defence() -> bool:
-	var grid := _castle()
-	var defence := [[U.AXE_WARRIOR, 8]]
-	var first := Battle.for_castle_squads(grid, PveWaves.squads(0), defence, Vector2i(32, 60), PveWaves.battle_seed(1337, 0))
-	assert_eq(first.run(), W.DEFENDER, "fala 1 obroniona")
-	var last := Battle.for_castle_squads(grid, PveWaves.squads(4), defence, Vector2i(32, 60), PveWaves.battle_seed(1337, 4))
-	assert_eq(last.run(), W.ATTACKER, "fala 5 za silna na 8 toporników")
+## Balans na prawdziwym starcie, na kilku mapach: obrona, jaką gracz może mieć na danym etapie
+## samouczka (PveWaves.EXPECTED_DEFENCE, fala 1 to 6 Chłopów), wygrywa, a sami Chłopi w mniejszej
+## liczbie (2, 4, 6, 8, 10) przegrywają, więc trudność rośnie i trzeba rozwijać armię.
+func test_expected_defence_holds_and_weak_falls() -> bool:
+	for world_seed: int in [1337, 42, 9001]:
+		var grid := _castle(world_seed)
+		var spawn := _spawn(grid)
+		for w in PveWaves.COUNT:
+			var bs := PveWaves.battle_seed(world_seed, w)
+			var good := Battle.for_castle_squads(grid, PveWaves.squads(w), PveWaves.EXPECTED_DEFENCE[w], spawn, bs)
+			assert_eq(good.run(), W.DEFENDER, "seed %d, fala %d: oczekiwana obrona wygrywa" % [world_seed, w + 1])
+			var weak := Battle.for_castle_squads(grid, PveWaves.squads(w), [[U.PEASANT, 2 * (w + 1)]], spawn, bs)
+			assert_eq(weak.run(), W.ATTACKER, "seed %d, fala %d: %d Chłopów to za mało" % [world_seed, w + 1, 2 * (w + 1)])
+	return true
+
+
+func test_first_wave_fits_starting_army() -> bool:
+	var defence: Array = PveWaves.EXPECTED_DEFENCE[0]
+	assert_eq(defence.size(), 1, "jeden oddział")
+	assert_eq(int((defence[0] as Array)[0]), U.PEASANT, "same Chłopy, bez badań")
+	assert_true(int((defence[0] as Array)[1]) <= Recruitment.army_limit(_castle()), "mieści się w limicie wojska na starcie")
 	return true
 
 
@@ -47,8 +80,8 @@ func test_wave_battle_is_deterministic() -> bool:
 	var grid := _castle()
 	assert_eq(PveWaves.battle_seed(1337, 2), PveWaves.battle_seed(1337, 2), "ten sam seed fali")
 	assert_true(PveWaves.battle_seed(1337, 2) != PveWaves.battle_seed(1337, 3), "inna fala, inny seed")
-	var a := Battle.for_castle_squads(grid, PveWaves.squads(2), [[U.AXE_WARRIOR, 6]], Vector2i(32, 60), PveWaves.battle_seed(1337, 2))
-	var b := Battle.for_castle_squads(grid, PveWaves.squads(2), [[U.AXE_WARRIOR, 6]], Vector2i(32, 60), PveWaves.battle_seed(1337, 2))
+	var a := Battle.for_castle_squads(grid, PveWaves.squads(2), [[U.AXE_WARRIOR, 6]], _spawn(grid), PveWaves.battle_seed(1337, 2))
+	var b := Battle.for_castle_squads(grid, PveWaves.squads(2), [[U.AXE_WARRIOR, 6]], _spawn(grid), PveWaves.battle_seed(1337, 2))
 	a.run()
 	b.run()
 	assert_eq(a.checksum(), b.checksum(), "ta sama fala, ten sam przebieg")

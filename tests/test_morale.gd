@@ -163,10 +163,20 @@ func test_routed_units_neither_capture_nor_defend() -> bool:
 	for f in b.fighters:
 		f.x = at.x * BattleConfig.SUB + BattleConfig.SUB / 2
 		f.y = at.y * BattleConfig.SUB + BattleConfig.SUB / 2
-	# obrońca złamany: nie blokuje zdobywania
+	# obrońca złamany z dala od swojej kratki: nie blokuje zdobywania
 	b.add_side_morale(SIDE.DEFENDER, -50)
+	for f in b.fighters:
+		if f.side == SIDE.DEFENDER:
+			f.post = at + Vector2i(10, 10)
 	b._update_capture()
-	assert_eq(b.capture_ticks, 1, "wycofany obrońca nie broni celu")
+	assert_eq(b.capture_ticks, 1, "wycofany obrońca w drodze nie broni celu")
+	# ten sam obrońca osaczony na swojej kratce przy donżonie broni go dalej (#16)
+	for f in b.fighters:
+		if f.side == SIDE.DEFENDER:
+			f.post = at
+	b._update_capture()
+	assert_eq(b.capture_ticks, 0, "osaczony obrońca blokuje zdobywanie")
+	b.add_side_morale(SIDE.ATTACKER, 50)
 	# atakujący też złamany: nie zdobywa
 	b.add_side_morale(SIDE.ATTACKER, -50)
 	b._update_capture()
@@ -220,4 +230,27 @@ func test_view_shows_morale_bar() -> bool:
 	assert_eq(BattleView.morale_fill({"morale": 100}), BattleView.BADGE, "pełne morale: pełny pasek")
 	assert_eq(BattleView.morale_fill({"morale": 0}), 0, "zero")
 	assert_true(BattleView.morale_color({"morale": 29}) == Palette.ACCENT, "poniżej progu w kolorze akcentu")
+	return true
+
+
+
+## Samouczek #16: wycofany obrońca, który stoi już na swojej kratce, oddaje wrogom w zasięgu,
+## zamiast stać bezbronnie. Nie ściga ich.
+func test_cornered_defender_fights_back() -> bool:
+	var b := _battle([[U.AXE_WARRIOR, 1]], [[U.AXE_WARRIOR, 1]])
+	var a := _first(b, SIDE.ATTACKER)
+	var d := _first(b, SIDE.DEFENDER)
+	a.x = d.x + BattleConfig.SUB
+	a.y = d.y
+	b.add_side_morale(SIDE.DEFENDER, -50)
+	assert_true(b.routed(d) and b.cornered(d), "obrońca złamany na swojej kratce")
+	var hp := a.hp
+	d.cooldown = 0
+	b._act(d)
+	assert_true(a.hp < hp, "osaczony oddaje")
+	var x := d.x
+	a.x = d.x + 3 * BattleConfig.SUB
+	for i in 30:
+		b._act(d)
+	assert_eq(d.x, x, "nie ściga")
 	return true
