@@ -15,13 +15,15 @@ const ROW := BAR_H + BADGE + BAR_H + 1
 
 var battle: Battle
 var running := true
+## Tempo bitwy (1, 2 albo 4): ile kroków symulacji na krok czasu; samouczek #16 pozwala tylko na to.
+var speed := 1
 var _acc_us := 0
 
 
 func _physics_process(delta: float) -> void:
 	if battle == null or not running or battle.winner != Battle.Winner.NONE:
 		return
-	_acc_us += int(delta * 1000000.0)
+	_acc_us += int(delta * 1000000.0) * speed
 	var tick_us := 1000000 / BattleConfig.TICK_HZ
 	while _acc_us >= tick_us and battle.winner == Battle.Winner.NONE:
 		_acc_us -= tick_us

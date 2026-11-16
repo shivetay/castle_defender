@@ -18,6 +18,9 @@ const DAMAGE_MIN_PERCENT := 90
 const DAMAGE_MAX_PERCENT := 110
 ## Z jakiej odległości (w kratkach, ponad zasięg) jednostka zauważa wroga i rusza na niego.
 const AGGRO_EXTRA := 3
+## Obrońca przy celu widzi dalej: cała załoga reaguje razem, zamiast wchodzić do walki pojedynczo,
+## gdy atakujący nadchodzą zbitą grupą (samouczek #16). TYMCZASOWE.
+const DEFENDER_AGGRO_EXTRA := 8
 ## Koszt przejścia przez kratkę z budynkiem w szukaniu drogi: atakujący idą przez najsłabsze
 ## miejsce linii umocnień zamiast obchodzić ją w nieskończoność.
 const BUILDING_PATH_WEIGHT := 12.0

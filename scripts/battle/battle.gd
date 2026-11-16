@@ -147,6 +147,14 @@ static func for_castle(grid: BuildGrid, attackers: Dictionary, defenders: Dictio
 	return b
 
 
+## for_castle z oddziałami [rodzaj, liczba] (fale PvE #16 i armia z rekrutacji).
+static func for_castle_squads(grid: BuildGrid, attackers: Array, defenders: Array, spawn: Vector2i,
+		seed_value: int, research: Research = null) -> Battle:
+	var b := create_squads(grid, grid.keep_id(), attackers, defenders, spawn, seed_value)
+	b.add_side_morale(Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
+	return b
+
+
 ## Puszcza bitwę do końca albo do `max_ticks`. Zwraca zwycięzcę (Winner).
 func run(max_ticks: int = -1) -> int:
 	var limit := BattleConfig.time_limit_ticks() if max_ticks < 0 else max_ticks
@@ -210,6 +218,11 @@ func add_side_morale(side: int, amount: int) -> void:
 ## Oddział poniżej MORALE_ROUT wycofuje się sam i już nie walczy.
 func routed(f: Fighter) -> bool:
 	return squad_morale(f.side, f.squad) < BattleConfig.MORALE_ROUT
+
+
+## Wycofana jednostka, która już stoi na swojej kratce startowej i nie ma dokąd uciekać.
+func cornered(f: Fighter) -> bool:
+	return absi(f.cell().x - f.post.x) <= 1 and absi(f.cell().y - f.post.y) <= 1
 
 
 ## Obrażenia dla jednostki; śmierć zabiera morale jej oddziałowi (loss_morale).
@@ -385,6 +398,13 @@ func _act(f: Fighter) -> void:
 		if not f.retreating:
 			f.retreating = true
 			f.path.clear()
+		if cornered(f):
+			# osaczony na swojej kratce (obrońca przy donżonie): nie ściga, ale oddaje wrogom w zasięgu (#16)
+			var near := _enemy_for(f)
+			if near != null and _in_range(f, near.x, near.y, UnitTypes.attack_range(f.unit)):
+				f.target = near.id
+				_strike_unit(f, near)
+				return
 		_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
 				false, _retreat_astar)
 		return
@@ -414,7 +434,8 @@ func _enemy_for(f: Fighter) -> Fighter:
 		return null
 	var best: Fighter = null
 	var best_d := 0
-	var sight := (UnitTypes.attack_range(f.unit) + BattleConfig.AGGRO_EXTRA) * BattleConfig.SUB
+	var extra := BattleConfig.DEFENDER_AGGRO_EXTRA if f.side == Side.DEFENDER else BattleConfig.AGGRO_EXTRA
+	var sight := (UnitTypes.attack_range(f.unit) + extra) * BattleConfig.SUB
 	var rider := f.unit == UnitTypes.Unit.RIDER
 	for o in fighters:
 		if o.side == f.side or not o.alive():
@@ -704,8 +725,10 @@ func _update_capture() -> void:
 	var zone := structures[objective].rect.grow(BattleConfig.CAPTURE_RANGE)
 	var holders := 0
 	for f in fighters:
-		# wycofany oddział ani nie zdobywa, ani nie broni celu
-		if not f.alive() or routed(f) or not zone.has_point(f.cell()):
+		# wycofany atakujący nie zdobywa; wycofany obrońca broni celu tylko osaczony na swojej kratce (#16)
+		if not f.alive() or not zone.has_point(f.cell()):
+			continue
+		if routed(f) and not (f.side == Side.DEFENDER and cornered(f)):
 			continue
 		if f.side == Side.DEFENDER:
 			capture_ticks = 0
