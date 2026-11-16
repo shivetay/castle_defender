@@ -631,12 +631,25 @@ static func structure_damage(unit: int, kind: int) -> int:
 
 
 ## Płonący budynek traci FIRE_DAMAGE_PER_S punktów co sekundę, aż ogień zgaśnie albo budynek padnie.
+## Po FIRE_SPREAD_S sekundach ogień przechodzi na sąsiednie drewno.
 func _burn(s: Structure) -> void:
 	s.burning -= 1
+	if s.burning == (BattleConfig.FIRE_S - BattleConfig.FIRE_SPREAD_S) * BattleConfig.TICK_HZ:
+		_spread_fire(s)
 	if s.burning % BattleConfig.TICK_HZ == 0:
 		s.hp -= BattleConfig.FIRE_DAMAGE_PER_S
 		if s.hp <= 0:
 			_destroy(s)
+
+
+## Ogień z `s` zajmuje sąsiednie żywe drewniane budynki, które jeszcze nie płoną (#101).
+## Kolejność budynków jest stała, więc rozprzestrzenianie też.
+func _spread_fire(s: Structure) -> void:
+	var near := s.rect.grow(1)
+	for id: int in structures:
+		var o := structures[id]
+		if o != s and o.hp > 0 and o.burning == 0 and BuildingTypes.is_wooden(o.kind) and near.intersects(o.rect):
+			o.burning = BattleConfig.FIRE_S * BattleConfig.TICK_HZ
 
 
 ## Taran (#15): nie walczy z jednostkami, jedzie do najbliższej żywej bramy i tylko ją bije.

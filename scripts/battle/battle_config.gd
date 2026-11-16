@@ -89,6 +89,9 @@ const RIDER_IGNORES_SPEED := 2
 ## Podpalacz: trafiony drewniany budynek płonie tyle sekund i traci tyle punktów na sekundę. TYMCZASOWE.
 const FIRE_S := 10
 const FIRE_DAMAGE_PER_S := 4
+## Ogień przechodzi na sąsiednie drewniane budynki (także po skosie), gdy budynek płonie już tyle
+## sekund (#101). Bez losowania, więc przebieg jest powtarzalny. TYMCZASOWE.
+const FIRE_SPREAD_S := 4
 
 ## Wieża drewniana strzela do atakujących (łucznicy na wieży). TYMCZASOWE.
 const TOWER_ATTACK := 6

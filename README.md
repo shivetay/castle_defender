@@ -179,8 +179,9 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   - nad płonącym budynkiem migocze ogień i unosi się dym.
 
   Efekty powstają ze zdarzeń, które bitwa zapisuje tylko dla widoku (`Battle.take_fx`). Nie wchodzą do
-  sumy kontrolnej, więc nie zmieniają przebiegu. Rozprzestrzenianie ognia i gaszenie wodą ze Studni
-  zmieniają wynik, więc czekają na #29 i #20.
+  sumy kontrolnej, więc nie zmieniają przebiegu. Ogień w symulacji przechodzi po 4 s na sąsiednie
+  drewniane budynki, także po skosie (bez losowania; wał ziemny nie płonie; czas tymczasowy).
+  Gaszenie wodą ze Studni czeka na Studnię (#35) i zadania obrony (#20).
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -326,6 +327,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 ## Następny etap
 
 Etap 6 (#128): po symulacji (#14), donżonie (#120), jednostkach w bitwie (#15, #92), morale (#98)
-i samouczku PvE (#16) zostają z efektów bitwy (#101) rozprzestrzenianie ognia i gaszenie, które czekają
-na zadania obrony (#20) i powtórkę (#29). Z etapów 4–5 zostają części
+i samouczku PvE (#16) zostaje z efektów bitwy (#101) gaszenie pożarów, które czeka na Studnię (#35)
+i zadania obrony (#20). Z etapów 4–5 zostają części
 zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).

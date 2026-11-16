@@ -128,3 +128,32 @@ func test_particles_are_deterministic_and_whole_pixels() -> bool:
 	for p in BattleEffects.smoke_pixels(rect, 9):
 		assert_true(p.y <= rect.position.y + 2, "dym nad dachem")
 	return true
+
+
+## Ogień przechodzi na sąsiednie drewno (#101): po FIRE_SPREAD_S sekundach płonie sąsiednia palisada,
+## a dalej kolejny odcinek. Wał ziemny i dalekie budynki nie zajmują się ogniem.
+func test_fire_spreads_to_neighbouring_wood() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var manor := grid.place(grid.manor_spot(64), K.MANOR, 3)
+	var r := grid.buildings[manor]
+	var p1 := grid.place(Rect2i(r.end.x, r.position.y, 1, 1), K.PALISADE, 1)
+	var p2 := grid.place(Rect2i(r.end.x + 1, r.position.y, 1, 1), K.PALISADE, 1)
+	var earth := grid.place(Rect2i(r.position.x, r.end.y, 1, 1), K.RAMPART, 1)
+	var far := grid.place(Rect2i(r.end.x + 6, r.position.y, 1, 1), K.PALISADE, 1)
+	assert_true(p1 > 0 and p2 > 0 and earth > 0 and far > 0, "budynki stoją")
+	var b := Battle.create(grid, manor, {}, {}, SPAWN, 1)
+	var s := b.structures
+	s[manor].burning = BattleConfig.FIRE_S * BattleConfig.TICK_HZ
+	var spread_ticks := BattleConfig.FIRE_SPREAD_S * BattleConfig.TICK_HZ
+	for i in spread_ticks - 1:
+		b._burn(s[manor])
+	assert_eq(s[p1].burning, 0, "przed czasem sąsiad nie płonie")
+	b._burn(s[manor])
+	assert_eq(s[p1].burning, BattleConfig.FIRE_S * BattleConfig.TICK_HZ, "sąsiednia palisada się zajmuje")
+	assert_eq(s[p2].burning, 0, "dalszy odcinek jeszcze nie")
+	assert_eq(s[earth].burning, 0, "wał ziemny nie płonie")
+	for i in spread_ticks:
+		b._burn(s[p1])
+	assert_true(s[p2].burning > 0, "ogień idzie dalej po palisadzie")
+	assert_eq(s[far].burning, 0, "daleki budynek nie płonie")
+	return true
