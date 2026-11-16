@@ -89,8 +89,19 @@ func test_frontal_on_objective_matches_no_plan() -> bool:
 	p.add(2, M.FRONTAL)
 	var planned := _battle(c, army, [[U.PEASANT, 4]], p)
 	planned.run()
-	assert_eq(planned.checksum(), plain.checksum(), "ta sama suma kontrolna")
+	# suma kontrolna zawiera też flagi rozkazów, których bez planu nie ma, więc porównujemy przebieg
+	assert_eq(_course(planned), _course(plain), "ten sam przebieg: jednostki, budynki, wynik i czas")
 	return true
+
+
+## Przebieg bitwy bez stanu rozkazów: pozycje i HP jednostek, HP budynków, zwycięzca i czas.
+func _course(b: Battle) -> Array:
+	var out: Array = [b.winner, b.end_reason, b.tick]
+	for f in b.fighters:
+		out.append([f.id, f.x, f.y, f.hp])
+	for id: int in b.structures:
+		out.append([id, (b.structures[id] as Battle.Structure).hp])
+	return out
 
 
 func test_frontal_on_chosen_building_destroys_it_first() -> bool:
@@ -311,4 +322,52 @@ func test_planned_battle_is_deterministic() -> bool:
 	b.run()
 	assert_true(a.winner != Battle.Winner.NONE, "bitwa się rozstrzyga")
 	assert_eq(a.checksum(), b.checksum(), "ten sam plan i seed: ten sam przebieg")
+	return true
+
+
+## Review PR 175: zejście z drabiny nie ląduje na zajętej kratce, set_plan(null) zdejmuje plan,
+## a stan rozkazów wchodzi do sumy kontrolnej.
+func test_review_fixes() -> bool:
+	var c := _castle()
+	var ring: Rect2i = c[4]
+	var wall_cell := Vector2i(ring.position.x + 1, ring.end.y - 1)
+	var p := AttackPlan.new()
+	p.add(1, M.LADDERS, wall_cell)
+	var b := _battle(c, [[U.AXE_WARRIOR, 6]], [], p)
+	var landed := {}
+	var stacked := 0
+	for i in 2400:
+		b.step()
+		for f in b.fighters:
+			if f.climbed and not landed.has(f.id):
+				landed[f.id] = f.cell()
+				for other: int in landed:
+					if other != f.id and landed[other] == f.cell():
+						var g: Battle.Fighter = null
+						for h in b.fighters:
+							if h.id == other:
+								g = h
+						if g != null and g.cell() == f.cell():
+							stacked += 1
+		if landed.size() >= 2:
+			break
+	assert_true(landed.size() >= 2, "co najmniej dwóch zeszło po drabinie")
+	assert_eq(stacked, 0, "nikt nie wylądował na kratce, na której ktoś stoi")
+	var plain := _battle(c, [[U.AXE_WARRIOR, 4]], [[U.PEASANT, 2]], null)
+	var cleared := _battle(c, [[U.AXE_WARRIOR, 4]], [[U.PEASANT, 2]], p)
+	cleared.set_plan(null)
+	assert_true(cleared.plan == null, "plan zdjęty")
+	plain.run()
+	cleared.run()
+	assert_eq(cleared.checksum(), plain.checksum(), "zdjęty plan: dokładnie jak bez planu")
+	var waiting := AttackPlan.new()
+	var o := waiting.add(1, M.FRONTAL)
+	o.start = ST.AFTER_SECONDS
+	o.start_value = 2
+	var x := _battle(c, [[U.AXE_WARRIOR, 4]], [], waiting)
+	var y := _battle(c, [[U.AXE_WARRIOR, 4]], [], waiting)
+	x.step()
+	y.step()
+	y._sq_started[Battle._squad_key(Battle.Side.ATTACKER, 1)] = true
+	assert_true(x.checksum() != y.checksum(), "stan rozkazów jest w sumie kontrolnej")
 	return true
