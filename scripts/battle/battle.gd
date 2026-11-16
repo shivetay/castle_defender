@@ -303,6 +303,20 @@ func squads_view(side: int) -> Array[Dictionary]:
 	return out
 
 
+## Żywi po stronie `side` w każdym oddziale, w kolejności armii z create_squads (indeks 0 = oddział 1),
+## także 0 dla wybitych. Wycofani (#98) przeżyli, więc się liczą.
+func survivors(side: int) -> Array[int]:
+	var out: Array[int] = []
+	for f in fighters:
+		if f.side != side:
+			continue
+		while out.size() < f.squad:
+			out.append(0)
+		if f.alive():
+			out[f.squad - 1] += 1
+	return out
+
+
 ## Suma kontrolna stanu bitwy (do testów determinizmu i późniejszej weryfikacji na serwerze).
 func checksum() -> int:
 	var h := tick * 31 + winner + 7 + end_reason * 131 + capture_ticks

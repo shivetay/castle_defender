@@ -2,8 +2,8 @@ class_name PveWaves
 extends RefCounted
 ## Samouczek PvE (#16): 5 fal oblężenia o rosnącej trudności. Przycisk Oblężenie startuje kolejną
 ## falę na zamku gracza: fala atakuje donżon (#120), a bronią go oddziały z rekrutacji (#89).
-## Wygrana fala daje surowce i odblokowuje następną. Skład fal, nagrody i zasada „bez strat”
-## są TYMCZASOWE (decyzja właściciela).
+## Wygrana fala daje surowce i odblokowuje następną, a polegli obrońcy znikają z armii (#164).
+## Skład fal i nagrody są TYMCZASOWE (decyzja właściciela).
 
 const COUNT := 5
 const U := UnitTypes.Unit
