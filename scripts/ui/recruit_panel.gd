@@ -20,11 +20,14 @@ const GRID_Y := TITLE_Y + 11
 const TILE_COLS := 3
 const TILE_H := 12
 const GAP := 2
+## Odstęp między rzędami kafelków (1 px, żeby szczegóły miały 4 linie).
+const ROW_GAP := 1
 const MAX_ROWS := 5
-const DETAIL_Y := GRID_Y + MAX_ROWS * (TILE_H + GAP) + 1
-## Nazwa i stan, koszt, brakujące towary albo szkolenie, wybór oddziału.
-## Linie szczegółów między kafelkami a rzędem oddziałów.
-const DETAIL_LINES := 3
+const DETAIL_Y := GRID_Y + MAX_ROWS * (TILE_H + ROW_GAP) + 1
+## Linie szczegółów między kafelkami a rzędem oddziałów: nazwa i stan, koszt, braki (do 2 linii).
+const DETAIL_LINES := 4
+## Braki towarów (albo szkolenie) dostają najwyżej tyle linii.
+const EXTRA_LINES := 2
 const LINE_STEP := PixelFont.LINE + 2
 ## Rząd wyboru oddziału na pełnej szerokości treści, tuż nad przyciskami Szkol i Zamknij (review #156:
 ## w rzędzie przycisków na wąskim ekranie mieściły się tylko dwa miejsca).
@@ -118,7 +121,7 @@ static func tile_rects(left: float, right: float, count: int) -> Array[Rect2]:
 	for i in count:
 		@warning_ignore("integer_division")
 		var row := i / TILE_COLS
-		out.append(Rect2(left + (i % TILE_COLS) * (w + GAP), GRID_Y + row * (TILE_H + GAP), w, TILE_H))
+		out.append(Rect2(left + (i % TILE_COLS) * (w + GAP), GRID_Y + row * (TILE_H + ROW_GAP), w, TILE_H))
 	return out
 
 
@@ -146,11 +149,11 @@ static func detail_lines(name: String, state: String, cost: String, extra: Strin
 		out.append([PixelFont.wrap(state, width, 1)[0] if not state.is_empty() else "", Palette.THATCH[2], ""])
 	var room := DETAIL_LINES - out.size()
 	var extra_lines := PixelFont.wrap(extra, width) if not extra.is_empty() else PackedStringArray()
-	# koszt dostaje tyle linii, ile zostaje po brakach (braki co najmniej jedną)
-	var cost_room := maxi(1, room - mini(extra_lines.size(), room - 1))
+	# braki mają pierwszeństwo (do EXTRA_LINES linii), koszt dostaje resztę, ale co najmniej jedną
+	var cost_room := maxi(1, room - mini(extra_lines.size(), EXTRA_LINES))
 	for l in PixelFont.wrap(cost, width, cost_room):
 		out.append([l, Palette.INK, ""])
-	room = DETAIL_LINES - out.size()
+	room = mini(DETAIL_LINES - out.size(), EXTRA_LINES)
 	if room > 0 and not extra.is_empty():
 		for l in PixelFont.wrap(extra, width, room):
 			out.append([l, extra_col, ""])
@@ -226,17 +229,25 @@ static func cost_text(unit: int) -> String:
 	return ", ".join(parts)
 
 
-## Brakujące towary z budynkiem, który je robi, np. „Brak: 1 Łuk (Łukmistrz)”. Pusty, gdy niczego
-## nie brakuje.
+## Brakujące towary pogrupowane według budynku, który je robi, np. „Brak: 1 Przeszywanica,
+## 1 Tarcza (Wytwórca zbroi skórzanych), 20 Strzały (Strzałmistrz)”. Nazwa budynku pada raz na
+## grupę, żeby tekst mieścił się w dwóch liniach. Pusty, gdy niczego nie brakuje.
 static func missing_text(unit: int, g: Goods) -> String:
 	var missing := Recruitment.missing_goods(unit, g)
 	if missing.is_empty():
 		return ""
-	var parts: PackedStringArray = []
+	var makers: PackedStringArray = []
+	var groups := {}
 	for good: int in missing:
 		var maker := GoodsConfig.producer_name(good)
-		parts.append("%d %s (%s)" % [int(missing[good]), GoodsConfig.NAMES[good], maker] if not maker.is_empty()
-				else "%d %s" % [int(missing[good]), GoodsConfig.NAMES[good]])
+		if not groups.has(maker):
+			groups[maker] = []  # Array, bo PackedStringArray w słowniku to kopia
+			makers.append(maker)
+		(groups[maker] as Array).append("%d %s" % [int(missing[good]), GoodsConfig.NAMES[good]])
+	var parts: PackedStringArray = []
+	for maker in makers:
+		var goods_list := ", ".join(PackedStringArray(groups[maker] as Array))
+		parts.append(goods_list if maker.is_empty() else "%s (%s)" % [goods_list, maker])
 	return "Brak: " + ", ".join(parts)
 
 

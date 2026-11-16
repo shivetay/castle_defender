@@ -393,3 +393,26 @@ func test_wrap_splits_on_words() -> bool:
 	assert_eq(PixelFont.wrap("", 50).size(), 0, "pusty tekst")
 	assert_eq(PixelFont.wrap("bardzo dlugi tekst", 2, 1)[0], "", "szerokość mniejsza niż wielokropek: pusto, nic nie wystaje")
 	return true
+
+
+## Telefon: braki Drużynnika (trzy towary jednego wytwórcy) mieszczą się w dwóch liniach, bez ucinania.
+## Nazwa budynku pada raz na grupę towarów.
+func test_missing_goods_fit_in_two_lines() -> bool:
+	var g := Goods.new(T0)
+	var miss := RecruitPanel.missing_text(U.GAMBESON_WARRIOR, g)
+	assert_eq(miss.count("Wytwórca zbroi skórzanych"), 1, "budynek raz na grupę")
+	assert_true(miss.contains("Przeszywanica") and miss.contains("Tarcza") and miss.contains("Zbroja skórzana"), "wszystkie towary")
+	for width: int in [240, 296]:
+		for unit in UnitTypes.count():
+			var m := RecruitPanel.missing_text(unit, g)
+			if m.is_empty():
+				continue
+			var cost := "Koszt: " + RecruitPanel.cost_text(unit) + ", 0:50"
+			var lines := RecruitPanel.detail_lines(UnitTypes.unit_name(unit), "zbadaj A46", cost, m, Palette.ACCENT, width)
+			var shown := PackedStringArray()
+			for l: Array in lines:
+				if (l[1] as Color) == Palette.ACCENT:
+					shown.append(l[0] as String)
+			assert_true(shown.size() <= RecruitPanel.EXTRA_LINES, "%s: braki w najwyżej 2 liniach" % UnitTypes.unit_name(unit))
+			assert_eq(" ".join(shown), m, "%s przy %d px: braki w całości, bez ucinania" % [UnitTypes.unit_name(unit), width])
+	return true
