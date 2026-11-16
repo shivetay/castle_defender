@@ -46,6 +46,11 @@ class Fighter:
 	var charged := false
 	## Oddział jednostki się złamał i ona wraca na start (#98).
 	var retreating := false
+	## Plan ataku (#18): ile punktów trasy oddziału jednostka już minęła, ile ticków wspina się
+	## po drabinie i czy jest już po drugiej stronie muru.
+	var wp := 0
+	var climb := 0
+	var climbed := false
 
 	func cell() -> Vector2i:
 		@warning_ignore("integer_division")
@@ -95,6 +100,17 @@ var _next_id := 1
 ## Czy zapisywać zdarzenia dla efektów (#101). Włącza je tylko widok; symulacja ich nie czyta
 ## i nie liczy w sumie kontrolnej, więc efekty nie zmieniają przebiegu. Bez widoku lista nie rośnie.
 var record_fx := false
+## Plan ataku (#18) albo null: wtedy każdy oddział atakującego idzie jak w Szturmie frontalnym na cel.
+var plan: AttackPlan
+## Stan rozkazów oddziałów (klucz _squad_key): wystartował, wykonał zadanie (sygnał dla Start.AFTER_SQUAD),
+## wycofuje się z rozkazu, polegli, trasa (punkty) i budynek-cel manewru.
+var _sq_started: Dictionary[int, bool] = {}
+var _sq_done: Dictionary[int, bool] = {}
+var _sq_retreat: Dictionary[int, bool] = {}
+var _sq_dead: Dictionary[int, int] = {}
+var _sq_route: Dictionary[int, Array] = {}
+var _sq_goal: Dictionary[int, int] = {}
+var _spawn := Vector2i.ZERO
 ## Zdarzenie: [tick, Fx, jednostka albo FX_TOWER, x0, y0, x1, y1]. SHOT i HIT w podjednostkach
 ## (HIT: x1, y1 to punkt trafienia), COLLAPSE w kratkach (pozycja i rozmiar budynku).
 var _fx: Array[PackedInt32Array] = []
@@ -141,6 +157,7 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 		s.hp = s.max_hp
 		b.structures[id] = s
 	b._setup_astar()
+	b._spawn = spawn
 	b._spawn_squads(attackers, Side.ATTACKER, spawn)
 	var center := grid.buildings[objective_id].get_center() if grid.buildings.has(objective_id) else Vector2i(spawn)
 	b._spawn_squads(defenders, Side.DEFENDER, Vector2i(center) + Vector2i(0, 2))
@@ -237,9 +254,10 @@ func add_side_morale(side: int, amount: int) -> void:
 			morale[key] = clampi(int(morale[key]) + amount, 0, BattleConfig.MORALE_MAX)
 
 
-## Oddział poniżej MORALE_ROUT wycofuje się sam i już nie walczy.
+## Oddział poniżej MORALE_ROUT wycofuje się sam i już nie walczy; tak samo oddział, który według
+## planu ataku stracił swój próg strat (#18).
 func routed(f: Fighter) -> bool:
-	return squad_morale(f.side, f.squad) < BattleConfig.MORALE_ROUT
+	return squad_morale(f.side, f.squad) < BattleConfig.MORALE_ROUT or _sq_retreat.has(_squad_key(f.side, f.squad))
 
 
 ## Wycofana jednostka, która już stoi na swojej kratce startowej i nie ma dokąd uciekać.
@@ -254,6 +272,7 @@ func _hurt(f: Fighter, dmg: int) -> void:
 	f.hp -= dmg
 	if not f.alive():
 		add_squad_morale(f.side, f.squad, -loss_morale(f.side, f.squad))
+		_count_loss(f)
 
 
 ## Strata morale oddziału za jednego poległego: MORALE_SQUAD_LOSS rozłożone na początkowy skład.
@@ -327,6 +346,8 @@ func checksum() -> int:
 		h = _mix(h, f.hp)
 		h = _mix(h, f.squad)
 		h = _mix(h, 1 if f.charged else 0)
+		h = _mix(h, f.wp * 2 + (1 if f.climbed else 0))
+		h = _mix(h, f.climb)
 	for id: int in structures:
 		h = _mix(h, id)
 		h = _mix(h, structures[id].hp)
@@ -444,6 +465,15 @@ func _act(f: Fighter) -> void:
 		_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
 				false, _retreat_astar)
 		return
+	var order := _order(f)
+	if order != null:
+		_act_order(f, order)
+		return
+	_default_act(f)
+
+
+## Zachowanie bez rozkazu: obrońca broni posterunku, atakujący idzie na cel bitwy, Taran na bramę.
+func _default_act(f: Fighter) -> void:
 	if f.unit == UnitTypes.Unit.RAM:
 		_ram_act(f)
 		return
@@ -668,8 +698,8 @@ func _spread_fire(s: Structure) -> void:
 
 ## Taran (#15): nie walczy z jednostkami, jedzie do najbliższej żywej bramy i tylko ją bije.
 ## Inne budynki są dla niego nieprzechodnie; bez bram stoi.
-func _ram_act(f: Fighter) -> void:
-	var gate := _nearest_gate(f)
+func _ram_act(f: Fighter, target_gate: Structure = null) -> void:
+	var gate := target_gate if target_gate != null and target_gate.hp > 0 else _nearest_gate(f)
 	if gate == null:
 		return
 	var gx := (gate.rect.position.x * 2 + gate.rect.size.x) * BattleConfig.SUB / 2
@@ -728,6 +758,399 @@ func _destroy(s: Structure) -> void:
 			_retreat_astar.set_point_solid(Vector2i(x, y), false)
 	for f in fighters:
 		f.repath_in = 0  # wyłom zmienia najkrótszą drogę
+
+
+# --- Plan ataku (#18) --------------------------------------------------------------------------------
+
+## Ustawia plan ataku przed bitwą: trasy oddziałów (Oskrzydlenie bez własnej trasy dostaje punkt
+## obejścia z boku). Punkty trasy przesuwają się na najbliższą wolną kratkę.
+func set_plan(p: AttackPlan) -> void:
+	plan = p
+	_sq_route.clear()
+	for o in p.orders:
+		var route: Array = []
+		var points: Array[Vector2i] = o.waypoints.duplicate()
+		if o.manoeuvre == AttackPlan.Manoeuvre.FLANK and points.is_empty():
+			points.append(flank_point(o))
+		for w in points:
+			route.append(_walkable_near(w))
+		_sq_route[_squad_key(Side.ATTACKER, o.squad)] = route
+
+
+## Rozkaz oddziału jednostki albo null (obrońcy i oddziały bez rozkazu).
+func _order(f: Fighter) -> AttackPlan.Order:
+	if plan == null or f.side != Side.ATTACKER:
+		return null
+	return plan.order_for(f.squad)
+
+
+## Punkt obejścia dla Oskrzydlenia: w połowie drogi od miejsca startu do celu, przesunięty w bok
+## (w lewo albo w prawo patrząc na cel) o połowę tej drogi, co najmniej FLANK_MIN_CELLS.
+func flank_point(o: AttackPlan.Order) -> Vector2i:
+	var t := _goal_cell_for(o)
+	var d := t - _spawn
+	var side := Vector2i(d.y, -d.x) if o.flank_left else Vector2i(-d.y, d.x)
+	var m := maxi(1, maxi(absi(side.x), absi(side.y)))
+	@warning_ignore("integer_division")
+	var length := maxi(BattleConfig.FLANK_MIN_CELLS, maxi(absi(d.x), absi(d.y)) / 2)
+	@warning_ignore("integer_division")
+	var p := _spawn + d / 2 + Vector2i(side.x * length / m, side.y * length / m)
+	var last := _terrain.size - 1
+	return Vector2i(clampi(p.x, 0, last), clampi(p.y, 0, last))
+
+
+## Kratka celu rozkazu do wyznaczania obejścia: wskazany cel albo cel bitwy.
+func _goal_cell_for(o: AttackPlan.Order) -> Vector2i:
+	if o.target != AttackPlan.NO_TARGET:
+		return o.target
+	if structures.has(objective):
+		return structures[objective].rect.get_center()
+	return _spawn
+
+
+## Najbliższa kratka bez wody i bez budynku (pierścienie wokół `c`, kolejność stała).
+func _walkable_near(c: Vector2i) -> Vector2i:
+	var last := _terrain.size - 1
+	var at := Vector2i(clampi(c.x, 0, last), clampi(c.y, 0, last))
+	for r in _terrain.size:
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if maxi(absi(dx), absi(dy)) != r:
+					continue
+				var p := at + Vector2i(dx, dy)
+				if _free_ground(p):
+					return p
+	return at
+
+
+## Czy na kratce da się stanąć: na mapie, bez wody i bez żywego budynku.
+func _free_ground(c: Vector2i) -> bool:
+	return _terrain.in_bounds(c) and _terrain.get_tile(c) != TerrainMap.Tile.WATER and _structure_at(c) == null
+
+
+func _act_order(f: Fighter, o: AttackPlan.Order) -> void:
+	var key := _squad_key(f.side, f.squad)
+	if not _sq_started.has(key):
+		if not _start_ready(o):
+			_hold(f)  # czeka na starcie, ale oddaje wrogom w zasięgu
+			return
+		_sq_started[key] = true
+	var route: Array = _sq_route.get(key, [])
+	if f.wp < route.size():
+		var w: Vector2i = route[f.wp]
+		if absi(f.cell().x - w.x) <= 1 and absi(f.cell().y - w.y) <= 1:
+			f.wp += 1
+		elif not _hold(f):
+			_walk(f, w, w.x * BattleConfig.SUB + BattleConfig.SUB / 2, w.y * BattleConfig.SUB + BattleConfig.SUB / 2, true)
+		return
+	match o.manoeuvre:
+		AttackPlan.Manoeuvre.RANGED:
+			_order_ranged(f, o, key)
+		AttackPlan.Manoeuvre.FIRE:
+			_order_fire(f, o, key)
+		AttackPlan.Manoeuvre.LADDERS:
+			_order_ladders(f, o, key)
+		AttackPlan.Manoeuvre.RAM_GATE:
+			_order_ram(f, o, key)
+		_:
+			_order_assault(f, o, key)  # Szturm frontalny i Oskrzydlenie (po obejściu)
+
+
+func _start_ready(o: AttackPlan.Order) -> bool:
+	match o.start:
+		AttackPlan.Start.AFTER_SECONDS:
+			return tick >= o.start_value * BattleConfig.TICK_HZ
+		AttackPlan.Start.AFTER_SQUAD:
+			var other := _squad_key(Side.ATTACKER, o.start_value)
+			if _sq_done.has(other):
+				return true
+			# oddział, na który czekamy, już nie walczy: nie ma na co czekać
+			for g in fighters:
+				if g.side == Side.ATTACKER and g.squad == o.start_value and g.alive() and not routed(g):
+					return false
+			return true
+	return true
+
+
+## Bije wroga w zasięgu ataku bez pościgu; true, gdy było z kim walczyć.
+func _hold(f: Fighter) -> bool:
+	var enemy := _enemy_for(f)
+	if enemy != null and _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+		f.target = enemy.id
+		_strike_unit(f, enemy)
+		return true
+	f.target = 0
+	return false
+
+
+## Budynek-cel manewru oddziału: ustalony raz, przy pierwszym ruchu po trasie. Wskazana kratka
+## daje budynek na niej, a bez wskazania `fallback` (np. najbliższa brama). Null, gdy cel padł.
+func _goal(o: AttackPlan.Order, key: int, fallback: Structure) -> Structure:
+	if not _sq_goal.has(key):
+		var picked: Structure = null
+		if o.target != AttackPlan.NO_TARGET:
+			picked = _structure_at(o.target)
+		if picked == null:
+			picked = fallback
+		_sq_goal[key] = picked.id if picked != null else 0
+	var id := _sq_goal[key]
+	if id == 0 or not structures.has(id) or structures[id].hp <= 0:
+		_sq_done[key] = true
+		return null
+	return structures[id]
+
+
+func _objective_structure() -> Structure:
+	if structures.has(objective) and structures[objective].hp > 0:
+		return structures[objective]
+	return null
+
+
+## Szturm frontalny: walczy po drodze jak bez rozkazu, ale idzie na swój cel i go burzy.
+## Po zburzeniu celu oddział walczy dalej jak bez rozkazu.
+func _order_assault(f: Fighter, o: AttackPlan.Order, key: int) -> void:
+	var t := _goal(o, key, _objective_structure())
+	if t == null:
+		_default_act(f)
+		return
+	var enemy := _enemy_for(f)
+	if enemy != null:
+		f.target = enemy.id
+		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+			_strike_unit(f, enemy)
+		else:
+			_walk(f, enemy.cell(), enemy.x, enemy.y, true)
+		return
+	f.target = 0
+	_walk_to(f, t, true)
+
+
+## Ostrzał z dystansu: strzelcy zatrzymują się w zasięgu celu i ostrzeliwują go; wrogów biją tylko
+## w zasięgu, bez pościgu. Jednostki bez dystansu idą jak w szturmie.
+func _order_ranged(f: Fighter, o: AttackPlan.Order, key: int) -> void:
+	var r := UnitTypes.attack_range(f.unit)
+	if r < BattleConfig.RANGED_MIN_RANGE:
+		_order_assault(f, o, key)
+		return
+	var t := _goal(o, key, _objective_structure())
+	if t == null:
+		_default_act(f)
+		return
+	if _rect_in_range(f, t.rect, r):
+		_strike_structure(f, t)
+		return
+	if not _hold(f):
+		_walk_to(f, t, true)
+
+
+## Podpalenie: oddział bierze na cel drewniane budynki, które jeszcze nie płoną (wskazany, potem
+## najbliższy), i bije je z zasięgu. Zadanie jest wykonane, gdy pierwszy cel płonie albo padł.
+func _order_fire(f: Fighter, o: AttackPlan.Order, key: int) -> void:
+	var t: Structure = null
+	if o.target != AttackPlan.NO_TARGET:
+		t = _structure_at(o.target)
+	if t == null or t.burning > 0 or not BuildingTypes.is_wooden(t.kind):
+		if o.target != AttackPlan.NO_TARGET:
+			_sq_done[key] = true  # wskazany cel płonie albo padł
+		t = _nearest_wood(f)
+	if t == null:
+		_sq_done[key] = true
+		_default_act(f)
+		return
+	if _rect_in_range(f, t.rect, maxi(1, UnitTypes.attack_range(f.unit))):
+		_strike_structure(f, t)
+		if t.burning > 0 or t.hp <= 0:
+			_sq_done[key] = true
+		return
+	if not _hold(f):
+		_walk_to(f, t, true)
+
+
+## Najbliższy żywy drewniany budynek, który jeszcze nie płonie (przy remisie pierwszy w kolejności).
+func _nearest_wood(f: Fighter) -> Structure:
+	var best: Structure = null
+	var best_d := 0
+	for id: int in structures:
+		var s := structures[id]
+		if s.hp <= 0 or s.burning > 0 or not BuildingTypes.is_wooden(s.kind):
+			continue
+		var c := _rect_center_sub(s.rect)
+		var d := _dist2(f.x, f.y, c.x, c.y)
+		if best == null or d < best_d:
+			best = s
+			best_d = d
+	return best
+
+
+## Szturm z drabinami: oddział podchodzi pod wskazany odcinek muru (bez wskazania pod najbliższy),
+## po LADDER_CLIMB_S sekundach schodzi po drugiej stronie i walczy dalej jak bez rozkazu. Brama
+## i wyłom nie są potrzebne. Gdy po drugiej stronie nie ma miejsca, oddział rąbie mur.
+func _order_ladders(f: Fighter, o: AttackPlan.Order, key: int) -> void:
+	if f.climbed:
+		_default_act(f)
+		return
+	var wall := _goal(o, key, _nearest_wall(f))
+	if wall == null:
+		f.climbed = true
+		_default_act(f)
+		return
+	if _hold(f):
+		return
+	if _touches(f.cell(), wall.rect):
+		f.climb += 1
+		if f.climb < BattleConfig.LADDER_CLIMB_S * BattleConfig.TICK_HZ:
+			return
+		var land := _landing(f, wall)
+		if land.x < 0:
+			_strike_structure(f, wall)
+			return
+		f.x = land.x * BattleConfig.SUB + BattleConfig.SUB / 2
+		f.y = land.y * BattleConfig.SUB + BattleConfig.SUB / 2
+		f.climbed = true
+		f.path.clear()
+		_sq_done[key] = true
+		return
+	var approach := _approach(f, wall)
+	_walk(f, approach, approach.x * BattleConfig.SUB + BattleConfig.SUB / 2,
+			approach.y * BattleConfig.SUB + BattleConfig.SUB / 2, false)
+
+
+func _nearest_wall(f: Fighter) -> Structure:
+	var best: Structure = null
+	var best_d := 0
+	for id: int in structures:
+		var s := structures[id]
+		if s.hp <= 0 or not BuildingTypes.is_wall(s.kind):
+			continue
+		var c := _rect_center_sub(s.rect)
+		var d := _dist2(f.x, f.y, c.x, c.y)
+		if best == null or d < best_d:
+			best = s
+			best_d = d
+	return best
+
+
+## Czy kratka `c` styka się z prostokątem `r` (także po skosie), ale w nim nie leży.
+static func _touches(c: Vector2i, r: Rect2i) -> bool:
+	return r.grow(1).has_point(c) and not r.has_point(c)
+
+
+## Wolna kratka przy murze od strony jednostki (najbliższa jej), z której przystawia drabinę.
+func _approach(f: Fighter, wall: Structure) -> Vector2i:
+	var best := wall.rect.position
+	var best_d := -1
+	var here := f.cell()
+	for c in _ring(wall.rect):
+		if not _free_ground(c):
+			continue
+		var d := (c - here).length_squared()
+		if best_d < 0 or d < best_d:
+			best = c
+			best_d = d
+	return best
+
+
+## Kratka zejścia za murem: wolna, przy murze, po przeciwnej stronie niż jednostka (najdalej od
+## niej), albo (-1, -1), gdy takiej nie ma.
+func _landing(f: Fighter, wall: Structure) -> Vector2i:
+	var here := f.cell()
+	var wall_d := (wall.rect.get_center() - here).length_squared()
+	var best := Vector2i(-1, -1)
+	var best_d := -1
+	for c in _ring(wall.rect):
+		if not _free_ground(c):
+			continue
+		var d := (c - here).length_squared()
+		if d > wall_d and d > best_d:
+			best = c
+			best_d = d
+	return best
+
+
+## Kratki dookoła prostokąta, w stałej kolejności (wiersze od góry).
+static func _ring(r: Rect2i) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var g := r.grow(1)
+	for y in range(g.position.y, g.end.y):
+		for x in range(g.position.x, g.end.x):
+			var c := Vector2i(x, y)
+			if not r.has_point(c):
+				out.append(c)
+	return out
+
+
+## Taranowanie bramy: Taran oddziału jedzie na wskazaną bramę (bez wskazania na najbliższą),
+## a reszta oddziału go osłania: walczy z wrogami przy taranie, inaczej idzie przy nim. Bez taranu
+## piechota sama szturmuje bramę. Zadanie jest wykonane, gdy brama padnie.
+func _order_ram(f: Fighter, o: AttackPlan.Order, key: int) -> void:
+	var gate := _goal(o, key, _nearest_gate(f))
+	if gate == null:
+		_default_act(f)
+		return
+	if f.unit == UnitTypes.Unit.RAM:
+		_ram_act(f, gate)
+		return
+	var ram := _nearest_ram(f)
+	if ram == null:
+		_order_assault(f, o, key)
+		return
+	var enemy := _enemy_for(f)
+	var reach := BattleConfig.ESCORT_RADIUS * BattleConfig.SUB
+	if enemy != null and _dist2(enemy.x, enemy.y, ram.x, ram.y) <= reach * reach:
+		f.target = enemy.id
+		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+			_strike_unit(f, enemy)
+		else:
+			_walk(f, enemy.cell(), enemy.x, enemy.y, true)
+		return
+	f.target = 0
+	if _dist2(f.x, f.y, ram.x, ram.y) > BattleConfig.SUB * BattleConfig.SUB:
+		_walk(f, ram.cell(), ram.x, ram.y, false)
+
+
+func _nearest_ram(f: Fighter) -> Fighter:
+	var best: Fighter = null
+	var best_d := 0
+	for g in fighters:
+		if g.side != f.side or not g.alive() or g.unit != UnitTypes.Unit.RAM:
+			continue
+		var d := _dist2(f.x, f.y, g.x, g.y)
+		if best == null or d < best_d:
+			best = g
+			best_d = d
+	return best
+
+
+## Idzie do budynku `t`; z `breach` burzy go (i to, co stoi na drodze), gdy dojdzie.
+func _walk_to(f: Fighter, t: Structure, breach: bool) -> void:
+	var c := t.rect.position
+	_walk(f, c, c.x * BattleConfig.SUB + BattleConfig.SUB / 2, c.y * BattleConfig.SUB + BattleConfig.SUB / 2, breach)
+
+
+## Środek prostokąta kratek w podjednostkach.
+static func _rect_center_sub(r: Rect2i) -> Vector2i:
+	@warning_ignore("integer_division")
+	return Vector2i((r.position.x * 2 + r.size.x) * BattleConfig.SUB / 2, (r.position.y * 2 + r.size.y) * BattleConfig.SUB / 2)
+
+
+## Czy najbliższy punkt prostokąta kratek `r` jest w zasięgu `cells` kratek od jednostki.
+func _rect_in_range(f: Fighter, r: Rect2i, cells: int) -> bool:
+	var nx := clampi(f.x, r.position.x * BattleConfig.SUB, r.end.x * BattleConfig.SUB - 1)
+	var ny := clampi(f.y, r.position.y * BattleConfig.SUB, r.end.y * BattleConfig.SUB - 1)
+	var reach := maxi(1, cells) * BattleConfig.SUB
+	return _dist2(f.x, f.y, nx, ny) <= reach * reach
+
+
+## Odwrót z planu (#18): oddział, który stracił swój próg procentowy ludzi, wycofuje się jak przy
+## złamanym morale.
+func _count_loss(f: Fighter) -> void:
+	var key := _squad_key(f.side, f.squad)
+	_sq_dead[key] = int(_sq_dead.get(key, 0)) + 1
+	var o := _order(f)
+	if o == null or o.retreat_percent <= 0:
+		return
+	if _sq_dead[key] * 100 >= o.retreat_percent * int(squad_size.get(key, 1)):
+		_sq_retreat[key] = true
 
 
 # --- Wieże i koniec ----------------------------------------------------------------------------------
