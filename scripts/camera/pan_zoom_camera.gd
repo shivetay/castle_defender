@@ -168,7 +168,9 @@ func _view_size() -> Vector2:
 
 func _apply() -> void:
 	var c := clamp_center(_center, _view_size(), zoom_level, world_size)
-	# akumulator też się przycina, żeby po dojechaniu do krawędzi kamera od razu ruszała z powrotem
-	_center = _center.clamp(Vector2(c) - Vector2(0.5, 0.5), Vector2(c) + Vector2(0.5, 0.5))
+	# akumulator też się przycina, żeby po dojechaniu do krawędzi kamera od razu ruszała z powrotem;
+	# okno to pół kroku środka (przy 0,5× krok to 2 px), inaczej drobne ruchy nie przesuwają kamery
+	var h := maxi(1, 100 / zoom_level) * 0.5
+	_center = _center.clamp(Vector2(c) - Vector2(h, h), Vector2(c) + Vector2(h, h))
 	position = Vector2(c)
 	zoom = Vector2(scale_of(zoom_level), scale_of(zoom_level))

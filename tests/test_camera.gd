@@ -43,6 +43,26 @@ func test_small_world_is_centered() -> bool:
 	return true
 
 
+## Review #159: przy 0,5× wolne przesuwanie (drobne ruchy palca albo myszy) też rusza kamerę.
+func test_slow_pan_moves_camera_at_half_zoom() -> bool:
+	var cam := PanZoomCamera.new()
+	cam.view_size_override = VIEW
+	cam.world_size = Vector2i(2048, 2048)
+	cam.look_at_world(Vector2(1024, 1024))
+	cam.set_zoom_level(50, VIEW * 0.5)
+	var start := cam.position
+	_touch(cam, 0, Vector2(160, 90), true)
+	var x := 160.0
+	for i in 40:
+		x -= 0.2
+		_drag(cam, 0, Vector2(x, 90), Vector2(-0.2, 0))
+	_touch(cam, 0, Vector2(x, 90), false)
+	assert_true(cam.position.x > start.x, "kamera ruszyła się przy ruchach po 0,2 px (było %d, jest %d)" % [start.x, cam.position.x])
+	assert_eq(int(cam.position.x) % 2, 0, "dalej w parzystych pikselach")
+	cam.free()
+	return true
+
+
 ## Regresja z review #72: po szczypaniu pozostały palec przesuwa kamerę i nie wywołuje tapu.
 func test_pan_continues_after_pinch_without_tap() -> bool:
 	var cam := PanZoomCamera.new()
