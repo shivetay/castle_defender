@@ -51,6 +51,7 @@ const TECHS: Array = [
 	["U1", "Wiec grodowy", Branch.UTILITY, 0, false, [], "+5 morale załogi"],
 	["S1", "Tropiciele", Branch.SPECIAL, 0, false, [], "zwiad odsłania 20% zamku przeciwnika"],
 	["S2", "Ogniska sygnałowe", Branch.SPECIAL, 0, false, [], "budynek Wieża sygnałowa"],
+	["S3", "Dom zwiadowców", Branch.SPECIAL, 1, false, ["S1"], "budynek Dom zwiadowców i jednostka Zwiadowca, zwiad +10% zasięgu"],
 ]
 
 ## Efekty, które już działają: kod → [surowiec (EconomyConfig.Res), premia do produkcji w %].

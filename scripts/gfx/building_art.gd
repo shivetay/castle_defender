@@ -11,7 +11,7 @@ extends RefCounted
 
 const CELL := 8
 ## Ile pikseli budynek wystaje ponad swoje kratki (stałe dla rodzaju, niezależne od poziomu).
-const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10, 10, 10, 10, 10, 22]
+const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10, 10, 10, 10, 10, 22, 10]
 
 
 ## Rozmiar obrazu. `vertical` obraca obrys budynku (brama w pionowej linii palisady).
@@ -611,6 +611,18 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 			if big:
 				PixelCanvas.rect(img, Rect2i(x + 2, y - 4, 3, 1), Palette.WOOD[3])  # strzała w tarczy
 				PixelCanvas.px(img, x + 4, y - 4, Palette.THATCH[0])  # lotka
+		BuildingTypes.Kind.SCOUT_HOUSE:
+			# czatownia: wysoka żerdź z pomostem i rogiem sygnałowym (na wyższych poziomach z proporcem)
+			PixelCanvas.rect(img, Rect2i(x + 2, y - 9, 1, 10), Palette.WOOD[0])
+			PixelCanvas.rect(img, Rect2i(x, y - 9, 5, 1), Palette.WOOD[2])
+			for lx: int in [x, x + 4]:
+				PixelCanvas.px(img, lx, y - 8, Palette.WOOD[1])  # poręcz pomostu
+			PixelCanvas.rect(img, Rect2i(x + 3, y - 5, 2, 1), Palette.THATCH[2])  # róg na rzemieniu
+			PixelCanvas.px(img, x + 4, y - 6, Palette.THATCH[2])
+			PixelCanvas.rect(img, Rect2i(x + 1, y - 1, 3, 2), Palette.WOOD[1])  # siodło na kozłach
+			if big:
+				PixelCanvas.rect(img, Rect2i(x + 2, y - 12, 1, 3), Palette.WOOD[0])
+				PixelCanvas.rect(img, Rect2i(x + 3, y - 12, 2, 2), Palette.ACCENT)
 		BuildingTypes.Kind.TAR_KILN:
 			# mielerz z otworem i beczką smoły
 			PixelCanvas.rect(img, Rect2i(x, y - 3, 5, 4), Palette.EARTH[2])

@@ -22,8 +22,9 @@ func _finish(r: Research, code: String, economy: Economy) -> bool:
 	return r.update(T0 + r.duration_ms) == code
 
 
-func test_tree_has_34_unique_technologies() -> bool:
-	assert_eq(TechTree.count(), 34, "34 technologie MVP")
+## 34 technologie MVP i S3 Dom zwiadowców (Zwiadowca, #92).
+func test_tree_has_35_unique_technologies() -> bool:
+	assert_eq(TechTree.count(), 35, "34 technologie MVP i S3")
 	var seen := {}
 	for code in TechTree.codes():
 		assert_true(not seen.has(code), "kod %s jest unikalny" % code)
@@ -32,10 +33,10 @@ func test_tree_has_34_unique_technologies() -> bool:
 	var sizes: Array[int] = []
 	for b in TechTree.BRANCH_NAMES.size():
 		sizes.append(TechTree.in_branch(b).size())
-	assert_eq(sizes, [19, 3, 9, 1, 2] as Array[int], "Atak 19, Obrona 3, Gospodarka 9, Użyteczne 1, Specjalne 2")
+	assert_eq(sizes, [19, 3, 9, 1, 3] as Array[int], "Atak 19, Obrona 3, Gospodarka 9, Użyteczne 1, Specjalne 3")
 	var mvp: Array[String] = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A21", "A22", "A38", "A39", "A40", "A41",
 			"A42", "A43", "A44", "A45", "A46", "A47", "O1", "O2", "O3", "G1", "G2", "G4", "G6", "G18", "G19", "G20",
-			"G21", "G24", "U1", "S1", "S2"]
+			"G21", "G24", "U1", "S1", "S2", "S3"]
 	for code in mvp:
 		assert_true(TechTree.has(code), "%s z listy MVP (Plan MVP)" % code)
 		assert_true(not TechTree.effect(code).is_empty(), "%s ma efekt" % code)
@@ -48,13 +49,13 @@ func test_dependencies_and_ages_from_note() -> bool:
 		"A3": ["G24"], "A4": ["A1"], "A5": ["A4"], "A6": ["A1"], "A7": ["A2", "A43"], "A21": ["A38"],
 		"A22": ["A7"], "A38": ["G19"], "A40": ["G18"], "A41": ["A40"], "A42": ["G18"], "A43": ["G19"],
 		"A44": ["A41"], "A45": ["A38"], "A46": ["A45"], "A47": ["A2"], "O3": ["O2"], "G4": ["G1"],
-		"G6": ["G4"], "G19": ["G18"], "G20": ["G2"], "G24": ["G1"],
+		"G6": ["G4"], "G19": ["G18"], "G20": ["G2"], "G24": ["G1"], "S3": ["S1"],
 	}
 	for code in TechTree.codes():
 		var want: Array[String] = []
 		want.assign(expected.get(code, []) as Array)
 		assert_eq(TechTree.requires(code), want, "%s wymaga" % code)
-	var age_two: Array[String] = ["A5", "A6", "A22", "A46", "A47", "G4", "G6"]
+	var age_two: Array[String] = ["A5", "A6", "A22", "A46", "A47", "G4", "G6", "S3"]
 	for code in TechTree.codes():
 		assert_eq(TechTree.age(code), 1 if age_two.has(code) else 0, "%s: epoka" % code)
 	assert_true(TechTree.is_key("O1") and TechTree.is_key("G6"), "O1 i G6 kluczowe (★)")

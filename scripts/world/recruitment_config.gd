@@ -4,7 +4,7 @@ extends RefCounted
 ## i administracja. Każda klasa szkoli się we własnym budynku: Koszary (lekka), Dom drużyny (ciężka),
 ## Strzelnica (strzelecka), Stajnia (szybka). Jednostki specjalne mają własne budynki (Podpalacz
 ## w Smolarni, Tropiciel w Wieży sygnałowej, Zwiadowca w Domu zwiadowców), przypisane jednostce,
-## a nie klasie; dojdą razem z jednostkami (#89, #15). Dwór nie rekrutuje.
+## a nie klasie (UnitTypes.building). Dwór nie rekrutuje.
 ##
 ## Poziom budynku podnosi limit szkolenia i tempo. Liczby są tymczasowe (notatka zostawia je
 ## balansowi) i czekają na rekrutację (#89).
@@ -27,7 +27,7 @@ const TRAINING_SLOTS: Array[int] = [2, 3, 4, 5, 6]
 const TRAINING_SPEED_PERCENT: Array[int] = [100, 120, 140, 170, 200]
 
 ## Czas szkolenia jednostki na poziomie 1 budynku, w sekundach (indeks = UnitTypes.Unit). TYMCZASOWE.
-const TRAIN_TIME_S: Array[int] = [20, 20, 25, 40, 30, 30, 45, 25, 50, 35, 60, 90, 15, 10]
+const TRAIN_TIME_S: Array[int] = [20, 20, 25, 40, 30, 30, 45, 25, 50, 35, 60, 90, 15, 10, 40]
 ## Limit armii (wyszkoleni i szkoleni): za każdy poziom Dworu i za każdy poziom Koszar (#89, #81).
 ## TYMCZASOWE.
 const ARMY_PER_MANOR_LEVEL := 10

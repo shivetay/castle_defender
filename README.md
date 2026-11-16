@@ -112,7 +112,11 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   i Strzelnica (strzelecka, A44); szybką szkoli Stajnia. `RecruitmentConfig` trzyma klasę każdego budynku
   oraz limit i tempo szkolenia od poziomu (tymczasowe); Dwór nie rekrutuje. Samo szkolenie dojdzie w #89.
   Grafika: warsztat z manekinem do ćwiczeń, tarczami drużyny albo słomianą tarczą strzelniczą.
-- `scripts/world/unit_types.gd` (`UnitTypes`): 13 jednostek MVP z notatek Jednostki oraz Klasy jednostek
+- Dom zwiadowców (#92): budynek epoki II w zakładce Wojsko, odblokowuje go S3 (po S1 Tropiciele).
+  Szkoli tylko Zwiadowcę. Grafika: warsztat z czatownią (żerdź z pomostem i rogiem sygnałowym),
+  a od poziomu 4 z proporcem. Koszt i czas są tymczasowe.
+- `scripts/world/unit_types.gd` (`UnitTypes`): 15 jednostek, czyli 13 jednostek MVP oraz Chłop i Zwiadowca
+  (opisani niżej), z notatek Jednostki oraz Klasy jednostek
   i produkcja: klasa (lekka, ciężka, strzelecka, szybka, specjalna; Taran i Kopacz to inżynieria), HP, atak,
   zasięg, szybkość, technologia, budynek rekrutacji i koszt w towarach (np. Łucznik: łuk i 20 strzał).
   Tabela przewag klas (`ADVANTAGE`, procenty) i ×2 drzewca przeciw konnicy; `duel()` to pojedynek w turach
@@ -120,6 +124,9 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   Do tego Chłop (pospolite ruszenie, jednostka poziomu 0): lekka piechota z Koszar bez technologii
   i bez towarów, za 5 żywności, tylko w epoce I (`ERA_I_ONLY`); stoi pierwszy na ekranie Wojsko.
   Statystyki tymczasowe.
+  Do tego Zwiadowca (#92): konny zwiad epoki II, klasa specjalna, 35 HP, atak 2, szybkość 5, wymaga S3.
+  Kosztuje konia ze Stajni, siodło od Rymarza i 15 żywności (ilość żywności tymczasowa). Sam zwiad przed
+  atakiem dojdzie w #28.
   Każda jednostka ma krótki opis roli (`ROLES`) i linię przewag liczoną z tabeli klas
   (`counters_text`: przeciw komu jest silna i kto ją kontruje); na ekranie Wojsko pokazuje je przycisk Opis.
 - `scripts/world/recruitment.gd` (`Recruitment`): armia w oddziałach i kolejki szkolenia (#89). Oddział ma
