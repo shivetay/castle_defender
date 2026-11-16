@@ -1,20 +1,24 @@
 class_name PanZoomCamera
 extends Camera2D
 ## Kamera widoku zamku: przeciągnięcie jednym palcem przesuwa, szczypanie zmienia zoom
-## (tylko 1×, 2×, 4×), kółko myszy działa jak szczypanie. Pozycja jest zawsze w całych pikselach
-## świata, a kamera nie wychodzi poza mapę. Krótkie dotknięcie bez ruchu emituje `tapped`.
+## (0,5×, 1×, 2×, 4×), kółko myszy działa jak szczypanie. Pozycja jest zawsze w całych pikselach
+## świata (przy 0,5× w parzystych, żeby piksel ekranu trafiał zawsze w ten sam piksel świata), a kamera
+## nie wychodzi poza mapę. Krótkie dotknięcie bez ruchu emituje `tapped`.
+## 0,5× to wyjątek od zasady ostrych pikseli (decyzja właściciela po teście na telefonie): widać
+## 4× więcej zamku, ale co drugi piksel grafiki znika.
 @warning_ignore_start("integer_division")
 
 signal tapped(world_pos: Vector2)
 
-const ZOOMS: Array[int] = [1, 2, 4]
+## Poziomy zoomu w procentach (50 = 0,5×).
+const ZOOMS: Array[int] = [50, 100, 200, 400]
 ## Ruch palca (w pikselach logicznych), po którym dotknięcie staje się przeciąganiem.
 const TAP_SLOP := 4.0
 ## Zmiana odległości palców, po której zoom przeskakuje o jeden poziom.
 const PINCH_STEP := 1.4
 
 var world_size := Vector2i(512, 512)
-var zoom_level := 1
+var zoom_level := 100
 ## Rozmiar widoku podany z zewnątrz (testy bez drzewa sceny). Zero oznacza rozmiar viewportu.
 var view_size_override := Vector2.ZERO
 
@@ -43,12 +47,17 @@ func set_zoom_level(level: int, anchor_screen: Vector2) -> void:
 	var anchor_world := screen_to_world(anchor_screen)
 	zoom_level = level
 	# punkt pod palcami zostaje na miejscu
-	_center = anchor_world - (anchor_screen - _view_size() * 0.5) / float(zoom_level)
+	_center = anchor_world - (anchor_screen - _view_size() * 0.5) / scale_of(zoom_level)
 	_apply()
 
 
 func screen_to_world(p: Vector2) -> Vector2:
-	return position + (p - _view_size() * 0.5) / float(zoom_level)
+	return position + (p - _view_size() * 0.5) / scale_of(zoom_level)
+
+
+## Skala ekranu dla poziomu w procentach (100 = 1×).
+static func scale_of(level: int) -> float:
+	return level / 100.0
 
 
 ## Następny dozwolony poziom zoomu w kierunku `dir` (+1 bliżej, -1 dalej).
@@ -60,14 +69,18 @@ static func step_zoom(level: int, dir: int) -> int:
 ## Środek widoku przycięty tak, żeby kamera nie pokazywała nic poza mapą. Gdy mapa jest
 ## mniejsza niż widok w danej osi, kamera staje na jej środku.
 static func clamp_center(center: Vector2, view: Vector2, level: int, world: Vector2i) -> Vector2i:
-	var half := view / float(level) * 0.5
+	var half := view / scale_of(level) * 0.5
+	# przy pomniejszeniu krok środka to tyle pikseli świata, ile mieści się w pikselu ekranu
+	var step := maxi(1, 100 / level)
 	var out := Vector2i.ZERO
 	for axis in 2:
 		if half[axis] * 2.0 >= world[axis]:
-			out[axis] = world[axis] / 2
+			out[axis] = world[axis] / 2 / step * step
 		else:
 			# ceil/floor zamiast round: krawędź widoku nigdy nie wystaje poza mapę o pół piksela
-			out[axis] = clampi(roundi(center[axis]), ceili(half[axis]), floori(world[axis] - half[axis]))
+			var lo := ceili(half[axis] / step) * step
+			var hi := floori((world[axis] - half[axis]) / step) * step
+			out[axis] = clampi(roundi(center[axis] / step) * step, lo, hi)
 	return out
 
 
@@ -118,7 +131,7 @@ func _on_drag(e: InputEventScreenDrag) -> void:
 	if not _dragging and e.position.distance_to(_press_pos) > TAP_SLOP:
 		_dragging = true
 	if _dragging and not _multi_touch:
-		_center -= e.relative / float(zoom_level)
+		_center -= e.relative / scale_of(zoom_level)
 		_apply()
 
 
@@ -155,7 +168,9 @@ func _view_size() -> Vector2:
 
 func _apply() -> void:
 	var c := clamp_center(_center, _view_size(), zoom_level, world_size)
-	# akumulator też się przycina, żeby po dojechaniu do krawędzi kamera od razu ruszała z powrotem
-	_center = _center.clamp(Vector2(c) - Vector2(0.5, 0.5), Vector2(c) + Vector2(0.5, 0.5))
+	# akumulator też się przycina, żeby po dojechaniu do krawędzi kamera od razu ruszała z powrotem;
+	# okno to pół kroku środka (przy 0,5× krok to 2 px), inaczej drobne ruchy nie przesuwają kamery
+	var h := maxi(1, 100 / zoom_level) * 0.5
+	_center = _center.clamp(Vector2(c) - Vector2(h, h), Vector2(c) + Vector2(h, h))
 	position = Vector2(c)
-	zoom = Vector2(zoom_level, zoom_level)
+	zoom = Vector2(scale_of(zoom_level), scale_of(zoom_level))

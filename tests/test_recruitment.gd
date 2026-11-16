@@ -176,7 +176,7 @@ func test_save_round_trip_and_migration() -> bool:
 
 func test_panel_modes_and_layout() -> bool:
 	assert_eq(RecruitPanel.units_for(-1).size(), UnitTypes.count(), "globalnie wszystkie jednostki")
-	assert_eq(RecruitPanel.units_for(K.BARRACKS), [U.AXE_WARRIOR, U.JAVELINEER, U.SPEARMAN, U.RAM, U.DIGGER] as Array[int],
+	assert_eq(RecruitPanel.units_for(K.BARRACKS), [U.PEASANT, U.AXE_WARRIOR, U.JAVELINEER, U.SPEARMAN, U.RAM, U.DIGGER] as Array[int],
 			"Koszary: lekka piechota i inżynieria")
 	assert_eq(RecruitPanel.units_for(K.STABLE), [U.RIDER, U.LANCER] as Array[int], "Stajnia: konnica")
 	assert_true(not RecruitPanel.recruits(K.MANOR), "Dwór nie szkoli")
@@ -191,26 +191,25 @@ func test_panel_modes_and_layout() -> bool:
 	assert_true(RecruitPanel.DETAIL_Y + RecruitPanel.DETAIL_LINES * (PixelFont.LINE + 2) <= Hud.row_y(VIEW),
 			"szczegóły nad przyciskami")
 	var T := RecruitPanel.Target
-	assert_eq(RecruitPanel.target_at(tiles[12].get_center(), VIEW, b.x, b.y, 13), T.TILE + 12, "ostatni kafelek")
-	assert_eq(RecruitPanel.target_at(RecruitPanel.train_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y, 13), T.TRAIN, "Szkol")
+	var n := UnitTypes.count()
+	assert_eq(RecruitPanel.target_at(tiles[n - 1].get_center(), VIEW, b.x, b.y, n), T.TILE + n - 1, "ostatni kafelek")
+	assert_eq(RecruitPanel.target_at(RecruitPanel.train_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y, n), T.TRAIN, "Szkol")
 	return true
 
 
 func test_hud_army_button_and_recruit_card() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
-	var army := Hud.army_rect(VIEW, b.x)
-	assert_true(not army.intersects(Hud.left_corner_rect(VIEW, b.x)), "Wojsko obok Oblężenia")
-	assert_true(not army.intersects(Hud.research_rect(VIEW, b.y)), "Wojsko nie na Badaniach")
-	assert_eq(Hud.target_at(army.get_center(), VIEW, b.x, b.y, false, false, 0), Hud.Target.ARMY, "Wojsko")
+	var army := Hud.column_rect(b.y, Hud.column_targets(false).find(Hud.Target.ARMY))
+	assert_eq(Hud.target_at(army.get_center(), VIEW, b.y, false, false), Hud.Target.ARMY, "Wojsko w kolumnie")
 	var card := Hud.card_rects(VIEW, true)
 	assert_eq(card.size(), 4, "karta budynku rekrutacji: 4 przyciski")
 	assert_true(card[0].position.x >= b.x and card[-1].end.x <= b.y, "karta mieści się na 320 px")
-	assert_eq(Hud.target_at(card[2].get_center(), VIEW, b.x, b.y, false, true, 0, true), Hud.Target.CARD + Hud.CardButton.RECRUIT,
+	assert_eq(Hud.target_at(card[2].get_center(), VIEW, b.y, false, true, true), Hud.Target.CARD + Hud.CardButton.RECRUIT,
 			"trzeci przycisk: Szkol")
-	assert_eq(Hud.target_at(card[3].get_center(), VIEW, b.x, b.y, false, true, 0, true), Hud.Target.CARD + Hud.CardButton.CLOSE,
+	assert_eq(Hud.target_at(card[3].get_center(), VIEW, b.y, false, true, true), Hud.Target.CARD + Hud.CardButton.CLOSE,
 			"czwarty: Zamknij")
 	var plain := Hud.card_rects(VIEW)
-	assert_eq(Hud.target_at(plain[2].get_center(), VIEW, b.x, b.y, false, true, 0), Hud.Target.CARD + Hud.CardButton.CLOSE,
+	assert_eq(Hud.target_at(plain[2].get_center(), VIEW, b.y, false, true), Hud.Target.CARD + Hud.CardButton.CLOSE,
 			"zwykła karta: trzeci to Zamknij")
 	return true
 
@@ -279,9 +278,15 @@ func test_squad_picker_layout() -> bool:
 	assert_true(rects.size() >= 4, "mieści się Nowy i co najmniej 3 oddziały")
 	for r in rects:
 		assert_true(r.size.x >= 12 and r.size.y >= 12, "cel ≥ 12×12")
-		assert_true(r.end.x <= b.y, "w granicach treści")
+		assert_true(r.position.x >= b.x and r.end.x <= b.y, "w granicach treści")
 		assert_true(r.end.y <= Hud.row_y(VIEW), "nad przyciskami Szkol i Zamknij")
+		assert_true(r.position.y >= RecruitPanel.DETAIL_Y + RecruitPanel.DETAIL_LINES * RecruitPanel.LINE_STEP,
+				"pod szczegółami")
 		assert_true(PixelFont.text_width("9: 10/10") <= r.size.x - 4, "napis oddziału mieści się")
+	# review #156: telefon ze strefą bezpieczną zwęża treść; Nowy i 3 oddziały mieszczą się dalej
+	for width: int in [200, 240]:
+		var narrow := RecruitPanel.squad_rects(40, 40 + width, 10)
+		assert_true(narrow.size() >= 4, "%d px treści: Nowy i co najmniej 3 oddziały" % width)
 	var rec := Recruitment.new()
 	var sq := rec.add_squad(U.ARCHER, 4)
 	assert_eq(RecruitPanel.squad_options(rec, U.ARCHER), [Recruitment.NEW_SQUAD, sq] as Array[int], "Nowy i oddział łuczników")
@@ -327,3 +332,87 @@ func test_check_matches_start_without_side_effects() -> bool:
 			"pełny oddział")
 	return true
 
+
+
+## Jednostka poziomu 0 (po teście na telefonie): Chłop szkoli się w Koszarach od startu, bez
+## technologii i bez towarów, za samą żywność; tylko w epoce I.
+func test_peasant_needs_no_tech_and_no_goods() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	grid.place_kind(_free_cell(grid, K.MANOR), K.MANOR, 1)
+	var barracks := grid.place_kind(_free_cell(grid, K.BARRACKS), K.BARRACKS, 1)
+	var e := Economy.new(T0)
+	var goods := Goods.new(T0)
+	var rec := Recruitment.new()
+	assert_eq(UnitTypes.required_tech(U.PEASANT), "", "bez technologii")
+	assert_true(UnitTypes.goods_cost(U.PEASANT).is_empty(), "bez towarów")
+	var food := e.amounts[EconomyConfig.Res.FOOD]
+	assert_eq(rec.start(U.PEASANT, barracks, Recruitment.NEW_SQUAD, grid, e, goods, Research.new(), 0, T0),
+			Recruitment.Result.OK, "od startu, bez badań i pustą zbrojownią")
+	assert_eq(e.amounts[EconomyConfig.Res.FOOD], food - 5, "zeszło 5 żywności (review #158)")
+	assert_eq(rec.availability(U.PEASANT, grid, Research.new(), 1), Recruitment.Result.ERA_PASSED, "w epoce II już nie")
+	assert_eq(rec.check(U.PEASANT, barracks, Recruitment.NEW_SQUAD, grid, e, goods, Research.new(), 1),
+			Recruitment.Result.ERA_PASSED, "check w epoce II")
+	assert_eq(rec.start(U.PEASANT, barracks, Recruitment.NEW_SQUAD, grid, e, goods, Research.new(), 1, T0),
+			Recruitment.Result.ERA_PASSED, "start w epoce II")
+	assert_eq(RecruitPanel.units_for(-1)[0], U.PEASANT, "pierwszy na liście Wojsko")
+	assert_eq(RecruitPanel.units_for(K.BARRACKS)[0], U.PEASANT, "pierwszy w Koszarach")
+	assert_eq(Recruitment.MESSAGES.size(), Recruitment.Result.size(), "komunikat dla każdego wyniku")
+	return true
+
+
+## Telefon: długie teksty w szczegółach zawijają się po słowach i nie wychodzą poza ekran.
+func test_long_details_wrap_inside_the_panel() -> bool:
+	var g := Goods.new(T0)
+	for width: int in [200, 240, 296]:
+		var missing := RecruitPanel.missing_text(U.REFLEX_ARCHER, g)
+		var lines := RecruitPanel.detail_lines(UnitTypes.unit_name(U.REFLEX_ARCHER), "Epoka II",
+				"Koszt: " + RecruitPanel.cost_text(U.REFLEX_ARCHER) + ", 0:35", missing, Palette.ACCENT, width)
+		assert_true(lines.size() <= RecruitPanel.DETAIL_LINES, "najwyżej %d linii przy %d px" % [RecruitPanel.DETAIL_LINES, width])
+		for l: Array in lines:
+			var w := PixelFont.text_width(l[0] as String)
+			if not (l[2] as String).is_empty():
+				w += 6 + PixelFont.text_width(l[2] as String)
+			assert_true(w <= width, "linia „%s” mieści się w %d px" % [l[0], width])
+		var has_missing := false
+		for l: Array in lines:
+			if (l[1] as Color) == Palette.ACCENT:
+				has_missing = true
+		assert_true(has_missing, "braki widać przy %d px" % width)
+	assert_true(RecruitPanel.DETAIL_Y + RecruitPanel.DETAIL_LINES * RecruitPanel.LINE_STEP <= Hud.row_y(VIEW),
+			"szczegóły nad rzędem przycisków")
+	return true
+
+
+func test_wrap_splits_on_words() -> bool:
+	var lines := PixelFont.wrap("jeden dwa trzy cztery piec szesc", PixelFont.text_width("jeden dwa"))
+	assert_eq(lines[0], "jeden dwa", "pierwsza linia")
+	assert_true(lines.size() >= 3, "kilka linii")
+	var cut := PixelFont.wrap("jeden dwa trzy cztery piec szesc", PixelFont.text_width("jeden dwa"), 2)
+	assert_eq(cut.size(), 2, "limit linii")
+	assert_true(cut[1].ends_with("..."), "ucięty tekst kończy się kropkami")
+	assert_eq(PixelFont.wrap("", 50).size(), 0, "pusty tekst")
+	assert_eq(PixelFont.wrap("bardzo dlugi tekst", 2, 1)[0], "", "szerokość mniejsza niż wielokropek: pusto, nic nie wystaje")
+	return true
+
+
+## Telefon: braki Drużynnika (trzy towary jednego wytwórcy) mieszczą się w dwóch liniach, bez ucinania.
+## Nazwa budynku pada raz na grupę towarów.
+func test_missing_goods_fit_in_two_lines() -> bool:
+	var g := Goods.new(T0)
+	var miss := RecruitPanel.missing_text(U.GAMBESON_WARRIOR, g)
+	assert_eq(miss.count("Wytwórca zbroi skórzanych"), 1, "budynek raz na grupę")
+	assert_true(miss.contains("Przeszywanica") and miss.contains("Tarcza") and miss.contains("Zbroja skórzana"), "wszystkie towary")
+	for width: int in [240, 296]:
+		for unit in UnitTypes.count():
+			var m := RecruitPanel.missing_text(unit, g)
+			if m.is_empty():
+				continue
+			var cost := "Koszt: " + RecruitPanel.cost_text(unit) + ", 0:50"
+			var lines := RecruitPanel.detail_lines(UnitTypes.unit_name(unit), "zbadaj A46", cost, m, Palette.ACCENT, width)
+			var shown := PackedStringArray()
+			for l: Array in lines:
+				if (l[1] as Color) == Palette.ACCENT:
+					shown.append(l[0] as String)
+			assert_true(shown.size() <= RecruitPanel.EXTRA_LINES, "%s: braki w najwyżej 2 liniach" % UnitTypes.unit_name(unit))
+			assert_eq(" ".join(shown), m, "%s przy %d px: braki w całości, bez ucinania" % [UnitTypes.unit_name(unit), width])
+	return true

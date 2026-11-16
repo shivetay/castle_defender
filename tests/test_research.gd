@@ -214,7 +214,8 @@ func test_panel_texts() -> bool:
 	assert_eq(ResearchPanel.state_text(r, "A1", 0, T0 + r.duration_ms - 1000), "w toku 0:01", "w toku")
 	assert_eq(ResearchPanel.requires_text("A1", 300), "Bez wymagań", "bez wymagań")
 	assert_eq(ResearchPanel.requires_text("A7", 300), "Wymaga: A2 Łuk kompozytowy, A43 Rymarstwo", "z nazwami")
-	assert_eq(ResearchPanel.requires_text("A7", 60), "Wymaga: A2, A43", "za wąsko: same kody")
+	assert_eq(ResearchPanel.requires_text("A7", 100), "Wymaga: A2, A43", "za wąsko: same kody")
+	assert_true(PixelFont.text_width(ResearchPanel.requires_text("A7", 60)) <= 60, "jeszcze węziej: przycięte (review #157)")
 	var long := ResearchPanel.fit_text(TechTree.effect("A42"), 100)
 	assert_true(PixelFont.text_width(long) <= 100 and long.ends_with("..."), "długi efekt przycięty")
 	assert_eq(ResearchPanel.fit_text("+20% drewna", 300), "+20% drewna", "krótki bez zmian")
@@ -223,11 +224,10 @@ func test_panel_texts() -> bool:
 
 func test_hud_research_button() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
-	var research := Hud.research_rect(VIEW, b.y)
-	assert_true(not research.intersects(Hud.right_corner_rect(VIEW, b.y)), "Badania obok Buduj")
-	assert_true(not research.intersects(Hud.left_corner_rect(VIEW, b.x)), "Badania nie na Oblężeniu")
-	assert_eq(Hud.target_at(research.get_center(), VIEW, b.x, b.y, false, false, 0), Hud.Target.RESEARCH, "oglądanie: Badania")
-	assert_true(Hud.target_at(research.get_center(), VIEW, b.x, b.y, true, false, 0) != Hud.Target.RESEARCH, "w trybie budowy nie")
+	var research := Hud.column_rect(b.y, 1)
+	assert_eq(Hud.target_at(research.get_center(), VIEW, b.y, false, false), Hud.Target.RESEARCH, "oglądanie: Badania pod Buduj")
+	assert_true(Hud.target_at(research.get_center(), VIEW, b.y, true, false) != Hud.Target.RESEARCH, "w trybie budowy nie")
+	assert_true(not Hud.research_rect(VIEW, b.y).intersects(Hud.right_corner_rect(VIEW, b.y)), "Badaj obok Zamknij")
 	return true
 
 

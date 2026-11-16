@@ -8,7 +8,7 @@ const C := RecruitmentConfig.UnitClass
 
 
 func test_mvp_units_and_their_classes() -> bool:
-	assert_eq(UnitTypes.count(), 13, "13 jednostek MVP (Plan MVP)")
+	assert_eq(UnitTypes.count(), 14, "13 jednostek MVP (Plan MVP) i Chłop epoki I")
 	var expected := {
 		U.AXE_WARRIOR: C.LIGHT, U.JAVELINEER: C.LIGHT, U.SPEARMAN: C.LIGHT,
 		U.SHIELDBEARER: C.HEAVY, U.GAMBESON_WARRIOR: C.HEAVY,
@@ -16,6 +16,7 @@ func test_mvp_units_and_their_classes() -> bool:
 		U.RIDER: C.FAST, U.LANCER: C.FAST,
 		U.FIRE_RAISER: C.SPECIAL, U.TRACKER: C.SPECIAL,
 		U.RAM: UnitTypes.ENGINEERING, U.DIGGER: UnitTypes.ENGINEERING,
+		U.PEASANT: C.LIGHT,
 	}
 	for unit: int in expected:
 		assert_eq(UnitTypes.unit_class(unit), expected[unit], "%s: klasa z notatki" % UnitTypes.unit_name(unit))
@@ -118,4 +119,11 @@ func test_engineering_has_no_class_icon() -> bool:
 	assert_true(not PixelIcons.class_region(UnitTypes.ENGINEERING).has_area(), "inżynieria: brak fragmentu")
 	assert_true(not PixelIcons.class_region(PixelIcons.CLASSES.size()).has_area(), "poza zakresem: brak fragmentu")
 	assert_eq(PixelIcons.class_region(2), Rect2(10, 0, 5, 5), "strzelecka: trzecia ikona")
+	return true
+
+
+## Każda tabela per jednostka ma wpis dla każdej jednostki (nowa jednostka nie wysypie gry).
+func test_per_unit_tables_cover_all_units() -> bool:
+	assert_eq(UnitTypes.SHORT_NAMES.size(), UnitTypes.count(), "krótkie nazwy")
+	assert_eq(RecruitmentConfig.TRAIN_TIME_S.size(), UnitTypes.count(), "czasy szkolenia")
 	return true

@@ -24,7 +24,8 @@ uruchomienia są w `README.md`. Tu są zasady, których agent ma się trzymać.
    Asynchroniczne PvP opiera się na tym, że ten sam seed i te same dane dają zawsze ten sam
    zamek i ten sam przebieg bitwy.
 4. **Piksele muszą być ostre.** Pozycje, rozmiary i ruch kamery są w całych pikselach logicznych.
-   Nie używaj ułamkowego skalowania, rotacji sprite'ów ani filtrowania tekstur. Zoom tylko 1×/2×/4×.
+   Nie używaj ułamkowego skalowania, rotacji sprite'ów ani filtrowania tekstur. Zoom tylko 1×/2×/4×,
+   plus 0,5× mapy jako świadomy wyjątek właściciela (oddalenie, środek kamery w parzystych pikselach).
 5. **Pracuj etapami.** Jeden etap planu MVP to jedna spójna zmiana. Po etapie zaktualizuj
    sekcje „Stan” i „Następny etap” w `README.md`. Nie zaczynaj kolejnego etapu bez zgody.
 

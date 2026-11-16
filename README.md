@@ -114,6 +114,9 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   zasięg, szybkość, technologia, budynek rekrutacji i koszt w towarach (np. Łucznik: łuk i 20 strzał).
   Tabela przewag klas (`ADVANTAGE`, procenty) i ×2 drzewca przeciw konnicy; `duel()` to pojedynek w turach
   na liczbach całkowitych do testów, pełna bitwa to #14. Ikony klas 5×5 w `PixelIcons.CLASSES`.
+  Do tego Chłop (pospolite ruszenie, jednostka poziomu 0): lekka piechota z Koszar bez technologii
+  i bez towarów, za 5 żywności, tylko w epoce I (`ERA_I_ONLY`); stoi pierwszy na ekranie Wojsko.
+  Statystyki tymczasowe.
 - `scripts/world/recruitment.gd` (`Recruitment`): armia w oddziałach i kolejki szkolenia (#89). Oddział ma
   jeden rodzaj jednostek i najwyżej 10 jednostek (tymczasowe); nowa jednostka idzie do wskazanego oddziału
   tego rodzaju albo do nowego. Globalny limit armii to tyle, ile zamek może teraz utrzymać: 10 za poziom
@@ -125,8 +128,11 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   pokazuje wszystkie jednostki; Szkol na karcie budynku rekrutacji tylko jednostki tego budynku.
   Nagłówek: zajęte miejsca, limit i wolne miejsca w armii. Kafelki z ikoną klasy, liczbą w armii
   i w szkoleniu; zablokowane przygaszone z powodem (technologia, epoka, brak budynku); brakujące towary
-  na czerwono z budynkiem, który je robi. Rząd wyboru oddziału: Nowy albo oddziały tego rodzaju
-  („2: 7/10”), pełne przygaszone; domyślnie pierwszy oddział z wolnym miejscem.
+  na czerwono z budynkiem, który je robi. Długie teksty (nazwa, koszt, braki) zawijają się po słowach
+  (`PixelFont.wrap`) w 4 liniach szczegółów; braki towarów, pogrupowane według budynku, który je robi,
+  mają do 2 linii. Pod nimi rząd wyboru oddziału na całej szerokości treści:
+  Nowy albo oddziały tego rodzaju („2: 7/10”), pełne przygaszone; domyślnie pierwszy oddział z wolnym
+  miejscem.
 - `scripts/battle/battle.gd` (`Battle`): deterministyczna symulacja bitwy (#14). Stały krok 30 Hz, pozycje
   w podjednostkach kratki (256 na kratkę), tylko liczby całkowite, własny RNG (`BattleRng`, xorshift32)
   i ścieżki z AStarGrid2D, w którym budynki są drogie, ale przechodnie: atakujący burzą najsłabsze miejsce
@@ -157,14 +163,23 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 - `scripts/ui/hud.gd`: interfejs na jeden kciuk w poziomie. Treść trzyma się 12 px od bocznych krawędzi
   (zaokrąglone narożniki), a wycięcia ekranu odsuwają ją dalej. U góry surowce z ikonami (pełny magazyn
   ma żółtą liczbę), a z prawej czas budowy z liczbą czekających zleceń oraz epoka i rok. U dołu komunikat
-  i FPS. Tryb oglądania: Oblężenie w lewym rogu (wyszarzone, dojdzie z bitwą), Buduj w prawym, dotknięcie
-  budynku otwiera kartę (poziom albo czas budowy; Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy:
-  przewijany w poziomie pasek budynków (koszt i czas w komunikacie) i Gotowe; dotknięcia mapy tylko
-  stawiają, niczego nie zaznaczają. Przyciski 56×22 px (ok. 50 dp na typowym telefonie).
+  i FPS. Przyciski trybów stoją w kolumnie przy prawej krawędzi, od góry (48×16 px, po teście na
+  telefonie mniejsze niż dawne 56×22). Tryb oglądania: Buduj, Badania, Wojsko, Oblężenie (wyszarzone,
+  dojdzie z bitwą); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
+  Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
+  wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
+- `scripts/ui/build_panel.gd` (`BuildPanel`): panel pod Buduj, w układzie jak drzewko i Wojsko. Zakładki
+  kategorii (Umocnienia, Gospodarka, Wytwórcy, Wojsko; `BuildingTypes.CATEGORIES`), kafelki budynków
+  (zablokowane przygaszone) i szczegóły: rozmiar, stan, koszt i czas, wymagana technologia oraz co budynek
+  daje (produkcja, towary wytwórcy, szkolone jednostki). Postaw włącza stawianie, Zamknij wraca do mapy.
 - `scripts/ui/research_panel.gd` (`ResearchPanel`): ekran drzewka pod przyciskiem Badania (obok Buduj).
   Pięć zakładek gałęzi, kafelki z kodami (zbadana na zielono, w toku kolorem strzechy, zablokowana
   przygaszona, ★ z czerwonym znacznikiem w rogu), szczegóły zaznaczonej technologii z efektem, kosztem, czasem
   i wymaganiami (ramki na wymaganych kafelkach) oraz Badaj i Zamknij w miejscu Badania i Buduj.
+  Szczegóły pokazują też, co technologia odblokowuje (złota ramka) i z czym łączy się przez towary
+  (`TechLinks`, niebieska ramka; np. A39 Drzewcarz robi kopię dla Kopijnika z A22). Teksty zawijają się.
+  Zbadane technologie mają zielony kafelek ze znaczkiem w rogu. Ramki są tylko w bieżącej zakładce,
+  a zakładki innych gałęzi z powiązaniami mają pasek w kolorze ramki.
 - `scripts/world/ages.gd` (`Ages`): epoka i rok na pasku. Epoka I zaczyna się w 550 r., a rok rośnie
   z poziomem Dworu (550, 600, 650, 700, 750).
 
@@ -262,7 +277,7 @@ scripts/         logika gry
 scripts/gfx/     rysowanie proceduralne i palety
 scripts/world/   dane świata: teren, siatka budowy, ekonomia, badania, armia
 scripts/battle/  deterministyczna symulacja bitwy (bez renderu)
-scripts/camera/  kamera z gestami
+scripts/camera/  kamera z gestami (zoom 0,5×/1×/2×/4×)
 scripts/ui/      HUD
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
 tools/           narzędzia (version.py, changelog.py i ich testy)

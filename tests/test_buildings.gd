@@ -383,8 +383,9 @@ func test_manor_is_not_on_toolbar() -> bool:
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.KEEP), "donżonu nie ma na pasku")
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.MANOR), "Dworu nie ma na pasku")
 	assert_eq(BuildingTypes.Kind.MANOR, 5, "Dwór ma stały numer (zapisy)")
-	var left := float(Hud.CORNER_INSET)
-	var right := 320.0 - Hud.CORNER_INSET
-	assert_eq(Hud.visible_kinds(left, right) + Hud.max_first_kind(left, right), BuildingTypes.buildable_count(),
-			"przewijany pasek pokazuje wszystkie rodzaje z paska budowy, bez Dworu")
+	var in_panel := 0
+	for cat in BuildingTypes.CATEGORY_NAMES.size():
+		in_panel += BuildingTypes.in_category(cat).size()
+	assert_eq(in_panel, BuildingTypes.buildable_count(), "panel budowy pokazuje wszystkie rodzaje z paska, bez Dworu")
+	assert_eq(BuildingTypes.category(BuildingTypes.Kind.MANOR), -1, "Dworu nie ma w panelu")
 	return true
