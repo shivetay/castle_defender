@@ -15,6 +15,8 @@ const MAX_ATTEMPTS := 32
 const FALLBACK_SEED := 1337
 ## Dwór może stanąć najdalej tyle kratek od środka mapy.
 const MANOR_MAX_RING := 6
+## Donżon może stanąć najdalej tyle kratek od Dworu.
+const KEEP_MAX_RING := 6
 ## Droga do bramy zaczyna się najdalej tyle kratek od Dworu.
 const ROAD_REACH := 4
 ## Argument wymuszający seed w wersji debug: godot --path . -- --seed=42
@@ -71,13 +73,18 @@ static func is_playable(map_seed: int) -> bool:
 	return is_playable_map(TerrainMap.generate(map_seed))
 
 
-## Czy na mapie zmieści się Dwór i czy od niego biegnie droga do krawędzi mapy z miejscem na bramę.
+## Czy na mapie zmieszczą się Dwór i donżon (#120) i czy od Dworu biegnie droga do krawędzi mapy
+## z miejscem na bramę.
 static func is_playable_map(map: TerrainMap) -> bool:
 	var grid := BuildGrid.new(map)
 	var manor := grid.manor_spot(MANOR_MAX_RING)
 	if not manor.has_area():
 		return false
 	grid.place(manor, BuildingTypes.Kind.MANOR)
+	var keep := grid.keep_spot(KEEP_MAX_RING)
+	if not keep.has_area():
+		return false
+	grid.place(keep, BuildingTypes.Kind.KEEP)
 	var near := manor.grow(ROAD_REACH)
 	var seen := {}
 	# stos (pop_back): przeszukanie w głąb wystarczy, bo liczy się tylko osiągalność

@@ -5,13 +5,16 @@ extends RefCounted
 ## rysowania (ten obiekt nie zna żadnego węzła sceny). Ten sam zamek, te same armie i ten sam seed
 ## dają zawsze ten sam przebieg i wynik, co umożliwia powtórki i weryfikację na serwerze.
 ##
-## Atakujący idą do celu (`objective`, budynek), po drodze walczą z obrońcami, a umocnienia na
-## drodze burzą. Obrońcy bronią się przy celu i ruszają na wroga, który podejdzie. Wieże strzelają
-## do atakujących. Koniec: cel zniszczony (wygrywa atakujący), atakujący wybici albo minął limit
-## czasu (wygrywa obrońca). Celem będzie donżon (#120); do tego czasu podaje się dowolny budynek.
+## Atakujący idą do celu (`objective`, w grze donżon, #120), po drodze walczą z obrońcami,
+## a umocnienia na drodze burzą. Obrońcy bronią się przy celu i ruszają na wroga, który podejdzie.
+## Wieże strzelają do atakujących. Atakujący wygrywa, gdy cel padnie albo gdy jego piechota
+## utrzyma się przy celu przez CAPTURE_S sekund bez obrońców w pobliżu (zdobycie). Obrońca wygrywa,
+## gdy atakujący zostaną wybici albo minie limit czasu. Zniszczenie innych budynków, także Dworu,
+## nie kończy bitwy.
 
 enum Side { ATTACKER, DEFENDER }
 enum Winner { NONE = -1, ATTACKER, DEFENDER }
+enum EndReason { NONE, DESTROYED, CAPTURED, ATTACKERS_DEAD, TIME_LIMIT }
 
 
 class Fighter:
@@ -53,6 +56,9 @@ class Structure:
 
 var tick := 0
 var winner: int = Winner.NONE
+var end_reason: int = EndReason.NONE
+## Ile ticków z rzędu piechota atakującego trzyma cel bez obrońców w pobliżu.
+var capture_ticks := 0
 var fighters: Array[Fighter] = []
 var structures: Dictionary[int, Structure] = {}
 var objective := 0
@@ -92,6 +98,12 @@ static func create(grid: BuildGrid, objective_id: int, attackers: Dictionary, de
 	return b
 
 
+## Bitwa o donżon zamku z `grid` (#120): cel to Wieża grodowa.
+static func for_castle(grid: BuildGrid, attackers: Dictionary, defenders: Dictionary, spawn: Vector2i,
+		seed_value: int) -> Battle:
+	return create(grid, grid.keep_id(), attackers, defenders, spawn, seed_value)
+
+
 ## Puszcza bitwę do końca albo do `max_ticks`. Zwraca zwycięzcę (Winner).
 func run(max_ticks: int = -1) -> int:
 	var limit := BattleConfig.time_limit_ticks() if max_ticks < 0 else max_ticks
@@ -125,7 +137,7 @@ func alive_count(side: int) -> int:
 
 ## Suma kontrolna stanu bitwy (do testów determinizmu i późniejszej weryfikacji na serwerze).
 func checksum() -> int:
-	var h := tick * 31 + winner + 7
+	var h := tick * 31 + winner + 7 + end_reason * 131 + capture_ticks
 	for f in fighters:
 		h = _mix(h, f.id)
 		h = _mix(h, f.x)
@@ -379,9 +391,36 @@ func _tower_act(s: Structure) -> void:
 
 
 func _check_end() -> void:
+	_update_capture()
 	if structures.has(objective) and structures[objective].hp <= 0:
-		winner = Winner.ATTACKER
+		_finish(Winner.ATTACKER, EndReason.DESTROYED)
+	elif capture_ticks >= BattleConfig.CAPTURE_S * BattleConfig.TICK_HZ:
+		_finish(Winner.ATTACKER, EndReason.CAPTURED)
 	elif alive_count(Side.ATTACKER) == 0:
-		winner = Winner.DEFENDER
+		_finish(Winner.DEFENDER, EndReason.ATTACKERS_DEAD)
 	elif tick >= BattleConfig.time_limit_ticks():
-		winner = Winner.DEFENDER
+		_finish(Winner.DEFENDER, EndReason.TIME_LIMIT)
+
+
+func _finish(side: int, reason: int) -> void:
+	winner = side
+	end_reason = reason
+
+
+## Zdobywanie celu: piechota atakującego (klasa lekka albo ciężka) przy celu i żadnego obrońcy
+## w tym samym pasie wokół niego. Przerwa w obsadzie zeruje licznik.
+func _update_capture() -> void:
+	if not structures.has(objective) or structures[objective].hp <= 0:
+		return
+	var zone := structures[objective].rect.grow(BattleConfig.CAPTURE_RANGE)
+	var holders := 0
+	for f in fighters:
+		if not f.alive() or not zone.has_point(f.cell()):
+			continue
+		if f.side == Side.DEFENDER:
+			capture_ticks = 0
+			return
+		var unit_class := UnitTypes.unit_class(f.unit)
+		if unit_class == RecruitmentConfig.UnitClass.LIGHT or unit_class == RecruitmentConfig.UnitClass.HEAVY:
+			holders += 1
+	capture_ticks = capture_ticks + 1 if holders > 0 else 0

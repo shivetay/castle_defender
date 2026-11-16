@@ -120,8 +120,45 @@ func manor_id() -> int:
 ## Miejsce na Dwór: pierwszy wolny prostokąt na kolejnych pierścieniach wokół środka mapy
 ## (kolejność stała dla seeda), najdalej `max_ring` kratek od środka. Pusty prostokąt, gdy brak.
 func manor_spot(max_ring: int) -> Rect2i:
-	var c := terrain.center()
-	var kind := BuildingTypes.Kind.MANOR
+	return spot_near(terrain.center(), BuildingTypes.Kind.MANOR, max_ring)
+
+
+## Id donżonu (Wieży grodowej, #120) albo 0, gdy go nie ma.
+func keep_id() -> int:
+	for id: int in kinds:
+		if kinds[id] == BuildingTypes.Kind.KEEP:
+			return id
+	return 0
+
+
+## Miejsce na donżon: pierwszy wolny prostokąt wokół Dworu (albo środka mapy, gdy Dworu nie ma).
+func keep_spot(max_ring: int) -> Rect2i:
+	var id := manor_id()
+	if id == 0:
+		return spot_near(terrain.center(), BuildingTypes.Kind.KEEP, max_ring)
+	return spot_around(buildings[id], BuildingTypes.Kind.KEEP, max_ring)
+
+
+## Pierwszy wolny prostokąt dla `kind` na pierścieniach wokół całego prostokąta `around`
+## (pierścień r to brzeg `around.grow(r)`), najdalej `max_ring` kratek. Odległość liczy się od
+## każdego boku jednakowo, więc żadna strona nie ma przewagi z samej odległości; w pierścieniu
+## kolejność jest stała (wierszami od góry). Pusty prostokąt, gdy brak.
+func spot_around(around: Rect2i, kind: int, max_ring: int) -> Rect2i:
+	for r in range(1, mini(max_ring, terrain.size) + 1):
+		var ring := around.grow(r)
+		for y in range(ring.position.y, ring.end.y):
+			for x in range(ring.position.x, ring.end.x):
+				if y != ring.position.y and y != ring.end.y - 1 and x != ring.position.x and x != ring.end.x - 1:
+					continue
+				var rect := placement_for(Vector2i(x, y), kind)
+				if rect.has_area():
+					return rect
+	return Rect2i()
+
+
+## Pierwszy wolny prostokąt dla rodzaju `kind` na kolejnych pierścieniach wokół `c`, najdalej
+## `max_ring` kratek (kolejność stała dla seeda). Pusty prostokąt, gdy brak.
+func spot_near(c: Vector2i, kind: int, max_ring: int) -> Rect2i:
 	for r in mini(max_ring, terrain.size) + 1:
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):

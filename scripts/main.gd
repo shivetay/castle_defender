@@ -22,6 +22,7 @@ const CURRENT_AGE := 0
 
 ## Komunikat, gdy Rybak nie styka się z wodą (#122).
 const FISHER_HINT := "Rybak musi stać tuż przy rzece"
+const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
@@ -70,6 +71,9 @@ func _ready() -> void:
 		goods = Goods.new(_now_ms())
 	if grid.manor_id() == 0:
 		_place_manor()
+	if grid.keep_id() == 0:
+		_place_keep()
+	var keep_missing := grid.keep_id() == 0
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
 	textures.warm_up()
 
@@ -89,7 +93,7 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.economy = economy
 	layer.add_child(hud)
-	hud.message = DEFAULT_MESSAGE
+	hud.message = KEEP_NO_ROOM if keep_missing else DEFAULT_MESSAGE
 	hud.build_pressed.connect(_on_build_panel_opened)
 	hud.change_pressed.connect(_on_build_panel_opened)
 	hud.build_mode_changed.connect(_on_build_mode_changed)
@@ -139,6 +143,17 @@ func _place_manor() -> void:
 	var spot := grid.manor_spot(terrain.size)
 	if spot.has_area():
 		grid.place(spot, BuildingTypes.Kind.MANOR)
+
+
+## Donżon (Wieża grodowa, #120) staje obok Dworu: cel każdego ataku. Starsze zapisy dostają go
+## przy wczytaniu.
+func _place_keep() -> void:
+	var spot := grid.keep_spot(terrain.size)
+	if spot.has_area():
+		grid.place(spot, BuildingTypes.Kind.KEEP)
+	else:
+		# stary zapis bez miejsca na donżon: bitwa nie ma celu, więc HUD to pokaże (KEEP_NO_ROOM)
+		push_warning("Brak miejsca na donżon obok Dworu")
 
 
 func _process(_delta: float) -> void:
@@ -420,7 +435,7 @@ func _refresh_card() -> void:
 	if pending:
 		status = "budowa %s" % Hud.format_time(queue.remaining_ms(_selected_id, _now_ms()))
 	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level())
-	var middle_enabled := pending or kind != BuildingTypes.Kind.MANOR
+	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
@@ -454,7 +469,7 @@ func _on_upgrade() -> void:
 	_refresh_card()
 
 
-## Środkowy przycisk karty: Anuluj dla budynku w kolejce, inaczej Rozbierz (Dworu nie można).
+## Środkowy przycisk karty: Anuluj dla budynku w kolejce, inaczej Rozbierz (Dworu i donżonu nie można).
 func _on_middle_button() -> void:
 	_tick()
 	var title := BuildingTypes.NAMES[grid.kinds[_selected_id]]
@@ -464,8 +479,8 @@ func _on_middle_button() -> void:
 		hud.message = "Anulowano: %s, surowce wróciły" % title
 		_save()
 		return
-	if grid.kinds[_selected_id] == BuildingTypes.Kind.MANOR:
-		hud.message = "Dworu nie można rozebrać"
+	if BuildingTypes.is_unique(grid.kinds[_selected_id]):
+		hud.message = "Tego budynku nie można rozebrać"
 		return
 	_cursor = grid.buildings[_selected_id]
 	_cursor_ok = true

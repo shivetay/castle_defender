@@ -39,7 +39,12 @@ const KIND_HP_PERCENT := {
 	BuildingTypes.Kind.GATE: 200,
 	BuildingTypes.Kind.TOWER: 250,
 	BuildingTypes.Kind.MANOR: 400,
+	BuildingTypes.Kind.KEEP: 600,
 }
+## Zdobycie donżonu (#120): piechota atakującego stoi przy nim tyle sekund bez obrońców w pobliżu.
+const CAPTURE_S := 10
+## Jak blisko donżonu (w kratkach od jego krawędzi) liczy się zajmowanie i obrona.
+const CAPTURE_RANGE := 1
 ## Wieża drewniana strzela do atakujących (łucznicy na wieży). TYMCZASOWE.
 const TOWER_ATTACK := 6
 const TOWER_RANGE := 6
