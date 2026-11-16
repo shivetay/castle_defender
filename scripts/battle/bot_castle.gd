@@ -64,8 +64,8 @@ static func edge_road(terrain: TerrainMap) -> Vector2i:
 	return Vector2i(terrain.size / 2, last - 1)
 
 
-## Pierścień palisady po brzegu `ring` (pomija wodę i zajęte kratki) z bramą 3×1 w boku od strony
-## wejścia (górnym albo dolnym).
+## Pierścień palisady po brzegu `ring` z bramą 3×1 w boku od strony wejścia (górnym albo dolnym).
+## Kratki z wodą, poza mapą i zajęte zostają luką w pierścieniu.
 static func _place_ring(grid: BuildGrid, ring: Rect2i, level: int, spawn: Vector2i) -> void:
 	var gate_y := ring.position.y if spawn.y < ring.get_center().y else ring.end.y - 1
 	@warning_ignore("integer_division")
@@ -75,5 +75,8 @@ static func _place_ring(grid: BuildGrid, ring: Rect2i, level: int, spawn: Vector
 			var edge := y == ring.position.y or y == ring.end.y - 1 or x == ring.position.x or x == ring.end.x - 1
 			if not edge or (y == gate_y and x >= gx and x < gx + 3):
 				continue
-			grid.place(Rect2i(x, y, 1, 1), K.PALISADE, level)
+			var c := Vector2i(x, y)
+			if not grid.terrain.in_bounds(c) or grid.terrain.get_tile(c) == TerrainMap.Tile.WATER or grid.building_at(c) != 0:
+				continue
+			grid.place(Rect2i(c, Vector2i.ONE), K.PALISADE, level)
 	grid.place(Rect2i(gx, gate_y, 3, 1), K.GATE, level)
