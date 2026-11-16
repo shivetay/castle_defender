@@ -70,6 +70,8 @@ var card_status := ""
 var card_can_upgrade := true
 ## Linia pod tytułem karty: koszt i czas ulepszenia albo informacja o maksymalnym poziomie.
 var card_info := ""
+## Fragmenty card_info na czerwono (brakujące surowce na ulepszenie).
+var card_info_missing: PackedStringArray = []
 ## Środkowy przycisk: Rozbierz, a dla budynku w kolejce Anuluj.
 var card_cancel := false
 var card_middle_enabled := true
@@ -237,6 +239,40 @@ static func cost_text(cost: Array[int]) -> String:
 	return " ".join(parts)
 
 
+## Fragmenty tekstu kosztu, na które nie stać gracza, np. ["120 Dr"] (po teście na telefonie
+## brakujące surowce są na czerwono). Format jak w cost_text.
+static func missing_tokens(cost: Array[int], amounts: Array[int]) -> PackedStringArray:
+	var out: PackedStringArray = []
+	for res in cost.size():
+		if cost[res] > 0 and res < amounts.size() and amounts[res] < cost[res]:
+			out.append("%d %s" % [cost[res], EconomyConfig.SHORT_NAMES[res]])
+	return out
+
+
+## Rysuje tekst kolorem `col`, a fragmenty z `tokens` kolorem `hl` (każdy fragment raz, od lewej).
+static func draw_highlighted(ci: CanvasItem, pos: Vector2, text: String, col: Color, tokens: PackedStringArray,
+		hl: Color) -> void:
+	var x := pos.x
+	var rest := text
+	while not rest.is_empty():
+		var best := -1
+		var token := ""
+		for t in tokens:
+			var i := rest.find(t)
+			if i >= 0 and (best < 0 or i < best):
+				best = i
+				token = t
+		if best < 0:
+			PixelFont.draw_text(ci, Vector2(x, pos.y), rest, col)
+			return
+		var before := rest.substr(0, best)
+		PixelFont.draw_text(ci, Vector2(x, pos.y), before, col)
+		x += PixelFont.text_width(before) + (1 if not before.is_empty() else 0)
+		PixelFont.draw_text(ci, Vector2(x, pos.y), token, hl)
+		x += PixelFont.text_width(token) + 1
+		rest = rest.substr(best + token.length())
+
+
 ## Liczby na pasku surowców (bez ikon). Pełny magazyn wyróżnia kolor liczby (bez dopisku,
 ## żeby pasek z czasem budowy oraz epoką i rokiem zmieścił się na ekranie 320 px).
 static func resource_labels(amounts: Array[int]) -> Array[String]:
@@ -373,8 +409,8 @@ func _draw_card(view: Vector2) -> void:
 	PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
 	PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])
 	var info_width := int(panel.size.x - 8)
-	PixelFont.draw_text(self, panel.position + Vector2(4, 13), ResearchPanel.fit_text(card_info, info_width),
-			Palette.WOOD[3])
+	draw_highlighted(self, panel.position + Vector2(4, 13), ResearchPanel.fit_text(card_info, info_width),
+			Palette.WOOD[3], card_info_missing, Palette.ACCENT)
 	for i in rects.size():
 		var button := card_button(i, card_recruit)
 		var label := CANCEL_LABEL if button == CardButton.DEMOLISH and card_cancel else labels[i]

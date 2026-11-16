@@ -383,8 +383,14 @@ func _draw_details() -> void:
 	if show_info:
 		lines = lines.slice(0, 1) + info_lines(selected, width, DETAIL_LINES - 1)
 	var y := float(DETAIL_Y)
+	var res_cost: Array[int] = []
+	res_cost.resize(EconomyConfig.count())
+	var unit_cost := UnitTypes.resource_cost(selected)
+	for res: int in unit_cost:
+		res_cost[res] = int(unit_cost[res])
+	var missing_res := Hud.missing_tokens(res_cost, economy.amounts) if economy != null else PackedStringArray()
 	for l: Array in lines:
-		PixelFont.draw_text(self, Vector2(content_left, y), l[0] as String, l[1] as Color)
+		Hud.draw_highlighted(self, Vector2(content_left, y), l[0] as String, l[1] as Color, missing_res, Palette.ACCENT)
 		if not (l[2] as String).is_empty():
 			PixelFont.draw_right(self, content_right, y, l[2] as String, Palette.THATCH[2])
 		y += LINE_STEP

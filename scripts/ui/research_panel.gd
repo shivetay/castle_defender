@@ -276,7 +276,8 @@ static func tile_color(done: bool, active: bool) -> Color:
 ## Linie szczegółów technologii [tekst, kolor, tekst z prawej], zawinięte do `width` px i najwyżej
 ## DETAIL_LINES. Kolejność ważności: tytuł ze stanem, efekt, koszt, wymaga, odblokowuje, powiązane,
 ## trwające badanie; czego nie da się zmieścić, wypada od końca.
-static func detail_lines(r: Research, code: String, current_age: int, now: int, width: int) -> Array:
+static func detail_lines(r: Research, code: String, current_age: int, now: int, width: int,
+		amounts: Array[int] = []) -> Array:
 	var head: Array = []
 	var title := "%s %s" % [code, TechTree.tech_name(code)]
 	if TechTree.is_key(code):
@@ -286,7 +287,7 @@ static func detail_lines(r: Research, code: String, current_age: int, now: int, 
 	var effect := PixelFont.wrap(TechTree.effect(code), width, 2)
 	if not r.is_done(code) and r.active != code:
 		head.append([fit_text("%s, %s, %s" % [TechTree.age_label(TechTree.age(code)), Hud.cost_text(r.cost_of(code)),
-				Hud.format_time(r.time_of(code))], width), Palette.INK, ""])
+				Hud.format_time(r.time_of(code))], width), Palette.INK, "", Hud.missing_tokens(r.cost_of(code), amounts)])
 	var links: Array = []
 	links.append([requires_text(code, width), Palette.INK, ""])
 	var next := TechLinks.unlocks(code)
@@ -331,8 +332,10 @@ func _draw_details() -> void:
 	if selected.is_empty():
 		return
 	var y := float(DETAIL_Y)
-	for l: Array in detail_lines(research, selected, age, now_ms, int(content_right - content_left)):
-		PixelFont.draw_text(self, Vector2(content_left, y), l[0] as String, l[1] as Color)
+	var amounts: Array[int] = economy.amounts if economy != null else [] as Array[int]
+	for l: Array in detail_lines(research, selected, age, now_ms, int(content_right - content_left), amounts):
+		var tokens: PackedStringArray = l[3] if l.size() > 3 else PackedStringArray()
+		Hud.draw_highlighted(self, Vector2(content_left, y), l[0] as String, l[1] as Color, tokens, Palette.ACCENT)
 		if not (l[2] as String).is_empty():
 			PixelFont.draw_right(self, content_right, y, l[2] as String, Palette.THATCH[2])
 		y += LINE_STEP
