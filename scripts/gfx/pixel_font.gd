@@ -129,6 +129,8 @@ static func wrap(text: String, max_width: int, max_lines: int = 0) -> PackedStri
 static func _fit(text: String, max_width: int, force_dots: bool = false) -> String:
 	if text_width(text) <= max_width:
 		return text
+	if max_width < text_width("..."):
+		return ""  # patologiczna strefa bezpieczna: nawet wielokropek się nie mieści
 	var out := text.trim_suffix("...") if force_dots else text
 	while out.length() > 0 and text_width(out + "...") > max_width:
 		out = out.substr(0, out.length() - 1)
