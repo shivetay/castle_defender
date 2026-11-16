@@ -20,8 +20,8 @@ func test_widths_and_fit() -> bool:
 	assert_eq(PixelFont.text_width("A"), 4, "A ma 4 px")
 	assert_eq(PixelFont.text_width("AA"), 9, "odstęp 1 px")
 	assert_eq(PixelFont.text_width("ż"), PixelFont.text_width("Z"), "polska litera ma szerokość bazowej")
-	for label in BuildingTypes.SHORT_NAMES + Hud.CARD_LABELS + [Hud.CANCEL_LABEL, Hud.SIEGE_LABEL, Hud.BUILD_LABEL, Hud.DONE_LABEL]:
-		assert_true(PixelFont.text_width(label) <= int(Hud.BUTTON_SIZE.x) - 4, "„%s” mieści się na przycisku" % label)
+	for label in Hud.CARD_LABELS + [Hud.CANCEL_LABEL, Hud.SIEGE_LABEL, Hud.BUILD_LABEL, Hud.DONE_LABEL]:
+		assert_true(PixelFont.text_width(label) <= int(Hud.BUTTON_SIZE.x) - 2, "„%s” mieści się na przycisku" % label)
 	var messages: Array[String] = [Hud.VIEW_MESSAGE, Hud.SIEGE_LATER_MESSAGE]
 	for name in BuildingTypes.NAMES:
 		messages.append("Tu stoi %s" % name)

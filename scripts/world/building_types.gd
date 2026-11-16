@@ -30,7 +30,7 @@ const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wie
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
 		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica",
 		"Wieża grodowa"]
-## Napisy na przyciskach paska budowy (56 px).
+## Napisy na kafelkach panelu budowy (BuildPanel, ok. 57–71 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
 		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
 		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica", "Donżon"]
@@ -44,6 +44,33 @@ const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWE
 		Kind.FISHER, Kind.FLAX_FIELD, Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER,
 		Kind.FLETCHER, Kind.SADDLER, Kind.STABLE, Kind.TAR_KILN, Kind.BARRACKS, Kind.WARBAND_HOUSE,
 		Kind.ARCHERY_RANGE]
+
+
+## Kategorie w panelu budowy (po teście na telefonie): zakładki zamiast jednego długiego paska.
+enum Category { DEFENSE, ECONOMY, PRODUCERS, MILITARY }
+const CATEGORY_NAMES: Array[String] = ["Umocnienia", "Gospodarka", "Wytwórcy", "Wojsko"]
+## Rodzaje w kategoriach, w kolejności kafelków (ta sama kolejność co BUILD_BAR).
+const CATEGORIES: Array = [
+	[Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER],
+	[Kind.LUMBER_HUT, Kind.FISHER, Kind.FLAX_FIELD],
+	[Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER, Kind.FLETCHER,
+			Kind.SADDLER, Kind.TAR_KILN],
+	[Kind.BARRACKS, Kind.WARBAND_HOUSE, Kind.ARCHERY_RANGE, Kind.STABLE],
+]
+
+
+static func in_category(cat: int) -> Array[int]:
+	var out: Array[int] = []
+	out.assign(CATEGORIES[cat] as Array)
+	return out
+
+
+## Kategoria rodzaju albo -1 (Dwór nie stoi w panelu).
+static func category(kind: int) -> int:
+	for i in CATEGORIES.size():
+		if (CATEGORIES[i] as Array).has(kind):
+			return i
+	return -1
 
 
 static func count() -> int:
@@ -61,12 +88,12 @@ static func is_unique(kind: int) -> bool:
 	return kind == Kind.MANOR or kind == Kind.KEEP
 
 
-## Liczba rodzajów, które gracz stawia z paska budowy (bez Dworu).
+## Liczba rodzajów, które gracz stawia z panelu budowy (bez Dworu i donżonu).
 static func buildable_count() -> int:
 	return BUILD_BAR.size()
 
 
-## Rodzaj budynku na miejscu `index` paska budowy.
+## Rodzaj budynku na miejscu `index` listy BUILD_BAR (kolejność rodzajów w panelu budowy).
 static func bar_kind(index: int) -> int:
 	return BUILD_BAR[clampi(index, 0, BUILD_BAR.size() - 1)]
 
