@@ -258,7 +258,7 @@ scenes/          sceny Godota
 scripts/         logika gry
 scripts/gfx/     rysowanie proceduralne i palety
 scripts/world/   dane świata: teren, siatka budowy
-scripts/camera/  kamera z gestami
+scripts/camera/  kamera z gestami (zoom 0,5×/1×/2×/4×)
 scripts/ui/      HUD
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
 tools/           narzędzia (version.py, changelog.py i ich testy)
