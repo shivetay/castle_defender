@@ -28,7 +28,7 @@ const W := 8
 const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wieża drewniana", "Chata drwala", "Dwór",
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
 		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica"]
-## Napisy na przyciskach paska budowy (56 px).
+## Napisy na kafelkach panelu budowy (BuildPanel, ok. 57–71 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
 		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
 		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica"]
@@ -75,12 +75,12 @@ static func count() -> int:
 	return NAMES.size()
 
 
-## Liczba rodzajów, które gracz stawia z paska budowy (bez Dworu).
+## Liczba rodzajów, które gracz stawia z panelu budowy (bez Dworu).
 static func buildable_count() -> int:
 	return BUILD_BAR.size()
 
 
-## Rodzaj budynku na miejscu `index` paska budowy.
+## Rodzaj budynku na miejscu `index` listy BUILD_BAR (kolejność rodzajów w panelu budowy).
 static func bar_kind(index: int) -> int:
 	return BUILD_BAR[clampi(index, 0, BUILD_BAR.size() - 1)]
 

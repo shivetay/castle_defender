@@ -9,7 +9,7 @@ extends Node2D
 ##   budynek, niczego nie zaznaczają,
 ## - karta budynku: stan, koszt ulepszenia oraz Ulepsz, Rozbierz (Anuluj dla zlecenia), przy budynku
 ##   rekrutacji Szkol, i Zamknij, wyśrodkowane nad paskiem komunikatu.
-## Dotknięcia przycisków i przewijanie paska nie trafiają do kamery. Gdy otwarty jest ekran
+## Dotknięcia przycisków nie trafiają do kamery. Gdy otwarty jest ekran
 ## na całą mapę (np. drzewko badań, `overlay`), HUD rysuje tylko górny i dolny pasek.
 
 signal build_pressed

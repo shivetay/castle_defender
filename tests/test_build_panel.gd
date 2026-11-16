@@ -85,3 +85,15 @@ func test_card_shows_upgrade_cost() -> bool:
 			"ponad poziom Dworu")
 	assert_eq(load("res://scripts/main.gd").upgrade_info(K.TOWER, 1, 3, true), "Trwa budowa", "w kolejce")
 	return true
+
+
+
+## Review #160: Zamknij w panelu otwartym przez Zmień zostaje w trybie budowy z kosztem wybranego
+## budynku w komunikacie, a otwartym przez Buduj wraca do oglądania.
+func test_closing_panel_keeps_the_mode() -> bool:
+	var main_script: GDScript = load("res://scripts/main.gd")
+	var in_build: String = main_script.closed_message(true, K.TOWER)
+	assert_true(in_build.begins_with(BuildingTypes.NAMES[K.TOWER]), "tryb budowy: komunikat o wieży")
+	assert_true(in_build.contains(Hud.cost_text(BuildConfig.cost(K.TOWER, 1))), "z kosztem")
+	assert_eq(main_script.closed_message(false, K.TOWER), main_script.DEFAULT_MESSAGE, "oglądanie: zwykły komunikat")
+	return true

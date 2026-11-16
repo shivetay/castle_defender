@@ -2,9 +2,9 @@ extends Node2D
 ## Widok zamku z budynkami epoki I, ekonomią i kolejką budowy. Teren 64×64 kratki z seeda,
 ## siatka budowy, kamera z gestami. Na środku od startu stoi Dwór (poziom zamku).
 ## Tryb oglądania: dotknięcie budynku otwiera kartę z przyciskami Ulepsz, Rozbierz (albo Anuluj
-## dla zlecenia w kolejce) i Zamknij. Przycisk Buduj włącza tryb budowy: pasek wybiera budynek,
-## a dotknięcie wolnej trawy zleca budowę (koszt schodzi od razu, na kratkach staje plac budowy,
-## budynek powstaje po czasie z BuildConfig); Gotowe wraca do oglądania. Surowce i budowa
+## dla zlecenia w kolejce) i Zamknij, z kosztem ulepszenia. Przycisk Buduj otwiera panel budowy
+## (BuildPanel), a Postaw włącza tryb budowy wybranego budynku: dotknięcie wolnej trawy zleca budowę (koszt schodzi od razu, na kratkach staje plac budowy,
+## budynek powstaje po czasie z BuildConfig); Zmień wraca do panelu, Gotowe do oglądania. Surowce i budowa
 ## idą dalej, gdy gra jest w tle albo zamknięta; po powrocie komunikat podaje, ile przybyło.
 ## Przycisk Wojsko otwiera ekran rekrutacji wszystkich jednostek, a Szkol na karcie budynku rekrutacji
 ## ten sam ekran tylko z jednostkami tego budynku (RecruitPanel).
@@ -105,7 +105,7 @@ func _ready() -> void:
 	build_panel.visible = false
 	layer.add_child(build_panel)
 	build_panel.place_requested.connect(_on_place_requested)
-	build_panel.closed.connect(_on_overlay_closed)
+	build_panel.closed.connect(_on_build_panel_closed)
 
 	research_panel = ResearchPanel.new()
 	research_panel.research = research
@@ -277,9 +277,27 @@ func _on_place_requested(kind: int) -> void:
 	hud.overlay = false
 	hud.selected_kind = kind
 	hud.set_building(true)
-	hud.message = "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, 1)),
-			Hud.format_time(BuildConfig.time_ms(kind, 1))]
+	hud.message = build_message(kind)
 	queue_redraw()
+
+
+## Zamknij w panelu budowy. Otwarty przez Zmień (w trybie budowy) wraca do stawiania dotychczasowego
+## budynku z jego kosztem w komunikacie; otwarty przez Buduj wraca do oglądania (review #160).
+func _on_build_panel_closed() -> void:
+	hud.overlay = false
+	hud.message = closed_message(hud.building, hud.selected_kind)
+	queue_redraw()
+
+
+## Komunikat trybu budowy: nazwa, koszt i czas wybranego budynku.
+static func build_message(kind: int) -> String:
+	return "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, 1)),
+			Hud.format_time(BuildConfig.time_ms(kind, 1))]
+
+
+## Komunikat po zamknięciu panelu budowy bez Postaw.
+static func closed_message(building: bool, kind: int) -> String:
+	return build_message(kind) if building else DEFAULT_MESSAGE
 
 
 ## Czy Rybak nie staje tylko przez brak wody: ten sam prostokąt bez warunku wody byłby wolny
