@@ -307,7 +307,8 @@ obrony z #19 (posterunki załogi wokół donżonu).
   - **Gwiazdki:** brama zdobyta (zburzona brama albo atakujący na murze po drabinie), połowa zamku
     (od 50%) i donżon (zburzony albo zdobyty, czyli wygrana).
   - **Łup z zamku-bota:** skarbiec 1000 + 500 × numer drewna, kamienia i żywności oraz 20 + 10 × numer
-    złota; połowę chroni magazyn, z reszty do 20% w proporcji do zniszczeń; ponowny atak na zdobyty
+    złota; połowę chroni magazyn, z reszty do 20% w proporcji do zniszczeń (wygrana liczy się co najmniej
+    jak 50% zniszczeń); ponowny atak na zdobyty
     zamek daje połowę. Łup wchodzi do magazynu do jego pojemności. Liczby tymczasowe.
   - **Okno wyniku:** tytuł, gwiazdki, procent, spełnione warunki, łup, polegli i odblokowany zamek.
   - **Odbudowa:** bitwa działa na kopii budynków, więc zamek obrońcy po bitwie jest w pełnym stanie.

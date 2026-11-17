@@ -94,6 +94,17 @@ func test_loot() -> bool:
 	var s := BattleResult.stash(19)
 	assert_eq(r.loot[0], s[0] / 2 * 20 / 100 * 50 / 100, "zamek 20, 50%")
 	assert_true(BattleResult.stash(19)[0] > BattleResult.stash(0)[0], "bogatsze dalsze zamki")
+	# wygrana przy małych zniszczeniach liczy się jak 50%, a przy większych jak faktyczny procent
+	r.percent = 16
+	r.won = true
+	assert_eq(r.loot_percent(), BattleResult.WIN_LOOT_PERCENT, "szybka wygrana: jak 50%")
+	r.compute_loot(0, false)
+	assert_eq(r.loot[0], 50, "zamek 1: 50 drewna")
+	r.percent = 80
+	assert_eq(r.loot_percent(), 80, "większe zniszczenia: faktyczny procent")
+	r.won = false
+	r.percent = 16
+	assert_eq(r.loot_percent(), 16, "przegrana: bez dodatku")
 	var e := Economy.new(0)
 	e.amounts[0] = Economy.capacity(0) - 10
 	r.loot = [100, 0, 0, 0] as Array[int]
