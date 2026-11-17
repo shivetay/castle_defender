@@ -68,6 +68,8 @@ var defense_panel: DefensePanel
 var _attacking := false
 
 var _terrain_tex: ImageTexture
+## Dym z kominów i błyski na wodzie (#150), nad budynkami.
+var ambient: AmbientView
 var _selected_id := 0
 var _cursor := Rect2i()
 var _cursor_ok := true
@@ -103,6 +105,9 @@ func _ready() -> void:
 	var keep_missing := grid.keep_id() == 0
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
 	textures.warm_up()
+	ambient = AmbientView.new()
+	ambient.setup(grid, textures)
+	add_child(ambient)
 
 	camera = PanZoomCamera.new()
 	camera.world_size = Vector2i(terrain.size, terrain.size) * TerrainMap.CELL
