@@ -29,12 +29,12 @@ func test_column_buttons_stack_on_the_right() -> bool:
 		for building: bool in [false, true]:
 			var n := Hud.column_targets(building).size()
 			for i in n:
-				var r := Hud.column_rect(b.y, i)
+				var r := Hud.column_rect(b.y, i, Hud.uses_icons(building))
 				assert_eq(r.end.x, b.y, "przy prawej granicy treści")
 				assert_true(r.position.y >= Hud.BAR_H, "pod górnym paskiem")
 				assert_true(r.end.y <= view.y - Hud.BAR_H, "nad paskiem komunikatu")
 				if i > 0:
-					assert_true(r.position.y > Hud.column_rect(b.y, i - 1).end.y, "od góry, bez nakładania")
+					assert_true(r.position.y > Hud.column_rect(b.y, i - 1, Hud.uses_icons(building)).end.y, "od góry, bez nakładania")
 	assert_eq(Hud.column_targets(false), [T.BUILD, T.RESEARCH, T.ARMY, T.SIEGE, T.ATTACK, T.DEFENCE,
 			T.QUEUE] as Array[int],
 			"oglądanie: kolejność")
@@ -44,15 +44,16 @@ func test_column_buttons_stack_on_the_right() -> bool:
 
 func test_targets_follow_mode() -> bool:
 	var b := _bounds(VIEW)
-	var first := Hud.column_rect(b.y, 0).get_center()
-	var second := Hud.column_rect(b.y, 1).get_center()
-	var fourth := Hud.column_rect(b.y, 3).get_center()
+	# środki wąskich przycisków z ikonami leżą też na szerokich przyciskach trybu budowy
+	var first := Hud.column_rect(b.y, 0, true).get_center()
+	var second := Hud.column_rect(b.y, 1, true).get_center()
+	var fourth := Hud.column_rect(b.y, 3, true).get_center()
 	assert_eq(Hud.target_at(first, VIEW, b.y, false, false), T.BUILD, "oglądanie: Buduj na górze")
 	assert_eq(Hud.target_at(second, VIEW, b.y, false, false), T.RESEARCH, "oglądanie: Badania")
-	assert_eq(Hud.target_at(Hud.column_rect(b.y, 2).get_center(), VIEW, b.y, false, false), T.ARMY, "oglądanie: Wojsko")
+	assert_eq(Hud.target_at(Hud.column_rect(b.y, 2, true).get_center(), VIEW, b.y, false, false), T.ARMY, "oglądanie: Wojsko")
 	assert_eq(Hud.target_at(fourth, VIEW, b.y, false, false), T.SIEGE, "oglądanie: Oblężenie")
-	assert_eq(Hud.target_at(Hud.column_rect(b.y, 4).get_center(), VIEW, b.y, false, false), T.ATTACK, "oglądanie: Atak (#17)")
-	assert_eq(Hud.target_at(Hud.column_rect(b.y, 5).get_center(), VIEW, b.y, false, false), T.DEFENCE, "oglądanie: Obrona (#19)")
+	assert_eq(Hud.target_at(Hud.column_rect(b.y, 4, true).get_center(), VIEW, b.y, false, false), T.ATTACK, "oglądanie: Atak (#17)")
+	assert_eq(Hud.target_at(Hud.column_rect(b.y, 5, true).get_center(), VIEW, b.y, false, false), T.DEFENCE, "oglądanie: Obrona (#19)")
 	assert_eq(Hud.target_at(first, VIEW, b.y, true, false), T.DONE, "budowa: w tym samym miejscu Gotowe")
 	assert_eq(Hud.target_at(second, VIEW, b.y, true, false), T.CHANGE, "budowa: Zmień")
 	assert_eq(Hud.target_at(fourth, VIEW, b.y, true, false), T.NONE, "budowa: tylko dwa przyciski")
@@ -69,4 +70,23 @@ func test_age_and_year_follow_manor() -> bool:
 	assert_eq(Ages.label(0, 2), "Epoka I · 600 r.", "napis")
 	assert_eq(Hud.top_right_text("", "Epoka I · 550 r."), "Epoka I · 550 r.", "bez budowy tylko epoka")
 	assert_eq(Hud.top_right_text("0:05", "Epoka I · 550 r."), "0:05  Epoka I · 550 r.", "z budową")
+	return true
+
+
+## Główna kolumna (#150): wąskie przyciski z ikoną, każdy cel ≥ 12×12 px, ikona na każdy przycisk
+## i pasek celu sięga do samej kolumny.
+func test_icon_column_is_narrow() -> bool:
+	var b := _bounds(VIEW)
+	assert_true(Hud.ICON_BUTTON_SIZE.x >= 12 and Hud.ICON_BUTTON_SIZE.y >= 12, "cel ≥ 12×12 px")
+	assert_true(Hud.ICON_BUTTON_SIZE.x < Hud.BUTTON_SIZE.x / 2, "kolumna węższa niż połowa dawnej")
+	assert_eq(PixelIcons.MENU.size(), Hud.column_targets(false).size(), "ikona dla każdego przycisku")
+	for icon: Array in PixelIcons.MENU:
+		assert_eq(icon.size(), PixelIcons.MENU_SIZE, "7 wierszy")
+		for row: String in icon:
+			assert_eq(row.length(), PixelIcons.MENU_SIZE, "7 znaków w wierszu")
+	assert_true(Hud.uses_icons(false) and not Hud.uses_icons(true) and not Hud.uses_icons(false, true),
+			"ikony tylko przy oglądaniu zamku")
+	assert_eq(Hud.goal_rect(b.x, b.y).end.x, b.y - Hud.ICON_BUTTON_SIZE.x - Hud.BUTTON_GAP, "pasek celu do kolumny")
+	assert_eq(Hud.target_at(Vector2(b.y - Hud.ICON_BUTTON_SIZE.x - 2, Hud.column_rect(b.y, 0).get_center().y), VIEW, b.y, false, false),
+			T.NONE, "obok wąskiego przycisku jest już mapa")
 	return true

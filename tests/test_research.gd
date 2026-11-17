@@ -226,7 +226,7 @@ func test_panel_texts() -> bool:
 
 func test_hud_research_button() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
-	var research := Hud.column_rect(b.y, 1)
+	var research := Hud.column_rect(b.y, 1, true)
 	assert_eq(Hud.target_at(research.get_center(), VIEW, b.y, false, false), Hud.Target.RESEARCH, "oglądanie: Badania pod Buduj")
 	assert_true(Hud.target_at(research.get_center(), VIEW, b.y, true, false) != Hud.Target.RESEARCH, "w trybie budowy nie")
 	assert_true(not Hud.research_rect(VIEW, b.y).intersects(Hud.right_corner_rect(VIEW, b.y)), "Badaj obok Zamknij")

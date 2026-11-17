@@ -45,6 +45,16 @@ obrony z #19 (posterunki załogi wokół donżonu).
   Chata i warsztaty przy murze to przybudówki (`Lean`): przy murze z boku dach jednospadowy opada od muru
   (kształt trójkąta prostokątnego, wariant wschodni to lustro zachodniego), a przy murze z tyłu jedna
   połać. Dwór, wieża, brama, mury i pole lnu zostają bez zmian.
+- `scripts/gfx/terrain_renderer.gd` (`TerrainRenderer`, ożywiony w #150): trawa w 4 odcieniach wysokości
+  z ziarnem i źdźbłami. Na styku wysokości odcień liczy się z interpolacji środków kratek z szumem,
+  więc wzgórze ma miękkie, poszarpane zbocza zamiast schodków. Na trawie są ozdoby z seeda: kępki,
+  kwiatki (czerwone, żółte), kamienie i krzaki (`decor_at`). Przy wodzie rośnie trzcina, a ścieżki
+  i rzeka mają poszarpane brzegi i zaokrąglone narożniki. Cała mapa liczy się raz, ok. 40 ms (komputer).
+- `scripts/gfx/ambient_view.gd` (`AmbientView`, #150): dym z kominów (Dwór i smolarnia zawsze, chaty
+  i warsztaty co drugi) i błyski na wodzie. Rysuje się 8 razy na sekundę, nie co klatkę, i nie wpływa
+  na symulację.
+- Budynki (#150) mają ciemny obrys i światło z lewej góry (bez umocnień, bramy i wieży, które łączą się
+  z murem), a pod nimi półprzezroczysty cień na trawie (`BuildingTextures.shadow`).
 - `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska,
   pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 222 całe warianty i place budowy
   (ok. 19 ms na komputerze, headless).
@@ -305,12 +315,15 @@ obrony z #19 (posterunki załogi wokół donżonu).
   co klatkę i jednym skokiem), limity magazynów, łup (`add`) i wydawanie (`spend`). Produkcja liczy
   się z zegara systemowego, więc rośnie też, gdy gra jest w tle. Po powrocie komunikat podaje przyrost.
 - `scripts/gfx/pixel_icons.gd` (`PixelIcons`): ikony surowców 5×5 zapisane w kodzie jako wzory znaków
-  (dwa bale, kamień, jabłko, moneta), kolory z palety, atlas w cache.
+  (dwa bale, kamień, jabłko, moneta), kolory z palety, atlas w cache. Ikony 7×7 głównej kolumny HUD-u (#150):
+  młotek, księga, hełm, wieża, skrzyżowane miecze, tarcza, klepsydra.
 - `scripts/ui/hud.gd`: interfejs na jeden kciuk w poziomie. Treść trzyma się 12 px od bocznych krawędzi
   (zaokrąglone narożniki), a wycięcia ekranu odsuwają ją dalej. U góry surowce z ikonami (pełny magazyn
   ma żółtą liczbę), a z prawej czas budowy z liczbą czekających zleceń oraz epoka i rok. U dołu komunikat
   i FPS. Przyciski trybów stoją w kolumnie przy prawej krawędzi, od góry (48×16 px, po teście na
-  telefonie mniejsze niż dawne 56×22). Tryb oglądania: Buduj, Badania, Wojsko, Oblężenie (wyszarzone,
+  telefonie mniejsze niż dawne 56×22). W trybie oglądania kolumna jest wąska (#150): przyciski 18×16
+  z ikoną na ciemnym okienku, nazwa w dymku po lewej, póki palec trzyma przycisk, a liczba zleceń
+  Kolejki w czerwonej plakietce. Pasek celu sięga do samej kolumny. Tryb oglądania: Buduj, Badania, Wojsko, Oblężenie (wyszarzone,
   dojdzie z bitwą); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
   Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.

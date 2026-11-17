@@ -167,7 +167,7 @@ func test_goal_texts_fit_the_hud() -> bool:
 	for fallen: int in [0, 99]:
 		assert_true(PixelFont.text_width(TutorialGoals.done_message(reward, fallen)) <= Hud.MESSAGE_MAX_WIDTH,
 				"komunikat końca mieści się (polegli: %d)" % fallen)
-	assert_true(not Hud.goal_rect(b.x, b.y).intersects(Hud.column_rect(b.y, 0)), "pasek celu obok kolumny przycisków")
+	assert_true(not Hud.goal_rect(b.x, b.y).intersects(Hud.column_rect(b.y, 0, true)), "pasek celu obok kolumny przycisków")
 	return true
 
 

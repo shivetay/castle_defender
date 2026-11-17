@@ -6,6 +6,8 @@ extends RefCounted
 var _cache: Dictionary[int, ImageTexture] = {}
 ## Zamalowana część obrazu każdej tekstury (do przyklejania budynków do murów, #149).
 var _used: Dictionary[int, Rect2i] = {}
+## Cienie rzucane na trawę (#150), z tym samym kluczem co tekstura, liczone przy pierwszym użyciu.
+var _shadows: Dictionary[int, ImageTexture] = {}
 
 
 static func key(kind: int, level: int, state: int, mask: int, vertical: bool = false, lean: int = 0) -> int:
@@ -32,17 +34,18 @@ func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTAC
 
 ## Rysuje z góry wszystkie całe (nieuszkodzone) warianty i place budowy (poziom 0), także przybudówki
 ## przy murze (#149), żeby budowanie nie przycinało gry.
+## Razem z teksturami rysuje ich cienie (#150), żeby pierwszy widok zamku nie przycinał.
 func warm_up() -> void:
 	for kind in BuildingTypes.count():
 		var masks := 16 if BuildingTypes.is_wall(kind) else 1
 		for level in range(0, BuildingTypes.MAX_LEVEL + 1):
 			for mask in masks:
-				draw_building(kind, level, BuildingTypes.State.INTACT, mask)
+				shadow(kind, level, BuildingTypes.State.INTACT, mask)
 			if kind == BuildingTypes.Kind.GATE:
-				draw_building(kind, level, BuildingTypes.State.INTACT, 0, true)
+				shadow(kind, level, BuildingTypes.State.INTACT, 0, true)
 			if BuildingArt.can_lean(kind) and level >= 1:
 				for lean in range(BuildingArt.Lean.NORTH, BuildingArt.Lean.WEST + 1):
-					draw_building(kind, level, BuildingTypes.State.INTACT, 0, false, lean)
+					shadow(kind, level, BuildingTypes.State.INTACT, 0, false, lean)
 
 
 func cached_count() -> int:
@@ -58,3 +61,20 @@ func used_rect(kind: int, level: int, state: int = BuildingTypes.State.INTACT, m
 	var lv := clampi(level, 0, BuildingTypes.MAX_LEVEL)
 	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
 	return _used[key(kind, lv, state, m, v, ln)]
+
+
+## Cień budynku na trawie (#150): sylwetka tekstury przesunięta o BuildingArt.shadow_offset.
+## Rysuje się w tym samym miejscu co tekstura, przed wszystkimi budynkami.
+func shadow(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
+		vertical: bool = false, lean: int = 0) -> ImageTexture:
+	var tex := draw_building(kind, level, state, mask, vertical, lean)
+	var m := mask if BuildingTypes.is_wall(kind) else 0
+	var v := vertical and kind == BuildingTypes.Kind.GATE
+	var lv := clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
+	var k := key(kind, lv, state, m, v, ln)
+	var sh: ImageTexture = _shadows.get(k)
+	if sh == null:
+		sh = ImageTexture.create_from_image(BuildingArt.shadow_image(tex.get_image(), BuildingArt.shadow_offset(kind)))
+		_shadows[k] = sh
+	return sh

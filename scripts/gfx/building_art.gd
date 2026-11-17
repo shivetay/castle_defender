@@ -10,6 +10,8 @@ extends RefCounted
 @warning_ignore_start("integer_division")
 
 const CELL := 8
+## Krycie cienia rzucanego na trawę (#150).
+const SHADOW_ALPHA := 0.3
 ## Ile pikseli budynek wystaje ponad swoje kratki (stałe dla rodzaju, niezależne od poziomu).
 const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10, 10, 10, 10, 10, 22, 10]
 
@@ -91,7 +93,77 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 	if mirror:
 		img.flip_x()
 	_apply_state(img, kind, state, mask)
+	if has_outline(kind):
+		_outline_and_light(img)
 	return img
+
+
+## Czy budynek dostaje obrys i światło (#150). Umocnienia, brama i wieża łączą się z sąsiednimi
+## odcinkami muru, więc obrys rysowałby kreskę na styku: one go nie mają.
+static func has_outline(kind: int) -> bool:
+	return not (BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.GATE or kind == BuildingTypes.Kind.TOWER)
+
+
+## Obrys i światło z lewej góry (#150): przezroczysty piksel przy sylwetce dostaje kolor cienia,
+## a piksel sylwetki odsłonięty od lewej albo od góry rozjaśnia się o stopień w swojej rampie.
+## Działa na kopii kanału alfa, więc obrys nie liczy się jako sylwetka przy rozjaśnianiu.
+static func _outline_and_light(img: Image) -> void:
+	var w := img.get_width()
+	var h := img.get_height()
+	var data := img.get_data()
+	var solid := PackedByteArray()
+	solid.resize(w * h)
+	for i in w * h:
+		solid[i] = 1 if data[i * 4 + 3] == 255 else 0
+	var lighter := _lighter_map()
+	for y in h:
+		for x in w:
+			var i := y * w + x
+			if solid[i] == 1:
+				var open_left := x == 0 or solid[i - 1] == 0
+				var open_top := y == 0 or solid[i - w] == 0
+				if open_left or open_top:
+					var col := img.get_pixel(x, y)
+					var up: Color = lighter.get(col.to_rgba32(), col)
+					if up != col:
+						img.set_pixel(x, y, up)
+			elif (x > 0 and solid[i - 1] == 1) or (x < w - 1 and solid[i + 1] == 1) \
+					or (y > 0 and solid[i - w] == 1) or (y < h - 1 and solid[i + w] == 1):
+				img.set_pixel(x, y, Palette.SHADOW)
+
+
+## Kolor o stopień jaśniejszy w rampie palety (trawa, drewno, ziemia, strzecha, woda).
+static func _lighter_map() -> Dictionary:
+	var pairs: Array[Array] = [
+		[Palette.GRASS[0], Palette.GRASS[1]], [Palette.GRASS[1], Palette.GRASS[2]], [Palette.GRASS[2], Palette.GRASS[3]],
+		[Palette.WOOD[0], Palette.WOOD[1]], [Palette.WOOD[1], Palette.WOOD[2]], [Palette.WOOD[2], Palette.WOOD[3]],
+		[Palette.THATCH[0], Palette.THATCH[1]], [Palette.THATCH[1], Palette.THATCH[2]],
+		[Palette.WATER[0], Palette.WATER[1]], [Palette.WATER[1], Palette.WATER[2]],
+		[Palette.SHADOW, Palette.WOOD[0]],
+	]
+	var out := {}
+	for pr in pairs:
+		out[(pr[0] as Color).to_rgba32()] = pr[1]
+	return out
+
+
+## Cień rzucany na trawę (#150): sylwetka przesunięta o `offset` w prawo i w dół (światło z lewej
+## góry), w kolorze cienia z przezroczystością. Budynek rysuje się na nim, więc widać tylko pasek
+## po prawej i u dołu.
+static func shadow_image(img: Image, offset: Vector2i) -> Image:
+	var w := img.get_width()
+	var h := img.get_height()
+	# natywne kopiowanie przez maskę sylwetki (szybkie przy setkach wariantów w warm_up)
+	var solid := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	solid.fill(Color(Palette.SHADOW, SHADOW_ALPHA))
+	var out := Image.create(w + offset.x, h + offset.y, false, Image.FORMAT_RGBA8)
+	out.blit_rect_mask(solid, img, Rect2i(Vector2i.ZERO, img.get_size()), offset)
+	return out
+
+
+## Przesunięcie cienia: budynki rzucają dłuższy cień niż niskie odcinki muru.
+static func shadow_offset(kind: int) -> Vector2i:
+	return Vector2i(1, 1) if BuildingTypes.is_wall(kind) else Vector2i(3, 1)
 
 
 ## Dach jednospadowy przybudówki nad ścianą `wall`, `rows` wierszy w najwyższym miejscu (#149).

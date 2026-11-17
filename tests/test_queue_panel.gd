@@ -197,7 +197,7 @@ func test_empty_tabs_and_layout() -> bool:
 	assert_eq(Hud.queue_text_rect(b.y, "", "", "Epoka I · 550 r."), Rect2(), "bez budowy górny pasek nie otwiera Kolejki")
 	var top := Hud.queue_text_rect(b.y, "0:42", "", "Epoka I · 550 r.")
 	assert_true(top.has_point(Vector2(b.y - 5, 5)) and top.size.y >= 12, "czas budowy na górnym pasku to cel dotyku")
-	assert_true(Hud.column_rect(b.y, Hud.column_targets(false).size() - 1).end.y < VIEW.y - Hud.BAR_H,
+	assert_true(Hud.column_rect(b.y, Hud.column_targets(false).size() - 1, true).end.y < VIEW.y - Hud.BAR_H,
 			"7 przycisków kolumny nad paskiem komunikatu")
 	return true
 

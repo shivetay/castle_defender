@@ -5,7 +5,13 @@ extends RefCounted
 
 
 ## Rysuje wszystkie budynki `grid` na `ci` (w pikselach mapy), z tekstur z `textures`.
+## Najpierw cienie wszystkich budynków (#150), żeby żaden cień nie padał na sąsiedni budynek.
 static func draw_buildings(ci: CanvasItem, grid: BuildGrid, textures: BuildingTextures) -> void:
+	for id in grid.draw_order():
+		var kind := grid.kinds[id]
+		var sh := textures.shadow(kind, grid.levels[id], BuildingTypes.State.INTACT,
+				grid.wall_mask(id), grid.is_vertical(id), lean_of(grid, id))
+		ci.draw_texture(sh, Vector2(texture_origin(grid.buildings[id].position, kind) + attach_offset(grid, textures, id)))
 	for id in grid.draw_order():
 		var kind := grid.kinds[id]
 		draw_wall_stubs(ci, grid, textures, id)

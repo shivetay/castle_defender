@@ -93,3 +93,73 @@ func test_render_is_deterministic_and_uses_palette() -> bool:
 func _is_road(map: TerrainMap, c: Vector2i) -> bool:
 	var t := map.get_tile(c)
 	return t == TerrainMap.Tile.PATH or t == TerrainMap.Tile.BRIDGE
+
+
+## Ozdoby (#150) zależą tylko od seeda, stoją wyłącznie na trawie otoczonej trawą i jest ich
+## rozsądnie dużo: kilka do kilkunastu procent kratek.
+func test_decor_is_seeded_and_only_on_open_grass() -> bool:
+	var map := TerrainMap.generate(42)
+	var again := TerrainMap.generate(42)
+	var count := 0
+	for y in map.size:
+		for x in map.size:
+			var c := Vector2i(x, y)
+			var d := TerrainRenderer.decor_at(map, c)
+			assert_eq(d, TerrainRenderer.decor_at(again, c), "ten sam seed, ta sama ozdoba")
+			if d == TerrainRenderer.Decor.NONE:
+				continue
+			count += 1
+			assert_eq(map.get_tile(c), TerrainMap.Tile.GRASS, "ozdoba na trawie")
+			for n: Vector2i in [c + Vector2i.UP, c + Vector2i.DOWN, c + Vector2i.LEFT, c + Vector2i.RIGHT]:
+				if map.in_bounds(n):
+					assert_eq(map.get_tile(n), TerrainMap.Tile.GRASS, "nie przy ścieżce ani wodzie")
+	var cells := map.size * map.size
+	assert_true(count > cells / 20 and count < cells / 4, "ozdób: %d z %d kratek" % [count, cells])
+	return true
+
+
+## Obrys i cień budynków (#150): obrys w kolorze cienia z palety, cień to sylwetka przesunięta
+## w prawo w dół, półprzezroczysta, a umocnienia i brama nie mają obrysu (łączą się z murem).
+func test_outline_and_shadow() -> bool:
+	var K := BuildingTypes.Kind
+	var img := BuildingArt.make_image(K.BARRACKS, 2, 0)
+	var top := BuildingArt._column_top(img, img.get_width() / 2)
+	assert_eq(img.get_pixel(img.get_width() / 2, top), Palette.SHADOW, "górny piksel sylwetki to obrys")
+	assert_true(not BuildingArt.has_outline(K.PALISADE) and not BuildingArt.has_outline(K.GATE), "mury bez obrysu")
+	var off := BuildingArt.shadow_offset(K.BARRACKS)
+	var sh := BuildingArt.shadow_image(img, off)
+	assert_eq(sh.get_size(), img.get_size() + off, "cień większy o przesunięcie")
+	# najniższy pełny piksel sylwetki, licząc od prawego dolnego rogu
+	var y := img.get_height() - 1
+	var x := -1
+	while x < 0:
+		x = img.get_width() - 1
+		while x >= 0 and img.get_pixel(x, y).a < 1.0:
+			x -= 1
+		if x < 0:
+			y -= 1
+	var p := sh.get_pixel(x + off.x, y + off.y)
+	assert_true(p.a > 0.0 and p.a < 1.0, "cień półprzezroczysty")
+	assert_eq(Color(p, 1.0), Color(Palette.SHADOW, 1.0), "cień w kolorze cienia z palety")
+	return true
+
+
+## Błyski na wodzie (#150, review #191): kratki wody w kubełkach po fazie, każda dokładnie raz,
+## więc w tyknięciu rysują się tylko 3 kubełki zamiast całej rzeki.
+func test_glint_buckets_cover_water_once() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(42))
+	var view := AmbientView.new()
+	view.setup(grid, BuildingTextures.new())
+	var water := 0
+	for y in grid.terrain.size:
+		for x in grid.terrain.size:
+			if grid.terrain.get_tile(Vector2i(x, y)) == TerrainMap.Tile.WATER:
+				water += 1
+	var seen := 0
+	for i in AmbientView.GLINT_CYCLE:
+		for g: Vector3i in view._glints[i]:
+			assert_eq(g.z % AmbientView.GLINT_CYCLE, i, "kratka w swoim kubełku")
+			seen += 1
+	assert_eq(seen, water, "każda kratka wody raz")
+	view.free()
+	return true
