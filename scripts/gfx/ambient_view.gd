@@ -14,7 +14,9 @@ const PUFFS := 4
 var grid: BuildGrid
 var textures: BuildingTextures
 
-var _water: Array[Vector2i] = []
+## Kratki wody w kubełkach po fazie błysku (hash2 % GLINT_CYCLE): w danym tyknięciu błyszczą tylko
+## 3 kubełki, więc rysowanie nie przechodzi po całej rzece (review #191).
+var _glints: Array[Array] = []
 var _tick := 0
 var _time := 0.0
 
@@ -23,12 +25,15 @@ var _time := 0.0
 func setup(g: BuildGrid, t: BuildingTextures) -> void:
 	grid = g
 	textures = t
-	_water.clear()
+	_glints.clear()
+	for i in GLINT_CYCLE:
+		_glints.append([])
 	var map := g.terrain
 	for y in map.size:
 		for x in map.size:
 			if map.get_tile(Vector2i(x, y)) == TerrainMap.Tile.WATER:
-				_water.append(Vector2i(x, y))
+				var h := PixelCanvas.hash2(x, y, 7)
+				_glints[h % GLINT_CYCLE].append(Vector3i(x, y, h))
 
 
 func _process(delta: float) -> void:
@@ -49,15 +54,15 @@ func _draw() -> void:
 ## Błysk: krótka jasna kreska, która przez 3 tyknięcia przesuwa się po kratce wody.
 func _draw_glints() -> void:
 	var cell := TerrainMap.CELL
-	for c in _water:
-		var h := PixelCanvas.hash2(c.x, c.y, 7)
-		var phase := (_tick + h) % GLINT_CYCLE
-		if phase >= 3:
-			continue
-		var at := c * cell + Vector2i(1 + h % 3 + phase, 2 + (h / 3) % 4)
-		draw_rect(Rect2(at.x, at.y, 3 - absi(phase - 1), 1), Palette.WATER[2])
-		if phase == 1:
-			draw_rect(Rect2(at.x + 1, at.y, 1, 1), Palette.THATCH[2])
+	for phase in 3:
+		# faza (tick + h) % CYCLE == phase  ⇔  h % CYCLE == (phase - tick) mod CYCLE
+		var bucket: Array = _glints[posmod(phase - _tick, GLINT_CYCLE)]
+		for g: Vector3i in bucket:
+			var h := g.z
+			var at := Vector2i(g.x, g.y) * cell + Vector2i(1 + h % 3 + phase, 2 + (h / 3) % 4)
+			draw_rect(Rect2(at.x, at.y, 3 - absi(phase - 1), 1), Palette.WATER[2])
+			if phase == 1:
+				draw_rect(Rect2(at.x + 1, at.y, 1, 1), Palette.THATCH[2])
 
 
 ## Dym: kłęby z komina (prawa trzecia część dachu) unoszą się, dryfują na boki i bledną.

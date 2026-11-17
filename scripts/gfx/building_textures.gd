@@ -34,17 +34,18 @@ func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTAC
 
 ## Rysuje z góry wszystkie całe (nieuszkodzone) warianty i place budowy (poziom 0), także przybudówki
 ## przy murze (#149), żeby budowanie nie przycinało gry.
+## Razem z teksturami rysuje ich cienie (#150), żeby pierwszy widok zamku nie przycinał.
 func warm_up() -> void:
 	for kind in BuildingTypes.count():
 		var masks := 16 if BuildingTypes.is_wall(kind) else 1
 		for level in range(0, BuildingTypes.MAX_LEVEL + 1):
 			for mask in masks:
-				draw_building(kind, level, BuildingTypes.State.INTACT, mask)
+				shadow(kind, level, BuildingTypes.State.INTACT, mask)
 			if kind == BuildingTypes.Kind.GATE:
-				draw_building(kind, level, BuildingTypes.State.INTACT, 0, true)
+				shadow(kind, level, BuildingTypes.State.INTACT, 0, true)
 			if BuildingArt.can_lean(kind) and level >= 1:
 				for lean in range(BuildingArt.Lean.NORTH, BuildingArt.Lean.WEST + 1):
-					draw_building(kind, level, BuildingTypes.State.INTACT, 0, false, lean)
+					shadow(kind, level, BuildingTypes.State.INTACT, 0, false, lean)
 
 
 func cached_count() -> int:

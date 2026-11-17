@@ -153,13 +153,11 @@ static func _lighter_map() -> Dictionary:
 static func shadow_image(img: Image, offset: Vector2i) -> Image:
 	var w := img.get_width()
 	var h := img.get_height()
+	# natywne kopiowanie przez maskę sylwetki (szybkie przy setkach wariantów w warm_up)
+	var solid := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	solid.fill(Color(Palette.SHADOW, SHADOW_ALPHA))
 	var out := Image.create(w + offset.x, h + offset.y, false, Image.FORMAT_RGBA8)
-	var data := img.get_data()
-	var col := Color(Palette.SHADOW, SHADOW_ALPHA)
-	for y in h:
-		for x in w:
-			if data[(y * w + x) * 4 + 3] == 255:
-				out.set_pixel(x + offset.x, y + offset.y, col)
+	out.blit_rect_mask(solid, img, Rect2i(Vector2i.ZERO, img.get_size()), offset)
 	return out
 
 
