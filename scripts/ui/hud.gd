@@ -42,6 +42,9 @@ const CORNER_INSET := 12
 ## minimum 12×12 px z CLAUDE.md.
 const BUTTON_SIZE := Vector2(48, 16)
 const BUTTON_GAP := 3
+## Główna kolumna (tryb oglądania, #150): przyciski z ikoną zamiast napisu, żeby nie zasłaniały mapy.
+## Nazwa pojawia się w dymku obok, póki palec trzyma przycisk.
+const ICON_BUTTON_SIZE := Vector2(18, 16)
 ## Miejsce na FPS z prawej strony paska komunikatu (do testów wydajności na telefonie).
 const FPS_WIDTH := 40
 ## Najszerszy komunikat, który mieści się w dolnym pasku obok FPS na ekranie 320 px.
@@ -157,8 +160,15 @@ static func research_rect(view: Vector2, right: float) -> Rect2:
 
 
 ## Przycisk `i` kolumny przy prawej krawędzi, licząc od góry (pod górnym paskiem).
-static func column_rect(right: float, i: int) -> Rect2:
-	return Rect2(Vector2(right - BUTTON_SIZE.x, BAR_H + 4 + i * (BUTTON_SIZE.y + BUTTON_GAP)), BUTTON_SIZE)
+## `icons`: wąski przycisk z ikoną (główna kolumna, uses_icons).
+static func column_rect(right: float, i: int, icons: bool = false) -> Rect2:
+	var sz := ICON_BUTTON_SIZE if icons else BUTTON_SIZE
+	return Rect2(Vector2(right - sz.x, BAR_H + 4 + i * (sz.y + BUTTON_GAP)), sz)
+
+
+## Czy kolumna w tym trybie ma przyciski z ikonami (oglądanie zamku) zamiast napisów.
+static func uses_icons(is_building: bool, in_battle: bool = false) -> bool:
+	return not is_building and not in_battle
 
 
 ## Przyciski kolumny w danym trybie, od góry.
@@ -196,8 +206,9 @@ static func target_at(p: Vector2, view: Vector2, right: float, is_building: bool
 		var i := hit(card_rects(view, recruit_card), p)
 		return Target.CARD + card_button(i, recruit_card) if i >= 0 else Target.NONE
 	var targets := column_targets(is_building, in_battle)
+	var icons := uses_icons(is_building, in_battle)
 	for i in targets.size():
-		if column_rect(right, i).has_point(p):
+		if column_rect(right, i, icons).has_point(p):
 			return targets[i]
 	return Target.NONE
 
@@ -344,8 +355,9 @@ static func queue_text_rect(right: float, queue: String, research: String, age: 
 
 
 ## Pasek celu samouczka (#185): pod górnym paskiem, od lewej granicy treści do kolumny przycisków.
-static func goal_rect(left: float, right: float) -> Rect2:
-	return Rect2(left, BAR_H + 2, right - BUTTON_SIZE.x - BUTTON_GAP - left, 10)
+static func goal_rect(left: float, right: float, icons: bool = true) -> Rect2:
+	var w := ICON_BUTTON_SIZE.x if icons else BUTTON_SIZE.x
+	return Rect2(left, BAR_H + 2, right - w - BUTTON_GAP - left, 10)
 
 
 ## Napis przycisku Kolejka: z liczbą zleceń budowy i szkolenia, gdy coś trwa.
@@ -417,7 +429,7 @@ func _draw() -> void:
 	PixelFont.draw_right(self, content_right, 1, top_right_text(queue_text, age_text, research_text), Palette.INK)
 
 	if not goal_text.is_empty() and not overlay and not battle:
-		var r := goal_rect(content_left, content_right)
+		var r := goal_rect(content_left, content_right, uses_icons(building, battle))
 		draw_rect(r, Color(Palette.SHADOW, 0.7))
 		PixelFont.draw_text(self, r.position + Vector2(2, 1), GOAL_PREFIX, Palette.THATCH[2])
 		PixelFont.draw_text(self, r.position + Vector2(3 + PixelFont.text_width(GOAL_PREFIX) + 2, 1),
@@ -428,11 +440,16 @@ func _draw() -> void:
 		_draw_card(view)
 	else:
 		var targets := column_targets(building, battle)
+		var icons := uses_icons(building, battle)
 		for i in targets.size():
 			var label := speed_label if targets[i] == Target.SPEED else column_label(targets[i])
 			if targets[i] == Target.QUEUE:
 				label = queue_label(queue_count)
-			_draw_button(column_rect(content_right, i), label, _pressed == targets[i], false)
+			if icons:
+				_draw_icon_button(column_rect(content_right, i, true), i, label, _pressed == targets[i],
+						queue_count if targets[i] == Target.QUEUE else 0)
+			else:
+				_draw_button(column_rect(content_right, i), label, _pressed == targets[i], false)
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
 	PixelFont.draw_text(self, Vector2(content_left, view.y - BAR_H + 1), message, Palette.INK)
@@ -494,6 +511,28 @@ func _draw_resources() -> void:
 
 func _draw_button(r: Rect2, label: String, active: bool, disabled: bool) -> void:
 	paint_button(self, r, label, active, disabled)
+
+
+## Przycisk z ikoną: deska jak w paint_button, ikona pośrodku, liczba zleceń w czerwonej plakietce
+## przy lewym dolnym rogu. Wciśnięty pokazuje swoją nazwę w dymku po lewej.
+func _draw_icon_button(r: Rect2, icon: int, label: String, active: bool, count: int) -> void:
+	paint_button(self, r, "", active, false)
+	var at := r.position + ((r.size - Vector2(PixelIcons.MENU_SIZE, PixelIcons.MENU_SIZE)) / 2.0).floor()
+	# ciemne okienko pod ikoną, żeby drewniane ikony odcinały się od deski
+	draw_rect(Rect2(at - Vector2(2, 2), Vector2(PixelIcons.MENU_SIZE + 4, PixelIcons.MENU_SIZE + 4)),
+			Color(Palette.SHADOW, 0.7))
+	PixelIcons.draw_menu(self, at, icon)
+	if count > 0:
+		var n := str(count)
+		var w := PixelFont.text_width(n) + 2
+		var badge := Rect2(r.position.x - w + 3, r.end.y - 8, w, 9)
+		draw_rect(badge, Palette.ACCENT)
+		PixelFont.draw_text(self, badge.position + Vector2(1, 0), n, Palette.INK)
+	if active:
+		var w := PixelFont.text_width(label) + 6
+		var tip := Rect2(r.position.x - w - BUTTON_GAP, r.position.y, w, r.size.y)
+		draw_rect(tip, Color(Palette.SHADOW, 0.85))
+		PixelFont.draw_centered(self, tip, label, Palette.INK)
 
 
 ## Przycisk z desek: jaśniejszy, gdy wciśnięty; wyszarzony napis, gdy nieaktywny.

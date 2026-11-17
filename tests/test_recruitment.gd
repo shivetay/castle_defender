@@ -199,7 +199,7 @@ func test_panel_modes_and_layout() -> bool:
 
 func test_hud_army_button_and_recruit_card() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
-	var army := Hud.column_rect(b.y, Hud.column_targets(false).find(Hud.Target.ARMY))
+	var army := Hud.column_rect(b.y, Hud.column_targets(false).find(Hud.Target.ARMY), true)
 	assert_eq(Hud.target_at(army.get_center(), VIEW, b.y, false, false), Hud.Target.ARMY, "Wojsko w kolumnie")
 	var card := Hud.card_rects(VIEW, true)
 	assert_eq(card.size(), 4, "karta budynku rekrutacji: 4 przyciski")

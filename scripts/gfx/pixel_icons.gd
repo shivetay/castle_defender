@@ -31,21 +31,36 @@ const CLASSES: Array = [
 	["..a..", ".aa..", ".aTa.", "aaTaa", ".aaa."],
 ]
 
+## Ikony 7×7 głównej kolumny HUD-u (#150), w kolejności Hud.column_targets(false): Buduj (młotek),
+## Badania (księga), Wojsko (hełm z nosalem), Oblężenie (wieża), Atak (skrzyżowane miecze),
+## Obrona (tarcza), Kolejka (klepsydra).
+const MENU_SIZE := 7
+const MENU: Array = [
+	[".LLLLL.", ".LLLLL.", "...l...", "...w...", "...w...", "...w...", "...k..."],
+	[".......", "TTT.TTT", "TiT.TiT", "TTTkTTT", "TiTkTiT", "TTTkTTT", ".mmmmm."],
+	["...a...", "..LLL..", ".LLLLL.", ".LLLLL.", ".LsLsL.", ".L.L.L.", "......."],
+	[".l.l.l.", ".lllll.", "..lwl..", "..lkl..", "..lkl..", ".lllll.", "......."],
+	["L.....L", ".L...L.", "..L.L..", "...L...", "..TLT..", ".w...w.", "w.....w"],
+	[".mmmmm.", "mwwawwm", "mwwawwm", "mwaaawm", ".mwawm.", "..mwm..", "...m..."],
+	["lllllll", ".TTTTT.", "..TTT..", "...T...", "..T.T..", ".TTTTT.", "lllllll"],
+]
+
 static var _atlas: ImageTexture
 static var _class_atlas: ImageTexture
+static var _menu_atlas: ImageTexture
 
 
 ## Obraz atlasu: ikony obok siebie, każda w kratce SIZE×SIZE (domyślnie surowce).
-static func make_atlas(icons: Array = RESOURCES) -> Image:
-	var img := Image.create(SIZE * icons.size(), SIZE, false, Image.FORMAT_RGBA8)
+static func make_atlas(icons: Array = RESOURCES, size: int = SIZE) -> Image:
+	var img := Image.create(size * icons.size(), size, false, Image.FORMAT_RGBA8)
 	for i in icons.size():
 		var rows: Array = icons[i]
-		for y in SIZE:
+		for y in size:
 			var row: String = rows[y]
-			for x in SIZE:
+			for x in size:
 				var ch := row[x]
 				if ch != ".":
-					img.set_pixel(i * SIZE + x, y, LEGEND[ch] as Color)
+					img.set_pixel(i * size + x, y, LEGEND[ch] as Color)
 	return img
 
 
@@ -78,3 +93,11 @@ static func draw_class(ci: CanvasItem, pos: Vector2, unit_class: int) -> void:
 	if _class_atlas == null:
 		_class_atlas = ImageTexture.create_from_image(make_atlas(CLASSES))
 	ci.draw_texture_rect_region(_class_atlas, Rect2(pos.floor(), Vector2(SIZE, SIZE)), region)
+
+
+## Rysuje ikonę `i` z MENU lewym górnym rogiem w `pos`.
+static func draw_menu(ci: CanvasItem, pos: Vector2, i: int) -> void:
+	if _menu_atlas == null:
+		_menu_atlas = ImageTexture.create_from_image(make_atlas(MENU, MENU_SIZE))
+	ci.draw_texture_rect_region(_menu_atlas, Rect2(pos.floor(), Vector2(MENU_SIZE, MENU_SIZE)),
+			Rect2(i * MENU_SIZE, 0, MENU_SIZE, MENU_SIZE))
