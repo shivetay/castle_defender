@@ -44,6 +44,6 @@ Każdy etap ma w repo ticket „Etap N” z podpiętymi zadaniami (sub-issues, e
 
 Wersje po MVP mają tickety zbiorcze z podpiętymi zadaniami: Etap 0.2 (#38), 0.3 (#43), 0.4 (#46), 0.5 (#51), 1.0 (#137).
 
-Bieżący stan: [[Stan prac]].
+Bieżący stan (17.11.2026): etap 8 w toku, szczegóły i daty wdrożeń w [[Stan prac]]; pytania i braki w [[Otwarte pytania]].
 
 Powiązane: [[Stack technologiczny]], [[Backend PvP]], [[Otwarte pytania]], [[Jednostki]], [[Drzewko technologiczne]]
