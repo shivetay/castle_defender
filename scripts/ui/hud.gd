@@ -55,6 +55,7 @@ const SIEGE_LABEL := "Oblężenie"
 const ATTACK_LABEL := "Atak"
 const DEFENCE_LABEL := "Obrona"
 const QUEUE_LABEL := "Kolejka"
+const GOAL_PREFIX := "Cel:"
 const BUILD_LABEL := "Buduj"
 const DONE_LABEL := "Gotowe"
 const CHANGE_LABEL := "Zmień"
@@ -98,6 +99,9 @@ var content_right := 320.0 - CORNER_INSET
 var overlay := false
 ## Trwa bitwa (samouczek PvE #16): w kolumnie jest tylko Tempo, a dotknięcia mapy nic nie robią.
 var battle := false
+## Bieżący cel samouczka (#185), np. „Postaw Koszary”; pusty po 5. fali. Pokazuje się pod górnym
+## paskiem, poza bitwą i ekranami na całą mapę.
+var goal_text := ""
 ## Zlecenia budowy i szkolenia razem (licznik na przycisku Kolejka).
 var queue_count := 0
 ## Napis przycisku tempa, np. „Tempo ×2”.
@@ -339,6 +343,11 @@ static func queue_text_rect(right: float, queue: String, research: String, age: 
 	return Rect2(right - w - 2, 0, w + 2, BAR_H)
 
 
+## Pasek celu samouczka (#185): pod górnym paskiem, od lewej granicy treści do kolumny przycisków.
+static func goal_rect(left: float, right: float) -> Rect2:
+	return Rect2(left, BAR_H + 2, right - BUTTON_SIZE.x - BUTTON_GAP - left, 10)
+
+
 ## Napis przycisku Kolejka: z liczbą zleceń budowy i szkolenia, gdy coś trwa.
 static func queue_label(count: int) -> String:
 	return QUEUE_LABEL if count <= 0 else "%s %d" % [QUEUE_LABEL, count]
@@ -407,6 +416,12 @@ func _draw() -> void:
 		_draw_resources()
 	PixelFont.draw_right(self, content_right, 1, top_right_text(queue_text, age_text, research_text), Palette.INK)
 
+	if not goal_text.is_empty() and not overlay and not battle:
+		var r := goal_rect(content_left, content_right)
+		draw_rect(r, Color(Palette.SHADOW, 0.7))
+		PixelFont.draw_text(self, r.position + Vector2(2, 1), GOAL_PREFIX, Palette.THATCH[2])
+		PixelFont.draw_text(self, r.position + Vector2(3 + PixelFont.text_width(GOAL_PREFIX) + 2, 1),
+				ResearchPanel.fit_text(goal_text, int(r.size.x) - PixelFont.text_width(GOAL_PREFIX) - 8), Palette.INK)
 	if overlay:
 		pass
 	elif is_card_open() and not battle:

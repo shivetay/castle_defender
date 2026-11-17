@@ -324,6 +324,7 @@ func _tick() -> void:
 		_save()
 	hud.queue_text = ""
 	hud.queue_count = queue.orders.size() + recruitment.orders.size()
+	hud.goal_text = TutorialGoals.text(pve_cleared, grid, research, recruitment)
 	hud.research_text = "" if not research.is_busy() else "Bad. %s" % Hud.format_time(research.remaining_ms(now))
 	hud.age_text = Ages.label(0, grid.manor_level())
 	if not queue.orders.is_empty():
@@ -551,6 +552,8 @@ func _update_battle() -> void:
 			economy.add(res, reward[res])
 		pve_cleared = maxi(pve_cleared, _battle_wave + 1)
 	hud.message = wave_end_message(_battle_wave, won, reward, fallen)
+	if won and _battle_wave == PveWaves.COUNT - 1:
+		hud.message = TutorialGoals.DONE_MESSAGE  # koniec prowadzenia (#185), dalej zwykła gra
 	battle_view.queue_free()
 	battle_view = null
 	hud.battle = false
