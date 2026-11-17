@@ -16,7 +16,7 @@ enum Check { BUILT, RESEARCHED, ARMY, UNIT, WALLS, MANOR, SIEGE }
 ## kod technologii albo jednostka.
 const GOALS: Array = [
 	[0, Check.BUILT, BuildingTypes.Kind.BARRACKS, 1, "Postaw Koszary (Buduj, Wojsko)"],
-	[0, Check.ARMY, 0, 6, "Wyszkol 6 Chłopów (Wojsko)"],
+	[0, Check.ARMY, 0, 6, "Wyszkol 6 żołnierzy (Wojsko)"],
 	[1, Check.ARMY, 0, 10, "Wyszkol 10 żołnierzy (Wojsko)"],
 	[2, Check.RESEARCHED, "A39", 1, "Zbadaj A39 Drzewcarstwo (Badania)"],
 	[2, Check.BUILT, BuildingTypes.Kind.POLEARM, 1, "Postaw Drzewcarza (Buduj, Wytwórcy)"],
@@ -39,7 +39,13 @@ const GOALS: Array = [
 	[4, Check.UNIT, UnitTypes.Unit.ARCHER, 6, "Wyszkol 6 Łuczników"],
 	[4, Check.UNIT, UnitTypes.Unit.JAVELINEER, 6, "Wyszkol 6 Oszczepników"],
 ]
-const DONE_MESSAGE := "Samouczek ukończony! Teraz Atak na zamek-cel"
+
+
+## Komunikat po wygranej 5. fali: koniec samouczka z nagrodą (i poległymi), jak inne fale (review #189).
+static func done_message(reward: Array[int], fallen: int) -> String:
+	if fallen > 0:
+		return "Koniec samouczka, polegli: %d. +%s" % [fallen, Hud.cost_text(reward)]
+	return "Samouczek ukończony! +%s" % Hud.cost_text(reward)
 
 
 ## Indeks bieżącego celu w GOALS albo -1, gdy celem jest Oblężenie (albo samouczek jest skończony).

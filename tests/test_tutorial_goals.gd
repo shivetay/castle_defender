@@ -114,7 +114,7 @@ func test_goals_follow_the_wave() -> bool:
 	assert_eq(TutorialGoals.text(0, grid, research, r), "Oblężenie: fala 1 z 5", "przed falą 1 nic więcej")
 	assert_eq(TutorialGoals.text(1, grid, research, r), "Wyszkol 10 żołnierzy (Wojsko)", "po fali 1 kolejny cel")
 	r.apply_losses([id] as Array[int], [2] as Array[int])
-	assert_eq(TutorialGoals.text(0, grid, research, r), "Wyszkol 6 Chłopów (Wojsko)", "po stratach znów szkolenie")
+	assert_eq(TutorialGoals.text(0, grid, research, r), "Wyszkol 6 żołnierzy (Wojsko)", "po stratach znów szkolenie")
 	return true
 
 
@@ -161,7 +161,12 @@ func test_goal_texts_fit_the_hud() -> bool:
 	for g: Array in TutorialGoals.GOALS:
 		assert_true(PixelFont.text_width(g[4] as String) <= room, "„%s” mieści się" % (g[4] as String))
 	assert_true(PixelFont.text_width("Oblężenie: fala 5 z 5") <= room, "Oblężenie mieści się")
-	assert_true(PixelFont.text_width(TutorialGoals.DONE_MESSAGE) <= Hud.MESSAGE_MAX_WIDTH, "komunikat końca")
+	var reward := PveWaves.reward(PveWaves.COUNT - 1)
+	assert_eq(TutorialGoals.done_message(reward, 0), "Samouczek ukończony! +%s" % Hud.cost_text(reward), "koniec z nagrodą")
+	assert_true(TutorialGoals.done_message(reward, 3).contains("polegli: 3"), "i z poległymi (review #189)")
+	for fallen: int in [0, 99]:
+		assert_true(PixelFont.text_width(TutorialGoals.done_message(reward, fallen)) <= Hud.MESSAGE_MAX_WIDTH,
+				"komunikat końca mieści się (polegli: %d)" % fallen)
 	assert_true(not Hud.goal_rect(b.x, b.y).intersects(Hud.column_rect(b.y, 0)), "pasek celu obok kolumny przycisków")
 	return true
 
