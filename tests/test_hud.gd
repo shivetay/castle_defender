@@ -35,7 +35,8 @@ func test_column_buttons_stack_on_the_right() -> bool:
 				assert_true(r.end.y <= view.y - Hud.BAR_H, "nad paskiem komunikatu")
 				if i > 0:
 					assert_true(r.position.y > Hud.column_rect(b.y, i - 1).end.y, "od góry, bez nakładania")
-	assert_eq(Hud.column_targets(false), [T.BUILD, T.RESEARCH, T.ARMY, T.SIEGE, T.ATTACK, T.DEFENCE] as Array[int],
+	assert_eq(Hud.column_targets(false), [T.BUILD, T.RESEARCH, T.ARMY, T.SIEGE, T.ATTACK, T.DEFENCE,
+			T.QUEUE] as Array[int],
 			"oglądanie: kolejność")
 	assert_eq(Hud.column_targets(true), [T.DONE, T.CHANGE] as Array[int], "budowa: Gotowe i Zmień")
 	return true
