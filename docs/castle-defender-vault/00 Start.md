@@ -14,9 +14,9 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 - [[Władca i generałowie]]
 - [[Widok zamku]]
 - [[Interfejs]]
-- [[Stan prac]] — co jest zrobione i co dalej
+- [[Stan prac]] — co jest zrobione, kiedy weszło i co dalej
 - [[Plan MVP]]
 - [[Roadmapa do 1.0]]
-- [[Otwarte pytania]]
+- [[Otwarte pytania]] — pytania do decyzji oraz braki względem planu
 
 #castle-defender
