@@ -4,7 +4,7 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 9 (#131).
 
-## Stan: etap 7 z planu MVP
+## Stan: etap 8 z planu MVP
 
 Numeracja etapów i zadań idzie za issues na GitHubie (ticket zbiorczy etapu ma etykietę `etap`).
 Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
@@ -26,6 +26,8 @@ Rekrutacja z #89: kolejki szkolenia w budynkach klas, koszt w żywności i towar
 i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
 Etap 6 (#128) zaczyna deterministyczna symulacja bitwy z #14 (logika bez renderu) i donżon jako cel
 ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
+Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) zaczynają ustawienia
+obrony z #19 (posterunki załogi wokół donżonu).
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -202,6 +204,21 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
   - **Dotyk mapy:** budynek to cel, trawa to punkt trasy (do 3).
   - **Zapis:** plan jest w save'ie (wersja 6 z migracją). Po ataku polegli znikają z armii.
   - **Bez łupu:** atak nie daje jeszcze łupu (#99). Strefa rozstawienia jest jedna, przy drodze.
+- Ustawienia obrony (#19, `scripts/battle/defense_plan.gd` i `scripts/ui/defense_panel.gd`): przycisk
+  Obrona w kolumnie otwiera własny zamek w trybie edycji.
+  - **Posterunki:** oddział załogi z rekrutacji dostaje kratkę w strefie 10 kratek wokół donżonu (na trawie,
+    nie w wodzie i nie na budynku). W bitwie staje wokół niej i wraca tam, gdy nie ma wroga w zasięgu
+    wzroku. Oddział bez posterunku stoi jak dotąd przy donżonie. Promień strefy jest tymczasowy.
+  - **Ekran:** strefa obrony na mapie, znaczniki posterunków z ikoną klasy, pasek oddziałów (Dalej
+    przewija, gdy oddziałów jest więcej niż 6) i opis wybranego oddziału. Dotknięcie trawy ustawia
+    posterunek wybranego oddziału, dotknięcie cudzego posterunku wybiera jego oddział. Przyciski: Zdejmij
+    (oddział wraca pod donżon) i Gotowe.
+  - **Bitwa:** posterunki działają w falach samouczka i w podglądzie bitwy (`Battle.create_squads(...,
+    defender_posts)`). Bez posterunków przebieg jest identyczny jak przed #19.
+  - **Zapis:** układ jest w save'ie (wersja 7 z migracją), przypisany do id oddziału, więc nowy oddział
+    nie przejmuje cudzego posterunku, a posterunek rozwiązanego oddziału znika.
+  - **Później:** patrole, priorytety wież i wypad konnicy to zadania obrony (#20), pułapki to #100,
+    a komendant dojdzie z generałami (#31).
 - Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
   - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
   - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
@@ -355,8 +372,8 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 7 (#129): po manewrach (#18) i ekranie planu (#17) zostaje etap 8 (#130, ustawienia obrony,
-zadania i pułapki). Z etapu 6 (#128) zostaje
-z efektów bitwy (#101) gaszenie pożarów, które czeka na Studnię (#35) i zadania obrony (#20). Z etapów 4–5
-zostają części
-zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).
+Etap 7 (#129) jest zrobiony: manewry (#18) i ekran planu (#17). Etap 8 (#130): po ustawieniach obrony
+(#19) kolejne są zadania obrony (#20: Obrona odcinka, Patrol, Priorytet celów wież, Gaszenie pożarów,
+Wypad konnicy) i pułapki (#100). Z etapu 6 (#128) zostaje z efektów bitwy (#101) gaszenie pożarów, które
+czeka na Studnię (#35) i zadania obrony (#20). Z etapów 4–5 zostają części zależne od bitwy, planu ataku
+i generałów (#81, #89, #91, #97, #12).

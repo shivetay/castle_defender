@@ -16,7 +16,7 @@ func _bounds(view: Vector2) -> Vector2:
 func test_touch_targets_are_big_enough() -> bool:
 	assert_true(Hud.BUTTON_SIZE.y >= 12 and Hud.BUTTON_SIZE.x >= 12, "cel ≥ 12×12 px")
 	assert_true(Hud.BUTTON_SIZE.y < 22, "mniejszy niż dawne 56×22")
-	for label: String in [Hud.BUILD_LABEL, Hud.RESEARCH_LABEL, Hud.ARMY_LABEL, Hud.SIEGE_LABEL, Hud.DONE_LABEL,
+	for label: String in [Hud.BUILD_LABEL, Hud.RESEARCH_LABEL, Hud.ARMY_LABEL, Hud.SIEGE_LABEL, Hud.ATTACK_LABEL, Hud.DEFENCE_LABEL, Hud.DONE_LABEL,
 			Hud.CHANGE_LABEL, "Zamknij", "Rozbierz", "Ulepsz", "Postaw", "Szkol", "Badaj"]:
 		assert_true(PixelFont.text_width(label) <= Hud.BUTTON_SIZE.x - 2, "„%s” mieści się na przycisku" % label)
 	return true
@@ -35,7 +35,8 @@ func test_column_buttons_stack_on_the_right() -> bool:
 				assert_true(r.end.y <= view.y - Hud.BAR_H, "nad paskiem komunikatu")
 				if i > 0:
 					assert_true(r.position.y > Hud.column_rect(b.y, i - 1).end.y, "od góry, bez nakładania")
-	assert_eq(Hud.column_targets(false), [T.BUILD, T.RESEARCH, T.ARMY, T.SIEGE, T.ATTACK] as Array[int], "oglądanie: kolejność")
+	assert_eq(Hud.column_targets(false), [T.BUILD, T.RESEARCH, T.ARMY, T.SIEGE, T.ATTACK, T.DEFENCE] as Array[int],
+			"oglądanie: kolejność")
 	assert_eq(Hud.column_targets(true), [T.DONE, T.CHANGE] as Array[int], "budowa: Gotowe i Zmień")
 	return true
 
@@ -50,6 +51,7 @@ func test_targets_follow_mode() -> bool:
 	assert_eq(Hud.target_at(Hud.column_rect(b.y, 2).get_center(), VIEW, b.y, false, false), T.ARMY, "oglądanie: Wojsko")
 	assert_eq(Hud.target_at(fourth, VIEW, b.y, false, false), T.SIEGE, "oglądanie: Oblężenie")
 	assert_eq(Hud.target_at(Hud.column_rect(b.y, 4).get_center(), VIEW, b.y, false, false), T.ATTACK, "oglądanie: Atak (#17)")
+	assert_eq(Hud.target_at(Hud.column_rect(b.y, 5).get_center(), VIEW, b.y, false, false), T.DEFENCE, "oglądanie: Obrona (#19)")
 	assert_eq(Hud.target_at(first, VIEW, b.y, true, false), T.DONE, "budowa: w tym samym miejscu Gotowe")
 	assert_eq(Hud.target_at(second, VIEW, b.y, true, false), T.CHANGE, "budowa: Zmień")
 	assert_eq(Hud.target_at(fourth, VIEW, b.y, true, false), T.NONE, "budowa: tylko dwa przyciski")

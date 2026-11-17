@@ -8,6 +8,8 @@ extends Node2D
 ## idą dalej, gdy gra jest w tle albo zamknięta; po powrocie komunikat podaje, ile przybyło.
 ## Przycisk Wojsko otwiera ekran rekrutacji wszystkich jednostek, a Szkol na karcie budynku rekrutacji
 ## ten sam ekran tylko z jednostkami tego budynku (RecruitPanel).
+## Przycisk Obrona otwiera ustawienia obrony (DefensePanel, #19): oddziałom załogi wskazuje się
+## posterunki w strefie wokół donżonu, a bitwa na własnym zamku stawia je tam na start.
 ## Przycisk Badania otwiera drzewko technologii (ResearchPanel); badanie trwa w czasie zegarowym
 ## jak budowa, jedno naraz.
 ## Gra zapisuje się (SaveGame) po każdej akcji, po ukończeniu budowy i przy zejściu do tła,
@@ -56,6 +58,9 @@ var attack_plan := AttackPlan.new()
 var bots_beaten := 0
 var planner: AttackPlanner
 var attack_panel: AttackPanel
+## Ustawienia obrony (#19): posterunki załogi i panel edycji (widoczny w trybie edycji obrony).
+var defense := DefensePlan.new()
+var defense_panel: DefensePanel
 ## Czy trwająca bitwa to atak (inaczej fala PvE).
 var _attacking := false
 
@@ -80,6 +85,7 @@ func _ready() -> void:
 		pve_cleared = saved.pve_cleared
 		attack_plan = saved.attack_plan
 		bots_beaten = saved.bots_beaten
+		defense = saved.defense
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -127,6 +133,7 @@ func _ready() -> void:
 	hud.card_closed.connect(_deselect)
 	hud.research_pressed.connect(_on_research_opened)
 	hud.attack_pressed.connect(_on_attack_pressed)
+	hud.defence_pressed.connect(_on_defence_pressed)
 
 	attack_panel = AttackPanel.new()
 	attack_panel.planner = planner
@@ -135,6 +142,12 @@ func _ready() -> void:
 	attack_panel.changed.connect(_on_plan_changed)
 	attack_panel.back_requested.connect(_close_attack)
 	attack_panel.attack_requested.connect(_on_attack_launched)
+
+	defense_panel = DefensePanel.new()
+	defense_panel.visible = false
+	layer.add_child(defense_panel)
+	defense_panel.changed.connect(_on_defence_changed)
+	defense_panel.back_requested.connect(_close_defence)
 
 	build_panel = BuildPanel.new()
 	build_panel.research = research
@@ -183,7 +196,8 @@ func _start_battle_preview() -> void:
 	var attackers := [[UnitTypes.Unit.AXE_WARRIOR, 10], [UnitTypes.Unit.JAVELINEER, 8],
 			[UnitTypes.Unit.RIDER, 4], [UnitTypes.Unit.FIRE_RAISER, 3]]
 	var view := BattleView.new()
-	view.battle = Battle.create_squads(grid, grid.keep_id(), attackers, defenders, _edge_road(), world_seed)
+	view.battle = Battle.create_squads(grid, grid.keep_id(), attackers, defenders, _edge_road(), world_seed,
+			defense.battle_posts(recruitment.battle_ids()))
 	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	add_child(view)
 	hud.message = "Podgląd bitwy"
@@ -250,8 +264,10 @@ func _catch_up(prefix: String) -> void:
 
 ## Zapisuje grę. Błąd zapisu nie przerywa gry, tylko trafia do logu.
 func _save() -> void:
+	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
+	defense.prune(recruitment)
 	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten))
+			pve_cleared, attack_plan, bots_beaten, defense))
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
 
@@ -302,6 +318,9 @@ func _on_tapped(world_pos: Vector2) -> void:
 		return  # w trakcie fali tylko tempo (#16)
 	if planner.visible:
 		_on_plan_changed(AttackPlanner.tap(planner.order(), planner.bot.grid, Vector2i((world_pos / TerrainMap.CELL).floor())))
+		return
+	if defense_panel.visible:
+		_on_defence_changed(defense_panel.tap(grid, Vector2i((world_pos / TerrainMap.CELL).floor())))
 		return
 	_tick()
 	var cell := Vector2i((world_pos / TerrainMap.CELL).floor())
@@ -434,7 +453,7 @@ func _on_siege_pressed() -> void:
 	_battle_wave = pve_cleared
 	_battle_ids = recruitment.battle_ids()
 	var b := Battle.for_castle_squads(grid, PveWaves.squads(_battle_wave), recruitment.battle_squads(), _edge_road(),
-			PveWaves.battle_seed(world_seed, _battle_wave), research)
+			PveWaves.battle_seed(world_seed, _battle_wave), research, defense.battle_posts(_battle_ids))
 	battle_view = BattleView.new()
 	battle_view.battle = b
 	add_child(battle_view)
@@ -615,6 +634,45 @@ static func attack_end_message(won: bool, fallen: int) -> String:
 	return head if fallen == 0 else "%s Polegli: %d" % [head, fallen]
 
 
+# --- Ustawienia obrony (#19) -------------------------------------------------------------------------
+
+## Obrona: własny zamek w trybie edycji, z posterunkami załogi. Bez wojska tryb się nie otwiera.
+func _on_defence_pressed() -> void:
+	_tick()
+	var army := recruitment.battle_squads()
+	if army.is_empty():
+		hud.message = "Najpierw wyszkol wojsko: Koszary i Wojsko"
+		return
+	if grid.keep_id() == 0:
+		hud.message = KEEP_NO_ROOM
+		return
+	_selected_id = 0
+	hud.hide_card()
+	hud.set_building(false)
+	_cursor = Rect2i()
+	defense.prune(recruitment)
+	defense_panel.open(defense, army, recruitment.battle_ids())
+	hud.overlay = true
+	camera.look_at_world(Vector2(DefensePlan.keep_center(grid) * TerrainMap.CELL))
+	hud.message = DefensePanel.HINT
+	queue_redraw()
+
+
+func _on_defence_changed(message: String) -> void:
+	hud.message = message
+	queue_redraw()
+	_save()
+
+
+## Gotowe: koniec edycji obrony, układ zostaje zapisany.
+func _close_defence() -> void:
+	defense_panel.visible = false
+	hud.overlay = false
+	hud.message = DEFAULT_MESSAGE
+	_save()
+	queue_redraw()
+
+
 ## Drzewko badań przykrywa mapę: karta budynku się zamyka, a HUD chowa swoje przyciski.
 func _on_research_opened() -> void:
 	_tick()
@@ -760,6 +818,29 @@ func _draw() -> void:
 		var ok := _selected_id != 0 or _cursor_ok
 		CastleView.draw_frame(self, Rect2i(frame.position * TerrainMap.CELL, frame.size * TerrainMap.CELL),
 				Palette.VALID if ok else Palette.ACCENT)
+	if defense_panel != null and defense_panel.visible:
+		_draw_defence()
+
+
+## Tryb edycji obrony: strefa wokół donżonu i znaczniki posterunków (ikona klasy w ramce; wybrany
+## oddział w ramce koloru tuszu, posterunek zastawiony budynkiem na czerwono).
+func _draw_defence() -> void:
+	var zone := DefensePlan.zone(grid)
+	var px := Rect2i(zone.position * TerrainMap.CELL, zone.size * TerrainMap.CELL)
+	draw_rect(Rect2(px), Color(Palette.VALID, 0.12))
+	CastleView.draw_frame(self, px, Palette.VALID)
+	for i in defense_panel.ids.size():
+		var post := defense.post_for(defense_panel.ids[i])
+		if post == DefensePlan.NO_POST:
+			continue
+		var at := post * TerrainMap.CELL
+		var blocked := not DefensePlan.post_problem(grid, post).is_empty()
+		var col: Color = Palette.INK if i == defense_panel.selected else Palette.THATCH[1]
+		draw_rect(Rect2(at.x, at.y, TerrainMap.CELL, TerrainMap.CELL), Color(Palette.SHADOW, 0.7))
+		CastleView.draw_frame(self, Rect2i(at, Vector2i.ONE * TerrainMap.CELL), Palette.ACCENT if blocked else col)
+		var cls := UnitTypes.unit_class(int((defense_panel.squads[i] as Array)[0]))
+		if PixelIcons.class_region(cls).has_area():
+			PixelIcons.draw_class(self, Vector2(at + Vector2i(2, 2)), cls)
 
 
 ## Pasek postępu 2 px nad kratkami budowanego budynku, w całych pikselach.
