@@ -33,3 +33,18 @@ Kolumna „Zastępuje” pokazuje ścieżkę przebudowy. Epoki: [[Epoki]].
 | Fort zewnętrzny (lunet) | VI | wysunięty punkt obrony | rawelin |
 | Reduta | VI | działo w zamkniętym szańcu | — |
 | Cytadela | VI | rdzeń twierdzy, odpowiednik donjonu | donjon |
+
+## Pułapki
+
+Lista epok I–II zatwierdzona przez właściciela 17.11.2026 (#100). Pułapkę stawia się na ekranie Obrona,
+w strefie obrony, na wolnej kratce, którą da się przejść. Atakujący jej nie widzi, dopóki nie odsłoni jej
+zwiad ([[Zwiad i kontrwywiad]], #28) albo reklama Wywiad. Działa raz na bitwę, a po bitwie odnawia się za darmo.
+Limit: 2 pułapki na poziom Dworu. Liczby są tymczasowe.
+
+| Pułapka | Epoka | Wymaga | Gdzie | Działanie | Koszt |
+| --- | --- | --- | --- | --- | --- |
+| Wilczy dół | I | G18 Łowiectwo, Chata myśliwego | trawa | pierwszy wróg traci 60 HP i stoi 3 s; taran stoi 5 s | 30 Dr 10 Ży |
+| Kolczatka | I | O2 Zaostrzone pale | trawa | przez 8 s 5 HP/s na kratce i obok, konnica 2× wolniej | 20 Dr 20 Ka |
+| Zrzucane kłody | I | G1 Karczowanie lasu, Chata drwala | tuż przed wałem albo palisadą, od zewnątrz | 40 HP każdemu na 3 kratkach wzdłuż muru | 50 Dr |
+| Płonące strzały | I | A42 Strzałmistrzostwo, Strzałmistrz, Smolarnia | kosz z żarem przy murze albo wieży | gdy wróg podejdzie na 4 kratki: przez 15 s strzelcy i wieże do 2 kratek od kosza +30% obrażeń, taran i Podpalacz płoną | 20 Dr, 1 smoła, 5 strzał |
+| Wrząca smoła | II | G24 Smolarstwo, Smolarnia | tuż przed bramą, od zewnątrz | gdy wróg stanie pod bramą: 50 HP w promieniu 1 kratki i podpalenie; brama nie cierpi | 40 Dr, 1 smoła |
