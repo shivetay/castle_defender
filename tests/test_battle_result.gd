@@ -80,10 +80,11 @@ func test_percent_and_stars_rules() -> bool:
 	return true
 
 
-## Łup: połowę skarbca chroni magazyn, z reszty 20% przy 100% zniszczeń; ponowny atak daje połowę;
-## magazyn gracza przyjmuje tylko do pojemności.
+## Łup tylko po wygranej: połowę skarbca chroni magazyn, z reszty 20% przy 100% zniszczeń; ponowny
+## atak daje połowę; magazyn gracza przyjmuje tylko do pojemności.
 func test_loot() -> bool:
 	var r := BattleResult.new()
+	r.won = true
 	r.percent = 100
 	r.compute_loot(0, false)
 	assert_eq(r.loot, [100, 100, 100, 2] as Array[int], "zamek 1, 100%")
@@ -103,8 +104,9 @@ func test_loot() -> bool:
 	r.percent = 80
 	assert_eq(r.loot_percent(), 80, "większe zniszczenia: faktyczny procent")
 	r.won = false
-	r.percent = 16
-	assert_eq(r.loot_percent(), 16, "przegrana: bez dodatku")
+	r.percent = 90
+	r.compute_loot(5, false)
+	assert_eq(r.loot, [0, 0, 0, 0] as Array[int], "przegrana: bez łupu, nawet przy dużych zniszczeniach")
 	var e := Economy.new(0)
 	e.amounts[0] = Economy.capacity(0) - 10
 	r.loot = [100, 0, 0, 0] as Array[int]

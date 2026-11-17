@@ -306,7 +306,7 @@ obrony z #19 (posterunki załogi wokół donżonu).
   - **Procent zniszczeń:** zburzone budynki bez odcinków wału i palisady.
   - **Gwiazdki:** brama zdobyta (zburzona brama albo atakujący na murze po drabinie), połowa zamku
     (od 50%) i donżon (zburzony albo zdobyty, czyli wygrana).
-  - **Łup z zamku-bota:** skarbiec 1000 + 500 × numer drewna, kamienia i żywności oraz 20 + 10 × numer
+  - **Łup z zamku-bota, tylko po wygranej:** skarbiec 1000 + 500 × numer drewna, kamienia i żywności oraz 20 + 10 × numer
     złota; połowę chroni magazyn, z reszty do 20% w proporcji do zniszczeń (wygrana liczy się co najmniej
     jak 50% zniszczeń); ponowny atak na zdobyty
     zamek daje połowę. Łup wchodzi do magazynu do jego pojemności. Liczby tymczasowe.

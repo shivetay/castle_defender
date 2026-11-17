@@ -11,9 +11,9 @@ extends RefCounted
 ## - donżon: zburzony albo zdobyty (to też koniec bitwy i wygrana, #120).
 ## Procent liczy budynki bez odcinków wału i palisady (jest ich wiele i zawyżałyby wynik).
 ##
-## Łup z zamku-bota: skarbiec rośnie z numerem zamku, magazyn chroni PROTECTED_PERCENT, a z reszty
-## atakujący bierze do LOOT_PERCENT, w proporcji do procentu zniszczeń; wygrana liczy się co najmniej
-## jak WIN_LOOT_PERCENT zniszczeń (decyzja właścicielki: nie więcej niż 50). Ponowny atak na zdobyty już
+## Łup z zamku-bota, tylko po wygranej (decyzja właścicielki, review #194): skarbiec rośnie z numerem
+## zamku, magazyn chroni PROTECTED_PERCENT, a z reszty atakujący bierze do LOOT_PERCENT, w proporcji
+## do procentu zniszczeń, liczonego co najmniej jak WIN_LOOT_PERCENT (nie więcej niż 50). Ponowny atak na zdobyty już
 ## zamek daje REPEAT_PERCENT łupu. Ranking (#27) i tarcza obrońcy (#25) dojdą z PvP. Liczby TYMCZASOWE.
 @warning_ignore_start("integer_division")
 
@@ -83,13 +83,13 @@ static func stash(i: int) -> Array[int]:
 	return out
 
 
-## Procent zniszczeń, od którego liczy się łup: przy wygranej co najmniej WIN_LOOT_PERCENT.
+## Procent zniszczeń, od którego liczy się łup: po wygranej co najmniej WIN_LOOT_PERCENT, po przegranej 0.
 func loot_percent() -> int:
-	return maxi(percent, WIN_LOOT_PERCENT) if won else percent
+	return maxi(percent, WIN_LOOT_PERCENT) if won else 0
 
 
-## Liczy łup z zamku `i`: z niechronionej części skarbca LOOT_PERCENT × loot_percent();
-## `repeat` (zamek był już zdobyty) daje REPEAT_PERCENT tego.
+## Liczy łup z zamku `i`: z niechronionej części skarbca LOOT_PERCENT × loot_percent(), więc przegrana
+## nic nie daje; `repeat` (zamek był już zdobyty) daje REPEAT_PERCENT tego.
 func compute_loot(i: int, repeat: bool) -> void:
 	var s := stash(i)
 	loot.clear()
