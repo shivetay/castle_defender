@@ -80,7 +80,8 @@ func test_wall_side_and_lean() -> bool:
 	return true
 
 
-## Przybudówka ma inny dach niż zwykły budynek, wariant przy murze z prawej to lustro wariantu z lewej,
+## Przybudówka ma inny dach niż zwykły budynek, sylwetka przy murze z prawej to lustro wariantu z lewej
+## (światło pada zawsze z lewej góry, więc kolory się różnią),
 ## a przy murze z boku wysokość dachu maleje od muru (trójkąt prostokątny).
 func test_lean_to_art() -> bool:
 	for level in range(1, BuildingTypes.MAX_LEVEL + 1):
@@ -89,7 +90,7 @@ func test_lean_to_art() -> bool:
 		var east := BuildingArt.make_image(K.BARRACKS, level, 0, 0, false, L.EAST)
 		assert_true(plain.get_data() != west.get_data(), "poziom %d: przybudówka inna niż zwykły" % level)
 		west.flip_x()
-		assert_eq(west.get_data(), east.get_data(), "poziom %d: z prawej to lustro z lewej" % level)
+		assert_eq(_alpha(west), _alpha(east), "poziom %d: z prawej sylwetka to lustro z lewej" % level)
 		var north := BuildingArt.make_image(K.BARRACKS, level, 0, 0, false, L.NORTH)
 		assert_true(plain.get_data() != north.get_data(), "poziom %d: połać od muru z tyłu" % level)
 	var img := BuildingArt.make_image(K.BARRACKS, 3, 0, 0, false, L.WEST)
@@ -142,3 +143,11 @@ func test_no_gap_at_the_seam() -> bool:
 			assert_true(gap <= 0, "%s: bez szpary (%d px)" % [str(dir), gap])
 			grid.remove(id)
 	return true
+
+
+static func _alpha(img: Image) -> PackedByteArray:
+	var out := PackedByteArray()
+	for y in img.get_height():
+		for x in img.get_width():
+			out.append(int(img.get_pixel(x, y).a * 255.0))
+	return out

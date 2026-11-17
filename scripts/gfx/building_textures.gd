@@ -6,6 +6,8 @@ extends RefCounted
 var _cache: Dictionary[int, ImageTexture] = {}
 ## Zamalowana część obrazu każdej tekstury (do przyklejania budynków do murów, #149).
 var _used: Dictionary[int, Rect2i] = {}
+## Cienie rzucane na trawę (#150), z tym samym kluczem co tekstura, liczone przy pierwszym użyciu.
+var _shadows: Dictionary[int, ImageTexture] = {}
 
 
 static func key(kind: int, level: int, state: int, mask: int, vertical: bool = false, lean: int = 0) -> int:
@@ -55,3 +57,20 @@ func used_rect(kind: int, level: int, state: int = BuildingTypes.State.INTACT, m
 	var lv := clampi(level, 0, BuildingTypes.MAX_LEVEL)
 	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
 	return _used[key(kind, lv, state, m, v, ln)]
+
+
+## Cień budynku na trawie (#150): sylwetka tekstury przesunięta o BuildingArt.shadow_offset.
+## Rysuje się w tym samym miejscu co tekstura, przed wszystkimi budynkami.
+func shadow(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
+		vertical: bool = false, lean: int = 0) -> ImageTexture:
+	var tex := draw_building(kind, level, state, mask, vertical, lean)
+	var m := mask if BuildingTypes.is_wall(kind) else 0
+	var v := vertical and kind == BuildingTypes.Kind.GATE
+	var lv := clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
+	var k := key(kind, lv, state, m, v, ln)
+	var sh: ImageTexture = _shadows.get(k)
+	if sh == null:
+		sh = ImageTexture.create_from_image(BuildingArt.shadow_image(tex.get_image(), BuildingArt.shadow_offset(kind)))
+		_shadows[k] = sh
+	return sh
