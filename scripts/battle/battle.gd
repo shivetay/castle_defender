@@ -105,6 +105,9 @@ var structures: Dictionary[int, Structure] = {}
 var objective := 0
 ## Ile procent tempa strzelania mają wieże (zbrojownia bez strzał: 50%, #88).
 var tower_fire_percent := 100
+## Zbadane technologie stron (#12; klucz Side → {kod: true}), które działają w bitwie: A1 Hartowane
+## topory, A2 Łuk kompozytowy, O2 Zaostrzone pale. Ustawia je apply_research() przed startem.
+var techs: Dictionary[int, Dictionary] = {Side.ATTACKER: {}, Side.DEFENDER: {}}
 ## Ustawienia obrony (#19, #20): zadanie oddziału obrońcy (klucz: numer oddziału), punkty patrolu
 ## (kratki, na których da się stanąć) i priorytet celów wież (DefensePlan.TowerPriority).
 var defence: Dictionary[int, DefensePlan.Order] = {}
@@ -229,6 +232,42 @@ static func for_castle_squads(grid: BuildGrid, attackers: Array, defenders: Arra
 	b.tower_priority = tower_priority
 	b.add_side_morale(Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	return b
+
+
+## Technologie strony `side` z badań gracza (#12). Wołać przed pierwszym krokiem bitwy: O2 Zaostrzone
+## pale od razu wzmacnia palisady obrońcy. Bez wywołania strona walczy bez premii z badań.
+func apply_research(side: int, research: Research) -> void:
+	var known: Dictionary = {}
+	if research != null:
+		for code: String in battle_tech_codes():
+			if research.is_done(code):
+				known[code] = true
+	techs[side] = known
+	if side == Side.DEFENDER and known.has("O2"):
+		for id: int in structures:
+			var st := structures[id]
+			if st.kind == BuildingTypes.Kind.PALISADE:
+				@warning_ignore("integer_division")
+				st.max_hp = st.max_hp * BattleConfig.O2_PALISADE_HP_PERCENT / 100
+				st.hp = st.max_hp
+
+
+## Kody technologii, które coś zmieniają w bitwie.
+static func battle_tech_codes() -> Array[String]:
+	return ["A1", "A2", "O2"] as Array[String]
+
+
+func has_tech(side: int, code: String) -> bool:
+	return techs[side].has(code)
+
+
+## Zasięg ataku jednostki w kratkach: z UnitTypes, a łuki strony z A2 Łuk kompozytowy +20% (#12).
+func range_of(f: Fighter) -> int:
+	var r := UnitTypes.attack_range(f.unit)
+	if (f.unit == UnitTypes.Unit.ARCHER or f.unit == UnitTypes.Unit.REFLEX_ARCHER) and has_tech(f.side, "A2"):
+		@warning_ignore("integer_division")
+		r = r * BattleConfig.A2_RANGE_PERCENT / 100
+	return r
 
 
 ## Puszcza bitwę do końca albo do `max_ticks`. Zwraca zwycięzcę (Winner).
@@ -603,7 +642,7 @@ func _act(f: Fighter) -> void:
 		if cornered(f):
 			# osaczony na swojej kratce (obrońca przy donżonie): nie ściga, ale oddaje wrogom w zasięgu (#16)
 			var near := _enemy_for(f)
-			if near != null and _in_range(f, near.x, near.y, UnitTypes.attack_range(f.unit)):
+			if near != null and _in_range(f, near.x, near.y, range_of(f)):
 				f.target = near.id
 				_strike_unit(f, near)
 				return
@@ -628,7 +667,7 @@ func _default_act(f: Fighter) -> void:
 	var enemy := _enemy_for(f)
 	if enemy != null:
 		f.target = enemy.id
-		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+		if _in_range(f, enemy.x, enemy.y, range_of(f)):
 			_strike_unit(f, enemy)
 		else:
 			# pościg też idzie po ścieżce: atakujący przebija się przez umocnienia, obrońca czeka
@@ -649,9 +688,9 @@ func _enemy_for(f: Fighter) -> Fighter:
 	var best: Fighter = null
 	var best_d := 0
 	var extra := BattleConfig.DEFENDER_AGGRO_EXTRA if f.side == Side.DEFENDER else BattleConfig.AGGRO_EXTRA
-	var sight := (UnitTypes.attack_range(f.unit) + extra) * BattleConfig.SUB
+	var sight := (range_of(f) + extra) * BattleConfig.SUB
 	var rider := f.unit == UnitTypes.Unit.RIDER
-	var reach_walls := f.climbed or UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE
+	var reach_walls := f.climbed or range_of(f) >= BattleConfig.RANGED_MIN_RANGE
 	for o in fighters:
 		if o.side == f.side or not o.alive():
 			continue
@@ -706,7 +745,7 @@ func _walk(f: Fighter, goal: Vector2i, px: int, py: int, breach: bool, grid: ASt
 	if blocker != null:
 		# budynek na drodze: z sąsiedniej kratki burzy go atakujący z atakiem
 		if breach and UnitTypes.attack(f.unit) > 0 \
-				and _in_range(f, tx, ty, maxi(1, UnitTypes.attack_range(f.unit))):
+				and _in_range(f, tx, ty, maxi(1, range_of(f))):
 			_strike_structure(f, blocker)
 		else:
 			var here := f.cell()
@@ -763,21 +802,21 @@ func _strike_unit(f: Fighter, enemy: Fighter) -> void:
 		return
 	f.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS
 	var dmg := unit_damage(f, enemy)
-	if f.side == Side.DEFENDER and UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE \
+	if f.side == Side.DEFENDER and range_of(f) >= BattleConfig.RANGED_MIN_RANGE \
 			and _fire_arrows_near(f.cell()):
 		@warning_ignore("integer_division")
 		dmg = dmg * TrapConfig.FIRE_ARROWS_PERCENT / 100
 		_ignite_arrow_target(enemy)
 	_hurt(enemy, _roll(dmg))
 	f.charged = true
-	if UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE:
+	if range_of(f) >= BattleConfig.RANGED_MIN_RANGE:
 		_record(Fx.SHOT, f.unit, f.x, f.y, enemy.x, enemy.y)
 
 
 ## Obrażenia uderzenia `f` w `enemy` przed rozrzutem: przewagi klas (#87) i cechy jednostek (#15, #92).
 func unit_damage(f: Fighter, enemy: Fighter) -> int:
 	var dmg := UnitTypes.damage(f.unit, enemy.unit)
-	var ranged := UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE
+	var ranged := range_of(f) >= BattleConfig.RANGED_MIN_RANGE
 	if f.unit == UnitTypes.Unit.LANCER and not f.charged:
 		dmg = dmg * BattleConfig.CHARGE_PERCENT / 100
 	if ranged and _behind_shields(enemy):
@@ -815,12 +854,16 @@ func _strike_structure(f: Fighter, s: Structure) -> void:
 	if f.cooldown > 0:
 		return
 	f.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS
-	s.hp -= _roll(morale_damage(f, structure_damage(f.unit, s.kind)))
+	var dmg := structure_damage(f.unit, s.kind)
+	if f.unit == UnitTypes.Unit.AXE_WARRIOR and BuildingTypes.is_wooden(s.kind) and has_tech(f.side, "A1"):
+		@warning_ignore("integer_division")
+		dmg = dmg * BattleConfig.A1_WOOD_PERCENT / 100
+	s.hp -= _roll(morale_damage(f, dmg))
 	f.charged = true  # szarża to pierwsze uderzenie w ogóle, także w umocnienie
 	if record_fx:
 		var hx := clampi(f.x, s.rect.position.x * BattleConfig.SUB, s.rect.end.x * BattleConfig.SUB - 1)
 		var hy := clampi(f.y, s.rect.position.y * BattleConfig.SUB, s.rect.end.y * BattleConfig.SUB - 1)
-		var ranged := UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE
+		var ranged := range_of(f) >= BattleConfig.RANGED_MIN_RANGE
 		_record(Fx.SHOT if ranged else Fx.HIT, f.unit, f.x, f.y, hx, hy)
 	if f.unit == UnitTypes.Unit.FIRE_RAISER and BuildingTypes.is_wooden(s.kind):
 		s.burning = BattleConfig.FIRE_S * BattleConfig.TICK_HZ
@@ -1048,7 +1091,7 @@ func _start_ready(o: AttackPlan.Order) -> bool:
 ## Bije wroga w zasięgu ataku bez pościgu; true, gdy było z kim walczyć.
 func _hold(f: Fighter) -> bool:
 	var enemy := _enemy_for(f)
-	if enemy != null and _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+	if enemy != null and _in_range(f, enemy.x, enemy.y, range_of(f)):
 		f.target = enemy.id
 		_strike_unit(f, enemy)
 		return true
@@ -1089,7 +1132,7 @@ func _order_assault(f: Fighter, o: AttackPlan.Order, key: int) -> void:
 	var enemy := _enemy_for(f)
 	if enemy != null:
 		f.target = enemy.id
-		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+		if _in_range(f, enemy.x, enemy.y, range_of(f)):
 			_strike_unit(f, enemy)
 		else:
 			_walk(f, enemy.cell(), enemy.x, enemy.y, true)
@@ -1101,7 +1144,7 @@ func _order_assault(f: Fighter, o: AttackPlan.Order, key: int) -> void:
 ## Ostrzał z dystansu: strzelcy zatrzymują się w zasięgu celu i ostrzeliwują go; wrogów biją tylko
 ## w zasięgu, bez pościgu. Jednostki bez dystansu idą jak w szturmie.
 func _order_ranged(f: Fighter, o: AttackPlan.Order, key: int) -> void:
-	var r := UnitTypes.attack_range(f.unit)
+	var r := range_of(f)
 	if r < BattleConfig.RANGED_MIN_RANGE:
 		_order_assault(f, o, key)
 		return
@@ -1130,7 +1173,7 @@ func _order_fire(f: Fighter, o: AttackPlan.Order, key: int) -> void:
 		_sq_done[key] = true
 		_default_act(f)
 		return
-	if _rect_in_range(f, t.rect, maxi(1, UnitTypes.attack_range(f.unit))):
+	if _rect_in_range(f, t.rect, maxi(1, range_of(f))):
 		_strike_structure(f, t)
 		if t.burning > 0 or t.hp <= 0:
 			_sq_done[key] = true
@@ -1286,7 +1329,7 @@ func _order_ram(f: Fighter, o: AttackPlan.Order, key: int) -> void:
 	var reach := BattleConfig.ESCORT_RADIUS * BattleConfig.SUB
 	if enemy != null and _dist2(enemy.x, enemy.y, ram.x, ram.y) <= reach * reach:
 		f.target = enemy.id
-		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+		if _in_range(f, enemy.x, enemy.y, range_of(f)):
 			_strike_unit(f, enemy)
 		else:
 			_walk(f, enemy.cell(), enemy.x, enemy.y, true)
@@ -1367,7 +1410,7 @@ func _wall_act(f: Fighter) -> void:
 		_hold_section(f)
 		return
 	var enemy := _enemy_for(f)
-	if enemy != null and _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit) + BattleConfig.WALL_RANGE_BONUS):
+	if enemy != null and _in_range(f, enemy.x, enemy.y, range_of(f) + BattleConfig.WALL_RANGE_BONUS):
 		f.target = enemy.id
 		_strike_unit(f, enemy)
 		return
@@ -1434,7 +1477,7 @@ func _sortie_act(f: Fighter) -> void:
 			best_d = d
 	if enemy != null:
 		f.target = enemy.id
-		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+		if _in_range(f, enemy.x, enemy.y, range_of(f)):
 			_strike_unit(f, enemy)
 		else:
 			_walk(f, enemy.cell(), enemy.x, enemy.y, false, _ram_astar)
@@ -1460,7 +1503,7 @@ func _field_act(f: Fighter) -> void:
 			best_d = d
 	if enemy != null:
 		f.target = enemy.id
-		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+		if _in_range(f, enemy.x, enemy.y, range_of(f)):
 			_strike_unit(f, enemy)
 		else:
 			_walk(f, enemy.cell(), enemy.x, enemy.y, false, _ram_astar)
@@ -1488,7 +1531,7 @@ func _hold_section(f: Fighter) -> void:
 	if enemy != null:
 		var near := absi(enemy.cell().x - f.post.x) <= BattleConfig.HOLD_RADIUS \
 				and absi(enemy.cell().y - f.post.y) <= BattleConfig.HOLD_RADIUS
-		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+		if _in_range(f, enemy.x, enemy.y, range_of(f)):
 			f.target = enemy.id
 			_strike_unit(f, enemy)
 			return
@@ -1506,7 +1549,7 @@ func _patrol_act(f: Fighter) -> void:
 	var enemy := _enemy_for(f)
 	if enemy != null:
 		f.target = enemy.id
-		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+		if _in_range(f, enemy.x, enemy.y, range_of(f)):
 			_strike_unit(f, enemy)
 		else:
 			_walk(f, enemy.cell(), enemy.x, enemy.y, false)
