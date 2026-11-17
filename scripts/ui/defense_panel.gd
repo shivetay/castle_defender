@@ -1,23 +1,24 @@
 class_name DefensePanel
 extends Control
-## Ustawienia obrony (#19, notatka Interfejs): własny zamek w trybie edycji. Na dole pasek oddziałów
-## załogi, nad nim opis wybranego oddziału, w kolumnie przy prawej krawędzi Zdejmij i Gotowe.
-## Gracz wybiera oddział na pasku i dotyka kratki w strefie obrony wokół donżonu: tam stanie
-## posterunek oddziału. Dotknięcie posterunku na mapie wybiera jego oddział. Zdejmij odsyła oddział
-## z powrotem pod donżon. Mapę i posterunki rysuje main; ten węzeł rysuje tylko przyciski.
+## Ustawienia obrony (#19, #20, notatka Interfejs): własny zamek w trybie edycji. Na dole pasek
+## oddziałów załogi, nad nim opis wybranego oddziału, w kolumnie przy prawej krawędzi Zadanie, Wieże,
+## Zdejmij i Gotowe. Gracz wybiera oddział na pasku, przyciskiem Zadanie zadanie z listy (Obrona
+## odcinka, Patrol), a dotykiem kratki w strefie wokół donżonu jego miejsce: przy Obronie odcinka
+## trawę albo odcinek wału, palisady, bramy czy wieży, przy Patrolu kolejne punkty trasy (do 3).
+## Dotknięcie miejsca innego oddziału na mapie wybiera ten oddział. Wieże zmieniają priorytet celów
+## wież, Zdejmij odsyła oddział pod donżon. Mapę i zadania rysuje main; ten węzeł rysuje tylko przyciski.
 ## Dotknięcia poza przyciskami idą do mapy (kamera i tap()).
 
 ## Układ albo wybór zmienił się (mapa ma się przerysować, a gra zapisać).
 signal changed(message: String)
 signal back_requested
 
-enum Target { NONE = -1, CLEAR, BACK, MORE = 50, SQUAD = 100 }
-const COLUMN: Array[int] = [Target.CLEAR, Target.BACK]
-const LABELS: Array[String] = ["Zdejmij", "Gotowe"]
+enum Target { NONE = -1, CLEAR, BACK, TASK, TOWERS, MORE = 50, SQUAD = 100 }
+const COLUMN: Array[int] = [Target.TASK, Target.TOWERS, Target.CLEAR, Target.BACK]
+const LABELS: Array[String] = ["Zadanie", "Wieże", "Zdejmij", "Gotowe"]
 const MORE_LABEL := "Dalej"
 const HINT := "Wybierz oddział i dotknij kratki w strefie"
 const AT_KEEP := "przy donżonie"
-const AT_POST := "na posterunku"
 const SQUAD_TILE := AttackPanel.SQUAD_TILE
 const INFO_H := AttackPanel.INFO_H
 
@@ -105,27 +106,72 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, coun
 
 # --- Edycja ---------------------------------------------------------------------------------------
 
-## Opis oddziału na pasku nad kafelkami: [numer, rodzaj i liczba; gdzie stoi].
+## Zadanie oddziału jako tekst: „przy donżonie”, „Obrona odcinka”, „Patrol 2/3 pkt”; bez miejsca
+## z prośbą o dotknięcie mapy.
+static func task_text(o: DefensePlan.Order) -> String:
+	if o == null:
+		return AT_KEEP
+	if o.post == DefensePlan.NO_POST:
+		return "%s: dotknij mapy" % DefensePlan.TASK_NAMES[o.task]
+	if o.task == DefensePlan.Task.PATROL:
+		if o.route.is_empty():
+			return "Patrol 1/%d: dodaj punkt" % (DefensePlan.MAX_ROUTE + 1)
+		return "Patrol %d/%d pkt" % [o.route.size() + 1, DefensePlan.MAX_ROUTE + 1]
+	return DefensePlan.TASK_NAMES[o.task]
+
+
+## Opis oddziału na pasku nad kafelkami: [numer, rodzaj i liczba; zadanie].
 func describe(i: int) -> Array[String]:
 	var sq: Array = squads[i]
-	var where := AT_POST if plan.post_for(ids[i]) != DefensePlan.NO_POST else AT_KEEP
-	return ["%d. %s ×%d" % [i + 1, UnitTypes.unit_name(int(sq[0])), int(sq[1])], where]
+	return ["%d. %s ×%d" % [i + 1, UnitTypes.unit_name(int(sq[0])), int(sq[1])], task_text(plan.order_for(ids[i]))]
 
 
-## Dotknięcie kratki `cell` własnego zamku: posterunek innego oddziału go wybiera, wolna kratka
-## w strefie staje się posterunkiem wybranego oddziału. Zwraca komunikat dla paska.
+## Dotknięcie kratki `cell` własnego zamku. Miejsce innego oddziału go wybiera. Odcinek umocnień
+## (wał, palisada, brama, wieża) w strefie daje miejsce tuż przy nim od strony donżonu. Przy
+## Patrolu kolejne dotknięcia dodają punkty trasy (czwarte zaczyna trasę od nowa), inaczej kratka
+## staje się miejscem Obrony odcinka. Zwraca komunikat dla paska.
 func tap(grid: BuildGrid, cell: Vector2i) -> String:
 	if squads.is_empty():
 		return "Najpierw wyszkol wojsko: Koszary i Wojsko"
 	var holder := plan.squad_at(cell)
 	if holder != 0 and holder != selected_id() and ids.has(holder):
 		select(ids.find(holder))
-		return "Oddział %d: %s" % [selected + 1, AT_POST]
+		return "Oddział %d: %s" % [selected + 1, task_text(plan.order_for(holder))]
+	var o := plan.order_for(selected_id())
+	var patrol := o != null and o.task == DefensePlan.Task.PATROL
+	# odcinek umocnień przyciąga tylko Obronę odcinka; punkt patrolu stawia się na trawie (review #181)
+	var section := ""
+	var id := grid.building_at(cell) if grid.terrain.in_bounds(cell) else 0
+	if not patrol and id != 0 and DefensePlan.is_section(grid.kinds[id]) and DefensePlan.zone(grid).has_point(cell):
+		section = BuildingTypes.NAMES[grid.kinds[id]]
+		cell = DefensePlan.section_post(grid, id)
+		if cell == DefensePlan.NO_POST:
+			return "%s: brak miejsca od środka" % section
 	var problem := DefensePlan.post_problem(grid, cell)
 	if not problem.is_empty():
 		return problem
+	if patrol:
+		if o.post == DefensePlan.NO_POST or o.route.size() >= DefensePlan.MAX_ROUTE:
+			o.post = cell
+			o.route.clear()
+		else:
+			o.route.append(cell)
+		return "Oddział %d: patrol, punkt %d z %d" % [selected + 1, o.route.size() + 1, DefensePlan.MAX_ROUTE + 1]
 	plan.set_post(selected_id(), cell)
-	return "Oddział %d: posterunek ustawiony" % (selected + 1)
+	if not section.is_empty():
+		return "Oddział %d: obrona odcinka, %s" % [selected + 1, section]
+	return "Oddział %d: obrona odcinka" % (selected + 1)
+
+
+## Następne zadanie oddziału: bez zadania → Obrona odcinka → Patrol → Obrona odcinka… Miejsce zostaje.
+static func next_task(o: DefensePlan.Order) -> int:
+	if o == null:
+		return DefensePlan.Task.HOLD
+	return (o.task + 1) % DefensePlan.TASK_NAMES.size()
+
+
+static func tower_text(priority: int) -> String:
+	return "Wieże: najpierw %s" % DefensePlan.TOWER_PRIORITY_NAMES[priority]
 
 
 ## Wybiera oddział `i` i przewija pasek tak, żeby było go widać.
@@ -172,6 +218,13 @@ func activate(t: int) -> void:
 			changed.emit(HINT)
 		Target.BACK:
 			back_requested.emit()
+		Target.TOWERS:
+			plan.tower_priority = (plan.tower_priority + 1) % DefensePlan.TOWER_PRIORITY_NAMES.size()
+			changed.emit(tower_text(plan.tower_priority))
+		Target.TASK:
+			if selected_id() != 0:
+				var o := plan.set_task(selected_id(), next_task(plan.order_for(selected_id())))
+				changed.emit("Oddział %d: %s" % [selected + 1, task_text(o)])
 		Target.CLEAR:
 			if selected_id() != 0:
 				plan.clear_post(selected_id())
@@ -212,5 +265,5 @@ func _draw_tile(r: Rect2, i: int) -> void:
 		PixelFont.draw_text(self, at - Vector2(0, 2), UnitTypes.SHORT_NAMES[unit].left(1), Palette.INK)
 	PixelFont.draw_text(self, r.position + Vector2(10, 3), "%d×%d" % [i + 1, int(sq[1])], Palette.INK)
 	if plan.post_for(ids[i]) != DefensePlan.NO_POST:
-		# znacznik: oddział ma posterunek
+		# znacznik: oddział ma zadanie z miejscem
 		draw_rect(Rect2(r.end.x - 5, r.position.y + 3, 2, 2), Palette.VALID)
