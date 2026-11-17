@@ -144,6 +144,43 @@ func keep_id() -> int:
 	return 0
 
 
+## Id Strażnicy (budynku PvE, #177) albo 0, gdy jej nie ma.
+func watchtower_id() -> int:
+	for id: int in kinds:
+		if kinds[id] == BuildingTypes.Kind.WATCHTOWER:
+			return id
+	return 0
+
+
+## Miejsce na Strażnicę: pierwszy wolny prostokąt wokół Dworu, najdalej `max_ring` kratek, z kratką
+## wolnego miejsca dookoła (wysoka czatownia nie zasłania donżonu ani Dworu). Gdy takiego nie ma,
+## pierwszy wolny bez odstępu.
+func watchtower_spot(max_ring: int) -> Rect2i:
+	var id := manor_id()
+	var around := Rect2i(terrain.center(), Vector2i.ONE) if id == 0 else buildings[id]
+	var kind := BuildingTypes.Kind.WATCHTOWER
+	for r in range(2, mini(max_ring, terrain.size) + 1):
+		var ring := around.grow(r)
+		for y in range(ring.position.y, ring.end.y):
+			for x in range(ring.position.x, ring.end.x):
+				if y != ring.position.y and y != ring.end.y - 1 and x != ring.position.x and x != ring.end.x - 1:
+					continue
+				var rect := placement_for(Vector2i(x, y), kind)
+				if rect.has_area() and _clear_around(rect):
+					return rect
+	return spot_around(around, kind, max_ring)
+
+
+## Czy w pasie 1 kratki wokół `r` nie stoi żaden budynek.
+func _clear_around(r: Rect2i) -> bool:
+	var g := r.grow(1)
+	for y in range(g.position.y, g.end.y):
+		for x in range(g.position.x, g.end.x):
+			if building_at(Vector2i(x, y)) != 0:
+				return false
+	return true
+
+
 ## Miejsce na donżon: pierwszy wolny prostokąt wokół Dworu (albo środka mapy, gdy Dworu nie ma).
 func keep_spot(max_ring: int) -> Rect2i:
 	var id := manor_id()

@@ -35,8 +35,7 @@ func test_column_buttons_stack_on_the_right() -> bool:
 				assert_true(r.end.y <= view.y - Hud.BAR_H, "nad paskiem komunikatu")
 				if i > 0:
 					assert_true(r.position.y > Hud.column_rect(b.y, i - 1, Hud.uses_icons(building)).end.y, "od góry, bez nakładania")
-	assert_eq(Hud.column_targets(false), [T.BUILD, T.RESEARCH, T.ARMY, T.SIEGE, T.ATTACK, T.DEFENCE,
-			T.QUEUE, T.MENU] as Array[int],
+	assert_eq(Hud.column_targets(false), [T.BUILD, T.RESEARCH, T.ARMY, T.DEFENCE, T.QUEUE, T.SETTINGS] as Array[int],
 			"oglądanie: kolejność")
 	assert_eq(Hud.column_targets(true), [T.DONE, T.CHANGE] as Array[int], "budowa: Gotowe i Zmień")
 	return true
@@ -51,9 +50,8 @@ func test_targets_follow_mode() -> bool:
 	assert_eq(Hud.target_at(first, VIEW, b.y, false, false), T.BUILD, "oglądanie: Buduj na górze")
 	assert_eq(Hud.target_at(second, VIEW, b.y, false, false), T.RESEARCH, "oglądanie: Badania")
 	assert_eq(Hud.target_at(Hud.column_rect(b.y, 2, true).get_center(), VIEW, b.y, false, false), T.ARMY, "oglądanie: Wojsko")
-	assert_eq(Hud.target_at(fourth, VIEW, b.y, false, false), T.SIEGE, "oglądanie: Oblężenie")
-	assert_eq(Hud.target_at(Hud.column_rect(b.y, 4, true).get_center(), VIEW, b.y, false, false), T.ATTACK, "oglądanie: Atak (#17)")
-	assert_eq(Hud.target_at(Hud.column_rect(b.y, 5, true).get_center(), VIEW, b.y, false, false), T.DEFENCE, "oglądanie: Obrona (#19)")
+	assert_eq(Hud.target_at(fourth, VIEW, b.y, false, false), T.DEFENCE, "oglądanie: Obrona (#19)")
+	assert_eq(Hud.target_at(Hud.column_rect(b.y, 4, true).get_center(), VIEW, b.y, false, false), T.QUEUE, "oglądanie: Kolejka")
 	assert_eq(Hud.target_at(first, VIEW, b.y, true, false), T.DONE, "budowa: w tym samym miejscu Gotowe")
 	assert_eq(Hud.target_at(second, VIEW, b.y, true, false), T.CHANGE, "budowa: Zmień")
 	assert_eq(Hud.target_at(fourth, VIEW, b.y, true, false), T.NONE, "budowa: tylko dwa przyciski")

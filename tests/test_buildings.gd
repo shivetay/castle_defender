@@ -385,8 +385,10 @@ func test_construction_site() -> bool:
 
 
 func test_manor_is_not_on_toolbar() -> bool:
-	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 2, "pasek bez Dworu i donżonu")
+	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 3, "pasek bez Dworu, donżonu i Strażnicy")
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.KEEP), "donżonu nie ma na pasku")
+	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.WATCHTOWER), "Strażnicy nie ma na pasku")
+	assert_eq(BuildingTypes.Kind.WATCHTOWER, 23, "Strażnica za Domem zwiadowców (stare zapisy bez zmian)")
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.MANOR), "Dworu nie ma na pasku")
 	assert_eq(BuildingTypes.Kind.MANOR, 5, "Dwór ma stały numer (zapisy)")
 	var in_panel := 0

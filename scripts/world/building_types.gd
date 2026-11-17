@@ -13,6 +13,7 @@ enum Kind {
 	BARRACKS, WARBAND_HOUSE, ARCHERY_RANGE,
 	KEEP,
 	SCOUT_HOUSE,
+	WATCHTOWER,
 }
 ## Stan budynku zależny od wytrzymałości: cały, pęknięcia, wyrwa w blankach, gruz.
 enum State { INTACT, CRACKED, BREACHED, RUBBLE }
@@ -30,16 +31,16 @@ const W := 8
 const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wieża drewniana", "Chata drwala", "Dwór",
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
 		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica",
-		"Wieża grodowa", "Dom zwiadowców"]
+		"Wieża grodowa", "Dom zwiadowców", "Strażnica"]
 ## Napisy na kafelkach panelu budowy (BuildPanel, ok. 57–71 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
 		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
 		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica", "Donżon",
-		"Zwiadowcy"]
+		"Zwiadowcy", "Strażnica"]
 const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
-		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2)]
+		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2)]
 ## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu): umocnienia, gospodarka (#122),
 ## wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119) i Dom zwiadowców (#92).
 const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.LUMBER_HUT,
@@ -85,9 +86,10 @@ static func is_wooden(kind: int) -> bool:
 	return kind != Kind.RAMPART and kind != Kind.FLAX_FIELD
 
 
-## Budynki, które zamek ma od startu, po jednym, i których nie da się rozebrać: Dwór i donżon (#120).
+## Budynki, które zamek ma od startu, po jednym, i których nie da się rozebrać: Dwór, donżon (#120)
+## i Strażnica (PvE, #177).
 static func is_unique(kind: int) -> bool:
-	return kind == Kind.MANOR or kind == Kind.KEEP
+	return kind == Kind.MANOR or kind == Kind.KEEP or kind == Kind.WATCHTOWER
 
 
 ## Liczba rodzajów, które gracz stawia z panelu budowy (bez Dworu i donżonu).

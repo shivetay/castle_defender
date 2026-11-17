@@ -87,7 +87,7 @@ func test_goals_lead_through_all_waves() -> bool:
 		var shown := TutorialGoals.text(cleared, grid, research, r)
 		seen.append(shown)
 		if i < 0:
-			assert_eq(shown, "Oblężenie: fala %d z %d" % [cleared + 1, PveWaves.COUNT], "po celach Oblężenie")
+			assert_eq(shown, "Strażnica: Oblężenie, fala %d z %d" % [cleared + 1, PveWaves.COUNT], "po celach Oblężenie")
 			cleared += 1
 		else:
 			_satisfy(TutorialGoals.GOALS[i], grid, research, r)
@@ -111,7 +111,7 @@ func test_goals_follow_the_wave() -> bool:
 	var r := Recruitment.new()
 	grid.place(grid.spot_near(grid.buildings[grid.manor_id()].position, K.BARRACKS, 40), K.BARRACKS, 1)
 	var id := r.add_squad(U.PEASANT, 6)
-	assert_eq(TutorialGoals.text(0, grid, research, r), "Oblężenie: fala 1 z 5", "przed falą 1 nic więcej")
+	assert_eq(TutorialGoals.text(0, grid, research, r), "Strażnica: Oblężenie, fala 1 z 5", "przed falą 1 nic więcej")
 	assert_eq(TutorialGoals.text(1, grid, research, r), "Wyszkol 10 żołnierzy (Wojsko)", "po fali 1 kolejny cel")
 	r.apply_losses([id] as Array[int], [2] as Array[int])
 	assert_eq(TutorialGoals.text(0, grid, research, r), "Wyszkol 6 żołnierzy (Wojsko)", "po stratach znów szkolenie")
@@ -160,7 +160,7 @@ func test_goal_texts_fit_the_hud() -> bool:
 	var room := int(Hud.goal_rect(b.x, b.y).size.x) - PixelFont.text_width(Hud.GOAL_PREFIX) - 8
 	for g: Array in TutorialGoals.GOALS:
 		assert_true(PixelFont.text_width(g[4] as String) <= room, "„%s” mieści się" % (g[4] as String))
-	assert_true(PixelFont.text_width("Oblężenie: fala 5 z 5") <= room, "Oblężenie mieści się")
+	assert_true(PixelFont.text_width("Strażnica: Oblężenie, fala 5 z 5") <= room, "Oblężenie mieści się")
 	var reward := PveWaves.reward(PveWaves.COUNT - 1)
 	assert_eq(TutorialGoals.done_message(reward, 0), "Samouczek ukończony! +%s" % Hud.cost_text(reward), "koniec z nagrodą")
 	assert_true(TutorialGoals.done_message(reward, 3).contains("polegli: 3"), "i z poległymi (review #189)")
