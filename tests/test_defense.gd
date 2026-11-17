@@ -72,7 +72,7 @@ func test_plan_round_trip_and_prune() -> bool:
 	p.set_post(a, Vector2i(28, 29))
 	p.set_post(99, Vector2i(1, 1))
 	var d := p.to_dict()
-	assert_eq(d, {"orders": [[a, 0, 28, 29, []], [b, 0, 30, 31, []], [99, 0, 1, 1, []]], "tower_priority": 0},
+	assert_eq(d, {"orders": [[a, 0, 28, 29, []], [b, 0, 30, 31, []], [99, 0, 1, 1, []]], "tower_priority": 0, "traps": []},
 			"zapis w kolejności id")
 	var q := DefensePlan.from_dict(JSON.parse_string(JSON.stringify(d)) as Dictionary)
 	assert_eq(q.to_dict(), d, "odczyt z JSON (liczby jako float)")
@@ -231,8 +231,10 @@ func test_squad_bar_fits_and_pages() -> bool:
 	assert_eq(DefensePanel.target_at(more, VIEW, b.x, b.y, 8, 5), DefensePanel.Target.NONE, "za ostatnim oddziałem pusto")
 	assert_eq(DefensePanel.target_at(DefensePanel.tile_rect(VIEW, b.x, 1).get_center(), VIEW, b.x, b.y, 8, 5),
 			DefensePanel.Target.SQUAD + 6, "kafelek na drugiej stronie")
-	assert_eq(DefensePanel.target_at(Hud.column_rect(b.y, 3).get_center(), VIEW, b.x, b.y, 8, 0),
+	assert_eq(DefensePanel.target_at(Hud.column_rect(b.y, DefensePanel.COLUMN.size() - 1).get_center(), VIEW, b.x, b.y, 8, 0),
 			DefensePanel.Target.BACK, "Gotowe na dole kolumny")
+	assert_true(Hud.column_rect(b.y, DefensePanel.COLUMN.size() - 1).end.y < DefensePanel.tile_rect(VIEW, b.x, 0).position.y,
+			"kolumna nie wchodzi na pasek oddziałów")
 	assert_eq(DefensePanel.target_at(Hud.column_rect(b.y, 0).get_center(), VIEW, b.x, b.y, 8, 0),
 			DefensePanel.Target.TASK, "Zadanie na górze")
 	assert_eq(DefensePanel.target_at(Vector2(150, 80), VIEW, b.x, b.y, 8, 0), DefensePanel.Target.NONE, "mapa")

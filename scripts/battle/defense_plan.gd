@@ -17,8 +17,9 @@ extends RefCounted
 ## Oddział bez ustawionego zadania dostaje w bitwie zadanie domyślne według klasy (default_order,
 ## plan zatwierdzony przez właściciela): strzelcy na mur przy bramie, piechota przy bramie, konnica
 ## na wypad, specjalni przy donżonie. Bez bramy i murów wszyscy stoją przy donżonie. Priorytet celów
-## wież to jedno ustawienie na cały zamek. Gaszenie pożarów dojdzie ze Studnią (#35), pułapki w #100,
-## a komendant z generałami w #31.
+## wież to jedno ustawienie na cały zamek. Pułapki (#100, TrapConfig) stoją na kratkach strefy obrony
+## i są częścią tego samego układu. Gaszenie pożarów dojdzie ze Studnią (#35), a komendant
+## z generałami (#31).
 ##
 ## Zadania są przypisane do id oddziału z rekrutacji (nie do jego miejsca w armii), więc nowy oddział
 ## nie przejmuje cudzego zadania. Układ to same liczby całkowite, więc ten sam układ i ten sam seed
@@ -56,8 +57,18 @@ class Order:
 		return out
 
 
+class Trap:
+	extends RefCounted
+	var kind := 0
+	var cell := Vector2i.ZERO
+	## Czy atakujący ją widzi: dopiero po zwiadzie (#28) albo reklamie Wywiad (#44).
+	var revealed := false
+
+
 ## Id oddziału z rekrutacji → zadanie.
 var orders: Dictionary[int, Order] = {}
+## Pułapki (#100) w kolejności postawienia (ta kolejność to kolejność sprawdzania w bitwie).
+var traps: Array[Trap] = []
 var tower_priority := 0
 
 
@@ -66,7 +77,8 @@ func order_for(squad_id: int) -> Order:
 
 
 ## Zadanie oddziału `squad_id` (zakłada nowe albo zmienia istniejące) i je zwraca. Zmiana zadania
-## zostawia miejsce, a czyści trasę patrolu.
+## zostawia miejsce, a czyści trasę patrolu. Wyjątek: Przy donżonie czyści też miejsce, bo oddział
+## nie ma wtedy własnej kratki (review #184).
 func set_task(squad_id: int, task: int) -> Order:
 	var o := order_for(squad_id)
 	if o == null:
@@ -278,6 +290,67 @@ static func section_post(grid: BuildGrid, id: int) -> Vector2i:
 	return best
 
 
+# --- Pułapki (#100) -----------------------------------------------------------------------------------
+
+func trap_at(cell: Vector2i) -> Trap:
+	for t in traps:
+		if t.cell == cell:
+			return t
+	return null
+
+
+func add_trap(kind: int, cell: Vector2i) -> Trap:
+	var t := Trap.new()
+	t.kind = kind
+	t.cell = cell
+	traps.append(t)
+	return t
+
+
+func remove_trap(cell: Vector2i) -> bool:
+	var t := trap_at(cell)
+	if t == null:
+		return false
+	traps.erase(t)
+	return true
+
+
+## Pusty napis, gdy na kratce `cell` może stanąć pułapka `kind` (strefa, wolna kratka, miejsce według
+## TrapConfig.PLACE, bez innej pułapki); inaczej powód po polsku.
+func trap_place_problem(grid: BuildGrid, kind: int, cell: Vector2i) -> String:
+	var problem := post_problem(grid, cell)
+	if not problem.is_empty():
+		return problem
+	if trap_at(cell) != null:
+		return "Tu już jest pułapka"
+	var keep := keep_center(grid)
+	var here := (cell - keep).length_squared()
+	match TrapConfig.PLACE[kind]:
+		TrapConfig.Place.BEFORE_WALL:
+			for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+				if wall_post(grid, cell + d) and here > (cell + d - keep).length_squared():
+					return ""
+			return "%s: tuż przed wałem albo palisadą, od zewnątrz" % TrapConfig.NAMES[kind]
+		TrapConfig.Place.NEAR_WALL:
+			for dy in range(-1, 2):
+				for dx in range(-1, 2):
+					var n := cell + Vector2i(dx, dy)
+					var id := grid.building_at(n) if grid.terrain.in_bounds(n) else 0
+					if id != 0 and grid.levels[id] >= 1 and (BuildingTypes.is_wall(grid.kinds[id]) \
+							or grid.kinds[id] == BuildingTypes.Kind.TOWER):
+						return ""
+			return "%s: przy murze albo wieży" % TrapConfig.NAMES[kind]
+		TrapConfig.Place.BEFORE_GATE:
+			for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+				var n := cell + d
+				var id := grid.building_at(n) if grid.terrain.in_bounds(n) else 0
+				if id != 0 and grid.kinds[id] == BuildingTypes.Kind.GATE and grid.levels[id] >= 1 \
+						and here > (grid.buildings[id].get_center() - keep).length_squared():
+					return ""
+			return "%s: tuż przed bramą, od zewnątrz" % TrapConfig.NAMES[kind]
+	return ""
+
+
 func to_dict() -> Dictionary:
 	var ids: Array[int] = []
 	for id: int in orders:
@@ -290,13 +363,25 @@ func to_dict() -> Dictionary:
 		for p in o.route:
 			route.append([p.x, p.y])
 		list.append([id, o.task, o.post.x, o.post.y, route])
-	return {"orders": list, "tower_priority": tower_priority}
+	var trap_list: Array = []
+	for t in traps:
+		trap_list.append([t.kind, t.cell.x, t.cell.y, 1 if t.revealed else 0])
+	return {"orders": list, "tower_priority": tower_priority, "traps": trap_list}
 
 
 ## Układ z danych zapisu (JSON daje liczby jako float, więc wszystko idzie przez int()). Złe wpisy
 ## są pomijane.
 static func from_dict(d: Dictionary) -> DefensePlan:
 	var p := DefensePlan.new()
+	for e: Variant in d.get("traps", []) as Array:
+		if not e is Array or (e as Array).size() < 3:
+			continue
+		var a := e as Array
+		var kind := int(a[0])
+		var cell := Vector2i(int(a[1]), int(a[2]))
+		if kind < 0 or kind >= TrapConfig.count() or p.trap_at(cell) != null:
+			continue
+		p.add_trap(kind, cell).revealed = a.size() > 3 and int(a[3]) != 0
 	p.tower_priority = clampi(int(d.get("tower_priority", 0)), 0, TOWER_PRIORITY_NAMES.size() - 1)
 	for e: Variant in d.get("orders", []) as Array:
 		if not e is Array:

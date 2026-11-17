@@ -250,7 +250,16 @@ obrony z #19 (posterunki załogi wokół donżonu).
     wszyscy stoją przy donżonie, więc wczesne fale samouczka się nie zmieniają. Ekran Obrona pokazuje
     zadanie domyślne w opisie i miejsce na mapie w przygaszonej ramce; Zdejmij wraca do domyślnego.
     Zamki-cele (`BotCastle`) nie dostają jeszcze zadań domyślnych.
-  - **Dalej:** Gaszenie pożarów po Studni (#35). Pułapki to #100, komendant dojdzie z generałami (#31).
+  - **Dalej:** Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31).
+- Pułapki (#100, `scripts/battle/trap_config.gd`, lista w notatce Budynki/Obrona, zatwierdzona przez
+  właściciela): Wilczy dół, Kolczatka, Zrzucane kłody, Płonące strzały i Wrząca smoła (epoka II). Każda
+  wymaga technologii, a większość budynku (np. Wilczy dół: G18 i Chata myśliwego). Przycisk Pułapki na
+  ekranie Obrona przełącza pasek na rodzaje: dotknięcie kratki stawia wybraną (koszt w surowcach i towarach
+  schodzi od razu), dotknięcie pułapki ją usuwa (bez zwrotu), Załoga wraca do oddziałów. Miejsce zależy od
+  rodzaju (trawa, przed murem, przy murze albo wieży, przed bramą), a limit to 2 na poziom Dworu. W bitwie
+  (`Battle.arm_traps`) każda działa raz, a po bitwie odnawia się za darmo, bo układ się nie zmienia.
+  Atakujący jej nie widzi; pole `revealed` czeka na zwiad (#28). Zamki-cele nie mają jeszcze pułapek.
+  Liczby tymczasowe.
 - Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
   - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
   - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
@@ -412,7 +421,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 8 (#130): ustawienia obrony (#19) i zadania obrony (#20: Obrona odcinka z murami, Patrol, Priorytet
-celów wież, Wypad konnicy, zadania domyślne) są zrobione. Do zamknięcia etapu zostają pułapki (#100, najpierw
-projekt listy) oraz decyzja właściciela, czy Gaszenie pożarów przejdzie do Studni (#35), a komendant do
-generałów (#31). Z etapów 4–5 zostają części zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).
+Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#20) i pułapki (#100).
+Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
+(#28). Następny jest etap 9 (#131): backend Supabase i PvP. Z etapów 4–5 zostają części zależne od bitwy,
+planu ataku i generałów (#81, #89, #91, #97, #12).

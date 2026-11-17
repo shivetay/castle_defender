@@ -148,6 +148,9 @@ func _ready() -> void:
 	attack_panel.attack_requested.connect(_on_attack_launched)
 
 	defense_panel = DefensePanel.new()
+	defense_panel.research = research
+	defense_panel.economy = economy
+	defense_panel.goods = goods
 	defense_panel.visible = false
 	layer.add_child(defense_panel)
 	defense_panel.changed.connect(_on_defence_changed)
@@ -217,6 +220,7 @@ func _start_battle_preview() -> void:
 	view.battle = Battle.create_squads(grid, grid.keep_id(), attackers, defenders, _edge_road(), world_seed,
 			defense.battle_orders(recruitment.battle_ids(), recruitment.battle_squads(), grid, CURRENT_AGE))
 	view.battle.tower_priority = defense.tower_priority
+	view.battle.arm_traps(defense.traps)
 	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	add_child(view)
 	hud.message = "Podgląd bitwy"
@@ -478,6 +482,7 @@ func _on_siege_pressed() -> void:
 			PveWaves.battle_seed(world_seed, _battle_wave), research,
 			defense.battle_orders(_battle_ids, recruitment.battle_squads(), grid, CURRENT_AGE),
 			defense.tower_priority)
+	b.arm_traps(defense.traps)  # pułapki działają raz na bitwę, a w układzie zostają (odnawiają się, #100)
 	battle_view = BattleView.new()
 	battle_view.battle = b
 	add_child(battle_view)
@@ -923,6 +928,12 @@ func _draw_defence() -> void:
 		CastleView.draw_frame(self, Rect2i(at, Vector2i.ONE * TerrainMap.CELL), Palette.ACCENT if blocked else col)
 		if PixelIcons.class_region(cls).has_area():
 			PixelIcons.draw_class(self, Vector2(at + Vector2i(2, 2)), cls)
+	# pułapki (#100): znak rodzaju na ciemnym polu w czerwonej ramce
+	for t in defense.traps:
+		var tp := t.cell * TerrainMap.CELL
+		draw_rect(Rect2(tp.x, tp.y, TerrainMap.CELL, TerrainMap.CELL), Color(Palette.SHADOW, 0.7))
+		CastleView.draw_frame(self, Rect2i(tp, Vector2i.ONE * TerrainMap.CELL), Palette.ACCENT)
+		PixelFont.draw_centered(self, Rect2(tp, Vector2.ONE * TerrainMap.CELL), TrapConfig.GLYPHS[t.kind], Palette.THATCH[2])
 
 
 ## Trasa patrolu: odcinki 1 px między punktami (z powrotem do pierwszego) i znaczniki 3×3 px punktów.
