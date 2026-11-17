@@ -167,6 +167,18 @@ func test_default_orders_by_class() -> bool:
 	assert_true(orders[0] != null and DefensePlan.wall_post(g, orders[0].post), "bez ustawień: domyślne")
 	assert_true(orders[1] == null, "Przy donżonie: bez domyślnego")
 	assert_true(p.battle_orders([1] as Array[int])[0] == null, "bez danych o oddziałach: jak dawniej")
+	# review #184: Przy donżonie zdejmuje stare miejsce, a Zdejmij mówi o zadaniu domyślnym
+	p.set_post(3, ranged.post)
+	p.set_task(3, T.KEEP)
+	assert_eq(p.post_for(3), NO, "Przy donżonie: bez znacznika na mapie")
+	var panel := DefensePanel.new()
+	var said: Array[String] = []
+	panel.changed.connect(func(t: String) -> void: said.append(t))
+	panel.open(p, [[U.ARCHER, 3]], [3] as Array[int], g, 0)
+	panel.activate(DefensePanel.Target.CLEAR)
+	assert_eq(said[-1], "Oddział 1: domyślnie: na murze", "Zdejmij: komunikat jak opis oddziału")
+	assert_eq(panel.describe(0)[1], "domyślnie: na murze", "opis")
+	panel.free()
 	return true
 
 

@@ -72,6 +72,8 @@ func set_task(squad_id: int, task: int) -> Order:
 	if o.task != task:
 		o.route.clear()
 	o.task = task
+	if task == Task.KEEP:
+		o.post = NO_POST  # przy donżonie nie ma własnego miejsca (review #184)
 	return o
 
 
@@ -89,7 +91,7 @@ func set_post(squad_id: int, cell: Vector2i) -> void:
 	o.route.clear()
 
 
-## Zdejmuje zadanie: oddział wraca pod donżon.
+## Zdejmuje ustawione zadanie: w bitwie oddział dostaje zadanie domyślne swojej klasy (default_order).
 func clear_post(squad_id: int) -> void:
 	orders.erase(squad_id)
 

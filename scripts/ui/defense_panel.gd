@@ -289,7 +289,7 @@ func activate(t: int) -> void:
 		Target.CLEAR:
 			if selected_id() != 0:
 				plan.clear_post(selected_id())
-				changed.emit("Oddział %d: %s" % [selected + 1, AT_KEEP])
+				changed.emit("Oddział %d: %s" % [selected + 1, default_text(castle, unit_class_of(selected), age)])
 
 
 func _draw() -> void:
