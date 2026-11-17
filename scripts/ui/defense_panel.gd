@@ -9,16 +9,23 @@ extends Control
 ## może stanąć na samym wale albo palisadzie (dotknięcie muru), a Wypad konnicy wskazuje się bramą.
 ## Oddział bez ustawionego zadania ma zadanie domyślne swojej klasy (DefensePlan.default_order), opis
 ## to podaje. Wieże zmieniają priorytet celów wież, Zdejmij wraca do zadania domyślnego. Mapę i zadania
-## rysuje main; ten węzeł rysuje tylko przyciski.
+## rysuje main; ten węzeł rysuje tylko przyciski. Pułapki (#100) przełączają pasek na rodzaje pułapek:
+## dotknięcie kratki stawia wybraną (koszt schodzi od razu), dotknięcie pułapki ją usuwa (bez zwrotu),
+## a Załoga wraca do oddziałów.
 ## Dotknięcia poza przyciskami idą do mapy (kamera i tap()).
 
 ## Układ albo wybór zmienił się (mapa ma się przerysować, a gra zapisać).
 signal changed(message: String)
 signal back_requested
 
-enum Target { NONE = -1, CLEAR, BACK, TASK, TOWERS, MORE = 50, SQUAD = 100 }
-const COLUMN: Array[int] = [Target.TASK, Target.TOWERS, Target.CLEAR, Target.BACK]
-const LABELS: Array[String] = ["Zadanie", "Wieże", "Zdejmij", "Gotowe"]
+enum Target { NONE = -1, CLEAR, BACK, TASK, TOWERS, TRAPS, CREW, MORE = 50, SQUAD = 100 }
+const COLUMN: Array[int] = [Target.TASK, Target.TOWERS, Target.TRAPS, Target.CLEAR, Target.BACK]
+const LABELS: Array[String] = ["Zadanie", "Wieże", "Pułapki", "Zdejmij", "Gotowe"]
+## Kolumna w trybie pułapek (#100).
+const TRAP_COLUMN: Array[int] = [Target.CREW, Target.BACK]
+const TRAP_LABELS: Array[String] = ["Załoga", "Gotowe"]
+## Postawioną pułapkę usuwa jej dotknięcie (komunikat „Usunięto: …”).
+const TRAP_HINT := "Wybierz pułapkę i dotknij kratki"
 const MORE_LABEL := "Dalej"
 const HINT := "Wybierz oddział i dotknij kratki w strefie"
 const AT_KEEP := "przy donżonie"
@@ -29,6 +36,12 @@ var plan: DefensePlan
 ## Zamek i epoka: do zadań domyślnych w opisie i do Wypadu konnicy (od epoki II).
 var castle: BuildGrid
 var age := 0
+## Tryb pułapek (#100): wybrany rodzaj, a do wymagań i kosztu badania, surowce i zbrojownia gracza.
+var trap_mode := false
+var trap_kind := 0
+var research: Research
+var economy: Economy
+var goods: Goods
 ## Oddziały załogi [rodzaj, liczba] (Recruitment.battle_squads()) i ich id z rekrutacji.
 var squads: Array = []
 var ids: Array[int] = []
@@ -98,10 +111,21 @@ static func tile_rect(view: Vector2, left: float, slot: int) -> Rect2:
 
 
 ## Cel pod punktem: przycisk kolumny, Dalej, oddział (SQUAD + indeks) albo NONE.
-static func target_at(p: Vector2, view: Vector2, left: float, right: float, count: int, start: int) -> int:
-	for i in COLUMN.size():
+static func column(traps_shown: bool) -> Array[int]:
+	return TRAP_COLUMN if traps_shown else COLUMN
+
+
+static func column_labels(traps_shown: bool) -> Array[String]:
+	return TRAP_LABELS if traps_shown else LABELS
+
+
+## Cel pod punktem; `count` to liczba kafelków (oddziałów albo rodzajów pułapek w trybie pułapek).
+static func target_at(p: Vector2, view: Vector2, left: float, right: float, count: int, start: int,
+		traps_shown: bool = false) -> int:
+	var col := column(traps_shown)
+	for i in col.size():
 		if Hud.column_rect(right, i).has_point(p):
-			return COLUMN[i]
+			return col[i]
 	var fit := tiles_fit(left, right)
 	var shown := visible_squads(count, fit, start)
 	for slot in shown.size():
@@ -162,6 +186,8 @@ func describe(i: int) -> Array[String]:
 ## Patrolu kolejne dotknięcia dodają punkty trasy (czwarte zaczyna trasę od nowa), inaczej kratka
 ## staje się miejscem Obrony odcinka. Zwraca komunikat dla paska.
 func tap(grid: BuildGrid, cell: Vector2i) -> String:
+	if trap_mode:
+		return tap_trap(grid, cell)
 	if squads.is_empty():
 		return "Najpierw wyszkol wojsko: Koszary i Wojsko"
 	var holder := plan.squad_at(cell)
@@ -210,6 +236,47 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 	return "Oddział %d: obrona odcinka" % (selected + 1)
 
 
+## Dotknięcie kratki w trybie pułapek (#100): pułapka na kratce znika (bez zwrotu kosztu), inaczej
+## staje wybrana, gdy spełnia wymagania (epoka, technologia, budynki), limit Dworu, miejsce i koszt.
+func tap_trap(grid: BuildGrid, cell: Vector2i) -> String:
+	var existing := plan.trap_at(cell)
+	if existing != null:
+		plan.remove_trap(cell)
+		return "Usunięto: %s" % TrapConfig.NAMES[existing.kind]
+	var problem := TrapConfig.requirement_problem(trap_kind, grid, research, age)
+	if not problem.is_empty():
+		return problem
+	var limit := TrapConfig.limit(grid.manor_level())
+	if plan.traps.size() >= limit:
+		return "Limit pułapek: %d (wyższy Dwór da więcej)" % limit
+	problem = plan.trap_place_problem(grid, trap_kind, cell)
+	if not problem.is_empty():
+		return problem
+	var cost: Array[int] = []
+	cost.assign(TrapConfig.COST[trap_kind])
+	var needed: Dictionary = TrapConfig.GOODS_COST[trap_kind]
+	if economy != null and not economy.can_afford(cost):
+		return "Brak surowców: %s" % TrapConfig.cost_text(trap_kind)
+	if goods != null:
+		for good: int in needed:
+			if goods.amounts[good] < int(needed[good]):
+				return "Brak towarów: %s" % TrapConfig.cost_text(trap_kind)
+	if economy != null:
+		economy.spend(cost)
+	if goods != null:
+		goods.take(needed)
+	plan.add_trap(trap_kind, cell)
+	return "Postawiono: %s (%d/%d)" % [TrapConfig.NAMES[trap_kind], plan.traps.size(), limit]
+
+
+## Opis wybranej pułapki na pasku nad kafelkami: [nazwa i koszt; zajęte miejsca albo czego brakuje].
+func trap_describe() -> Array[String]:
+	var left := "%s: %s" % [TrapConfig.NAMES[trap_kind], TrapConfig.cost_text(trap_kind)]
+	var problem := TrapConfig.requirement_problem(trap_kind, castle, research, age) if castle != null else ""
+	var right := "%d/%d" % [plan.traps.size(), TrapConfig.limit(castle.manor_level() if castle != null else 1)]
+	return [left, "zablokowana" if not problem.is_empty() else right]
+
+
 ## Zadania do wyboru dla oddziału klasy `unit_class` w epoce `current_age`, w kolejności przycisku
 ## Zadanie: Obrona odcinka, Patrol, Wypad konnicy (konnica od epoki II), Przy donżonie.
 static func task_options(unit_class: int, current_age: int) -> Array[int]:
@@ -250,7 +317,9 @@ func _input(event: InputEvent) -> void:
 	var touch := event as InputEventScreenTouch
 	if touch == null:
 		return
-	var t := target_at(touch.position, get_viewport_rect().size, content_left, content_right, squads.size(), first)
+	var count := TrapConfig.count() if trap_mode else squads.size()
+	var t := target_at(touch.position, get_viewport_rect().size, content_left, content_right, count, first if not trap_mode else 0,
+			trap_mode)
 	if touch.pressed:
 		_pressed = t
 		if t != Target.NONE:
@@ -267,6 +336,19 @@ func _input(event: InputEvent) -> void:
 
 ## Działanie przycisku (też z testów).
 func activate(t: int) -> void:
+	if trap_mode and t >= Target.SQUAD:
+		trap_kind = clampi(t - Target.SQUAD, 0, TrapConfig.count() - 1)
+		var problem := TrapConfig.requirement_problem(trap_kind, castle, research, age) if castle != null else ""
+		changed.emit(problem if not problem.is_empty() else "%s: %s" % [TrapConfig.NAMES[trap_kind], TrapConfig.cost_text(trap_kind)])
+		return
+	if t == Target.TRAPS:
+		trap_mode = true
+		changed.emit(TRAP_HINT)
+		return
+	if t == Target.CREW:
+		trap_mode = false
+		changed.emit(HINT)
+		return
 	if t >= Target.SQUAD:
 		select(t - Target.SQUAD)
 		changed.emit("Oddział %d: %s" % [selected + 1, HINT])
@@ -296,8 +378,13 @@ func _draw() -> void:
 	if plan == null:
 		return
 	var view := get_viewport_rect().size
-	for i in COLUMN.size():
-		Hud.paint_button(self, Hud.column_rect(content_right, i), LABELS[i], _pressed == COLUMN[i], false)
+	var col := column(trap_mode)
+	var labels := column_labels(trap_mode)
+	for i in col.size():
+		Hud.paint_button(self, Hud.column_rect(content_right, i), labels[i], _pressed == col[i], false)
+	if trap_mode:
+		_draw_traps_bar(view)
+		return
 	if not squads.is_empty():
 		var info := AttackPanel.info_rect(view, content_left, content_right)
 		draw_rect(info, Color(Palette.SHADOW, 0.8))
@@ -310,6 +397,26 @@ func _draw() -> void:
 		_draw_tile(tile_rect(view, content_left, slot), shown[slot])
 	if squads.size() > fit:
 		Hud.paint_button(self, tile_rect(view, content_left, shown.size()), MORE_LABEL, _pressed == Target.MORE, false)
+
+
+## Pasek pułapek: opis wybranej i kafelek każdego rodzaju (zablokowane przygaszone).
+func _draw_traps_bar(view: Vector2) -> void:
+	var info := AttackPanel.info_rect(view, content_left, content_right)
+	draw_rect(info, Color(Palette.SHADOW, 0.8))
+	var text := trap_describe()
+	var right_w := PixelFont.text_width(text[1]) + 6
+	PixelFont.draw_text(self, info.position + Vector2(2, 1), ResearchPanel.fit_text(text[0], int(info.size.x - right_w - 4)),
+			Palette.INK)
+	PixelFont.draw_right(self, info.end.x - 2, info.position.y + 1, text[1], Palette.THATCH[2])
+	for k in TrapConfig.count():
+		var r := tile_rect(view, content_left, k)
+		Hud.paint_button(self, r, "", _pressed == Target.SQUAD + k or trap_kind == k, false)
+		if trap_kind == k:
+			CastleView.draw_frame(self, Rect2i(r), Palette.INK)
+		var locked := castle != null and not TrapConfig.requirement_problem(k, castle, research, age).is_empty()
+		var col: Color = Palette.WOOD[0] if locked else Palette.INK
+		PixelFont.draw_text(self, r.position + Vector2(3, 3), TrapConfig.GLYPHS[k], Palette.THATCH[2] if not locked else col)
+		PixelFont.draw_text(self, r.position + Vector2(10, 3), TrapConfig.SHORT_NAMES[k], col)
 
 
 func _draw_tile(r: Rect2, i: int) -> void:
