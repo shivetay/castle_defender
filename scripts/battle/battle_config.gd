@@ -51,6 +51,14 @@ const CAPTURE_S := 10
 const SPAWN_RETRIES := 64
 ## Obrona odcinka (#20): oddział ściga wrogów, którzy podeszli na tyle kratek do jego miejsca. TYMCZASOWE.
 const HOLD_RADIUS := 4
+## Stanowisko na murze (#20): strzelec na wale albo palisadzie ma +1 kratkę zasięgu i dostaje 60%
+## obrażeń od strzał (−40%), a wręcz dosięgnie go tylko atakujący po drabinie. TYMCZASOWE.
+const WALL_RANGE_BONUS := 1
+const WALL_ARROW_PERCENT := 60
+## Wypad konnicy (#20): rusza, gdy atakujący podejdzie na tyle kratek do bramy, i bije wrogów najwyżej
+## tyle kratek od niej (potem wraca za bramę). TYMCZASOWE.
+const SORTIE_TRIGGER := 2
+const SORTIE_REACH := 6
 ## Jak blisko donżonu (w kratkach od jego krawędzi) liczy się zajmowanie i obrona.
 const CAPTURE_RANGE := 1
 ## Morale oddziałów (#98), liczby całkowite 0–100. Z notatki Drzewko technologiczne: poniżej 30 oddział
