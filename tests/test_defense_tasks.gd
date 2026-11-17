@@ -205,7 +205,10 @@ func test_panel_edits_tasks() -> bool:
 	var pts: Array[Vector2i] = [_free_at(grid, Vector2i.RIGHT, 5), _free_at(grid, Vector2i.DOWN, 5),
 			_free_at(grid, Vector2i.LEFT, 5), _free_at(grid, Vector2i.UP, 5)]
 	assert_eq(panel.tap(grid, pts[0]), "Oddział 1: patrol, punkt 1 z 3", "pierwszy punkt")
+	assert_eq(panel.describe(0)[1], "Patrol 1/3: dodaj punkt", "sam start to jeszcze nie pętla (review #181)")
+	assert_eq(p.battle_orders([7] as Array[int])[0].task, T.HOLD, "i w bitwie trzyma miejsce jak Obrona odcinka")
 	panel.tap(grid, pts[1])
+	assert_eq(p.battle_orders([7] as Array[int])[0].task, T.PATROL, "z drugim punktem to patrol")
 	assert_eq(panel.tap(grid, pts[2]), "Oddział 1: patrol, punkt 3 z 3", "trzeci punkt")
 	assert_eq(p.order_for(7).patrol_points(), [pts[0], pts[1], pts[2]] as Array[Vector2i], "trasa")
 	assert_eq(panel.describe(0)[1], "Patrol 3/3 pkt", "opis trasy")
@@ -227,6 +230,10 @@ func test_panel_edits_tasks() -> bool:
 			wall_at = q
 			placed = true
 	assert_true(placed, "palisada w strefie")
+	panel.activate(DefensePanel.Target.TASK)
+	assert_eq(panel.tap(grid, wall_at), "Tu stoi %s" % BuildingTypes.NAMES[K.PALISADE],
+			"przy Patrolu palisada nie przyciąga punktu (review #181)")
+	panel.activate(DefensePanel.Target.TASK)
 	assert_eq(panel.tap(grid, wall_at), "Oddział 1: obrona odcinka, %s" % BuildingTypes.NAMES[K.PALISADE], "dotknięcie palisady")
 	assert_eq(p.post_for(7), wall_at + Vector2i.LEFT, "miejsce od środka zamku")
 	assert_eq(p.tower_priority, DefensePlan.TowerPriority.NEAREST, "wieże: domyślnie najbliższy")

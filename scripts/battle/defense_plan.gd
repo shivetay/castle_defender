@@ -104,7 +104,9 @@ func prune(recruitment: Recruitment) -> void:
 
 
 ## Zadania oddziałów bitwy w kolejności `ids` (Recruitment.battle_ids()); null dla oddziału bez
-## zadania albo bez miejsca. Lista idzie do Battle.create_squads (kopie: bitwa nie zmienia układu).
+## zadania albo bez miejsca. Patrol bez punktów trasy (sam start) to jeszcze nie pętla, więc idzie
+## do bitwy jako Obrona odcinka na swoim miejscu (review #181). Lista idzie do Battle.create_squads
+## (kopie: bitwa nie zmienia układu).
 func battle_orders(ids: Array[int]) -> Array[Order]:
 	var out: Array[Order] = []
 	for id in ids:
@@ -113,7 +115,7 @@ func battle_orders(ids: Array[int]) -> Array[Order]:
 			out.append(null)
 			continue
 		var c := Order.new()
-		c.task = o.task
+		c.task = Task.HOLD if o.task == Task.PATROL and o.route.is_empty() else o.task
 		c.post = o.post
 		c.route = o.route.duplicate()
 		out.append(c)

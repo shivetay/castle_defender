@@ -114,6 +114,8 @@ static func task_text(o: DefensePlan.Order) -> String:
 	if o.post == DefensePlan.NO_POST:
 		return "%s: dotknij mapy" % DefensePlan.TASK_NAMES[o.task]
 	if o.task == DefensePlan.Task.PATROL:
+		if o.route.is_empty():
+			return "Patrol 1/%d: dodaj punkt" % (DefensePlan.MAX_ROUTE + 1)
 		return "Patrol %d/%d pkt" % [o.route.size() + 1, DefensePlan.MAX_ROUTE + 1]
 	return DefensePlan.TASK_NAMES[o.task]
 
@@ -135,9 +137,12 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 	if holder != 0 and holder != selected_id() and ids.has(holder):
 		select(ids.find(holder))
 		return "Oddział %d: %s" % [selected + 1, task_text(plan.order_for(holder))]
+	var o := plan.order_for(selected_id())
+	var patrol := o != null and o.task == DefensePlan.Task.PATROL
+	# odcinek umocnień przyciąga tylko Obronę odcinka; punkt patrolu stawia się na trawie (review #181)
 	var section := ""
 	var id := grid.building_at(cell) if grid.terrain.in_bounds(cell) else 0
-	if id != 0 and DefensePlan.is_section(grid.kinds[id]) and DefensePlan.zone(grid).has_point(cell):
+	if not patrol and id != 0 and DefensePlan.is_section(grid.kinds[id]) and DefensePlan.zone(grid).has_point(cell):
 		section = BuildingTypes.NAMES[grid.kinds[id]]
 		cell = DefensePlan.section_post(grid, id)
 		if cell == DefensePlan.NO_POST:
@@ -145,8 +150,7 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 	var problem := DefensePlan.post_problem(grid, cell)
 	if not problem.is_empty():
 		return problem
-	var o := plan.order_for(selected_id())
-	if o != null and o.task == DefensePlan.Task.PATROL:
+	if patrol:
 		if o.post == DefensePlan.NO_POST or o.route.size() >= DefensePlan.MAX_ROUTE:
 			o.post = cell
 			o.route.clear()
