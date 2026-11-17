@@ -215,7 +215,7 @@ func _start_battle_preview() -> void:
 			[UnitTypes.Unit.RIDER, 4], [UnitTypes.Unit.FIRE_RAISER, 3]]
 	var view := BattleView.new()
 	view.battle = Battle.create_squads(grid, grid.keep_id(), attackers, defenders, _edge_road(), world_seed,
-			defense.battle_orders(recruitment.battle_ids()))
+			defense.battle_orders(recruitment.battle_ids(), recruitment.battle_squads(), grid, CURRENT_AGE))
 	view.battle.tower_priority = defense.tower_priority
 	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	add_child(view)
@@ -475,7 +475,8 @@ func _on_siege_pressed() -> void:
 	_battle_wave = pve_cleared
 	_battle_ids = recruitment.battle_ids()
 	var b := Battle.for_castle_squads(grid, PveWaves.squads(_battle_wave), recruitment.battle_squads(), _edge_road(),
-			PveWaves.battle_seed(world_seed, _battle_wave), research, defense.battle_orders(_battle_ids),
+			PveWaves.battle_seed(world_seed, _battle_wave), research,
+			defense.battle_orders(_battle_ids, recruitment.battle_squads(), grid, CURRENT_AGE),
 			defense.tower_priority)
 	battle_view = BattleView.new()
 	battle_view.battle = b
@@ -674,7 +675,7 @@ func _on_defence_pressed() -> void:
 	hud.set_building(false)
 	_cursor = Rect2i()
 	defense.prune(recruitment)
-	defense_panel.open(defense, army, recruitment.battle_ids())
+	defense_panel.open(defense, army, recruitment.battle_ids(), grid, CURRENT_AGE)
 	hud.overlay = true
 	camera.look_at_world(Vector2(DefensePlan.keep_center(grid) * TerrainMap.CELL))
 	hud.message = DefensePanel.HINT
@@ -895,16 +896,31 @@ func _draw_defence() -> void:
 		var o := defense.order_for(defense_panel.ids[i])
 		if o != null and o.task == DefensePlan.Task.PATROL and o.post != DefensePlan.NO_POST:
 			_draw_patrol(o, Palette.INK if i == defense_panel.selected else Color(Palette.THATCH[1], 0.8))
+	# wybrany oddział na końcu, żeby jego znacznik był na wierzchu (domyślne miejsca bywają wspólne)
+	var order: Array[int] = []
 	for i in defense_panel.ids.size():
+		if i != defense_panel.selected:
+			order.append(i)
+	if defense_panel.selected < defense_panel.ids.size():
+		order.append(defense_panel.selected)
+	for i in order:
+		var o := defense.order_for(defense_panel.ids[i])
+		var cls := UnitTypes.unit_class(int((defense_panel.squads[i] as Array)[0]))
 		var post := defense.post_for(defense_panel.ids[i])
+		# oddział bez zadania: miejsce zadania domyślnego jego klasy, w przygaszonej ramce (#20)
+		var fallback := o == null
+		if fallback:
+			var d := DefensePlan.default_order(grid, cls, CURRENT_AGE)
+			post = d.post if d != null else DefensePlan.NO_POST
 		if post == DefensePlan.NO_POST:
 			continue
 		var at := post * TerrainMap.CELL
-		var blocked := not DefensePlan.post_problem(grid, post).is_empty()
+		var blocked := not DefensePlan.post_problem(grid, post).is_empty() and not DefensePlan.wall_post(grid, post)
 		var col: Color = Palette.INK if i == defense_panel.selected else Palette.THATCH[1]
+		if fallback and i != defense_panel.selected:
+			col = Palette.WOOD[0]
 		draw_rect(Rect2(at.x, at.y, TerrainMap.CELL, TerrainMap.CELL), Color(Palette.SHADOW, 0.7))
 		CastleView.draw_frame(self, Rect2i(at, Vector2i.ONE * TerrainMap.CELL), Palette.ACCENT if blocked else col)
-		var cls := UnitTypes.unit_class(int((defense_panel.squads[i] as Array)[0]))
 		if PixelIcons.class_region(cls).has_area():
 			PixelIcons.draw_class(self, Vector2(at + Vector2i(2, 2)), cls)
 

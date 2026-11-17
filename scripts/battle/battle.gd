@@ -43,6 +43,8 @@ class Fighter:
 	## Kratka, na którą jednostka wycofuje się po złamaniu oddziału (#98): miejsce startu atakującego,
 	## a dla obrońcy kratka przy donżonie, także gdy jego oddział stał na wysuniętym posterunku (#19).
 	var rally := Vector2i.ZERO
+	## Stanowisko na murze (#20): id wału albo palisady, na którym jednostka stoi, albo 0.
+	var wall := 0
 	## Numer oddziału po swojej stronie (od 1, w kolejności armii).
 	var squad := 0
 	## Kopijnik już zaszarżował (szarża działa tylko w pierwszym uderzeniu).
@@ -94,6 +96,9 @@ var tower_fire_percent := 100
 var defence: Dictionary[int, DefensePlan.Order] = {}
 var tower_priority := 0
 var _patrol: Dictionary[int, Array] = {}
+## Wypad konnicy (#20): brama oddziału (klucz: numer oddziału obrońcy) i oddziały, które już wyszły.
+var _sortie_gate: Dictionary[int, int] = {}
+var _sortie_out: Dictionary[int, bool] = {}
 
 var _terrain: TerrainMap
 var _cells: PackedInt32Array
@@ -183,6 +188,8 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 		for p in o.patrol_points():
 			points.append(b._walkable_near(p))
 		b._patrol[i + 1] = points
+		if o.task == DefensePlan.Task.SORTIE:
+			b._sortie_gate[i + 1] = b._gate_near(o.post)
 	b._spawn_squads(defenders, Side.DEFENDER, home, anchors)
 	return b
 
@@ -376,6 +383,7 @@ func checksum() -> int:
 		h = _mix(h, f.climb)
 		# kratka wycofania (review #180): dwie bitwy z różnym rozstawieniem obrońców różnią się już na starcie
 		h = _mix(h, f.rally.x * 256 + f.rally.y)
+		h = _mix(h, f.wall)
 	for id: int in structures:
 		h = _mix(h, id)
 		h = _mix(h, structures[id].hp)
@@ -386,7 +394,7 @@ func checksum() -> int:
 	# stan rozkazów planu ataku (#18), żeby weryfikacja w trakcie bitwy (#29) widziała też je
 	for key: int in squad_size:
 		var flags := (1 if _sq_started.has(key) else 0) + (2 if _sq_done.has(key) else 0) \
-				+ (4 if _sq_retreat.has(key) else 0)
+				+ (4 if _sq_retreat.has(key) else 0) + (8 if _sortie_out.has(key) else 0)
 		h = _mix(h, flags)
 		h = _mix(h, int(_sq_dead.get(key, 0)))
 	return h
@@ -449,6 +457,8 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 	var placed: Dictionary[Vector2i, int] = {}
 	var taken: Dictionary[Vector2i, bool] = {}
 	var rally_n := 0
+	# stanowiska na murze (#20): kratki linii wału i palisady od miejsca oddziału, w stałej kolejności
+	var wall_cells: Dictionary[Vector2i, Array] = {}
 	for k in units.size():
 		var unit := units[k]
 		var f := Fighter.new()
@@ -459,6 +469,21 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 		f.side = side
 		f.hp = UnitTypes.hp(unit)
 		var anchor := anchors[f.squad - 1] if f.squad - 1 < anchors.size() else at
+		if _wall_station(side, f.squad, f.unit, anchor):
+			if not wall_cells.has(anchor):
+				wall_cells[anchor] = _wall_line(anchor)
+			var free_wall := Vector2i(-1, -1)
+			for c: Vector2i in wall_cells[anchor]:
+				if not taken.has(c):
+					free_wall = c
+					break
+			if free_wall.x >= 0:
+				# na murze: kratka muru jest stanowiskiem, bez szukania wolnej trawy
+				taken[free_wall] = true
+				f.wall = _cells[free_wall.y * _terrain.size + free_wall.x]
+				_place_fighter(f, free_wall, at, anchor, rally_n)
+				rally_n += 1
+				continue
 		var cell := _free_cell_near(anchor, int(placed.get(anchor, 0)))
 		placed[anchor] = int(placed.get(anchor, 0)) + 1
 		# zajęte przez sąsiedni posterunek: kolejne kratki pierścieni (z limitem na pełną mapę)
@@ -468,19 +493,57 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 			placed[anchor] = int(placed[anchor]) + 1
 			tries += 1
 		taken[cell] = true
-		f.x = cell.x * BattleConfig.SUB + BattleConfig.SUB / 2
-		f.y = cell.y * BattleConfig.SUB + BattleConfig.SUB / 2
-		f.post = cell
-		f.rally = cell
+		_place_fighter(f, cell, at, anchor, rally_n)
 		if anchor != at:
-			# kratki wycofania mogą się powtarzać z miejscami innych jednostek: to tylko cel marszu
-			f.rally = _free_cell_near(at, rally_n)
 			rally_n += 1
-		f.cooldown = _rng.range_int(0, BattleConfig.ATTACK_COOLDOWN_TICKS - 1)
-		fighters.append(f)
-		var key := _squad_key(side, f.squad)
-		morale[key] = BattleConfig.MORALE_START
-		squad_size[key] = int(squad_size.get(key, 0)) + 1
+
+
+## Stawia jednostkę `f` na kratce `cell`: posterunek, kratka wycofania (przy `at`, gdy oddział ma
+## własne miejsce `anchor`), rozrzut gotowości do ataku i morale oddziału.
+func _place_fighter(f: Fighter, cell: Vector2i, at: Vector2i, anchor: Vector2i, rally_n: int) -> void:
+	f.x = cell.x * BattleConfig.SUB + BattleConfig.SUB / 2
+	f.y = cell.y * BattleConfig.SUB + BattleConfig.SUB / 2
+	f.post = cell
+	f.rally = cell
+	if anchor != at:
+		# kratki wycofania mogą się powtarzać z miejscami innych jednostek: to tylko cel marszu
+		f.rally = _free_cell_near(at, rally_n)
+	f.cooldown = _rng.range_int(0, BattleConfig.ATTACK_COOLDOWN_TICKS - 1)
+	fighters.append(f)
+	var key := _squad_key(f.side, f.squad)
+	morale[key] = BattleConfig.MORALE_START
+	squad_size[key] = int(squad_size.get(key, 0)) + 1
+
+
+## Czy jednostka `unit` oddziału `squad` strony `side` staje na murze: strzelec obrońcy z Obroną
+## odcinka, którego miejsce to kratka żywego wału albo palisady (#20). Inni stają pod murem.
+func _wall_station(side: int, squad: int, unit: int, anchor: Vector2i) -> bool:
+	if side != Side.DEFENDER or not defence.has(squad) or defence[squad].task != DefensePlan.Task.HOLD:
+		return false
+	if UnitTypes.unit_class(unit) != RecruitmentConfig.UnitClass.RANGED:
+		return false
+	var s := _structure_at(anchor)
+	return s != null and BuildingTypes.is_wall(s.kind)
+
+
+## Kratki linii wału i palisady połączonej z `start` (bokami), od `start` wszerz, sąsiedzi w stałej
+## kolejności N, E, S, W.
+func _wall_line(start: Vector2i) -> Array:
+	var out: Array = [start]
+	var seen: Dictionary[Vector2i, bool] = {start: true}
+	var i := 0
+	while i < out.size():
+		var c: Vector2i = out[i]
+		i += 1
+		for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+			var n := c + d
+			if seen.has(n) or not _terrain.in_bounds(n):
+				continue
+			seen[n] = true
+			var s := _structure_at(n)
+			if s != null and BuildingTypes.is_wall(s.kind):
+				out.append(n)
+	return out
 
 
 ## `n`-ta wolna kratka w pierścieniach wokół `c` (kolejność stała).
@@ -511,6 +574,8 @@ func _act(f: Fighter) -> void:
 		if not f.retreating:
 			f.retreating = true
 			f.path.clear()
+		if f.wall != 0:
+			_step_down(f)
 		if cornered(f):
 			# osaczony na swojej kratce (obrońca przy donżonie): nie ściga, ale oddaje wrogom w zasięgu (#16)
 			var near := _enemy_for(f)
@@ -562,8 +627,12 @@ func _enemy_for(f: Fighter) -> Fighter:
 	var extra := BattleConfig.DEFENDER_AGGRO_EXTRA if f.side == Side.DEFENDER else BattleConfig.AGGRO_EXTRA
 	var sight := (UnitTypes.attack_range(f.unit) + extra) * BattleConfig.SUB
 	var rider := f.unit == UnitTypes.Unit.RIDER
+	var reach_walls := f.climbed or UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE
 	for o in fighters:
 		if o.side == f.side or not o.alive():
+			continue
+		# obrońcę na murze (#20) wręcz dosięgnie tylko ten, kto wszedł po drabinie
+		if o.wall != 0 and not reach_walls:
 			continue
 		var d := _dist2(f.x, f.y, o.x, o.y)
 		if d > sight * sight:
@@ -608,6 +677,8 @@ func _walk(f: Fighter, goal: Vector2i, px: int, py: int, breach: bool, grid: ASt
 	elif next != goal:
 		return  # brak drogi
 	var blocker := _structure_at(next)
+	if blocker != null and f.side == Side.DEFENDER and grid == _ram_astar and blocker.kind == BuildingTypes.Kind.GATE:
+		blocker = null  # wypad konnicy (#20): własna brama to przejście
 	if blocker != null:
 		# budynek na drodze: z sąsiedniej kratki burzy go atakujący z atakiem
 		if breach and UnitTypes.attack(f.unit) > 0 \
@@ -678,6 +749,8 @@ func unit_damage(f: Fighter, enemy: Fighter) -> int:
 		dmg = dmg * BattleConfig.CHARGE_PERCENT / 100
 	if ranged and _behind_shields(enemy):
 		dmg = dmg * BattleConfig.SHIELD_WALL_PERCENT / 100
+	if ranged and enemy.wall != 0:
+		dmg = dmg * BattleConfig.WALL_ARROW_PERCENT / 100
 	if not ranged and enemy.unit == UnitTypes.Unit.GAMBESON_WARRIOR:
 		dmg = dmg * BattleConfig.GAMBESON_MELEE_PERCENT / 100
 	return morale_damage(f, dmg)
@@ -1238,10 +1311,141 @@ func _count_loss(f: Fighter) -> void:
 # --- Zadania obrony (#20) ----------------------------------------------------------------------------
 
 func _defend(f: Fighter, o: DefensePlan.Order) -> void:
-	if o.task == DefensePlan.Task.PATROL:
+	if f.wall != 0:
+		_wall_act(f)
+	elif o.task == DefensePlan.Task.PATROL:
 		_patrol_act(f)
+	elif o.task == DefensePlan.Task.SORTIE:
+		_sortie_act(f)
+	elif o.task == DefensePlan.Task.FIELD:
+		_field_act(f)
 	else:
 		_hold_section(f)
+
+
+## Stanowisko na murze: strzela do wroga w zasięgu (+WALL_RANGE_BONUS) i nie schodzi. Gdy odcinek
+## padnie, jednostka zostaje na gruzie i broni się dalej jak Obrona odcinka z tego miejsca.
+func _wall_act(f: Fighter) -> void:
+	var s: Structure = structures.get(f.wall, null)
+	if s == null or s.hp <= 0:
+		f.wall = 0
+		f.post = f.cell()
+		f.path.clear()
+		_hold_section(f)
+		return
+	var enemy := _enemy_for(f)
+	if enemy != null and _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit) + BattleConfig.WALL_RANGE_BONUS):
+		f.target = enemy.id
+		_strike_unit(f, enemy)
+		return
+	f.target = 0
+
+
+## Zejście z muru (np. przy wycofaniu): na wolną kratkę przy murze najbliżej kratki wycofania.
+func _step_down(f: Fighter) -> void:
+	var s: Structure = structures.get(f.wall, null)
+	f.wall = 0
+	if s == null or s.hp <= 0:
+		return
+	var best := Vector2i(-1, -1)
+	var best_d := -1
+	for c in _ring(s.rect):
+		if not _free_ground(c):
+			continue
+		var d := (c - f.rally).length_squared()
+		if best_d < 0 or d < best_d:
+			best = c
+			best_d = d
+	if best.x >= 0:
+		f.x = best.x * BattleConfig.SUB + BattleConfig.SUB / 2
+		f.y = best.y * BattleConfig.SUB + BattleConfig.SUB / 2
+	f.path.clear()
+
+
+## Brama najbliżej kratki `c` (żywa, przy remisie niższe id) albo 0.
+func _gate_near(c: Vector2i) -> int:
+	var best := 0
+	var best_d := -1
+	for id: int in structures:
+		var s := structures[id]
+		if s.kind != BuildingTypes.Kind.GATE or s.hp <= 0:
+			continue
+		var d := (s.rect.get_center() - c).length_squared()
+		if best_d < 0 or d < best_d or (d == best_d and id < best):
+			best = id
+			best_d = d
+	return best
+
+
+## Wypad konnicy: czeka za bramą (bije tylko w zasięgu). Gdy atakujący podejdzie pod bramę albo brama
+## padnie, oddział wychodzi przez nią (własna brama jest dla niego przejściem), bije wrogów najwyżej
+## SORTIE_REACH kratek od bramy, a bez nich wraca na swoje miejsce.
+func _sortie_act(f: Fighter) -> void:
+	var key := _squad_key(f.side, f.squad)
+	var gate: Structure = structures.get(int(_sortie_gate.get(f.squad, 0)), null)
+	if not _sortie_out.has(key) and _sortie_triggered(gate):
+		_sortie_out[key] = true
+	if not _sortie_out.has(key):
+		_hold(f)
+		return
+	var base := gate.rect if gate != null else Rect2i(f.post, Vector2i.ONE)
+	var area := base.grow(BattleConfig.SORTIE_REACH)
+	var enemy: Fighter = null
+	var best_d := 0
+	for o in fighters:
+		if o.side == f.side or not o.alive() or not area.has_point(o.cell()):
+			continue
+		var d := _dist2(f.x, f.y, o.x, o.y)
+		if enemy == null or d < best_d:
+			enemy = o
+			best_d = d
+	if enemy != null:
+		f.target = enemy.id
+		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+			_strike_unit(f, enemy)
+		else:
+			_walk(f, enemy.cell(), enemy.x, enemy.y, false, _ram_astar)
+		return
+	f.target = 0
+	_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
+			false, _ram_astar)
+
+
+## Konnica przed murami: stoi na swoim miejscu (także poza murami), bije wrogów najwyżej FIELD_RADIUS
+## kratek od niego, a bez nich wraca. Jeździ drogami taranu, więc własne bramy są dla niej przejściem,
+## a mury nie.
+func _field_act(f: Fighter) -> void:
+	var area := Rect2i(f.post, Vector2i.ONE).grow(BattleConfig.FIELD_RADIUS)
+	var enemy: Fighter = null
+	var best_d := 0
+	for o in fighters:
+		if o.side == f.side or not o.alive() or not area.has_point(o.cell()):
+			continue
+		var d := _dist2(f.x, f.y, o.x, o.y)
+		if enemy == null or d < best_d:
+			enemy = o
+			best_d = d
+	if enemy != null:
+		f.target = enemy.id
+		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+			_strike_unit(f, enemy)
+		else:
+			_walk(f, enemy.cell(), enemy.x, enemy.y, false, _ram_astar)
+		return
+	f.target = 0
+	_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
+			false, _ram_astar)
+
+
+## Czy wypad ma ruszyć: brama padła albo żywy, niewycofany atakujący jest SORTIE_TRIGGER kratek od niej.
+func _sortie_triggered(gate: Structure) -> bool:
+	if gate == null or gate.hp <= 0:
+		return true
+	var near := gate.rect.grow(BattleConfig.SORTIE_TRIGGER)
+	for o in fighters:
+		if o.side == Side.ATTACKER and o.alive() and not routed(o) and near.has_point(o.cell()):
+			return true
+	return false
 
 
 ## Obrona odcinka: bije wroga w zasięgu, ściga tylko tych, którzy podeszli na HOLD_RADIUS kratek
