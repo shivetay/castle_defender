@@ -93,6 +93,14 @@ func test_o2_sharpened_stakes_palisade() -> bool:
 		else:
 			assert_eq(s.max_hp, int(hp[id]), "inne budynki bez zmian")
 	assert_true(palisades > 0, "są palisady")
+	# review #187: ponowne wywołanie nie mnoży premii drugi raz, a bez O2 wraca do bazowej
+	b.apply_research(SIDE.DEFENDER, _research(["O2"] as Array[String]))
+	for id: int in b.structures:
+		if b.structures[id].kind == K.PALISADE:
+			assert_eq(b.structures[id].max_hp, int(hp[id]) * 120 / 100, "drugie wywołanie: nadal +20%")
+	b.apply_research(SIDE.DEFENDER, Research.new())
+	for id: int in b.structures:
+		assert_eq(b.structures[id].max_hp, int(hp[id]), "bez O2: wytrzymałość bazowa")
 	var c := _battle([[U.AXE_WARRIOR, 1]], [])
 	c.apply_research(SIDE.ATTACKER, _research(["O2"] as Array[String]))
 	for id: int in c.structures:

@@ -86,6 +86,8 @@ class Structure:
 	var rect := Rect2i()
 	var hp := 0
 	var max_hp := 0
+	## Wytrzymałość z poziomu budynku, przed premiami z badań (#12, O2 liczy się od niej).
+	var base_hp := 0
 	var cooldown := 0
 	## Ile ticków budynek jeszcze płonie (Podpalacz).
 	var burning := 0
@@ -188,6 +190,7 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 		s.kind = grid.kinds[id]
 		s.rect = grid.buildings[id]
 		s.max_hp = BattleConfig.building_hp(s.kind, grid.levels[id])
+		s.base_hp = s.max_hp
 		s.hp = s.max_hp
 		b.structures[id] = s
 	b._setup_astar()
@@ -243,12 +246,15 @@ func apply_research(side: int, research: Research) -> void:
 			if research.is_done(code):
 				known[code] = true
 	techs[side] = known
-	if side == Side.DEFENDER and known.has("O2"):
+	if side == Side.DEFENDER:
+		# od bazowej wytrzymałości, więc ponowne wywołanie nie mnoży premii drugi raz (review #187)
 		for id: int in structures:
 			var st := structures[id]
 			if st.kind == BuildingTypes.Kind.PALISADE:
-				@warning_ignore("integer_division")
-				st.max_hp = st.max_hp * BattleConfig.O2_PALISADE_HP_PERCENT / 100
+				st.max_hp = st.base_hp
+				if known.has("O2"):
+					@warning_ignore("integer_division")
+					st.max_hp = st.base_hp * BattleConfig.O2_PALISADE_HP_PERCENT / 100
 				st.hp = st.max_hp
 
 
