@@ -55,7 +55,8 @@ const CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Zamknij"]
 ## Karta budynku rekrutacji ma czwarty przycisk Szkol przed Zamknij.
 const RECRUIT_CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Szkol", "Zamknij"]
 ## Karta Strażnicy (#177): z niej rusza się na fale samouczka (Oblężenie) i na zamki botów (Wyprawa).
-const PVE_CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Oblężenie", "Wyprawa", "Zamknij"]
+## Strażnica ma jeden poziom i nie da się jej rozebrać, więc nie ma Ulepsz ani Rozbierz.
+const PVE_CARD_LABELS: Array[String] = ["Oblężenie", "Wyprawa", "Zamknij"]
 const EXPEDITION_LABEL := "Wyprawa"
 const ARMY_LABEL := "Wojsko"
 const CANCEL_LABEL := "Anuluj"
@@ -189,10 +190,11 @@ static func column_targets(is_building: bool, in_battle: bool = false) -> Array[
 	return [Target.BUILD, Target.RESEARCH, Target.ARMY, Target.DEFENCE, Target.QUEUE, Target.SETTINGS] as Array[int]
 
 
-## Przyciski karty (CardButton) od lewej: Ulepsz, Rozbierz, [Szkol | Oblężenie, Wyprawa,] Zamknij.
+## Przyciski karty (CardButton) od lewej: Ulepsz, Rozbierz, [Szkol,] Zamknij; Strażnica: Oblężenie,
+## Wyprawa, Zamknij.
 static func card_buttons(recruit: bool = false, pve: bool = false) -> Array[int]:
 	if pve:
-		return [CardButton.UPGRADE, CardButton.DEMOLISH, CardButton.SIEGE, CardButton.ATTACK, CardButton.CLOSE] as Array[int]
+		return [CardButton.SIEGE, CardButton.ATTACK, CardButton.CLOSE] as Array[int]
 	if recruit:
 		return [CardButton.UPGRADE, CardButton.DEMOLISH, CardButton.RECRUIT, CardButton.CLOSE] as Array[int]
 	return [CardButton.UPGRADE, CardButton.DEMOLISH, CardButton.CLOSE] as Array[int]

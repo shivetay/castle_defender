@@ -333,9 +333,10 @@ obrony z #19 (posterunki załogi wokół donżonu).
   i przeładowuje scenę, mapa zostaje ta sama, bo seed należy do gracza) i Zamknij. Stopka: gra offline
   z zapisem na telefonie i wersja z `project.godot`. Gra nie łączy się z siecią przy starcie.
 - Strażnica (`BuildingTypes.Kind.WATCHTOWER`, #177): budynek PvE 2×2, czatownia na słupach z drabiną.
-  Stoi od startu przy Dworze (z kratką odstępu od Dworu i donżonu), jest jedna i nie da się jej rozebrać;
-  starsze zapisy dostają ją przy wczytaniu. Jej karta ma Oblężenie (fale samouczka) i Wyprawę (atak
-  na zamek bota), które zniknęły z kolumny HUD-u. Ulepszenia 100 Dr 30 Ka 30 Ży, 60 s (tymczasowe).
+  Stoi od startu przy Dworze (z kratką odstępu od Dworu i donżonu), jest jedna, nie da się jej rozebrać
+  i ma jeden poziom (`BuildingTypes.has_levels`, decyzja właścicielki); starsze zapisy dostają ją przy
+  wczytaniu. Jej karta ma tylko Oblężenie (fale samouczka), Wyprawę (atak na zamek bota) i Zamknij;
+  Oblężenie i Atak zniknęły z kolumny HUD-u.
   PvP dostanie osobny budynek w etapie 9.
 - `scripts/ui/queue_panel.gd` (`QueuePanel`, #163): ekran Kolejka pod przyciskiem Kolejka (z liczbą
   zleceń budowy i szkolenia) albo po dotknięciu czasu budowy na górnym pasku. Zakładka Budynki: zlecenia

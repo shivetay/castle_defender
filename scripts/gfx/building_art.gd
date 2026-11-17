@@ -89,7 +89,7 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 		BuildingTypes.Kind.KEEP:
 			_draw_keep(img, lv)
 		BuildingTypes.Kind.WATCHTOWER:
-			_draw_watchtower(img, lv)
+			_draw_watchtower(img)
 		_:
 			_draw_workshop(img, kind, lv, ln)
 	if mirror:
@@ -849,13 +849,12 @@ static func _draw_keep(img: Image, level: int) -> void:
 
 
 ## Strażnica (2×2, #177): budynek PvE, z którego wyrusza się na fale i wyprawy. Czatownia z desek
-## na czterech słupach ze skośnym zastrzałem i drabiną, dach ze strzechy i czerwony proporzec
-## zwiadu. Poziomy: 2 wyższe słupy, 3 balustrada, 4 kosz z ogniem sygnałowym, 5 druga chorągiew.
-static func _draw_watchtower(img: Image, level: int) -> void:
+## na czterech słupach ze skośnym zastrzałem i drabiną, balustrada, dach ze strzechy, czerwony proporzec
+## i kosz z ogniem sygnałowym. Ma jeden poziom (BuildingTypes.has_levels), więc rysunek go nie zależy.
+static func _draw_watchtower(img: Image) -> void:
 	var base := 13 + EXTRA[BuildingTypes.Kind.WATCHTOWER]
 	PixelCanvas.rect(img, Rect2i(2, base + 1, 12, 1), Color(Palette.SHADOW, 0.5))
-	var post_h: Array[int] = [12, 15, 15, 17, 17]
-	var deck := base - post_h[level - 1]
+	var deck := base - 15
 	# słupy i zastrzał w kształcie X między przednimi słupami
 	for x: int in [3, 12]:
 		PixelCanvas.rect(img, Rect2i(x, deck, 1, base - deck + 1), Palette.WOOD[1])
@@ -863,8 +862,7 @@ static func _draw_watchtower(img: Image, level: int) -> void:
 		PixelCanvas.rect(img, Rect2i(x, deck + 2, 1, base - deck - 3), Palette.WOOD[0])
 	var span := base - deck - 3
 	for i in span:
-		@warning_ignore("integer_division")
-		var dx := i * 8 / maxi(span, 1)
+		var dx := i * 8 / span
 		PixelCanvas.px(img, 4 + dx, deck + 2 + i, Palette.WOOD[2])
 		PixelCanvas.px(img, 11 - dx, deck + 2 + i, Palette.WOOD[2])
 	# drabina z przodu
@@ -873,26 +871,20 @@ static func _draw_watchtower(img: Image, level: int) -> void:
 		PixelCanvas.px(img, 9, y, Palette.WOOD[2])
 		if (y - deck) % 2 == 0:
 			PixelCanvas.px(img, 8, y, Palette.WOOD[3])
-	# pomost i czatownia
+	# pomost z balustradą i czatownia
 	PixelCanvas.draw_plank_wall(img, Rect2i(1, deck - 1, 14, 2), Palette.WOOD)
-	var cabin := Rect2i(3, deck - 6, 10, 5)
-	PixelCanvas.draw_plank_wall(img, cabin, Palette.WOOD)
+	PixelCanvas.rect(img, Rect2i(1, deck - 3, 1, 2), Palette.WOOD[1])
+	PixelCanvas.rect(img, Rect2i(14, deck - 3, 1, 2), Palette.WOOD[1])
+	PixelCanvas.rect(img, Rect2i(1, deck - 3, 2, 1), Palette.WOOD[2])
+	PixelCanvas.rect(img, Rect2i(13, deck - 3, 2, 1), Palette.WOOD[2])
+	PixelCanvas.draw_plank_wall(img, Rect2i(3, deck - 6, 10, 5), Palette.WOOD)
 	PixelCanvas.rect(img, Rect2i(5, deck - 5, 6, 2), Palette.SHADOW)
-	if level >= 3:
-		# balustrada wokół pomostu
-		PixelCanvas.rect(img, Rect2i(1, deck - 3, 1, 2), Palette.WOOD[1])
-		PixelCanvas.rect(img, Rect2i(14, deck - 3, 1, 2), Palette.WOOD[1])
-		PixelCanvas.rect(img, Rect2i(1, deck - 3, 2, 1), Palette.WOOD[2])
-		PixelCanvas.rect(img, Rect2i(13, deck - 3, 2, 1), Palette.WOOD[2])
 	PixelCanvas.draw_roof(img, 8, deck - 10, 2, 4, Palette.THATCH)
 	PixelCanvas.draw_flag(img, Vector2i(8, deck - 10), 3, Palette.ACCENT)
-	if level >= 4:
-		# kosz z ogniem sygnałowym na rogu pomostu
-		PixelCanvas.rect(img, Rect2i(13, deck - 4, 2, 2), Palette.SHADOW)
-		PixelCanvas.px(img, 13, deck - 5, Palette.ACCENT)
-		PixelCanvas.px(img, 14, deck - 5, Palette.THATCH[2])
-	if level == 5:
-		PixelCanvas.draw_flag(img, Vector2i(2, deck - 4), 2, Palette.ACCENT)
+	# kosz z ogniem sygnałowym na rogu pomostu
+	PixelCanvas.rect(img, Rect2i(13, deck - 4, 2, 2), Palette.SHADOW)
+	PixelCanvas.px(img, 13, deck - 5, Palette.ACCENT)
+	PixelCanvas.px(img, 14, deck - 5, Palette.THATCH[2])
 
 
 ## Koń z boku, 5×4 px, stojący na wierszu `at.y` od kolumny `at.x`: tułów, głowa z grzywą

@@ -22,7 +22,9 @@ func test_same_input_same_pixels() -> bool:
 func test_every_level_looks_different() -> bool:
 	for kind in BuildingTypes.count():
 		var seen := {}
-		for level in range(1, BuildingTypes.MAX_LEVEL + 1):
+		# Strażnica (#177) ma jeden poziom
+		var top := BuildingTypes.MAX_LEVEL if BuildingTypes.has_levels(kind) else 1
+		for level in range(1, top + 1):
 			var img := BuildingArt.make_image(kind, level, BuildingTypes.State.INTACT, 0b1010)
 			assert_eq(img.get_size(), BuildingArt.image_size(kind), "rozmiar obrazu rodzaju %d" % kind)
 			var data := img.get_data()

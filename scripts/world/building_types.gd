@@ -92,6 +92,12 @@ static func is_unique(kind: int) -> bool:
 	return kind == Kind.MANOR or kind == Kind.KEEP or kind == Kind.WATCHTOWER
 
 
+## Czy budynek ma poziomy do ulepszania. Strażnica (#177) ma jeden poziom (decyzja właścicielki):
+## ulepszenie nic by w PvE nie zmieniało.
+static func has_levels(kind: int) -> bool:
+	return kind != Kind.WATCHTOWER
+
+
 ## Liczba rodzajów, które gracz stawia z panelu budowy (bez Dworu i donżonu).
 static func buildable_count() -> int:
 	return BUILD_BAR.size()

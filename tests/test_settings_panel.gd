@@ -6,6 +6,7 @@ const VIEW := Vector2(320, 180)
 const T := SettingsPanel.Target
 const S := SettingsPanel.Screen
 const K := BuildingTypes.Kind
+const MAIN := preload("res://scripts/main.gd")
 
 
 func test_buttons_and_targets() -> bool:
@@ -85,18 +86,20 @@ func test_settings_button_in_hud_column() -> bool:
 	return true
 
 
-## Karta Strażnicy: Ulepsz, Rozbierz, Oblężenie, Wyprawa, Zamknij mieszczą się na 320 px.
+## Karta Strażnicy: tylko Oblężenie, Wyprawa i Zamknij (jeden poziom, nie do rozebrania).
 func test_watchtower_card() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
 	var card := Hud.card_rects(VIEW, false, true)
-	assert_eq(card.size(), 5, "5 przycisków")
+	assert_eq(card.size(), 3, "3 przyciski")
 	assert_true(card[0].position.x >= b.x and card[-1].end.x <= b.y, "karta mieści się na 320 px")
+	assert_eq(Hud.target_at(card[0].get_center(), VIEW, b.y, false, true, false, false, true),
+			Hud.Target.CARD + Hud.CardButton.SIEGE, "pierwszy: Oblężenie")
+	assert_eq(Hud.target_at(card[1].get_center(), VIEW, b.y, false, true, false, false, true),
+			Hud.Target.CARD + Hud.CardButton.ATTACK, "drugi: Wyprawa")
 	assert_eq(Hud.target_at(card[2].get_center(), VIEW, b.y, false, true, false, false, true),
-			Hud.Target.CARD + Hud.CardButton.SIEGE, "trzeci: Oblężenie")
-	assert_eq(Hud.target_at(card[3].get_center(), VIEW, b.y, false, true, false, false, true),
-			Hud.Target.CARD + Hud.CardButton.ATTACK, "czwarty: Wyprawa")
-	assert_eq(Hud.target_at(card[4].get_center(), VIEW, b.y, false, true, false, false, true),
-			Hud.Target.CARD + Hud.CardButton.CLOSE, "piąty: Zamknij")
+			Hud.Target.CARD + Hud.CardButton.CLOSE, "trzeci: Zamknij")
+	assert_true(PixelFont.text_width(MAIN.WATCHTOWER_INFO) <= int(card[-1].end.x - card[0].position.x),
+			"opis mieści się na karcie")
 	for button in Hud.card_buttons(false, true):
 		assert_true(PixelFont.text_width(Hud.card_label(button)) <= Hud.BUTTON_SIZE.x - 2, "„%s” mieści się" % Hud.card_label(button))
 	return true
@@ -121,7 +124,11 @@ func test_watchtower_is_unique_and_placed_near_manor() -> bool:
 	again.place(again.manor_spot(WorldSeed.MANOR_MAX_RING), K.MANOR, 1)
 	again.place(again.keep_spot(WorldSeed.KEEP_MAX_RING), K.KEEP, 1)
 	assert_eq(again.watchtower_spot(again.terrain.size), spot, "to samo miejsce dla seeda")
-	for level in range(1, BuildingTypes.MAX_LEVEL + 1):
-		var img := BuildingArt.make_image(K.WATCHTOWER, level, 0)
-		assert_true(img.get_used_rect().has_area(), "rysunek poziomu %d" % level)
+	assert_true(BuildingArt.make_image(K.WATCHTOWER, 1, 0).get_used_rect().has_area(), "rysunek Strażnicy")
+	# jeden poziom (decyzja właścicielki): nie da się jej ulepszyć nawet przy Dworze 5
+	assert_true(not BuildingTypes.has_levels(K.WATCHTOWER), "bez poziomów")
+	assert_eq(BuildConfig.max_level(K.WATCHTOWER, BuildingTypes.MAX_LEVEL), 1, "najwyższy poziom 1")
+	assert_eq(MAIN.upgrade_info(K.WATCHTOWER, 1, 5, false), MAIN.WATCHTOWER_INFO, "karta bez kosztu ulepszenia")
+	assert_true(BuildingTypes.has_levels(K.KEEP) and BuildingTypes.has_levels(K.BARRACKS), "inne budynki mają poziomy")
+	assert_eq(BuildQueue.new().upgrade_hint(grid, id), BuildQueue.NO_LEVELS_HINT, "komunikat bez wymogu Dworu")
 	return true

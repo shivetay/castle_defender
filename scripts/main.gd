@@ -30,6 +30,8 @@ const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
+## Linia karty Strażnicy (#177): jeden poziom, więc zamiast kosztu ulepszenia krótki opis.
+const WATCHTOWER_INFO := "Fale i wyprawy na boty"
 ## Podgląd bitwy w wersji debug (#15): godot --path . -- --battle-preview. Bitwę z gry uruchomi #16.
 const BATTLE_PREVIEW_ARG := "--battle-preview"
 
@@ -864,7 +866,7 @@ func _refresh_card() -> void:
 	var kind := grid.kinds[_selected_id]
 	var level := grid.levels[_selected_id]
 	var pending := queue.has_order(_selected_id)
-	var status := "poziom %d/%d" % [level, BuildingTypes.MAX_LEVEL]
+	var status := "poziom %d/%d" % [level, BuildingTypes.MAX_LEVEL] if BuildingTypes.has_levels(kind) else ""
 	if pending:
 		status = "budowa %s" % Hud.format_time(queue.remaining_ms(_selected_id, _now_ms()))
 	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level())
@@ -872,7 +874,7 @@ func _refresh_card() -> void:
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
-	hud.card_info_missing = PackedStringArray() if pending or level >= BuildingTypes.MAX_LEVEL \
+	hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, BuildingTypes.MAX_LEVEL) \
 			else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
@@ -882,6 +884,8 @@ func _refresh_card() -> void:
 static func upgrade_info(kind: int, level: int, manor_level: int, pending: bool) -> String:
 	if pending:
 		return "Trwa budowa"
+	if not BuildingTypes.has_levels(kind):
+		return WATCHTOWER_INFO
 	if level >= BuildingTypes.MAX_LEVEL:
 		return "Najwyższy poziom"
 	var text := "Ulepsz: %s, %s" % [Hud.cost_text(BuildConfig.cost(kind, level + 1)),
