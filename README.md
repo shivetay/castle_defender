@@ -233,9 +233,21 @@ obrony z #19 (posterunki załogi wokół donżonu).
   - **Priorytet celów wież:** przycisk Wieże (najbliższy, taran, strzelcy, konnica). Wieża bije
     najbliższego z wybranej grupy, a bez takiego w zasięgu najbliższego.
   - **Zapis:** wersja 8 z migracją; posterunki z wersji 7 stają się Obroną odcinka.
-  - **Dalej (#20):** stanowiska strzelców na murach, domyślne zadania według klasy, Wypad konnicy
-    (z przejściem obrońców przez własne bramy) i Gaszenie pożarów po Studni (#35). Pułapki to #100,
-    komendant dojdzie z generałami (#31).
+  - **Na murze:** strzelec z Obroną odcinka na wale albo palisadzie (dotknięcie muru) stoi na samym
+    murze, a kolejni z oddziału na sąsiednich odcinkach tej linii (reszta pod murem). Ma +1 kratkę zasięgu
+    i 60% obrażeń od strzał, a wręcz dosięgnie go tylko atakujący po drabinie. Gdy odcinek padnie, zostaje
+    na gruzie i walczy z ziemi; złamany schodzi z muru i wycofuje się pod donżon. Liczby tymczasowe.
+  - **Wypad konnicy** (od epoki II, jak w notatce): konnica czeka tuż za wskazaną bramą. Gdy atakujący
+    podejdzie na 2 kratki do bramy albo brama padnie, wychodzi przez nią (własna brama to dla niej
+    przejście), bije wrogów do 6 kratek od bramy i wraca. Liczby tymczasowe.
+  - **Przy donżonie:** jawne zadanie dla oddziału, który ma stać jak przed #19.
+  - **Zadania domyślne** (oddział bez ustawionego zadania, plan zatwierdzony przez właściciela):
+    strzelcy na odcinek muru najbliżej bramy, piechota lekka i ciężka przy bramie od środka, konnica na
+    wypad (w epoce I trzyma bramę jak piechota), specjalni przy donżonie. Bez bramy i murów w strefie
+    wszyscy stoją przy donżonie, więc wczesne fale samouczka się nie zmieniają. Ekran Obrona pokazuje
+    zadanie domyślne w opisie i miejsce na mapie w przygaszonej ramce; Zdejmij wraca do domyślnego.
+    Zamki-cele (`BotCastle`) nie dostają jeszcze zadań domyślnych.
+  - **Dalej:** Gaszenie pożarów po Studni (#35). Pułapki to #100, komendant dojdzie z generałami (#31).
 - Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
   - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
   - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
@@ -397,8 +409,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 8 (#130): po ustawieniach obrony (#19) i pierwszym kroku zadań obrony (#20: Obrona odcinka, Patrol,
-Priorytet celów wież) kolejne są stanowiska strzelców na murach z domyślnymi zadaniami według klasy,
-Wypad konnicy, potem Gaszenie pożarów po Studni (#35). Pułapki (#100) czekają na projekt listy. Z etapu 6
-(#128) zostaje z efektów bitwy (#101) gaszenie pożarów, które czeka na Studnię (#35) i zadania obrony (#20).
-Z etapów 4–5 zostają części zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).
+Etap 8 (#130): ustawienia obrony (#19) i zadania obrony (#20: Obrona odcinka z murami, Patrol, Priorytet
+celów wież, Wypad konnicy, zadania domyślne) są zrobione. Do zamknięcia etapu zostają pułapki (#100, najpierw
+projekt listy) oraz decyzja właściciela, czy Gaszenie pożarów przejdzie do Studni (#35), a komendant do
+generałów (#31). Z etapów 4–5 zostają części zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).
