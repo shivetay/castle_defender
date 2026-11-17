@@ -10,6 +10,9 @@ extends RefCounted
 ## - Patrol: oddział krąży między 2–3 punktami, bije wroga w zasięgu wzroku i wraca na trasę;
 ## - Wypad konnicy (od epoki II): konnica czeka za bramą, a gdy wróg dojdzie pod bramę, wychodzi
 ##   przez nią, bije i wraca;
+## - Przed murami (konnica, od epoki I, prośba właściciela 17.11.2026): konnica stoi na wskazanej
+##   kratce, także na zewnątrz murów, bije wrogów do FIELD_RADIUS kratek od niej i wraca; przez własne
+##   bramy przejeżdża;
 ## - Przy donżonie: oddział stoi jak przed #19.
 ## Oddział bez ustawionego zadania dostaje w bitwie zadanie domyślne według klasy (default_order,
 ## plan zatwierdzony przez właściciela): strzelcy na mur przy bramie, piechota przy bramie, konnica
@@ -21,14 +24,14 @@ extends RefCounted
 ## nie przejmuje cudzego zadania. Układ to same liczby całkowite, więc ten sam układ i ten sam seed
 ## dają ten sam przebieg bitwy (powtórka, weryfikacja PvP).
 
-enum Task { HOLD, PATROL, SORTIE, KEEP }
+enum Task { HOLD, PATROL, SORTIE, KEEP, FIELD }
 ## Priorytet celów wież: najbliższy atakujący (jak dotąd), Taran, strzelcy, konnica. Wieża bierze
 ## najbliższego atakującego z wybranej grupy w swoim zasięgu, a gdy takiego nie ma, najbliższego.
 enum TowerPriority { NEAREST, RAM, RANGED, CAVALRY }
 
-const TASK_NAMES: Array[String] = ["Obrona odcinka", "Patrol", "Wypad konnicy", "Przy donżonie"]
+const TASK_NAMES: Array[String] = ["Obrona odcinka", "Patrol", "Wypad konnicy", "Przy donżonie", "Przed murami"]
 ## Od której epoki zadanie jest dostępne (0 = I), z notatki Manewry i zadania.
-const TASK_AGE: Array[int] = [0, 0, 1, 0]
+const TASK_AGE: Array[int] = [0, 0, 1, 0, 0]
 const TOWER_PRIORITY_NAMES: Array[String] = ["najbliższy", "taran", "strzelcy", "konnica"]
 const NO_POST := Vector2i(-1, -1)
 ## Posterunek stoi najwyżej tyle kratek (w pionie i poziomie) od środka donżonu: obrona skupia się
