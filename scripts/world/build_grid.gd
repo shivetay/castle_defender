@@ -103,16 +103,16 @@ func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int =
 ## Brama (3×1) staje środkiem na dotkniętej kratce, a gdy tam się nie mieści, dosuwa się tak,
 ## żeby dotknięta kratka była jej końcem. Staje pionowo (1×3), gdy obok jest pionowa palisada.
 ## Dotknięta droga ustawia bramę w poprzek drogi, z drogą pośrodku.
-func place_kind(c: Vector2i, kind: int, level: int = 1) -> int:
-	var rect := placement_for(c, kind)
+func place_kind(c: Vector2i, kind: int, level: int = 1, stick: bool = false) -> int:
+	var rect := placement_for(c, kind, stick)
 	return place(rect, kind, level) if rect.has_area() else 0
 
 
 ## Pierwsze miejsce, w które place_kind() postawiłby budynek dla kratki `c`, albo pusty prostokąt.
 ## Brama najpierw szuka miejsca bez zastępowania umocnień (luka w linii), a dopiero potem stawia
 ## się na odcinkach wału albo palisady.
-func placement_for(c: Vector2i, kind: int) -> Rect2i:
-	var candidates := placement_candidates(c, kind)
+func placement_for(c: Vector2i, kind: int, stick: bool = false) -> Rect2i:
+	var candidates := placement_candidates(c, kind, stick)
 	for rect in candidates:
 		if can_place(rect, kind) and (kind != BuildingTypes.Kind.GATE or walls_under(rect).is_empty()):
 			return rect
@@ -198,12 +198,17 @@ func manor_level() -> int:
 
 
 ## Prostokąty, które place_kind() próbuje po kolei dla dotkniętej kratki.
-func placement_candidates(c: Vector2i, kind: int) -> Array[Rect2i]:
+## Ze `stick` (stawianie przez gracza, #149) zwykły budynek przykleja się do pobliskiej linii umocnień;
+## bez niego (generator zamków, szukanie miejsc) zostaje dokładnie przy kratce.
+func placement_candidates(c: Vector2i, kind: int, stick: bool = false) -> Array[Rect2i]:
 	var size := BuildingTypes.size_of(kind)
 	if BuildingTypes.is_wall(kind):
 		return _wall_candidates(c, kind)
 	if kind != BuildingTypes.Kind.GATE:
-		return [Rect2i(c, size)]
+		# wieża łączy się z linią umocnień, więc staje w niej, a nie obok
+		if stick and kind != BuildingTypes.Kind.TOWER:
+			return _stick_candidates(c, kind, size)
+		return [Rect2i(c, size)] as Array[Rect2i]
 	var axis := road_axis(c)
 	var vertical := axis == Vector2i.RIGHT
 	if axis == Vector2i.ZERO:
@@ -217,6 +222,78 @@ func placement_candidates(c: Vector2i, kind: int) -> Array[Rect2i]:
 	for back: int in [1, 0, 2]:
 		out.append(Rect2i(c - along * back, rect_size))
 	return out
+
+
+## Kandydaci zwykłego budynku (#149): gdy przy dotkniętej kratce (do 1 kratki od budynku) biegnie wał
+## albo palisada, najpierw pozycja przyklejona do tej linii: jeden bok budynku przylega do muru na
+## możliwie największej długości (najlepiej całej), po stronie muru, po której jest palec. Z równych
+## wygrywa pozycja najbliższa dotkniętej kratce, potem pierwsza w stałej kolejności. Na końcu zwykła
+## pozycja od dotkniętej kratki, gdy przyklejenie się nie mieści.
+func _stick_candidates(c: Vector2i, kind: int, size: Vector2i) -> Array[Rect2i]:
+	var plain := Rect2i(c, size)
+	var best := Rect2i()
+	var best_score := 0
+	for dy in range(-size.y, 2):
+		for dx in range(-size.x, 2):
+			var r := Rect2i(c + Vector2i(dx, dy), size)
+			var contact := wall_contact(r)
+			if contact == 0 or not can_place(r, kind):
+				continue
+			var d := (r.position * 2 + r.size - c * 2 - Vector2i.ONE).length_squared()
+			var score := contact * 1000 - d
+			if best_score == 0 or score > best_score:
+				best = r
+				best_score = score
+	if not best.has_area() or best == plain:
+		return [plain] as Array[Rect2i]
+	return [best, plain] as Array[Rect2i]
+
+
+## Bok, którym zwykły budynek `id` przylega do wału albo palisady (#149): kierunek do muru i kratka
+## muru przy tym boku (pierwsza w stałej kolejności), z najdłuższym stykiem; [ZERO, (-1, -1)], gdy nie
+## przylega. Umocnienia, brama i wieża się nie przyklejają (łączą się w linii).
+func wall_side(id: int) -> Array:
+	var none := [Vector2i.ZERO, Vector2i(-1, -1)]
+	if not buildings.has(id):
+		return none
+	var kind := kinds[id]
+	if BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.GATE or kind == BuildingTypes.Kind.TOWER:
+		return none
+	var r := buildings[id]
+	var best := none
+	var best_n := 0
+	for side: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var n := 0
+		var first := Vector2i(-1, -1)
+		var length := r.size.x if side.y != 0 else r.size.y
+		for k in length:
+			var edge := Vector2i(r.position.x + k, r.position.y if side.y < 0 else r.end.y - 1) if side.y != 0 \
+					else Vector2i(r.position.x if side.x < 0 else r.end.x - 1, r.position.y + k)
+			var w := building_at(edge + side) if terrain.in_bounds(edge + side) else 0
+			if w != 0 and BuildingTypes.is_wall(kinds[w]):
+				n += 1
+				if first.x < 0:
+					first = edge + side
+		if n > best_n:
+			best_n = n
+			best = [side, first]
+	return best
+
+
+## Ile kratek jednego boku prostokąta przylega do wału albo palisady (najwięcej z czterech boków).
+func wall_contact(r: Rect2i) -> int:
+	var best := 0
+	for side: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+		var n := 0
+		var length := r.size.x if side.y != 0 else r.size.y
+		for k in length:
+			var edge := Vector2i(r.position.x + k, r.position.y if side.y < 0 else r.end.y - 1) if side.y != 0 \
+					else Vector2i(r.position.x if side.x < 0 else r.end.x - 1, r.position.y + k)
+			var w := building_at(edge + side) if terrain.in_bounds(edge + side) else 0
+			if w != 0 and BuildingTypes.is_wall(kinds[w]):
+				n += 1
+		best = maxi(best, n)
+	return best
 
 
 ## Kratki dla odcinka umocnienia. Wierzch umocnienia rysuje się o pół kratki wyżej niż jego kratka,

@@ -24,7 +24,36 @@ static func image_size(kind: int, vertical: bool = false) -> Vector2i:
 
 ## Obraz budynku. `mask` ma znaczenie tylko dla wału i palisady, `vertical` tylko dla bramy.
 ## Poziom 0 to plac budowy (stan nie ma wtedy znaczenia).
-static func make_image(kind: int, level: int, state: int, mask: int = 0, vertical: bool = false) -> Image:
+## Przybudówka przy murze (#149): strona, po której stoi wał albo palisada. Budynek przy murze ma dach
+## jednospadowy, wyższy przy murze: przy murze z boku fasada jest trójkątem prostokątnym, przy murze
+## z tyłu albo z przodu dach to jedna połać bez szczytu.
+enum Lean { NONE, NORTH, EAST, SOUTH, WEST }
+
+
+## Czy rodzaj rysuje się jako przybudówka, gdy przylega do muru: chata drwala i warsztaty (Dwór,
+## donżon, wieża, brama, pole lnu i umocnienia mają własny kształt).
+static func can_lean(kind: int) -> bool:
+	return kind == BuildingTypes.Kind.LUMBER_HUT or not (BuildingTypes.is_wall(kind) or kind in [
+			BuildingTypes.Kind.GATE, BuildingTypes.Kind.TOWER, BuildingTypes.Kind.MANOR, BuildingTypes.Kind.KEEP,
+			BuildingTypes.Kind.FLAX_FIELD])
+
+
+## Strona przybudówki z kierunku do muru (BuildGrid.wall_side).
+static func lean_from(dir: Vector2i) -> int:
+	match dir:
+		Vector2i.UP:
+			return Lean.NORTH
+		Vector2i.RIGHT:
+			return Lean.EAST
+		Vector2i.DOWN:
+			return Lean.SOUTH
+		Vector2i.LEFT:
+			return Lean.WEST
+	return Lean.NONE
+
+
+static func make_image(kind: int, level: int, state: int, mask: int = 0, vertical: bool = false,
+		lean: int = Lean.NONE) -> Image:
 	var v := vertical and kind == BuildingTypes.Kind.GATE
 	var sz := image_size(kind, v)
 	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
@@ -32,6 +61,11 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 		_draw_site(img, kind, mask)
 		return img
 	var lv := clampi(level, 1, BuildingTypes.MAX_LEVEL)
+	var ln := lean if can_lean(kind) else Lean.NONE
+	# przy murze z prawej: rysunek jak przy murze z lewej, odbity w poziomie
+	var mirror := ln == Lean.EAST
+	if mirror:
+		ln = Lean.WEST
 	match kind:
 		BuildingTypes.Kind.RAMPART:
 			_draw_rampart(img, lv, mask, state)
@@ -45,7 +79,7 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 		BuildingTypes.Kind.TOWER:
 			_draw_tower(img, lv)
 		BuildingTypes.Kind.LUMBER_HUT:
-			_draw_hut(img, lv)
+			_draw_hut(img, lv, ln)
 		BuildingTypes.Kind.MANOR:
 			_draw_manor(img, lv)
 		BuildingTypes.Kind.FLAX_FIELD:
@@ -53,9 +87,65 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 		BuildingTypes.Kind.KEEP:
 			_draw_keep(img, lv)
 		_:
-			_draw_workshop(img, kind, lv)
+			_draw_workshop(img, kind, lv, ln)
+	if mirror:
+		img.flip_x()
 	_apply_state(img, kind, state, mask)
 	return img
+
+
+## Dach jednospadowy przybudówki nad ścianą `wall`, `rows` wierszy w najwyższym miejscu (#149).
+## WEST: najwyżej przy lewej krawędzi (przy murze), opada w prawo, więc z fasadą tworzy trójkąt
+## prostokątny. NORTH: jedna połać opadająca ku patrzącemu, najwyżej przy murze z tyłu. SOUTH: połać
+## opada od muru z przodu w głąb, widać tylko niski okap.
+static func _draw_lean_roof(img: Image, wall: Rect2i, rows: int, lean: int) -> void:
+	match lean:
+		Lean.WEST:
+			var span := maxi(1, wall.size.x)
+			for x in range(0, wall.end.x + 1):
+				var h := maxi(2, rows - maxi(0, x - wall.position.x) * (rows - 2) / span)
+				for y in range(wall.position.y - h, wall.position.y):
+					var row := y - (wall.position.y - h)
+					var col: Color = Palette.THATCH[2] if row < 2 else Palette.THATCH[1]
+					if y == wall.position.y - 1:
+						col = Palette.THATCH[0]
+					elif PixelCanvas.hash2(x, y, 61) % 5 == 0:
+						col = Palette.THATCH[0]
+					PixelCanvas.px(img, x, y, col)
+		Lean.NORTH:
+			for y in range(wall.position.y - rows, wall.position.y):
+				var row := y - (wall.position.y - rows)
+				for x in range(maxi(0, wall.position.x - 1), mini(img.get_width(), wall.end.x + 1)):
+					var col: Color = Palette.THATCH[2] if row < rows / 2 else Palette.THATCH[1]
+					if row == rows - 1:
+						col = Palette.THATCH[0]
+					elif PixelCanvas.hash2(x, y, 61) % 5 == 0:
+						col = Palette.THATCH[0]
+					PixelCanvas.px(img, x, y, col)
+		_:
+			var low := maxi(2, rows / 2)
+			for y in range(wall.position.y - low, wall.position.y):
+				for x in range(maxi(0, wall.position.x - 1), mini(img.get_width(), wall.end.x + 1)):
+					var col: Color = Palette.THATCH[1] if y < wall.position.y - 1 else Palette.THATCH[0]
+					PixelCanvas.px(img, x, y, col)
+
+
+## Daszek wiaty (poziom 1) przy murze: słupy różnej wysokości i deski pochylone od muru (#149).
+static func _draw_lean_shed(img: Image, base: int, posts: Array[int], top: int, lean: int) -> void:
+	if lean == Lean.WEST:
+		var tall: int = posts[0]
+		var short: int = posts[1]
+		PixelCanvas.rect(img, Rect2i(tall, top + 2, 1, base - top - 1), Palette.WOOD[1])
+		PixelCanvas.rect(img, Rect2i(short, top + 5, 1, base - top - 4), Palette.WOOD[1])
+		for x in range(0, short + 3):
+			var y := top + x * 3 / maxi(1, short + 2)
+			PixelCanvas.px(img, x, y, Palette.WOOD[2])
+			PixelCanvas.px(img, x, y + 1, Palette.WOOD[0])
+		return
+	for x: int in posts:
+		PixelCanvas.rect(img, Rect2i(x, top + 2, 1, base - top - 1), Palette.WOOD[1])
+	var depth := 3 if lean == Lean.NORTH else 2
+	PixelCanvas.draw_plank_wall(img, Rect2i(0, top, posts[1] + 2, depth), Palette.WOOD)
 
 
 # --- Autotiling umocnień -------------------------------------------------------------------
@@ -395,9 +485,14 @@ static func _draw_tower(img: Image, level: int) -> void:
 
 ## Chata drwala (2×2). Poziomy: 1 wiata ze stosem drewna, 2 chata ze strzechą, 3 ze stosem
 ## bali z boku, 4 z oknem i szkieletem belek, 5 z drugim stosem i flagą.
-static func _draw_hut(img: Image, level: int) -> void:
+static func _draw_hut(img: Image, level: int, lean: int = Lean.NONE) -> void:
 	var base := 13 + EXTRA[BuildingTypes.Kind.LUMBER_HUT]
 	PixelCanvas.rect(img, Rect2i(1, base + 1, 14, 1), Color(Palette.SHADOW, 0.5))
+	if level == 1 and lean != Lean.NONE:
+		_draw_lean_shed(img, base, [2, 11] as Array[int], base - 11, lean)
+		_log_pile(img, Rect2i(4, base - 3, 6, 4))
+		PixelCanvas.rect(img, Rect2i(13, base - 1, 2, 2), Palette.WOOD[2])
+		return
 	if level == 1:
 		for x: int in [2, 11]:
 			PixelCanvas.rect(img, Rect2i(x, base - 9, 1, 10), Palette.WOOD[1])
@@ -412,7 +507,10 @@ static func _draw_hut(img: Image, level: int) -> void:
 		PixelCanvas.draw_window(img, Vector2i(wall.end.x - 4, base - 5))
 	PixelCanvas.draw_door(img, Rect2i(wall.position.x + 2, base - 4, 3, 5))
 	var cx := wall.position.x + wall.size.x / 2
-	PixelCanvas.draw_roof(img, cx, wall.position.y - 7, 2, 7, Palette.THATCH)
+	if lean != Lean.NONE:
+		_draw_lean_roof(img, wall, 7, lean)
+	else:
+		PixelCanvas.draw_roof(img, cx, wall.position.y - 7, 2, 7, Palette.THATCH)
 	if level >= 3:
 		_log_pile(img, Rect2i(12, base - 3, 4, 4))
 	if level == 5:
@@ -451,9 +549,13 @@ static func _draw_manor(img: Image, level: int) -> void:
 ## z prawej (_draw_prop) i po ścianie (bale albo deski). Poziomy: 1 wiata z rekwizytem pod daszkiem,
 ## 2 izba pod strzechą z rekwizytem obok, 3 z oknem i wyższym dachem, 4 szersza ze szkieletem belek
 ## i większym rekwizytem, 5 z flagą i proporcem na ścianie.
-static func _draw_workshop(img: Image, kind: int, level: int) -> void:
+static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.NONE) -> void:
 	var base := 13 + EXTRA[kind]
 	PixelCanvas.rect(img, Rect2i(1, base + 1, 14, 1), Color(Palette.SHADOW, 0.5))
+	if level == 1 and lean != Lean.NONE:
+		_draw_lean_shed(img, base, [1, 10] as Array[int], base - 10, lean)
+		_draw_prop(img, kind, Vector2i(3, base), false)
+		return
 	if level == 1:
 		for x: int in [1, 10]:
 			PixelCanvas.rect(img, Rect2i(x, base - 8, 1, 9), Palette.WOOD[1])
@@ -475,7 +577,10 @@ static func _draw_workshop(img: Image, kind: int, level: int) -> void:
 	PixelCanvas.draw_door(img, Rect2i(wall.position.x + 1, base - 4, 3, 5))
 	var cx := wall.position.x + wall.size.x / 2
 	var rows := 6 if level == 2 else (7 if level < 5 else 8)
-	PixelCanvas.draw_roof(img, cx, wall.position.y - rows, 2, rows, Palette.THATCH)
+	if lean != Lean.NONE:
+		_draw_lean_roof(img, wall, rows, lean)
+	else:
+		PixelCanvas.draw_roof(img, cx, wall.position.y - rows, 2, rows, Palette.THATCH)
 	_draw_prop(img, kind, Vector2i(11, base), wide)
 	if level == 5:
 		PixelCanvas.draw_flag(img, Vector2i(cx - 1, wall.position.y - rows - 1), 3, Palette.ACCENT)

@@ -376,7 +376,7 @@ func _on_tapped(world_pos: Vector2) -> void:
 		var result := queue.order_build(grid, economy, cell, kind, _now_ms(), research)
 		_cursor_ok = result == BuildQueue.Result.OK
 		# przy nieudanej próbie ramka ma kształt pierwszego wariantu (np. pionowej bramy)
-		_cursor = grid.buildings[queue.placed_id] if _cursor_ok else grid.placement_candidates(cell, kind)[0]
+		_cursor = grid.buildings[queue.placed_id] if _cursor_ok else grid.placement_candidates(cell, kind, true)[0]
 		if _cursor_ok:
 			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(BuildConfig.time_ms(kind, 1))]
 			_save()

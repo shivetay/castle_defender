@@ -59,7 +59,8 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 		return Result.NEEDS_TECH
 	if is_full():
 		return Result.QUEUE_FULL
-	var rect := grid.placement_for(c, kind)
+	# gracz stawia: budynek przykleja się do pobliskiej linii umocnień (#149)
+	var rect := grid.placement_for(c, kind, true)
 	if rect == Rect2i():
 		return Result.NO_PLACE
 	# brama w linii umocnień: odcinki w budowie zostają (najpierw trzeba je skończyć albo anulować)
@@ -69,7 +70,7 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 	var cost := BuildConfig.cost(kind, 1)
 	if not economy.spend(cost):
 		return Result.NO_RESOURCES
-	placed_id = grid.place_kind(c, kind, 0)
+	placed_id = grid.place_kind(c, kind, 0, true)
 	if placed_id == 0:
 		# bezpiecznik: placement_for i place_kind powinny się zgadzać, ale koszt nie może przepaść
 		for res in cost.size():
