@@ -10,15 +10,16 @@ extends RefCounted
 ## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, towary, kolejkę, badania, armię,
 ## plany ataku i ustawienia obrony.
 
-const FORMAT_VERSION := 7
+const FORMAT_VERSION := 8
 const PATH := "user://castle.json"
 
 ## Migracje: wersja → funkcja przerabiająca słownik tej wersji na wersję o 1 wyższą.
 ## Przy zmianie formatu podnieś FORMAT_VERSION i dopisz tu migrację z poprzedniej wersji.
 ## Wersja 2 dodała badania (#12), wersja 3 towary w zbrojowni (#88), wersja 4 armię i szkolenie (#89),
 ## wersja 5 postęp samouczka PvE (#16), wersja 6 plan ataku i zdobyte zamki (#17), wersja 7 ustawienia
-## obrony (#19).
-static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3, 4: _from_v4, 5: _from_v5, 6: _from_v6}
+## obrony (#19), wersja 8 zadania obrony i priorytet wież (#20).
+static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3, 4: _from_v4, 5: _from_v5, 6: _from_v6,
+		7: _from_v7}
 
 ## Stan gry odczytany z pliku.
 class State:
@@ -29,7 +30,7 @@ class State:
 	## Zapisany plan ataku (#17) i ile zamków-celów gracz już zdobył.
 	var attack_plan := AttackPlan.new()
 	var bots_beaten := 0
-	## Ustawienia obrony (#19): posterunki oddziałów załogi.
+	## Ustawienia obrony (#19, #20): zadania oddziałów załogi i priorytet wież.
 	var defense := DefensePlan.new()
 	var grid: BuildGrid
 	var economy: Economy
@@ -121,6 +122,12 @@ static func _from_v5(d: Dictionary) -> Dictionary:
 ## Wersja 6 → 7: zapis sprzed ustawień obrony: cała załoga stoi przy donżonie.
 static func _from_v6(d: Dictionary) -> Dictionary:
 	d["defense"] = {}
+	return d
+
+
+## Wersja 7 → 8: posterunki (#19) stają się zadaniami Obrona odcinka, wieże biją najbliższego.
+static func _from_v7(d: Dictionary) -> Dictionary:
+	d["defense"] = DefensePlan.from_v7(d.get("defense", {}) as Dictionary)
 	return d
 
 
