@@ -809,15 +809,20 @@ func _order(f: Fighter) -> AttackPlan.Order:
 ## Punkt obejścia dla Oskrzydlenia: w połowie drogi od miejsca startu do celu, przesunięty w bok
 ## (w lewo albo w prawo patrząc na cel) o połowę tej drogi, co najmniej FLANK_MIN_CELLS.
 func flank_point(o: AttackPlan.Order) -> Vector2i:
-	var t := _goal_cell_for(o)
-	var d := t - _spawn
-	var side := Vector2i(d.y, -d.x) if o.flank_left else Vector2i(-d.y, d.x)
+	return flank_point_between(_spawn, _goal_cell_for(o), o.flank_left, _terrain.size)
+
+
+## Punkt obejścia między wejściem `spawn` a celem `goal` na mapie `size`×`size` (wspólny dla bitwy
+## i strzałki na ekranie planu, #17).
+static func flank_point_between(spawn: Vector2i, goal: Vector2i, left: bool, size: int) -> Vector2i:
+	var d := goal - spawn
+	var side := Vector2i(d.y, -d.x) if left else Vector2i(-d.y, d.x)
 	var m := maxi(1, maxi(absi(side.x), absi(side.y)))
 	@warning_ignore("integer_division")
 	var length := maxi(BattleConfig.FLANK_MIN_CELLS, maxi(absi(d.x), absi(d.y)) / 2)
 	@warning_ignore("integer_division")
-	var p := _spawn + d / 2 + Vector2i(side.x * length / m, side.y * length / m)
-	var last := _terrain.size - 1
+	var p := spawn + d / 2 + Vector2i(side.x * length / m, side.y * length / m)
+	var last := size - 1
 	return Vector2i(clampi(p.x, 0, last), clampi(p.y, 0, last))
 
 

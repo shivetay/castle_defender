@@ -82,6 +82,14 @@ func test_map_taps_set_target_and_route() -> bool:
 	assert_eq(arrow[-1], gate_cell, "do celu")
 	AttackPlanner.clear(o)
 	assert_eq(AttackPlanner.arrow_cells(o, bot)[-1], bot.grid.buildings[bot.objective].get_center(), "bez celu: donżon")
+	# Oskrzydlenie bez trasy: strzałka idzie przez ten sam punkt obejścia, który wyznaczy bitwa
+	o.manoeuvre = M.FLANK
+	var flank := AttackPlanner.arrow_cells(o, bot)
+	assert_eq(flank.size(), 3, "wejście, obejście, cel")
+	var battle := Battle.create_squads(bot.grid, bot.objective, [[U.PEASANT, 2]], [], bot.spawn, 1)
+	assert_eq(flank[1], battle.flank_point(o), "ten sam punkt co w bitwie")
+	o.flank_left = false
+	assert_eq(AttackPlanner.arrow_cells(o, bot)[1], battle.flank_point(o), "także z prawej")
 	p.orders.append(AttackPlan.Order.new())
 	p.orders[-1].squad = 5
 	AttackPlanner.fit_plan(p, 2)

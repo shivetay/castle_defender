@@ -134,10 +134,13 @@ static func describe(o: AttackPlan.Order) -> Array[String]:
 ## bez trasy) i cel (wskazany budynek albo donżon).
 static func arrow_cells(o: AttackPlan.Order, b: BotCastle) -> Array[Vector2i]:
 	var out: Array[Vector2i] = [b.spawn]
-	out.append_array(o.waypoints)
 	var goal := o.target
 	if goal == AttackPlan.NO_TARGET and b.grid.buildings.has(b.objective):
 		goal = b.grid.buildings[b.objective].get_center()
+	if o.manoeuvre == AttackPlan.Manoeuvre.FLANK and o.waypoints.is_empty() and goal != AttackPlan.NO_TARGET:
+		# ten sam punkt obejścia, który wyznaczy bitwa (Battle.set_plan)
+		out.append(Battle.flank_point_between(b.spawn, goal, o.flank_left, b.grid.terrain.size))
+	out.append_array(o.waypoints)
 	if goal != AttackPlan.NO_TARGET:
 		out.append(goal)
 	return out
