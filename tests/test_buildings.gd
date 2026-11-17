@@ -177,9 +177,15 @@ func test_texture_cache_reuses_textures() -> bool:
 	assert_true(c == d, "maska nie ma znaczenia dla wieży")
 	tx.warm_up()
 	# poziomy 0–5 (0 = plac budowy): wał i palisada w 16 maskach, brama w dwóch ułożeniach,
-	# a pozostałe rodzaje (wieża, chata, dwór, wytwórcy) po jednym wariancie
+	# a pozostałe rodzaje (wieża, chata, dwór, wytwórcy) po jednym wariancie; chata i warsztaty
+	# na poziomach 1–5 dodatkowo jako przybudówki z 4 stron (#149)
 	var others := BuildingTypes.count() - 3
-	assert_eq(tx.cached_count(), 6 * (2 * 16 + 2 + others), "warm_up rysuje wszystkie całe warianty i place budowy")
+	var leaning := 0
+	for kind in BuildingTypes.count():
+		if BuildingArt.can_lean(kind):
+			leaning += 1
+	assert_eq(tx.cached_count(), 6 * (2 * 16 + 2 + others) + 5 * 4 * leaning,
+			"warm_up rysuje wszystkie całe warianty, place budowy i przybudówki")
 	return true
 
 
