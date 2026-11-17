@@ -27,10 +27,11 @@ signal recruit_pressed
 signal attack_pressed
 signal defence_pressed
 signal queue_pressed
+signal menu_pressed
 
 enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, CARD = 100 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, MENU = 11, CARD = 100 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -58,6 +59,7 @@ const SIEGE_LABEL := "Oblężenie"
 const ATTACK_LABEL := "Atak"
 const DEFENCE_LABEL := "Obrona"
 const QUEUE_LABEL := "Kolejka"
+const MENU_LABEL := "Menu"
 const GOAL_PREFIX := "Cel:"
 const BUILD_LABEL := "Buduj"
 const DONE_LABEL := "Gotowe"
@@ -178,7 +180,7 @@ static func column_targets(is_building: bool, in_battle: bool = false) -> Array[
 	if is_building:
 		return [Target.DONE, Target.CHANGE] as Array[int]
 	return [Target.BUILD, Target.RESEARCH, Target.ARMY, Target.SIEGE, Target.ATTACK, Target.DEFENCE,
-			Target.QUEUE] as Array[int]
+			Target.QUEUE, Target.MENU] as Array[int]
 
 
 ## Przyciski karty budynku (Ulepsz, Rozbierz, [Szkol,] Zamknij), wyśrodkowane nad paskiem komunikatu.
@@ -417,6 +419,8 @@ func _activate(t: int) -> void:
 		defence_pressed.emit()
 	elif t == Target.QUEUE:
 		queue_pressed.emit()
+	elif t == Target.MENU:
+		menu_pressed.emit()
 
 
 # --- Rysowanie ---------------------------------------------------------------------------------
@@ -473,6 +477,8 @@ static func column_label(t: int) -> String:
 			return DEFENCE_LABEL
 		Target.QUEUE:
 			return QUEUE_LABEL
+		Target.MENU:
+			return MENU_LABEL
 		Target.DONE:
 			return DONE_LABEL
 		Target.CHANGE:

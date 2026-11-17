@@ -48,6 +48,10 @@ var goods: Goods
 var recruitment := Recruitment.new()
 var recruit_panel: RecruitPanel
 var research_panel: ResearchPanel
+## Ekran startowy (#177): po uruchomieniu i z przycisku Menu w HUD-zie.
+var start_menu: StartMenu
+## Nowa gra przeładowuje scenę bez zapisu; wtedy menu się nie pokazuje drugi raz.
+static var skip_menu := false
 var build_panel: BuildPanel
 var queue_panel: QueuePanel
 ## Ile fal samouczka PvE (#16) gracz obronił; trwająca bitwa (null poza bitwą).
@@ -206,10 +210,24 @@ func _ready() -> void:
 	layer.add_child(recruit_panel)
 	recruit_panel.train_requested.connect(_on_train_requested)
 	recruit_panel.closed.connect(_on_overlay_closed)
+	# menu dodane na końcu dostaje dotyk przed HUD-em i panelami
+	start_menu = StartMenu.new()
+	start_menu.has_save = saved != null
+	start_menu.visible = false
+	layer.add_child(start_menu)
+	start_menu.continue_pressed.connect(_on_menu_continue)
+	start_menu.new_game_requested.connect(_on_new_game)
+	hud.menu_pressed.connect(_on_menu_opened)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
 	_save()
-	if OS.is_debug_build() and OS.get_cmdline_user_args().has(BATTLE_PREVIEW_ARG):
+	var preview := OS.is_debug_build() and OS.get_cmdline_user_args().has(BATTLE_PREVIEW_ARG)
+	if skip_menu or preview:
+		skip_menu = false
+	else:
+		hud.overlay = true
+		start_menu.open()
+	if preview:
 		_start_battle_preview()
 
 
@@ -799,6 +817,34 @@ func _on_train_requested(unit: int, squad_id: int) -> void:
 		hud.message = RecruitPanel.missing_text(unit, goods)
 	else:
 		hud.message = Recruitment.MESSAGES[result]
+
+
+## Menu z gry: zapis, karta i kursor się zamykają, a menu przykrywa mapę (#177).
+func _on_menu_opened() -> void:
+	_tick()
+	_save()
+	_deselect()
+	_cursor = Rect2i()
+	hud.overlay = true
+	start_menu.has_save = true
+	start_menu.open()
+	queue_redraw()
+
+
+func _on_menu_continue() -> void:
+	start_menu.close()
+	_on_overlay_closed()
+
+
+## Nowa gra: bez zapisu po prostu wchodzi do świeżego zamku, a przy zapisie (już potwierdzonym w menu)
+## usuwa go i przeładowuje scenę. Mapa zostaje ta sama, bo seed należy do gracza (PlayerProfile).
+func _on_new_game() -> void:
+	if not start_menu.has_save:
+		_on_menu_continue()
+		return
+	SaveGame.delete(SaveGame.PATH)
+	skip_menu = true
+	get_tree().reload_current_scene()
 
 
 func _on_overlay_closed() -> void:

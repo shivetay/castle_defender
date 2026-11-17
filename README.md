@@ -327,6 +327,12 @@ obrony z #19 (posterunki załogi wokół donżonu).
   dojdzie z bitwą); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
   Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
+- `scripts/ui/start_menu.gd` (`StartMenu`, #177): ekran startowy na przyciemnionym zamku. Kontynuuj
+  (gdy był zapis), Nowa gra (przy zapisie najpierw „Zacząć od nowa?”; usuwa zapis i przeładowuje scenę,
+  mapa zostaje ta sama, bo seed należy do gracza) i Ustawienia (Język: polski/English z zapowiedzią
+  angielskiego #64, Dźwięk: wkrótce, Wróć). Stopka: gra offline z zapisem na telefonie i wersja z
+  `project.godot`. Do menu wraca się ósmą ikoną kolumny HUD-u (Menu), z zapisem gry. Gra nie łączy się
+  z siecią przy starcie.
 - `scripts/ui/queue_panel.gd` (`QueuePanel`, #163): ekran Kolejka pod przyciskiem Kolejka (z liczbą
   zleceń budowy i szkolenia) albo po dotknięciu czasu budowy na górnym pasku. Zakładka Budynki: zlecenia
   w kolejności wykonania (nazwa, „nowy” albo „poz. N→N+1”, czas; pierwsze z paskiem postępu, kolejne
@@ -458,5 +464,5 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#20) i pułapki (#100).
 Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
-(#28). Następny jest etap 9 (#131): backend Supabase i PvP. Z etapów 4–5 zostają części zależne od bitwy,
+(#28). Po starcie gra pokazuje ekran startowy z trybem offline (#177). Następny jest etap 9 (#131): backend Supabase i PvP. Z etapów 4–5 zostają części zależne od bitwy,
 planu ataku i generałów (#81, #89, #91, #97, #12).

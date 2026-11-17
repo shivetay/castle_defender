@@ -33,7 +33,7 @@ const CLASSES: Array = [
 
 ## Ikony 7×7 głównej kolumny HUD-u (#150), w kolejności Hud.column_targets(false): Buduj (młotek),
 ## Badania (księga), Wojsko (hełm z nosalem), Oblężenie (wieża), Atak (skrzyżowane miecze),
-## Obrona (tarcza), Kolejka (klepsydra).
+## Obrona (tarcza), Kolejka (klepsydra), Menu (trzy kreski, ekran startowy #177).
 const MENU_SIZE := 7
 const MENU: Array = [
 	[".LLLLL.", ".LLLLL.", "...l...", "...w...", "...w...", "...w...", "...k..."],
@@ -43,6 +43,7 @@ const MENU: Array = [
 	["L.....L", ".L...L.", "..L.L..", "...L...", "..TLT..", ".w...w.", "w.....w"],
 	[".mmmmm.", "mwwawwm", "mwwawwm", "mwaaawm", ".mwawm.", "..mwm..", "...m..."],
 	["lllllll", ".TTTTT.", "..TTT..", "...T...", "..T.T..", ".TTTTT.", "lllllll"],
+	[".......", "iiiiiii", ".......", "iiiiiii", ".......", "iiiiiii", "......."],
 ]
 
 static var _atlas: ImageTexture
