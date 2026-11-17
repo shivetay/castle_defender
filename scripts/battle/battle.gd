@@ -45,6 +45,9 @@ class Fighter:
 	var rally := Vector2i.ZERO
 	## Stanowisko na murze (#20): id wału albo palisady, na którym jednostka stoi, albo 0.
 	var wall := 0
+	## Pułapki (#100): ile ticków jednostka jeszcze stoi (Wilczy dół) i ile jeszcze płonie.
+	var stun := 0
+	var fire := 0
 	## Numer oddziału po swojej stronie (od 1, w kolejności armii).
 	var squad := 0
 	## Kopijnik już zaszarżował (szarża działa tylko w pierwszym uderzeniu).
@@ -63,6 +66,17 @@ class Fighter:
 
 	func alive() -> bool:
 		return hp > 0
+
+
+## Pułapka w bitwie (#100): rodzaj i kratka z ustawień obrony, czy już zadziałała, do którego ticku
+## działa (Kolczatka, Płonące strzały) i kratki, na których działa (Zrzucane kłody, Wrząca smoła).
+class TrapState:
+	extends RefCounted
+	var kind := 0
+	var cell := Vector2i.ZERO
+	var fired := false
+	var until := 0
+	var area: Array[Vector2i] = []
 
 
 class Structure:
@@ -99,6 +113,8 @@ var _patrol: Dictionary[int, Array] = {}
 ## Wypad konnicy (#20): brama oddziału (klucz: numer oddziału obrońcy) i oddziały, które już wyszły.
 var _sortie_gate: Dictionary[int, int] = {}
 var _sortie_out: Dictionary[int, bool] = {}
+## Pułapki obrońcy (#100) w kolejności z ustawień obrony.
+var traps: Array[TrapState] = []
 
 var _terrain: TerrainMap
 var _cells: PackedInt32Array
@@ -231,6 +247,8 @@ func step() -> void:
 	for f in fighters:
 		if f.alive():
 			_act(f)
+	if not traps.is_empty():
+		_traps_act()
 	for id: int in structures:
 		var s := structures[id]
 		if s.hp > 0 and s.kind == BuildingTypes.Kind.TOWER:
@@ -384,6 +402,7 @@ func checksum() -> int:
 		# kratka wycofania (review #180): dwie bitwy z różnym rozstawieniem obrońców różnią się już na starcie
 		h = _mix(h, f.rally.x * 256 + f.rally.y)
 		h = _mix(h, f.wall)
+		h = _mix(h, f.stun * 1024 + f.fire)
 	for id: int in structures:
 		h = _mix(h, id)
 		h = _mix(h, structures[id].hp)
@@ -392,6 +411,8 @@ func checksum() -> int:
 		h = _mix(h, key)
 		h = _mix(h, int(morale[key]))
 	# stan rozkazów planu ataku (#18), żeby weryfikacja w trakcie bitwy (#29) widziała też je
+	for t in traps:
+		h = _mix(h, (1 if t.fired else 0) + t.until * 2)
 	for key: int in squad_size:
 		var flags := (1 if _sq_started.has(key) else 0) + (2 if _sq_done.has(key) else 0) \
 				+ (4 if _sq_retreat.has(key) else 0) + (8 if _sortie_out.has(key) else 0)
@@ -568,6 +589,9 @@ func _free_cell_near(c: Vector2i, n: int) -> Vector2i:
 func _act(f: Fighter) -> void:
 	if f.cooldown > 0:
 		f.cooldown -= 1
+	if f.stun > 0:
+		f.stun -= 1  # w wilczym dole (#100): ani kroku, ani ciosu
+		return
 	if routed(f):
 		# wycofanie (#98): bez walki na swoją kratkę wycofania, drogą omijającą żywe budynki
 		f.target = 0
@@ -714,6 +738,9 @@ func _structure_at(c: Vector2i) -> Structure:
 ## Ruch w stronę punktu, najpierw w osi z większą różnicą (całe podjednostki).
 func _move_toward(f: Fighter, tx: int, ty: int) -> void:
 	var step_len := UnitTypes.speed(f.unit) * BattleConfig.SPEED_SUB_PER_TICK
+	if f.side == Side.ATTACKER and UnitTypes.unit_class(f.unit) == RecruitmentConfig.UnitClass.FAST and _in_caltrops(f.cell()):
+		@warning_ignore("integer_division")
+		step_len = maxi(1, step_len * TrapConfig.CALTROPS_SLOW_PERCENT / 100)
 	var dx := tx - f.x
 	var dy := ty - f.y
 	if absi(dx) >= absi(dy):
@@ -735,7 +762,13 @@ func _strike_unit(f: Fighter, enemy: Fighter) -> void:
 	if f.cooldown > 0:
 		return
 	f.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS
-	_hurt(enemy, _roll(unit_damage(f, enemy)))
+	var dmg := unit_damage(f, enemy)
+	if f.side == Side.DEFENDER and UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE \
+			and _fire_arrows_near(f.cell()):
+		@warning_ignore("integer_division")
+		dmg = dmg * TrapConfig.FIRE_ARROWS_PERCENT / 100
+		_ignite_arrow_target(enemy)
+	_hurt(enemy, _roll(dmg))
 	f.charged = true
 	if UnitTypes.attack_range(f.unit) >= BattleConfig.RANGED_MIN_RANGE:
 		_record(Fx.SHOT, f.unit, f.x, f.y, enemy.x, enemy.y)
@@ -1471,6 +1504,134 @@ func _tower_prefers(f: Fighter) -> bool:
 	return false
 
 
+# --- Pułapki (#100) -----------------------------------------------------------------------------------
+
+## Uzbraja pułapki z ustawień obrony przed bitwą (kopie: bitwa nie zmienia układu). Zrzucane kłody
+## działają na 3 kratkach wzdłuż muru, przy którym stoją, a Wrząca smoła na kratkach wokół siebie.
+func arm_traps(list: Array[DefensePlan.Trap]) -> void:
+	traps.clear()
+	for t in list:
+		if not _terrain.in_bounds(t.cell):
+			continue
+		var st := TrapState.new()
+		st.kind = t.kind
+		st.cell = t.cell
+		match t.kind:
+			TrapConfig.Kind.LOGS:
+				var along := Vector2i.RIGHT
+				for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+					var s := _structure_at(t.cell + d)
+					if s != null and BuildingTypes.is_wall(s.kind):
+						along = Vector2i(absi(d.y), absi(d.x))
+						break
+				for k in range(-1, 2):
+					st.area.append(t.cell + along * k)
+			TrapConfig.Kind.PITCH:
+				for dy in range(-1, 2):
+					for dx in range(-1, 2):
+						st.area.append(t.cell + Vector2i(dx, dy))
+		traps.append(st)
+
+
+## Pułapki w jednym kroku: wyzwalanie (atakujący na kratce albo w pobliżu) i działanie w czasie,
+## a do tego płonące jednostki.
+func _traps_act() -> void:
+	for t in traps:
+		match t.kind:
+			TrapConfig.Kind.PIT:
+				if not t.fired:
+					var v := _attacker_on([t.cell])
+					if v != null:
+						t.fired = true
+						var ram := v.unit == UnitTypes.Unit.RAM
+						v.stun = (TrapConfig.PIT_RAM_STUN_S if ram else TrapConfig.PIT_STUN_S) * BattleConfig.TICK_HZ
+						if not ram:
+							_hurt(v, TrapConfig.PIT_DAMAGE)
+						_trap_fx(t.cell)
+			TrapConfig.Kind.CALTROPS:
+				if not t.fired and _attacker_on([t.cell]) != null:
+					t.fired = true
+					t.until = tick + TrapConfig.CALTROPS_S * BattleConfig.TICK_HZ
+					_trap_fx(t.cell)
+				if t.fired and tick <= t.until and tick % BattleConfig.TICK_HZ == 0:
+					var r := Rect2i(t.cell, Vector2i.ONE).grow(1)
+					for f in fighters:
+						if f.side == Side.ATTACKER and f.alive() and r.has_point(f.cell()):
+							_hurt(f, TrapConfig.CALTROPS_DAMAGE_PER_S)
+			TrapConfig.Kind.LOGS:
+				if not t.fired and _attacker_on(t.area) != null:
+					t.fired = true
+					for f in fighters:
+						if f.side == Side.ATTACKER and f.alive() and t.area.has(f.cell()):
+							_hurt(f, TrapConfig.LOGS_DAMAGE)
+					_trap_fx(t.cell)
+			TrapConfig.Kind.FIRE_ARROWS:
+				if not t.fired:
+					var near := Rect2i(t.cell, Vector2i.ONE).grow(TrapConfig.FIRE_ARROWS_TRIGGER)
+					for f in fighters:
+						if f.side == Side.ATTACKER and f.alive() and near.has_point(f.cell()):
+							t.fired = true
+							t.until = tick + TrapConfig.FIRE_ARROWS_S * BattleConfig.TICK_HZ
+							break
+			TrapConfig.Kind.PITCH:
+				if not t.fired and _attacker_on(t.area) != null:
+					t.fired = true
+					for f in fighters:
+						if f.side == Side.ATTACKER and f.alive() and t.area.has(f.cell()):
+							_hurt(f, TrapConfig.PITCH_DAMAGE)
+							_ignite(f)
+					_trap_fx(t.cell)
+	for f in fighters:
+		if f.fire > 0 and f.alive():
+			f.fire -= 1
+			if f.fire % BattleConfig.TICK_HZ == 0:
+				_hurt(f, TrapConfig.UNIT_FIRE_DAMAGE_PER_S)
+
+
+## Pierwszy żywy atakujący (w kolejności jednostek) na którejś z kratek `cells` albo null.
+func _attacker_on(cells: Array[Vector2i]) -> Fighter:
+	for f in fighters:
+		if f.side == Side.ATTACKER and f.alive() and cells.has(f.cell()):
+			return f
+	return null
+
+
+## Czy działająca Kolczatka obejmuje kratkę `c` (kratka pułapki i sąsiednie).
+func _in_caltrops(c: Vector2i) -> bool:
+	for t in traps:
+		if t.kind == TrapConfig.Kind.CALTROPS and t.fired and tick <= t.until \
+				and absi(c.x - t.cell.x) <= 1 and absi(c.y - t.cell.y) <= 1:
+			return true
+	return false
+
+
+## Czy strzelec na kratce `c` jest w zasięgu działającego kosza Płonących strzał.
+func _fire_arrows_near(c: Vector2i) -> bool:
+	for t in traps:
+		if t.kind == TrapConfig.Kind.FIRE_ARROWS and t.fired and tick <= t.until \
+				and absi(c.x - t.cell.x) <= TrapConfig.FIRE_ARROWS_RADIUS \
+				and absi(c.y - t.cell.y) <= TrapConfig.FIRE_ARROWS_RADIUS:
+			return true
+	return false
+
+
+## Podpala Taran albo Podpalacza (Płonące strzały) i każdego w Wrzącej smole: traci HP co sekundę.
+func _ignite(f: Fighter) -> void:
+	f.fire = maxi(f.fire, TrapConfig.UNIT_FIRE_S * BattleConfig.TICK_HZ)
+
+
+## Płonąca strzała podpala tylko Taran (drewno) i Podpalacza (smoła, którą niesie).
+func _ignite_arrow_target(f: Fighter) -> void:
+	if f.unit == UnitTypes.Unit.RAM or f.unit == UnitTypes.Unit.FIRE_RAISER:
+		_ignite(f)
+
+
+func _trap_fx(c: Vector2i) -> void:
+	var x := c.x * BattleConfig.SUB + BattleConfig.SUB / 2
+	var y := c.y * BattleConfig.SUB + BattleConfig.SUB / 2
+	_record(Fx.HIT, FX_TOWER, x, y, x, y)
+
+
 # --- Wieże i koniec ----------------------------------------------------------------------------------
 
 func _tower_act(s: Structure) -> void:
@@ -1503,7 +1664,12 @@ func _tower_act(s: Structure) -> void:
 		return
 	@warning_ignore("integer_division")
 	s.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS * 100 / maxi(1, tower_fire_percent)
-	_hurt(best, _roll(BattleConfig.TOWER_ATTACK))
+	var dmg := BattleConfig.TOWER_ATTACK
+	if _fire_arrows_near(s.rect.get_center()):
+		@warning_ignore("integer_division")
+		dmg = dmg * TrapConfig.FIRE_ARROWS_PERCENT / 100
+		_ignite_arrow_target(best)
+	_hurt(best, _roll(dmg))
 	_record(Fx.SHOT, FX_TOWER, cx, cy, best.x, best.y)
 
 
