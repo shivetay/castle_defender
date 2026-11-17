@@ -4,28 +4,34 @@ extends RefCounted
 ## przy pierwszym użyciu albo w warm_up(), a potem zwracana z pamięci jako ImageTexture.
 
 var _cache: Dictionary[int, ImageTexture] = {}
+## Zamalowana część obrazu każdej tekstury (do przyklejania budynków do murów, #149).
+var _used: Dictionary[int, Rect2i] = {}
 
 
-static func key(kind: int, level: int, state: int, mask: int, vertical: bool = false) -> int:
-	return (((kind * 8 + level) * 4 + state) * 16 + mask) * 2 + (1 if vertical else 0)
+static func key(kind: int, level: int, state: int, mask: int, vertical: bool = false, lean: int = 0) -> int:
+	return ((((kind * 8 + level) * 4 + state) * 16 + mask) * 2 + (1 if vertical else 0)) * 5 + lean
 
 
 ## Tekstura budynku. Maska N/E/S/W liczy się tylko dla wału i palisady, `vertical` tylko dla bramy.
+## `lean`: przybudówka przy murze (BuildingArt.Lean, #149), tylko dla rodzajów z BuildingArt.can_lean.
 func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
-		vertical: bool = false) -> ImageTexture:
+		vertical: bool = false, lean: int = 0) -> ImageTexture:
 	var m := mask if BuildingTypes.is_wall(kind) else 0
 	var v := vertical and kind == BuildingTypes.Kind.GATE
 	var lv := clampi(level, 0, BuildingTypes.MAX_LEVEL)
-	var k := key(kind, lv, state, m, v)
+	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
+	var k := key(kind, lv, state, m, v, ln)
 	var tex: ImageTexture = _cache.get(k)
 	if tex == null:
-		tex = ImageTexture.create_from_image(BuildingArt.make_image(kind, lv, state, m, v))
+		var img := BuildingArt.make_image(kind, lv, state, m, v, ln)
+		tex = ImageTexture.create_from_image(img)
 		_cache[k] = tex
+		_used[k] = img.get_used_rect()
 	return tex
 
 
-## Rysuje z góry wszystkie całe (nieuszkodzone) warianty i place budowy (poziom 0),
-## żeby budowanie nie przycinało gry.
+## Rysuje z góry wszystkie całe (nieuszkodzone) warianty i place budowy (poziom 0), także przybudówki
+## przy murze (#149), żeby budowanie nie przycinało gry.
 func warm_up() -> void:
 	for kind in BuildingTypes.count():
 		var masks := 16 if BuildingTypes.is_wall(kind) else 1
@@ -34,7 +40,21 @@ func warm_up() -> void:
 				draw_building(kind, level, BuildingTypes.State.INTACT, mask)
 			if kind == BuildingTypes.Kind.GATE:
 				draw_building(kind, level, BuildingTypes.State.INTACT, 0, true)
+			if BuildingArt.can_lean(kind) and level >= 1:
+				for lean in range(BuildingArt.Lean.NORTH, BuildingArt.Lean.WEST + 1):
+					draw_building(kind, level, BuildingTypes.State.INTACT, 0, false, lean)
 
 
 func cached_count() -> int:
 	return _cache.size()
+
+
+## Zamalowany prostokąt tekstury (w pikselach obrazu), liczony raz razem z teksturą.
+func used_rect(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
+		vertical: bool = false, lean: int = 0) -> Rect2i:
+	draw_building(kind, level, state, mask, vertical, lean)
+	var m := mask if BuildingTypes.is_wall(kind) else 0
+	var v := vertical and kind == BuildingTypes.Kind.GATE
+	var lv := clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
+	return _used[key(kind, lv, state, m, v, ln)]

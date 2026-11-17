@@ -42,6 +42,9 @@ obrony z #19 (posterunki załogi wokół donżonu).
   Wał i palisada mają autotiling: odcinek 1×1 to środek plus ramię do każdego sąsiada z maski N/E/S/W
   (16 wariantów). Ramiona dochodzą do krawędzi kratki, więc dowolny kształt łączy się bez dziur.
   Ściana i blanki rysują się osobno, a palisada ma ścianę wysoką na 4 px.
+  Chata i warsztaty przy murze to przybudówki (`Lean`): przy murze z boku dach jednospadowy opada od muru
+  (kształt trójkąta prostokątnego, wariant wschodni to lustro zachodniego), a przy murze z tyłu jedna
+  połać. Dwór, wieża, brama, mury i pole lnu zostają bez zmian.
 - `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska,
   pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 222 całe warianty i place budowy
   (ok. 19 ms na komputerze, headless).
@@ -60,6 +63,10 @@ obrony z #19 (posterunki załogi wokół donżonu).
   maski sąsiadów i stała kolejność rysowania (od tyłu do przodu).
   Budynki stoją na trawie. Wyjątkiem jest brama (3 kratki): może stać nad drogą, ale tylko w poprzek niej
   i z drogą pośrodku (pozioma na drodze północ–południe, pionowa na drodze wschód–zachód).
+  Budynek stawiany przez gracza do 1 kratki od wału lub palisady dosuwa się do linii bokiem
+  (`placement_candidates(..., stick)`, najwięcej kratek styku, potem najbliżej palca). Generator zamku
+  bota i wieża tego nie robią. `CastleView.attach_offset` dosuwa teksturę do muru o maks. 6 px, żeby
+  na styku nie było szpary.
 - `scripts/world/build_config.gd` (`BuildConfig`): koszty i czasy budowy w jednym pliku. Poziom 1:
   Wał 10 Dr 10 Ży 5 s, Palisada 20 Dr 5 Ży 10 s, Brama 60 Dr 20 Ka 20 Ży 30 s, Wieża 120 Dr 40 Ka 40 Ży 60 s,
   Chata 80 Dr 30 Ży 45 s. Poziomy 1–5 mnożą koszt ×1/×1,5/×2,5/×4/×6, a czas ×1/×3/×10/×30/×90.
