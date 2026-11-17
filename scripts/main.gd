@@ -729,15 +729,11 @@ func _finish_attack(b: Battle) -> void:
 	hud.battle = false
 	_attacking = false
 	_close_attack()
-	hud.message = attack_end_message(won, fallen)
+	# wynik jest w oknie, więc pasek komunikatu go nie powtarza (review #194)
+	hud.message = ""
 	hud.overlay = true
 	result_panel.show_result(result, got, fallen, unlock)
 	_save()
-
-
-static func attack_end_message(won: bool, fallen: int) -> String:
-	var head := "Zamek zdobyty!" if won else "Atak odparty."
-	return head if fallen == 0 else "%s Polegli: %d" % [head, fallen]
 
 
 # --- Ustawienia obrony (#19) -------------------------------------------------------------------------

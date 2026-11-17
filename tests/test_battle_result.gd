@@ -71,7 +71,7 @@ func test_percent_and_stars_rules() -> bool:
 	gate.hp = gate.max_hp
 	for f in b.fighters:
 		f.climbed = false
-	assert_true(not BattleResult.of(b).stars[BattleResult.Star.GATE] or gate.hp <= 0, "brama cała: bez gwiazdki")
+	assert_true(not BattleResult.of(b).stars[BattleResult.Star.GATE], "brama cała: bez gwiazdki")
 	gate.hp = 0
 	assert_true(BattleResult.of(b).stars[BattleResult.Star.GATE], "zburzona brama")
 	gate.hp = gate.max_hp

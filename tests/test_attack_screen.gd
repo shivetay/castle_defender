@@ -124,12 +124,8 @@ func test_layout_fits_and_targets() -> bool:
 			var text := AttackPlanner.describe(o)
 			var w := PixelFont.text_width("8. " + text[0]) + PixelFont.text_width(text[1]) + 8
 			assert_true(w <= info.size.x, "opis rozkazu mieści się: %s / %s" % text)
-	for won: bool in [true, false]:
-		assert_true(PixelFont.text_width(MAIN.attack_end_message(won, 30)) <= Hud.MESSAGE_MAX_WIDTH, "komunikat po ataku")
 	return true
 
-
-const MAIN := preload("res://scripts/main.gd")
 
 
 func test_plan_saves_with_the_game() -> bool:
