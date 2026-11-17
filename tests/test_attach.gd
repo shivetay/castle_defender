@@ -151,3 +151,13 @@ static func _alpha(img: Image) -> PackedByteArray:
 		for x in img.get_width():
 			out.append(int(img.get_pixel(x, y).a * 255.0))
 	return out
+
+
+## Dwór i donżon nie przyklejają się do muru (review #190): stoją tam, gdzie dotknięto.
+func test_unique_buildings_do_not_stick() -> bool:
+	var grid := _grid(true)
+	for kind: int in [K.MANOR, K.KEEP]:
+		var tap := o + Vector2i(4, 9)
+		assert_eq(grid.placement_candidates(tap, kind, true), [Rect2i(tap, BuildingTypes.size_of(kind))] as Array[Rect2i],
+				"%s bez przyklejania" % BuildingTypes.NAMES[kind])
+	return true
