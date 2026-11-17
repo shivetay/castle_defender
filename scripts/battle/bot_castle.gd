@@ -22,6 +22,8 @@ var defenders: Array = []
 
 
 ## Seed zamku numer `index` dla gracza z `world_seed` (inny niż seed jego zamku i fal PvE).
+## Tylko testy i starszy kod: Wyprawa w grze używa wspólnej listy BotRoster.seed_of (#26), więc
+## nie podpinaj tu z powrotem seeda świata gracza.
 static func seed_for(world_seed: int, index: int) -> int:
 	return PixelCanvas.hash2(world_seed, index, 0xb07) & 0x7fffffff
 
