@@ -19,6 +19,8 @@ var plan: AttackPlan
 ## Oddziały w ataku [rodzaj, liczba], w kolejności planu (oddział 1 = pierwszy).
 var squads: Array = []
 var age := 0
+## Badania gracza: manewry bez zbadanej technologii (#12) są pomijane przy przełączaniu.
+var research: Research
 ## Wybrany oddział (od 1).
 var selected := 1
 var textures: BuildingTextures
@@ -61,12 +63,14 @@ func order() -> AttackPlan.Order:
 
 # --- Edycja planu (statyczne, testowane bez ekranu) ------------------------------------------------
 
-## Następny manewr dostępny w epoce `age` (po ostatnim znów pierwszy).
-static func next_manoeuvre(m: int, current_age: int) -> int:
+## Następny manewr dostępny w epoce `age` i (z `research`) odblokowany badaniami, po ostatnim znów
+## pierwszy (#12).
+static func next_manoeuvre(m: int, current_age: int, research: Research = null) -> int:
 	var n := AttackPlan.MANOEUVRE_NAMES.size()
 	for step in range(1, n + 1):
 		var cand := (m + step) % n
-		if AttackPlan.MANOEUVRE_AGE[cand] <= current_age:
+		if AttackPlan.MANOEUVRE_AGE[cand] <= current_age \
+				and (research == null or AttackPlan.manoeuvre_unlocked(cand, research)):
 			return cand
 	return m
 

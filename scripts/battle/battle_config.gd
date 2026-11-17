@@ -99,6 +99,12 @@ const GAMBESON_MELEE_PERCENT := 75
 const CHARGE_PERCENT := 200
 ## Wojownik z toporem: ×1,5 obrażeń przeciw drewnu (budynki poza wałem ziemnym).
 const AXE_VS_WOOD_PERCENT := 150
+## Technologie w bitwie (#12, notatka Drzewko technologiczne): A1 Hartowane topory (wojownik z toporem
+## +15% przeciw drewnu), A2 Łuk kompozytowy (łuki +20% zasięgu, w całych kratkach w dół),
+## O2 Zaostrzone pale (palisada obrońcy +20% wytrzymałości).
+const A1_WOOD_PERCENT := 115
+const A2_RANGE_PERCENT := 120
+const O2_PALISADE_HP_PERCENT := 120
 ## Jeździec omija wolne cele (szybkość do tej wartości), chyba że stoją tuż obok.
 const RIDER_IGNORES_SPEED := 2
 ## Podpalacz: trafiony drewniany budynek płonie tyle sekund i traci tyle punktów na sekundę. TYMCZASOWE.

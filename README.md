@@ -15,7 +15,8 @@ i Dworem jako poziomem zamku (#11), zapis lokalny (#13) i losowy seed mapy dla k
 część kliencka). Z etapu 4 zostaje Dwór zmieniający się z epokami i garnizon (#81), który czeka
 na jednostki, bitwę i epokę II z późniejszych etapów.
 Etap 5 (#127) zaczyna badania z #12: 34 technologie z notatki Drzewko technologiczne z epokami,
-zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2; reszta efektów włączy się razem
+zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2 oraz w bitwie A1, A2 i O2, a manewry
+wymagają A3–A6; reszta efektów włączy się razem
 z budynkami, jednostkami i bitwą. Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
 Do tego mechanizm towarów i łańcuchów produkcji z #88 (zbrojownia, przepisy wytwórców według notatki
 Klasy jednostek i produkcja) oraz 9 budynków wytwórców z #90, które produkują towary
@@ -81,7 +82,13 @@ obrony z #19 (posterunki załogi wokół donżonu).
   (`docs/castle-defender-vault/`) w gałęziach Atak (19), Obrona (3), Gospodarka (9), Użyteczne (1)
   i Specjalne (2). Każda ma epokę, efekt, znacznik technologii kluczowej ★ (O1 dla I → II, G6 dla II → III)
   i zależności z notatki. Epoka II: A5, A6, A22, A46, A47, G4, G6. Działają premie G1 +20% drewna
-  i G2 +15% żywności (`PRODUCTION_BONUS`).
+  i G2 +15% żywności (`PRODUCTION_BONUS`). W bitwie (`Battle.apply_research`, osobno dla każdej strony)
+  działają A1 (wojownik z toporem +15% w drewno), A2 (łuki +20% zasięgu: łucznik 6 → 7, łuk refleksyjny
+  7 → 8) i O2 (palisady obrońcy +20% wytrzymałości). Manewry wymagają technologii: Podpalenie A3,
+  Oskrzydlenie A4, Drabiny A5, Taranowanie A6 (przycisk Manewr je pomija, Atakuj podaje, czego brakuje).
+  Jednostki i budynki wymagają swoich technologii już wcześniej. Bez efektu zostają technologie, których
+  rzecz jeszcze nie istnieje: O1 Kopiec, O3 fosa, G4 Kamieniołom, S2 Wieża sygnałowa (#35), S1 zwiad (#28),
+  G6 przejście do epoki III.
 - `scripts/world/research_config.gd` (`ResearchConfig`): koszt i czas badań. Każda kolejna technologia
   w epoce ×1,6 kosztu i ×2 czasu (#12). Bazowe liczby (epoka I: 100 Dr 50 Ka 50 Ży, 1 min) są tymczasowe.
 - `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga
