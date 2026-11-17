@@ -240,6 +240,9 @@ obrony z #19 (posterunki załogi wokół donżonu).
   - **Wypad konnicy** (od epoki II, jak w notatce): konnica czeka tuż za wskazaną bramą. Gdy atakujący
     podejdzie na 2 kratki do bramy albo brama padnie, wychodzi przez nią (własna brama to dla niej
     przejście), bije wrogów do 6 kratek od bramy i wraca. Liczby tymczasowe.
+  - **Przed murami** (konnica, od epoki I, prośba właściciela): oddział stoi na wskazanej trawie, także
+    na zewnątrz murów, bije wrogów do 6 kratek od miejsca i wraca; przez własne bramy przejeżdża, przez
+    mury nie. Liczba tymczasowa.
   - **Przy donżonie:** jawne zadanie dla oddziału, który ma stać jak przed #19.
   - **Zadania domyślne** (oddział bez ustawionego zadania, plan zatwierdzony przez właściciela):
     strzelcy na odcinek muru najbliżej bramy, piechota lekka i ciężka przy bramie od środka, konnica na

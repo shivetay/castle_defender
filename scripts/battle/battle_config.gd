@@ -59,6 +59,8 @@ const WALL_ARROW_PERCENT := 60
 ## tyle kratek od niej (potem wraca za bramę). TYMCZASOWE.
 const SORTIE_TRIGGER := 2
 const SORTIE_REACH := 6
+## Konnica przed murami (#20): bije wrogów najwyżej tyle kratek od swojego miejsca. TYMCZASOWE.
+const FIELD_RADIUS := 6
 ## Jak blisko donżonu (w kratkach od jego krawędzi) liczy się zajmowanie i obrona.
 const CAPTURE_RANGE := 1
 ## Morale oddziałów (#98), liczby całkowite 0–100. Z notatki Drzewko technologiczne: poniżej 30 oddział

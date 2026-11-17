@@ -7,6 +7,7 @@ extends Control
 ## trawę albo odcinek wału, palisady, bramy czy wieży, przy Patrolu kolejne punkty trasy (do 3).
 ## Dotknięcie miejsca innego oddziału na mapie wybiera ten oddział. Strzelec przy Obronie odcinka
 ## może stanąć na samym wale albo palisadzie (dotknięcie muru), a Wypad konnicy wskazuje się bramą.
+## Konnica może też stanąć Przed murami (dotknięcie trawy, także na zewnątrz).
 ## Oddział bez ustawionego zadania ma zadanie domyślne swojej klasy (DefensePlan.default_order), opis
 ## to podaje. Wieże zmieniają priorytet celów wież, Zdejmij wraca do zadania domyślnego. Mapę i zadania
 ## rysuje main; ten węzeł rysuje tylko przyciski. Pułapki (#100) przełączają pasek na rodzaje pułapek:
@@ -196,6 +197,7 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 		return "Oddział %d: %s" % [selected + 1, task_text(plan.order_for(holder), grid)]
 	var o := plan.order_for(selected_id())
 	var patrol := o != null and o.task == DefensePlan.Task.PATROL
+	var field := o != null and o.task == DefensePlan.Task.FIELD
 	var id := grid.building_at(cell) if grid.terrain.in_bounds(cell) else 0
 	if o != null and o.task == DefensePlan.Task.KEEP:
 		return "Przy donżonie: zmień Zadanie, żeby wskazać miejsce"
@@ -208,14 +210,14 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 			return "Brama: brak miejsca od środka"
 		o.post = behind
 		return "Oddział %d: wypad przez bramę" % (selected + 1)
-	if not patrol and DefensePlan.wall_post(grid, cell) \
+	if not patrol and not field and DefensePlan.wall_post(grid, cell) \
 			and unit_class_of(selected) == RecruitmentConfig.UnitClass.RANGED:
 		# strzelcy stają na samym murze (#20)
 		plan.set_post(selected_id(), cell)
 		return "Oddział %d: na murze, %s" % [selected + 1, BuildingTypes.NAMES[grid.kinds[id]]]
 	# odcinek umocnień przyciąga tylko Obronę odcinka; punkt patrolu stawia się na trawie (review #181)
 	var section := ""
-	if not patrol and id != 0 and DefensePlan.is_section(grid.kinds[id]) and DefensePlan.zone(grid).has_point(cell):
+	if not patrol and not field and id != 0 and DefensePlan.is_section(grid.kinds[id]) and DefensePlan.zone(grid).has_point(cell):
 		section = BuildingTypes.NAMES[grid.kinds[id]]
 		cell = DefensePlan.section_post(grid, id)
 		if cell == DefensePlan.NO_POST:
@@ -231,6 +233,8 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 			o.route.append(cell)
 		return "Oddział %d: patrol, punkt %d z %d" % [selected + 1, o.route.size() + 1, DefensePlan.MAX_ROUTE + 1]
 	plan.set_post(selected_id(), cell)
+	if field:
+		return "Oddział %d: przed murami" % (selected + 1)
 	if not section.is_empty():
 		return "Oddział %d: obrona odcinka, %s" % [selected + 1, section]
 	return "Oddział %d: obrona odcinka" % (selected + 1)
@@ -278,9 +282,11 @@ func trap_describe() -> Array[String]:
 
 
 ## Zadania do wyboru dla oddziału klasy `unit_class` w epoce `current_age`, w kolejności przycisku
-## Zadanie: Obrona odcinka, Patrol, Wypad konnicy (konnica od epoki II), Przy donżonie.
+## Zadanie: Obrona odcinka, Patrol, dla konnicy Przed murami i Wypad konnicy (od epoki II), Przy donżonie.
 static func task_options(unit_class: int, current_age: int) -> Array[int]:
 	var out: Array[int] = [DefensePlan.Task.HOLD, DefensePlan.Task.PATROL]
+	if unit_class == RecruitmentConfig.UnitClass.FAST:
+		out.append(DefensePlan.Task.FIELD)
 	if unit_class == RecruitmentConfig.UnitClass.FAST and current_age >= DefensePlan.TASK_AGE[DefensePlan.Task.SORTIE]:
 		out.append(DefensePlan.Task.SORTIE)
 	out.append(DefensePlan.Task.KEEP)

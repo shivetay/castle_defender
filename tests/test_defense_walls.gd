@@ -247,3 +247,56 @@ func test_walls_and_sortie_are_deterministic() -> bool:
 		sums.append(b.checksum())
 	assert_eq(sums[0], sums[1], "ten sam przebieg z murami, bramą i wypadem")
 	return true
+
+
+## Konnica przed murami (prośba właściciela 17.11.2026): od epoki I, stoi na zewnątrz, bije wrogów
+## do FIELD_RADIUS kratek od miejsca, dalszych nie ściga, po walce wraca.
+func test_cavalry_outside_the_walls() -> bool:
+	var bot := BotCastle.generate(BotCastle.seed_for(1337, 0), 0)
+	var g := bot.grid
+	var keep := DefensePlan.keep_center(g)
+	var gate := DefensePlan.main_gate(g)
+	var out_dir := g.buildings[gate].get_center() - keep
+	out_dir = Vector2i(signi(out_dir.x), signi(out_dir.y))
+	var post := Vector2i(-1, -1)
+	for k in range(3, 6):
+		var c := g.buildings[gate].get_center() + out_dir * k
+		if post.x < 0 and DefensePlan.post_problem(g, c).is_empty():
+			post = c
+	assert_true(post.x >= 0, "miejsce przed bramą, na zewnątrz")
+	assert_true(DefensePanel.task_options(C.FAST, 0).has(T.FIELD), "Przed murami od epoki I")
+	assert_true(not DefensePanel.task_options(C.RANGED, 0).has(T.FIELD), "tylko konnica")
+	var p := DefensePlan.new()
+	var panel := DefensePanel.new()
+	panel.open(p, [[U.RIDER, 2]], [5] as Array[int], g, 0)
+	while p.order_for(5) == null or p.order_for(5).task != T.FIELD:
+		panel.activate(DefensePanel.Target.TASK)
+	assert_eq(panel.tap(g, post), "Oddział 1: przed murami", "dotknięcie trawy na zewnątrz")
+	panel.free()
+	var b := Battle.create_squads(g, bot.objective, [[U.AXE_WARRIOR, 1]], [[U.RIDER, 2]], bot.spawn, 4,
+			p.battle_orders([5] as Array[int], [[U.RIDER, 2]], g, 0))
+	var riders := _side(b, Battle.Side.DEFENDER)
+	var foe := _side(b, Battle.Side.ATTACKER)[0]
+	for f in riders:
+		assert_true(_cheb(f.cell(), post) <= 1, "konnica zaczyna przed murami")
+	_put(foe, post + out_dir * (BattleConfig.FIELD_RADIUS + 3))
+	for t in 60:
+		for f in riders:
+			b._act(f)
+	for f in riders:
+		assert_true(_cheb(f.cell(), post) <= 1, "dalekiego wroga nie ściga")
+	_put(foe, post + out_dir * 3)
+	var hp := foe.hp
+	for t in 10 * BattleConfig.TICK_HZ:
+		for f in riders:
+			b._act(f)
+		if foe.hp < hp:
+			break
+	assert_true(foe.hp < hp, "wroga w promieniu bije")
+	foe.hp = 0
+	for t in 10 * BattleConfig.TICK_HZ:
+		for f in riders:
+			b._act(f)
+	for f in riders:
+		assert_true(_cheb(f.cell(), post) <= 1, "po walce wraca na miejsce")
+	return true

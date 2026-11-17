@@ -1350,6 +1350,8 @@ func _defend(f: Fighter, o: DefensePlan.Order) -> void:
 		_patrol_act(f)
 	elif o.task == DefensePlan.Task.SORTIE:
 		_sortie_act(f)
+	elif o.task == DefensePlan.Task.FIELD:
+		_field_act(f)
 	else:
 		_hold_section(f)
 
@@ -1421,6 +1423,32 @@ func _sortie_act(f: Fighter) -> void:
 		return
 	var base := gate.rect if gate != null else Rect2i(f.post, Vector2i.ONE)
 	var area := base.grow(BattleConfig.SORTIE_REACH)
+	var enemy: Fighter = null
+	var best_d := 0
+	for o in fighters:
+		if o.side == f.side or not o.alive() or not area.has_point(o.cell()):
+			continue
+		var d := _dist2(f.x, f.y, o.x, o.y)
+		if enemy == null or d < best_d:
+			enemy = o
+			best_d = d
+	if enemy != null:
+		f.target = enemy.id
+		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+			_strike_unit(f, enemy)
+		else:
+			_walk(f, enemy.cell(), enemy.x, enemy.y, false, _ram_astar)
+		return
+	f.target = 0
+	_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
+			false, _ram_astar)
+
+
+## Konnica przed murami: stoi na swoim miejscu (także poza murami), bije wrogów najwyżej FIELD_RADIUS
+## kratek od niego, a bez nich wraca. Jeździ drogami taranu, więc własne bramy są dla niej przejściem,
+## a mury nie.
+func _field_act(f: Fighter) -> void:
+	var area := Rect2i(f.post, Vector2i.ONE).grow(BattleConfig.FIELD_RADIUS)
 	var enemy: Fighter = null
 	var best_d := 0
 	for o in fighters:
