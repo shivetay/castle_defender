@@ -3,7 +3,7 @@ extends Node2D
 ## Ekran drzewka badań (#12) na całą mapę, między górnym a dolnym paskiem HUD.
 ## U góry zakładki gałęzi (Atak, Obrona, Gospodarka, Użyteczne, Specjalne), pod nimi kafelki technologii
 ## z kodem. Kafelek pokazuje stan kolorem napisu: zbadana, w toku, dostępna, zablokowana
-## (brak wymaganej technologii albo późniejsza epoka); zbadana ma zielony kafelek ze znaczkiem
+## (brak wymaganej technologii, budynku badań gałęzi z #165 albo późniejsza epoka); zbadana ma zielony kafelek ze znaczkiem
 ## w lewym rogu, a technologia kluczowa ★ czerwony znacznik w prawym.
 ## Dotknięcie kafelka pokazuje szczegóły: nazwę, stan, efekt, koszt i czas, wymagania, co technologia
 ## odblokowuje i z czym łączy się przez towary (TechLinks). Ramki na kafelkach: wymagane czerwone
@@ -33,6 +33,8 @@ var research: Research
 var economy: Economy
 ## Epoka gry (0 = I); technologii z późniejszej epoki nie da się badać.
 var age := 0
+## Siatka zamku: bez budynku badań gałęzi (#165) technologii nie da się badać.
+var grid: BuildGrid
 ## Czas do liczenia pozostałego czasu badania (ustawia gra co klatkę).
 var now_ms := 0
 var branch := 0
@@ -117,7 +119,7 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, show
 # --- Teksty ------------------------------------------------------------------------------------
 
 ## Stan technologii po polsku, np. „zbadana”, „w toku 0:42”, „Epoka II”.
-static func state_text(r: Research, code: String, current_age: int, now: int) -> String:
+static func state_text(r: Research, code: String, current_age: int, now: int, grid: BuildGrid = null) -> String:
 	if r.is_done(code):
 		return "zbadana"
 	if r.active == code:
@@ -126,21 +128,30 @@ static func state_text(r: Research, code: String, current_age: int, now: int) ->
 		return TechTree.age_label(TechTree.age(code))
 	if not r.missing(code).is_empty():
 		return "zablokowana"
+	if grid != null and not Research.has_building(code, grid):
+		return "brak budynku"
 	return "dostępna"
 
 
-## Wymagania jako tekst: kody z nazwami, a gdy to za szerokie, same kody.
+## Wymagania jako tekst: budynek badań gałęzi (#165, gdy to nie Dwór, który stoi zawsze) i kody
+## z nazwami, a gdy to za szerokie, same kody.
 static func requires_text(code: String, max_width: int) -> String:
 	var reqs := TechTree.requires(code)
-	if reqs.is_empty():
+	var building := ResearchConfig.research_building(code)
+	var head: PackedStringArray = []
+	if building != BuildingTypes.Kind.MANOR:
+		head.append(BuildingTypes.NAMES[building])
+	if reqs.is_empty() and head.is_empty():
 		return "Bez wymagań"
-	var named: PackedStringArray = []
+	var named := head.duplicate()
 	for req in reqs:
 		named.append("%s %s" % [req, TechTree.tech_name(req)])
 	var text := "Wymaga: " + ", ".join(named)
 	if PixelFont.text_width(text) <= max_width:
 		return text
-	return fit_text("Wymaga: " + ", ".join(PackedStringArray(reqs)), max_width)
+	var short := head.duplicate()
+	short.append_array(PackedStringArray(reqs))
+	return fit_text("Wymaga: " + ", ".join(short), max_width)
 
 
 ## Tekst przycięty do szerokości `max_width` (z wielokropkiem „...”).
@@ -211,7 +222,7 @@ func _draw() -> void:
 		var frame := link_color(codes[i], reqs, next, linked, research.is_done(codes[i]))
 		_draw_tile(tiles[i], codes[i], codes[i] == selected or _pressed == Target.TILE + i, frame)
 	_draw_details()
-	var can_start := research.check(selected, age) == Research.Result.OK \
+	var can_start := research.check(selected, age, grid) == Research.Result.OK \
 			and economy != null and economy.can_afford(research.cost_of(selected))
 	Hud.paint_button(self, start_rect(view, content_right), START_LABEL, _pressed == Target.START, not can_start)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
@@ -225,7 +236,8 @@ func _draw_tile(r: Rect2, code: String, active: bool, frame: Color) -> void:
 		draw_rect(Rect2(r.position.x + 1, r.position.y + 1, 2, 2), Palette.VALID)
 	elif research.active == code:
 		col = Palette.THATCH[2]
-	elif TechTree.age(code) > age or not research.missing(code).is_empty():
+	elif TechTree.age(code) > age or not research.missing(code).is_empty() \
+			or (grid != null and not Research.has_building(code, grid)):
 		# przygaszone tylko zablokowane: trwające inne badanie nie gasi reszty drzewka
 		col = Palette.WOOD[0]
 	PixelFont.draw_centered(self, r, code, col)
@@ -277,19 +289,23 @@ static func tile_color(done: bool, active: bool) -> Color:
 ## DETAIL_LINES. Kolejność ważności: tytuł ze stanem, efekt, koszt, wymaga, odblokowuje, powiązane,
 ## trwające badanie; czego nie da się zmieścić, wypada od końca.
 static func detail_lines(r: Research, code: String, current_age: int, now: int, width: int,
-		amounts: Array[int] = []) -> Array:
+		amounts: Array[int] = [], grid: BuildGrid = null) -> Array:
 	var head: Array = []
 	var title := "%s %s" % [code, TechTree.tech_name(code)]
 	if TechTree.is_key(code):
 		title += " (kluczowa)"
-	var state := state_text(r, code, current_age, now)
+	var state := state_text(r, code, current_age, now, grid)
 	head.append([fit_text(title, width - PixelFont.text_width(state) - 6), Palette.INK, state])
 	var effect := PixelFont.wrap(TechTree.effect(code), width, 2)
 	if not r.is_done(code) and r.active != code:
 		head.append([fit_text("%s, %s, %s" % [TechTree.age_label(TechTree.age(code)), Hud.cost_text(r.cost_of(code)),
 				Hud.format_time(r.time_of(code))], width), Palette.INK, "", Hud.missing_tokens(r.cost_of(code), amounts)])
 	var links: Array = []
-	links.append([requires_text(code, width), Palette.INK, ""])
+	# brakujący budynek badań na czerwono, jak brakujące surowce
+	var missing_building := PackedStringArray()
+	if grid != null and not Research.has_building(code, grid) and not r.is_done(code):
+		missing_building.append(BuildingTypes.NAMES[ResearchConfig.research_building(code)])
+	links.append([requires_text(code, width), Palette.INK, "", missing_building])
 	var next := TechLinks.unlocks(code)
 	if not next.is_empty():
 		links.append([codes_text("Odblokowuje: ", next, width), Palette.THATCH[2], ""])
@@ -333,7 +349,7 @@ func _draw_details() -> void:
 		return
 	var y := float(DETAIL_Y)
 	var amounts: Array[int] = economy.amounts if economy != null else [] as Array[int]
-	for l: Array in detail_lines(research, selected, age, now_ms, int(content_right - content_left), amounts):
+	for l: Array in detail_lines(research, selected, age, now_ms, int(content_right - content_left), amounts, grid):
 		var tokens: PackedStringArray = l[3] if l.size() > 3 else PackedStringArray()
 		Hud.draw_highlighted(self, Vector2(content_left, y), l[0] as String, l[1] as Color, tokens, Palette.ACCENT)
 		if not (l[2] as String).is_empty():

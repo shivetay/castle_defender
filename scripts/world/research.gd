@@ -3,14 +3,16 @@ extends RefCounted
 ## Stan badań: zbadane technologie i jedno trwające badanie. Koszt pobiera się przy rozpoczęciu,
 ## a badanie kończy się w czasie zegarowym, więc trwa też, gdy gra jest w tle albo zamknięta.
 ## Technologię można badać, gdy gra jest w jej epoce (lub późniejszej) i zbadano wszystkie
-## technologie, których wymaga. Z efektów działa na razie premia do produkcji (G1, G2);
+## technologie, których wymaga, a na zamku stoi budynek badań jej gałęzi (#165, np. Atak w Koszarach,
+## ResearchConfig.research_building). Z efektów działa na razie premia do produkcji (G1, G2);
 ## pozostałe włączą się razem z budynkami, jednostkami i bitwą.
 
-enum Result { OK, BUSY, ALREADY_DONE, WRONG_AGE, MISSING_REQUIREMENTS, NO_RESOURCES, UNKNOWN }
+enum Result { OK, BUSY, ALREADY_DONE, WRONG_AGE, MISSING_REQUIREMENTS, NO_RESOURCES, UNKNOWN, NO_BUILDING }
 
 ## Komunikaty dla gracza (indeks = Result).
 const MESSAGES: Array[String] = ["", "Trwa inne badanie", "Już zbadane", "Wymaga późniejszej epoki",
-		"Najpierw zbadaj wymagane technologie", "Brak surowców", "Nieznana technologia"]
+		"Najpierw zbadaj wymagane technologie", "Brak surowców", "Nieznana technologia",
+		"Najpierw postaw budynek badań"]
 
 ## Zbadane kody (kod → true).
 var done: Dictionary = {}
@@ -76,7 +78,8 @@ func time_of(code: String) -> int:
 
 
 ## Czy technologię można teraz zacząć badać w epoce `current_age` (bez sprawdzania surowców).
-func check(code: String, current_age: int) -> Result:
+## Z `grid` sprawdza też budynek badań gałęzi (#165); bez siatki (testy samego drzewka) go pomija.
+func check(code: String, current_age: int, grid: BuildGrid = null) -> Result:
 	if not TechTree.has(code):
 		return Result.UNKNOWN
 	if is_done(code):
@@ -87,12 +90,24 @@ func check(code: String, current_age: int) -> Result:
 		return Result.WRONG_AGE
 	if not missing(code).is_empty():
 		return Result.MISSING_REQUIREMENTS
+	if grid != null and not has_building(code, grid):
+		return Result.NO_BUILDING
 	return Result.OK
 
 
+## Czy na zamku stoi gotowy budynek badań technologii `code` (#165).
+static func has_building(code: String, grid: BuildGrid) -> bool:
+	return grid.has_built(ResearchConfig.research_building(code))
+
+
+## Komunikat o brakującym budynku badań, np. „Najpierw postaw: Koszary”.
+static func building_hint(code: String) -> String:
+	return "Najpierw postaw: %s" % BuildingTypes.NAMES[ResearchConfig.research_building(code)]
+
+
 ## Rozpoczyna badanie: pobiera koszt i zapamiętuje czas zakończenia.
-func start(code: String, current_age: int, economy: Economy, now_ms: int) -> Result:
-	var result := check(code, current_age)
+func start(code: String, current_age: int, economy: Economy, now_ms: int, grid: BuildGrid = null) -> Result:
+	var result := check(code, current_age, grid)
 	if result != Result.OK:
 		return result
 	var price := cost_of(code)

@@ -161,6 +161,7 @@ func _ready() -> void:
 	research_panel.research = research
 	research_panel.economy = economy
 	research_panel.age = CURRENT_AGE
+	research_panel.grid = grid
 	research_panel.visible = false
 	layer.add_child(research_panel)
 	research_panel.research_requested.connect(_on_research_requested)
@@ -733,8 +734,10 @@ func _on_overlay_closed() -> void:
 
 func _on_research_requested(code: String) -> void:
 	_tick()
-	var result := research.start(code, CURRENT_AGE, economy, _now_ms())
-	if result == Research.Result.OK:
+	var result := research.start(code, CURRENT_AGE, economy, _now_ms(), grid)
+	if result == Research.Result.NO_BUILDING:
+		hud.message = Research.building_hint(code)
+	elif result == Research.Result.OK:
 		hud.message = "Badanie: %s, %s" % [TechTree.tech_name(code), Hud.format_time(research.duration_ms)]
 		_save()
 	else:

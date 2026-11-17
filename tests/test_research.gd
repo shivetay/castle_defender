@@ -213,9 +213,10 @@ func test_panel_texts() -> bool:
 	assert_eq(ResearchPanel.state_text(r, "A46", 0, T0), "Epoka II", "późniejsza epoka")
 	r.start("A1", 0, _rich_economy(), T0)
 	assert_eq(ResearchPanel.state_text(r, "A1", 0, T0 + r.duration_ms - 1000), "w toku 0:01", "w toku")
-	assert_eq(ResearchPanel.requires_text("A1", 300), "Bez wymagań", "bez wymagań")
-	assert_eq(ResearchPanel.requires_text("A7", 300), "Wymaga: A2 Łuk kompozytowy, A43 Rymarstwo", "z nazwami")
-	assert_eq(ResearchPanel.requires_text("A7", 100), "Wymaga: A2, A43", "za wąsko: same kody")
+	assert_eq(ResearchPanel.requires_text("G1", 300), "Bez wymagań", "bez wymagań (Gospodarka bada Dwór)")
+	assert_eq(ResearchPanel.requires_text("A1", 300), "Wymaga: Koszary", "Atak: budynek badań (#165)")
+	assert_eq(ResearchPanel.requires_text("A7", 300), "Wymaga: Koszary, A2 Łuk kompozytowy, A43 Rymarstwo", "z nazwami")
+	assert_eq(ResearchPanel.requires_text("A7", 130), "Wymaga: Koszary, A2, A43", "za wąsko: same kody")
 	assert_true(PixelFont.text_width(ResearchPanel.requires_text("A7", 60)) <= 60, "jeszcze węziej: przycięte (review #157)")
 	var long := ResearchPanel.fit_text(TechTree.effect("A42"), 100)
 	assert_true(PixelFont.text_width(long) <= 100 and long.ends_with("..."), "długi efekt przycięty")
@@ -297,4 +298,44 @@ func test_loaded_active_research_needs_requirements() -> bool:
 	skipped = r.load_data({"done": ["A2", "G18", "G19", "A43"], "active": {"code": "A7", "duration_ms": 1000}}, T0)
 	assert_eq(skipped, 0, "z wymaganiami wraca")
 	assert_eq(r.active, "A7", "A7 w toku")
+	return true
+
+
+
+## #165: technologię bada budynek jej gałęzi (notatka Drzewko technologiczne). Atak w Koszarach,
+## reszta w Dworze, który stoi zawsze; Dom zwiadowców nie bada S3, które go odblokowuje.
+func test_research_needs_branch_building() -> bool:
+	const K := BuildingTypes.Kind
+	assert_eq(ResearchConfig.research_building("A1"), K.BARRACKS, "Atak: Koszary")
+	assert_eq(ResearchConfig.research_building("A22"), K.BARRACKS, "Atak epoki II: Koszary")
+	assert_eq(ResearchConfig.research_building("O1"), K.MANOR, "Obrona: Dwór")
+	assert_eq(ResearchConfig.research_building("G4"), K.MANOR, "Gospodarka: Dwór")
+	assert_eq(ResearchConfig.research_building("U1"), K.MANOR, "Użyteczne: Dwór")
+	assert_eq(ResearchConfig.research_building("S1"), K.MANOR, "Specjalne epoki I: Dwór (Wieży sygnałowej jeszcze nie ma)")
+	assert_eq(ResearchConfig.research_building("S3"), K.MANOR, "S3 nie wymaga Domu zwiadowców, który odblokowuje")
+	for code in TechTree.codes():
+		var kind := ResearchConfig.research_building(code)
+		assert_true(BuildConfig.required_tech(kind) != code, "%s: budynek badań nie zależy od samej technologii" % code)
+	var grid := BuildGrid.new(TerrainMap.generate(WorldSeed.first_playable(1337)))
+	grid.place(grid.manor_spot(64), K.MANOR, 1)
+	var r := Research.new()
+	var e := _rich_economy()
+	assert_eq(r.check("A1", 0, grid), Research.Result.NO_BUILDING, "bez Koszar Atak zablokowany")
+	assert_eq(r.start("A1", 0, e, T0, grid), Research.Result.NO_BUILDING, "i nie startuje")
+	assert_true(not r.is_busy(), "nic się nie bada")
+	assert_eq(Research.building_hint("A1"), "Najpierw postaw: Koszary", "komunikat")
+	assert_eq(ResearchPanel.state_text(r, "A1", 0, T0, grid), "brak budynku", "stan na ekranie")
+	assert_eq(r.check("G1", 0, grid), Research.Result.OK, "Gospodarka bez Koszar działa")
+	var spot := grid.spot_near(grid.buildings[grid.manor_id()].position, K.BARRACKS, 20)
+	var barracks := grid.place(spot, K.BARRACKS, 0)
+	assert_eq(r.check("A1", 0, grid), Research.Result.NO_BUILDING, "plac budowy Koszar jeszcze nie wystarcza")
+	grid.upgrade(barracks)
+	assert_eq(r.check("A1", 0, grid), Research.Result.OK, "gotowe Koszary odblokowują Atak")
+	assert_eq(r.start("A1", 0, e, T0, grid), Research.Result.OK, "badanie startuje")
+	var lines := ResearchPanel.detail_lines(Research.new(), "A1", 0, T0, 296, [], BuildGrid.new(grid.terrain))
+	var found := false
+	for l: Array in lines:
+		if (l[0] as String).begins_with("Wymaga: Koszary") and l.size() > 3 and (l[3] as PackedStringArray).has("Koszary"):
+			found = true
+	assert_true(found, "szczegóły: brakujące Koszary na czerwono")
 	return true

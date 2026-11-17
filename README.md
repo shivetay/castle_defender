@@ -87,6 +87,10 @@ obrony z #19 (posterunki załogi wokół donżonu).
 - `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga
   epoki i zbadanych zależności, koszt schodzi przy starcie, a koniec liczy się z zegara, także w tle.
   Kolejka budowy kończy budowy i badanie w porządku czasu, więc premia liczy się od chwili zbadania.
+  Badanie wymaga też gotowego budynku badań swojej gałęzi (#165, `ResearchConfig.BRANCH_BUILDINGS`):
+  Atak bada się w Koszarach, Obronę, Gospodarkę, Użyteczne i Specjalne w Dworze, bo Targu, Kaplicy,
+  Szpitala, Arsenału, Wieży sygnałowej i Sztabu jeszcze nie ma. Dom zwiadowców przejmie Specjalne
+  od epoki II, ale nie S3, które go odblokowuje. Ekran badań pokazuje brakujący budynek na czerwono.
 - `scripts/world/goods_config.gd` (`GoodsConfig`): 22 towary epok I–II (skóry, kość, ścięgna, pióra, len,
   zbroje, przeszywanice, tarcze, mokre skóry na Taran, broń drzewcowa, cięciwy, łuki, strzały, siodła,
   uprząż, smoła, konie) i przepisy 11 wytwórców według notatki Klasy jednostek i produkcja. Bez metalu.

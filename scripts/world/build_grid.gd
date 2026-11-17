@@ -184,6 +184,14 @@ func spot_near(c: Vector2i, kind: int, max_ring: int) -> Rect2i:
 
 
 ## Poziom zamku, czyli poziom Dworu (1, gdy Dworu nie ma albo jest w budowie).
+## Czy stoi gotowy (poziom co najmniej 1, nie plac budowy) budynek rodzaju `kind`.
+func has_built(kind: int) -> bool:
+	for id: int in kinds:
+		if kinds[id] == kind and levels[id] >= 1:
+			return true
+	return false
+
+
 func manor_level() -> int:
 	var id := manor_id()
 	return maxi(1, levels[id]) if id != 0 else 1
