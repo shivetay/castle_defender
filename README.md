@@ -186,6 +186,14 @@ obrony z #19 (posterunki załogi wokół donżonu).
   daje surowce i odblokowuje następną falę; postęp jest w zapisie (wersja 5). Polegli obrońcy
   znikają z armii razem z wyposażeniem (Jeździec z koniem), a ocalali, także wycofani, wracają do swoich
   oddziałów (#164). Budynki nie niszczą się na stałe. Skład fal i nagrody są tymczasowe.
+- Prowadzenie do 5 fal (#185, `scripts/world/tutorial_goals.gd`): pod górnym paskiem HUD-u pasek „Cel:”
+  z kolejnym krokiem, liczonym z gry (bez zapisu): Koszary i 6 żołnierzy, np. Chłopów (fala 1), 10 żołnierzy (fala 2),
+  A39 i Drzewcarz z toporami (fala 3), łańcuch łuczników (G18, Chata myśliwego, A40, Cięciwiarz, A41,
+  Łukmistrz, A42, Strzałmistrz, A44, Strzelnica), brama na drodze i 4 odcinki palisady (fala 4), Dwór 2
+  i armia 10 toporników, 6 łuczników, 6 oszczepników (fala 5). Gdy kroki danej fali są zrobione, celem
+  jest Oblężenie. Cele tylko podpowiadają, Oblężenia nie blokują. Po 5. fali komunikat sukcesu z nagrodą i koniec
+  prowadzenia. Test sprawdza, że obrona z tej ścieżki z bramą, palisadą i zadaniami domyślnymi wygrywa
+  każdą falę na kilku mapach.
 - Morale (#98): każdy oddział ma morale 0–100 (liczby całkowite, start 70). Poległy zabiera
   oddziałowi 80 / początkowa liczebność, więc oddział łamie się po stracie ponad połowy ludzi.
   Poniżej 30 oddział sam się wycofuje na swoją kratkę startową i już nie walczy; gdy wycofają się
