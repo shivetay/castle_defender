@@ -205,8 +205,8 @@ func placement_candidates(c: Vector2i, kind: int, stick: bool = false) -> Array[
 	if BuildingTypes.is_wall(kind):
 		return _wall_candidates(c, kind)
 	if kind != BuildingTypes.Kind.GATE:
-		# wieża łączy się z linią umocnień, więc staje w niej, a nie obok
-		if stick and kind != BuildingTypes.Kind.TOWER:
+		# wieża łączy się z linią umocnień, więc staje w niej, a nie obok; Dwór i donżon stoją od startu
+		if stick and kind != BuildingTypes.Kind.TOWER and not BuildingTypes.is_unique(kind):
 			return _stick_candidates(c, kind, size)
 		return [Rect2i(c, size)] as Array[Rect2i]
 	var axis := road_axis(c)

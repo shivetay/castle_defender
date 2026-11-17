@@ -35,7 +35,7 @@ enum Lean { NONE, NORTH, EAST, SOUTH, WEST }
 ## Czy rodzaj rysuje się jako przybudówka, gdy przylega do muru: chata drwala i warsztaty (Dwór,
 ## donżon, wieża, brama, pole lnu i umocnienia mają własny kształt).
 static func can_lean(kind: int) -> bool:
-	return kind == BuildingTypes.Kind.LUMBER_HUT or not (BuildingTypes.is_wall(kind) or kind in [
+	return not (BuildingTypes.is_wall(kind) or kind in [
 			BuildingTypes.Kind.GATE, BuildingTypes.Kind.TOWER, BuildingTypes.Kind.MANOR, BuildingTypes.Kind.KEEP,
 			BuildingTypes.Kind.FLAX_FIELD])
 
