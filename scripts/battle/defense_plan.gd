@@ -74,7 +74,8 @@ func order_for(squad_id: int) -> Order:
 
 
 ## Zadanie oddziału `squad_id` (zakłada nowe albo zmienia istniejące) i je zwraca. Zmiana zadania
-## zostawia miejsce, a czyści trasę patrolu.
+## zostawia miejsce, a czyści trasę patrolu. Wyjątek: Przy donżonie czyści też miejsce, bo oddział
+## nie ma wtedy własnej kratki (review #184).
 func set_task(squad_id: int, task: int) -> Order:
 	var o := order_for(squad_id)
 	if o == null:
