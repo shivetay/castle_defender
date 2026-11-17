@@ -563,7 +563,8 @@ func _draw_icon_button(r: Rect2, icon: int, label: String, active: bool, count: 
 			Color(Palette.SHADOW, 0.7))
 	PixelIcons.draw_menu(self, at, icon)
 	if count > 0:
-		var n := str(count)
+		# najwyżej „9+”, żeby plakietka nie rosła w lewo nad mapę (review #191)
+		var n := str(count) if count <= 9 else "9+"
 		var w := PixelFont.text_width(n) + 2
 		var badge := Rect2(r.position.x - w + 3, r.end.y - 8, w, 9)
 		draw_rect(badge, Palette.ACCENT)

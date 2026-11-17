@@ -142,3 +142,24 @@ func test_outline_and_shadow() -> bool:
 	assert_true(p.a > 0.0 and p.a < 1.0, "cień półprzezroczysty")
 	assert_eq(Color(p, 1.0), Color(Palette.SHADOW, 1.0), "cień w kolorze cienia z palety")
 	return true
+
+
+## Błyski na wodzie (#150, review #191): kratki wody w kubełkach po fazie, każda dokładnie raz,
+## więc w tyknięciu rysują się tylko 3 kubełki zamiast całej rzeki.
+func test_glint_buckets_cover_water_once() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(42))
+	var view := AmbientView.new()
+	view.setup(grid, BuildingTextures.new())
+	var water := 0
+	for y in grid.terrain.size:
+		for x in grid.terrain.size:
+			if grid.terrain.get_tile(Vector2i(x, y)) == TerrainMap.Tile.WATER:
+				water += 1
+	var seen := 0
+	for i in AmbientView.GLINT_CYCLE:
+		for g: Vector3i in view._glints[i]:
+			assert_eq(g.z % AmbientView.GLINT_CYCLE, i, "kratka w swoim kubełku")
+			seen += 1
+	assert_eq(seen, water, "każda kratka wody raz")
+	view.free()
+	return true
