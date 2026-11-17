@@ -1,15 +1,17 @@
 class_name BotCastle
 extends RefCounted
-## Zamek-cel do ataku (#17), zanim będzie PvP (etap 9) i 20 zamków-botów (#26): prosty gród
-## z seeda. Dwór i donżon w pierścieniu palisady z bramą od strony drogi, wieże i budynki
-## gospodarcze poza pierścieniem oraz załoga. `strength` (ile zamków gracz już zdobył) dodaje
-## poziomy, wieże i obrońców. Ten sam seed i siła dają zawsze ten sam zamek. Liczby TYMCZASOWE.
+## Zamek-cel do ataku (#17) i zamek-bot z listy BotRoster (#26): gród z seeda. Dwór i donżon
+## w pierścieniu palisady z bramą od strony drogi, wieże, budynki gospodarcze i rekrutacji poza
+## pierścieniem, od zamku 11 zewnętrzny wał, oraz załoga. `strength` (numer zamku na liście, 0–19)
+## wybiera wszystko z BotRoster. Ten sam seed i siła dają zawsze ten sam zamek. Liczby TYMCZASOWE.
 
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
 
 var seed_value := 0
 var strength := 0
+## Numer zamku na liście BotRoster (0–19).
+var index := 0
 var grid: BuildGrid
 ## Id donżonu: cel ataku.
 var objective := 0
@@ -20,6 +22,8 @@ var defenders: Array = []
 
 
 ## Seed zamku numer `index` dla gracza z `world_seed` (inny niż seed jego zamku i fal PvE).
+## Tylko testy i starszy kod: Wyprawa w grze używa wspólnej listy BotRoster.seed_of (#26), więc
+## nie podpinaj tu z powrotem seeda świata gracza.
 static func seed_for(world_seed: int, index: int) -> int:
 	return PixelCanvas.hash2(world_seed, index, 0xb07) & 0x7fffffff
 
@@ -31,8 +35,7 @@ static func generate(seed_value: int, strength: int = 0) -> BotCastle:
 	var terrain := TerrainMap.generate(WorldSeed.first_playable(seed_value))
 	var grid := BuildGrid.new(terrain)
 	bot.grid = grid
-	@warning_ignore("integer_division")
-	var level := clampi(1 + bot.strength / 2, 1, BuildingTypes.MAX_LEVEL)
+	var level := BotRoster.level_of(bot.strength)
 	var manor := grid.place(grid.manor_spot(WorldSeed.MANOR_MAX_RING), K.MANOR, level)
 	bot.objective = grid.place(grid.keep_spot(WorldSeed.KEEP_MAX_RING), K.KEEP, level)
 	bot.spawn = edge_road(terrain)
@@ -40,16 +43,17 @@ static func generate(seed_value: int, strength: int = 0) -> BotCastle:
 	if bot.objective != 0:
 		inner = inner.merge(grid.buildings[bot.objective])
 	var ring := inner.grow(2)
-	_place_ring(grid, ring, level, bot.spawn)
-	for i in mini(2, bot.strength):
+	var gx := _place_ring(grid, ring, level, bot.spawn, K.PALISADE, true)
+	if bot.strength >= BotRoster.OUTER_WALL_FROM:
+		# zewnętrzny wał 2 kratki dalej, z przejściem na wprost bramy
+		_place_ring(grid, ring.grow(2), level, bot.spawn, K.RAMPART, false, gx)
+	for i in BotRoster.towers_of(bot.strength):
 		grid.place(grid.spot_around(ring, K.TOWER, 3), K.TOWER, level)
-	for kind: int in [K.LUMBER_HUT, K.HUNTER, K.LUMBER_HUT]:
+	var kinds: Array[int] = [K.LUMBER_HUT, K.HUNTER, K.LUMBER_HUT]
+	kinds.append_array(BotRoster.recruit_buildings(bot.strength))
+	for kind in kinds:
 		grid.place(grid.spot_around(ring, kind, 6), kind, level)
-	bot.defenders = [[U.PEASANT, 4 + 2 * bot.strength]]
-	if bot.strength >= 1:
-		bot.defenders.append([U.ARCHER, 2 + bot.strength])
-	if bot.strength >= 2:
-		bot.defenders.append([U.AXE_WARRIOR, 2 * bot.strength])
+	bot.defenders = BotRoster.defenders(bot.strength)
 	return bot
 
 
@@ -64,12 +68,14 @@ static func edge_road(terrain: TerrainMap) -> Vector2i:
 	return Vector2i(terrain.size / 2, last - 1)
 
 
-## Pierścień palisady po brzegu `ring` z bramą 3×1 w boku od strony wejścia (górnym albo dolnym).
-## Kratki z wodą, poza mapą i zajęte zostają luką w pierścieniu.
-static func _place_ring(grid: BuildGrid, ring: Rect2i, level: int, spawn: Vector2i) -> void:
+## Pierścień umocnień `kind` po brzegu `ring` z bramą 3×1 (albo przejściem bez bramy) w boku od strony
+## wejścia (górnym albo dolnym). Kratki z wodą, poza mapą i zajęte zostają luką w pierścieniu.
+## `gate_x` < 0: brama na środku boku. Zwraca lewą kolumnę bramy.
+static func _place_ring(grid: BuildGrid, ring: Rect2i, level: int, spawn: Vector2i, kind: int = K.PALISADE,
+		gate: bool = true, gate_x: int = -1) -> int:
 	var gate_y := ring.position.y if spawn.y < ring.get_center().y else ring.end.y - 1
 	@warning_ignore("integer_division")
-	var gx := ring.position.x + ring.size.x / 2 - 1
+	var gx := ring.position.x + ring.size.x / 2 - 1 if gate_x < 0 else gate_x
 	for y in range(ring.position.y, ring.end.y):
 		for x in range(ring.position.x, ring.end.x):
 			var edge := y == ring.position.y or y == ring.end.y - 1 or x == ring.position.x or x == ring.end.x - 1
@@ -78,5 +84,7 @@ static func _place_ring(grid: BuildGrid, ring: Rect2i, level: int, spawn: Vector
 			var c := Vector2i(x, y)
 			if not grid.terrain.in_bounds(c) or grid.terrain.get_tile(c) == TerrainMap.Tile.WATER or grid.building_at(c) != 0:
 				continue
-			grid.place(Rect2i(c, Vector2i.ONE), K.PALISADE, level)
-	grid.place(Rect2i(gx, gate_y, 3, 1), K.GATE, level)
+			grid.place(Rect2i(c, Vector2i.ONE), kind, level)
+	if gate:
+		grid.place(Rect2i(gx, gate_y, 3, 1), K.GATE, level)
+	return gx

@@ -30,6 +30,8 @@ class State:
 	## Zapisany plan ataku (#17) i ile zamków-celów gracz już zdobył.
 	var attack_plan := AttackPlan.new()
 	var bots_beaten := 0
+	## Wybrany cel Wyprawy: numer zamku na liście BotRoster (#26).
+	var attack_target := 0
 	## Ustawienia obrony (#19, #20): zadania oddziałów załogi i priorytet wież.
 	var defense := DefensePlan.new()
 	var grid: BuildGrid
@@ -45,7 +47,8 @@ class State:
 ## Słownik zapisu dla stanu gry.
 static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: BuildQueue,
 		research: Research = null, goods: Goods = null, recruitment: Recruitment = null, pve_cleared: int = 0,
-		attack_plan: AttackPlan = null, bots_beaten: int = 0, defense: DefensePlan = null) -> Dictionary:
+		attack_plan: AttackPlan = null, bots_beaten: int = 0, defense: DefensePlan = null,
+		attack_target: int = 0) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -56,7 +59,8 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		"goods": goods.save_data() if goods != null else {},
 		"recruitment": recruitment.save_data() if recruitment != null else {},
 		"pve": {"cleared": pve_cleared},
-		"attack": {"plan": attack_plan.to_dict() if attack_plan != null else {}, "beaten": bots_beaten},
+		"attack": {"plan": attack_plan.to_dict() if attack_plan != null else {}, "beaten": bots_beaten,
+				"target": attack_target},
 		"defense": defense.to_dict() if defense != null else {},
 	}
 
@@ -84,6 +88,9 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	var attack := d.get("attack", {}) as Dictionary
 	s.attack_plan = AttackPlan.from_dict(attack.get("plan", {}) as Dictionary)
 	s.bots_beaten = maxi(0, int(attack.get("beaten", 0)))
+	# cel spoza odblokowanych (np. stary zapis) wraca na najwyższy dostępny zamek
+	var target := int(attack.get("target", BotRoster.last_unlocked(s.bots_beaten)))
+	s.attack_target = target if BotRoster.is_unlocked(target, s.bots_beaten) else BotRoster.last_unlocked(s.bots_beaten)
 	s.defense = DefensePlan.from_dict(d.get("defense", {}) as Dictionary)
 	s.defense.prune(s.recruitment)
 	return s

@@ -63,6 +63,9 @@ var _battle_ids: Array[int] = []
 ## Atak na zamek-cel (#17): zapisany plan, ile zamków gracz już zdobył, ekran planu i zamek-cel.
 var attack_plan := AttackPlan.new()
 var bots_beaten := 0
+## Cel Wyprawy: numer zamku-bota na liście BotRoster (#26) i ekran wyboru zamku.
+var attack_target := 0
+var bot_picker: BotPicker
 var planner: AttackPlanner
 var attack_panel: AttackPanel
 ## Ustawienia obrony (#19): posterunki załogi i panel edycji (widoczny w trybie edycji obrony).
@@ -94,6 +97,7 @@ func _ready() -> void:
 		pve_cleared = saved.pve_cleared
 		attack_plan = saved.attack_plan
 		bots_beaten = saved.bots_beaten
+		attack_target = saved.attack_target
 		defense = saved.defense
 		terrain = grid.terrain
 	else:
@@ -158,6 +162,11 @@ func _ready() -> void:
 	attack_panel.changed.connect(_on_plan_changed)
 	attack_panel.back_requested.connect(_close_attack)
 	attack_panel.attack_requested.connect(_on_attack_launched)
+	bot_picker = BotPicker.new()
+	bot_picker.visible = false
+	layer.add_child(bot_picker)
+	bot_picker.target_chosen.connect(_open_attack)
+	bot_picker.closed.connect(_on_overlay_closed)
 
 	defense_panel = DefensePanel.new()
 	defense_panel.research = research
@@ -319,7 +328,7 @@ func _save() -> void:
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
 	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten, defense))
+			pve_cleared, attack_plan, bots_beaten, defense, attack_target))
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
 
@@ -600,24 +609,38 @@ func _attack_army() -> Array:
 	return army.slice(0, AttackPlan.max_squads(CURRENT_AGE))
 
 
+## Zamek-bot wybrany jako cel Wyprawy (z pamięci, gdy plan pokazuje już ten zamek).
 func _bot() -> BotCastle:
-	if planner.bot != null and planner.bot.strength == bots_beaten \
-			and planner.bot.seed_value == BotCastle.seed_for(world_seed, bots_beaten):
+	if planner.bot != null and planner.bot.index == attack_target \
+			and planner.bot.seed_value == BotRoster.seed_of(attack_target):
 		return planner.bot
-	return BotCastle.generate(BotCastle.seed_for(world_seed, bots_beaten), bots_beaten)
+	return BotRoster.generate(attack_target)
 
 
-## Atak: ekran planu na zamku-celu. Bez wojska ekran się nie otwiera.
+## Wyprawa (karta Strażnicy): najpierw wybór zamku-bota (#26). Bez wojska ekran się nie otwiera.
 func _on_attack_pressed() -> void:
 	_tick()
-	var army := _attack_army()
-	if army.is_empty():
+	if _attack_army().is_empty():
 		hud.message = "Najpierw wyszkol wojsko: Koszary i Wojsko"
 		return
 	_selected_id = 0
 	hud.hide_card()
 	hud.set_building(false)
 	_cursor = Rect2i()
+	bot_picker.open(bots_beaten, attack_target)
+	hud.overlay = true
+	hud.message = "Zdobyte: %d z %d zamków" % [mini(bots_beaten, BotRoster.COUNT), BotRoster.COUNT]
+	queue_redraw()
+
+
+## Planuj: ekran planu na wybranym zamku. Zmiana celu czyści cele i trasy oddziałów z planu.
+func _open_attack(index: int) -> void:
+	var army := _attack_army()
+	if index != attack_target:
+		attack_target = index
+		for o in attack_plan.orders:
+			AttackPlanner.clear(o)
+	bot_picker.visible = false
 	var bot := _bot()
 	planner.open(bot, attack_plan, army, CURRENT_AGE)
 	attack_panel.visible = true
@@ -658,7 +681,7 @@ func _on_attack_launched() -> void:
 	var bot := planner.bot
 	_battle_ids = recruitment.battle_ids().slice(0, army.size())
 	var b := Battle.create_squads(bot.grid, bot.objective, army, bot.defenders, bot.spawn,
-			PixelCanvas.hash2(bot.seed_value, bots_beaten, 0xa77) & 0x7fffffff)
+			PixelCanvas.hash2(bot.seed_value, attack_target, 0xa77) & 0x7fffffff)
 	b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
 	b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
 	_attacking = true
@@ -675,14 +698,18 @@ func _on_attack_launched() -> void:
 	_save()
 
 
-## Koniec ataku: polegli znikają z armii, a zdobyty zamek odblokowuje kolejny, mocniejszy cel.
+## Koniec ataku: polegli znikają z armii, a pierwsze zdobycie zamku odblokowuje kolejny, mocniejszy
+## (#26). Zamek wraca do pełnego stanu, więc można go atakować znowu.
 func _finish_attack(b: Battle) -> void:
 	var fallen := recruitment.apply_losses(_battle_ids, b.survivors(Battle.Side.ATTACKER))
 	var won := b.winner == Battle.Winner.ATTACKER
-	if won:
+	var first := won and attack_target == bots_beaten and bots_beaten < BotRoster.COUNT
+	if first:
 		bots_beaten += 1
-		for o in attack_plan.orders:
-			AttackPlanner.clear(o)  # cel i trasa dotyczyły zdobytego zamku
+		if bots_beaten < BotRoster.COUNT:
+			attack_target = bots_beaten  # następna Wyprawa od razu na nowy zamek
+			for o in attack_plan.orders:
+				AttackPlanner.clear(o)  # cel i trasa dotyczyły zdobytego zamku
 	battle_view.queue_free()
 	battle_view = null
 	hud.battle = false
