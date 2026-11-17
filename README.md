@@ -2,7 +2,7 @@
 
 Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zamki od wałów ziemnych do twierdzy z końca wojen napoleońskich i atakują zamki innych graczy. Cała grafika jest rysowana kodem, bez zewnętrznych assetów.
 
-**Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP (Supabase) dojdzie w etapie 9 (#131).
+**Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP: Supabase (etap 9, #131; schemat w `supabase/`).
 
 ## Stan: etap 8 z planu MVP
 
@@ -301,6 +301,15 @@ obrony z #19 (posterunki załogi wokół donżonu).
   (`Battle.arm_traps`) każda działa raz, a po bitwie odnawia się za darmo, bo układ się nie zmienia.
   Atakujący jej nie widzi; pole `revealed` czeka na zwiad (#28). Zamki-cele nie mają jeszcze pułapek.
   Liczby tymczasowe.
+- Baza PvP (#21, `supabase/migrations`): Supabase (Postgres) z RLS na każdej tabeli i jawnymi uprawnieniami.
+  - **Tabele:** `players` (konto, także anonimowe; ranking i epoka), `castles` (stan gry w JSON z wersją formatu,
+    licznikiem zmian i stałym `map_seed`), `defense_layouts`, `bot_castles` (20 zamków-botów z seedem z
+    `BotRoster`, #26), `attacks` (seed bitwy, rozkazy, wynik, łup), `shields`, `ad_rewards`.
+  - **Dostęp gracza:** czyta i zapisuje tylko swój zamek, obronę i nick. Nie zmieni seedu terenu, licznika
+    zmian, rankingu ani epoki i nie usunie zamku. Ataki, tarcze i nagrody tylko czyta (swoje); zapisuje je
+    serwer (Edge Functions, #25, #33). Listę zamków-botów czyta każdy, także bez logowania.
+  - **Wyzwalacze:** konto Auth zakłada wiersz gracza; zapis zamku albo obrony podbija `revision`.
+  - **Testy:** `supabase/tests/database/rls_test.sql` (31 testów pgTAP), np. obcy gracz nie zmieni cudzego zamku.
 - Wynik ataku (#99, `scripts/battle/battle_result.gd`, okno `scripts/ui/result_panel.gd`): liczony tylko ze
   stanu skończonej bitwy, w liczbach całkowitych (ten sam u atakującego, w powtórce i na serwerze).
   - **Procent zniszczeń:** zburzone budynki bez odcinków wału i palisady.
@@ -425,6 +434,14 @@ godot --headless --path . --script res://tests/run_tests.gd   # same testy logik
 Nowe testy dodajesz jako `tests/test_<nazwa>.gd` z `extends TestCase`. Każda metoda `test_*`
 kończy się `return true` (wzór: `tests/test_pixel_canvas.gd`).
 
+Baza PvP (Supabase, #21): migracje są w `supabase/migrations`, a testy RLS w pgTAP
+w `supabase/tests/database`. Z Supabase CLI i Dockerem:
+
+```bash
+supabase start      # lokalny stos Supabase z migracjami
+supabase test db    # testy RLS (pgTAP)
+```
+
 ## Wersje i changelog
 
 Wersja to SemVer `MAJOR.MINOR.PATCH`. Pierwsze wydanie, 0.0.1, obejmuje etapy 1 i 2 (szkielet projektu,
@@ -480,6 +497,7 @@ scripts/camera/  kamera z gestami (zoom 0,5×/1×/2×/4×)
 scripts/ui/      HUD
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
 tools/           narzędzia (version.py, changelog.py i ich testy)
+supabase/        backend PvP: config.toml, migracje SQL i testy RLS (pgTAP)
 .github/         workflowy CI/CD i skrypty instalacji Godota
 .claude/skills/  skille dla agenta AI (zob. CLAUDE.md)
 docs/castle-defender-vault/  vault Obsidiana z notatkami projektowymi (Godot go pomija)
@@ -490,5 +508,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#20) i pułapki (#100).
 Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
-(#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Następny jest etap 9 (#131): backend Supabase i PvP. Z etapów 4–5 zostają części zależne od bitwy,
+(#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
+backend Supabase i PvP. Jest schemat bazy z RLS (#21, opis niżej); następne jest logowanie anonimowe
+i klient Supabase w Godot (#22). Z etapów 4–5 zostają części zależne od bitwy,
 planu ataku i generałów (#81, #89, #91, #97, #12).
