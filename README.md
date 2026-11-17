@@ -208,17 +208,30 @@ obrony z #19 (posterunki załogi wokół donżonu).
   Obrona w kolumnie otwiera własny zamek w trybie edycji.
   - **Posterunki:** oddział załogi z rekrutacji dostaje kratkę w strefie 10 kratek wokół donżonu (na trawie,
     nie w wodzie i nie na budynku). W bitwie staje wokół niej i wraca tam, gdy nie ma wroga w zasięgu
-    wzroku. Oddział bez posterunku stoi jak dotąd przy donżonie. Promień strefy jest tymczasowy.
+    wzroku. Oddział bez posterunku stoi jak dotąd przy donżonie. Złamany oddział (#98) wycofuje się
+    pod donżon, także z wysuniętego posterunku. Promień strefy jest tymczasowy.
   - **Ekran:** strefa obrony na mapie, znaczniki posterunków z ikoną klasy, pasek oddziałów (Dalej
     przewija, gdy oddziałów jest więcej niż 6) i opis wybranego oddziału. Dotknięcie trawy ustawia
     posterunek wybranego oddziału, dotknięcie cudzego posterunku wybiera jego oddział. Przyciski: Zdejmij
     (oddział wraca pod donżon) i Gotowe.
   - **Bitwa:** posterunki działają w falach samouczka i w podglądzie bitwy (`Battle.create_squads(...,
-    defender_posts)`). Bez posterunków przebieg jest identyczny jak przed #19.
+    defender_orders)`). Bez posterunków przebieg jest identyczny jak przed #19.
   - **Zapis:** układ jest w save'ie (wersja 7 z migracją), przypisany do id oddziału, więc nowy oddział
     nie przejmuje cudzego posterunku, a posterunek rozwiązanego oddziału znika.
-  - **Później:** patrole, priorytety wież i wypad konnicy to zadania obrony (#20), pułapki to #100,
-    a komendant dojdzie z generałami (#31).
+- Zadania obrony (#20, krok A planu zatwierdzonego przez właściciela; notatka Manewry i zadania):
+  przycisk Zadanie na ekranie Obrona daje oddziałowi zadanie z listy predefiniowanej, jak manewry ataku.
+  - **Obrona odcinka:** oddział stoi na swoim miejscu (trawa albo kratka tuż przy dotkniętym odcinku wału,
+    palisady, bramy czy wieży, od strony donżonu). Bije wrogów w zasięgu, ściga tylko tych, którzy podeszli
+    na 4 kratki (`BattleConfig.HOLD_RADIUS`, tymczasowe), i wraca na miejsce. Posterunki z #19 to właśnie
+    to zadanie.
+  - **Patrol:** oddział krąży między 2–3 punktami (kolejne dotknięcia mapy; czwarte zaczyna trasę od
+    nowa), bije wroga w zasięgu wzroku i wraca na trasę. Trasa jest na mapie jako pętla.
+  - **Priorytet celów wież:** przycisk Wieże (najbliższy, taran, strzelcy, konnica). Wieża bije
+    najbliższego z wybranej grupy, a bez takiego w zasięgu najbliższego.
+  - **Zapis:** wersja 8 z migracją; posterunki z wersji 7 stają się Obroną odcinka.
+  - **Dalej (#20):** stanowiska strzelców na murach, domyślne zadania według klasy, Wypad konnicy
+    (z przejściem obrońców przez własne bramy) i Gaszenie pożarów po Studni (#35). Pułapki to #100,
+    komendant dojdzie z generałami (#31).
 - Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
   - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
   - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
@@ -380,8 +393,8 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 ## Następny etap
 
-Etap 7 (#129) jest zrobiony: manewry (#18) i ekran planu (#17). Etap 8 (#130): po ustawieniach obrony
-(#19) kolejne są zadania obrony (#20: Obrona odcinka, Patrol, Priorytet celów wież, Gaszenie pożarów,
-Wypad konnicy) i pułapki (#100). Z etapu 6 (#128) zostaje z efektów bitwy (#101) gaszenie pożarów, które
-czeka na Studnię (#35) i zadania obrony (#20). Z etapów 4–5 zostają części zależne od bitwy, planu ataku
-i generałów (#81, #89, #91, #97, #12).
+Etap 8 (#130): po ustawieniach obrony (#19) i pierwszym kroku zadań obrony (#20: Obrona odcinka, Patrol,
+Priorytet celów wież) kolejne są stanowiska strzelców na murach z domyślnymi zadaniami według klasy,
+Wypad konnicy, potem Gaszenie pożarów po Studni (#35). Pułapki (#100) czekają na projekt listy. Z etapu 6
+(#128) zostaje z efektów bitwy (#101) gaszenie pożarów, które czeka na Studnię (#35) i zadania obrony (#20).
+Z etapów 4–5 zostają części zależne od bitwy, planu ataku i generałów (#81, #89, #91, #97, #12).

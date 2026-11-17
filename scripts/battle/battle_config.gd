@@ -49,6 +49,8 @@ const CAPTURE_S := 10
 ## Ile kolejnych kratek sprawdza rozstawienie, gdy kratkę zajęła jednostka z sąsiedniego
 ## posterunku obrony (#19); potem jednostka staje na niej mimo to (mapa bez wolnego miejsca).
 const SPAWN_RETRIES := 64
+## Obrona odcinka (#20): oddział ściga wrogów, którzy podeszli na tyle kratek do jego miejsca. TYMCZASOWE.
+const HOLD_RADIUS := 4
 ## Jak blisko donżonu (w kratkach od jego krawędzi) liczy się zajmowanie i obrona.
 const CAPTURE_RANGE := 1
 ## Morale oddziałów (#98), liczby całkowite 0–100. Z notatki Drzewko technologiczne: poniżej 30 oddział

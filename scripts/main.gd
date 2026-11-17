@@ -8,8 +8,8 @@ extends Node2D
 ## idą dalej, gdy gra jest w tle albo zamknięta; po powrocie komunikat podaje, ile przybyło.
 ## Przycisk Wojsko otwiera ekran rekrutacji wszystkich jednostek, a Szkol na karcie budynku rekrutacji
 ## ten sam ekran tylko z jednostkami tego budynku (RecruitPanel).
-## Przycisk Obrona otwiera ustawienia obrony (DefensePanel, #19): oddziałom załogi wskazuje się
-## posterunki w strefie wokół donżonu, a bitwa na własnym zamku stawia je tam na start.
+## Przycisk Obrona otwiera ustawienia obrony (DefensePanel, #19, #20): oddziałom załogi daje się
+## zadania (Obrona odcinka, Patrol) w strefie wokół donżonu i ustawia priorytet celów wież.
 ## Przycisk Kolejka (albo czas budowy na górnym pasku) otwiera ekran Kolejka (QueuePanel, #163) z zakładkami
 ## Budynki i Jednostki: co się buduje i szkoli, z anulowaniem budowy.
 ## Przycisk Badania otwiera drzewko technologii (ResearchPanel); badanie trwa w czasie zegarowym
@@ -214,7 +214,8 @@ func _start_battle_preview() -> void:
 			[UnitTypes.Unit.RIDER, 4], [UnitTypes.Unit.FIRE_RAISER, 3]]
 	var view := BattleView.new()
 	view.battle = Battle.create_squads(grid, grid.keep_id(), attackers, defenders, _edge_road(), world_seed,
-			defense.battle_posts(recruitment.battle_ids()))
+			defense.battle_orders(recruitment.battle_ids()))
+	view.battle.tower_priority = defense.tower_priority
 	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	add_child(view)
 	hud.message = "Podgląd bitwy"
@@ -473,7 +474,8 @@ func _on_siege_pressed() -> void:
 	_battle_wave = pve_cleared
 	_battle_ids = recruitment.battle_ids()
 	var b := Battle.for_castle_squads(grid, PveWaves.squads(_battle_wave), recruitment.battle_squads(), _edge_road(),
-			PveWaves.battle_seed(world_seed, _battle_wave), research, defense.battle_posts(_battle_ids))
+			PveWaves.battle_seed(world_seed, _battle_wave), research, defense.battle_orders(_battle_ids),
+			defense.tower_priority)
 	battle_view = BattleView.new()
 	battle_view.battle = b
 	add_child(battle_view)
@@ -878,13 +880,18 @@ func _draw() -> void:
 		_draw_defence()
 
 
-## Tryb edycji obrony: strefa wokół donżonu i znaczniki posterunków (ikona klasy w ramce; wybrany
-## oddział w ramce koloru tuszu, posterunek zastawiony budynkiem na czerwono).
+## Tryb edycji obrony: strefa wokół donżonu, trasy patroli (zamknięta pętla z punktami) i znaczniki
+## miejsc oddziałów (ikona klasy w ramce; wybrany oddział w ramce koloru tuszu, miejsce zastawione
+## budynkiem na czerwono).
 func _draw_defence() -> void:
 	var zone := DefensePlan.zone(grid)
 	var px := Rect2i(zone.position * TerrainMap.CELL, zone.size * TerrainMap.CELL)
 	draw_rect(Rect2(px), Color(Palette.VALID, 0.12))
 	CastleView.draw_frame(self, px, Palette.VALID)
+	for i in defense_panel.ids.size():
+		var o := defense.order_for(defense_panel.ids[i])
+		if o != null and o.task == DefensePlan.Task.PATROL and o.post != DefensePlan.NO_POST:
+			_draw_patrol(o, Palette.INK if i == defense_panel.selected else Color(Palette.THATCH[1], 0.8))
 	for i in defense_panel.ids.size():
 		var post := defense.post_for(defense_panel.ids[i])
 		if post == DefensePlan.NO_POST:
@@ -897,6 +904,20 @@ func _draw_defence() -> void:
 		var cls := UnitTypes.unit_class(int((defense_panel.squads[i] as Array)[0]))
 		if PixelIcons.class_region(cls).has_area():
 			PixelIcons.draw_class(self, Vector2(at + Vector2i(2, 2)), cls)
+
+
+## Trasa patrolu: odcinki 1 px między punktami (z powrotem do pierwszego) i znaczniki 3×3 px punktów.
+func _draw_patrol(o: DefensePlan.Order, col: Color) -> void:
+	var points := o.patrol_points()
+	if points.size() > 1:
+		for k in points.size():
+			var a := AttackPlanner.cell_center_px(points[k])
+			var b := AttackPlanner.cell_center_px(points[(k + 1) % points.size()])
+			for p in AttackPlanner.line_pixels(a, b):
+				draw_rect(Rect2(p.x, p.y, 1, 1), col)
+	for p in o.route:
+		var c := AttackPlanner.cell_center_px(p)
+		draw_rect(Rect2(c.x - 1, c.y - 1, 3, 3), col)
 
 
 ## Pasek postępu 2 px nad kratkami budowanego budynku, w całych pikselach.

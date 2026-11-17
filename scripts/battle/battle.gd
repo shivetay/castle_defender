@@ -40,6 +40,9 @@ class Fighter:
 	var path_goal := Vector2i(-1, -1)
 	## Kratka, wokół której obrońca trzyma pozycję.
 	var post := Vector2i.ZERO
+	## Kratka, na którą jednostka wycofuje się po złamaniu oddziału (#98): miejsce startu atakującego,
+	## a dla obrońcy kratka przy donżonie, także gdy jego oddział stał na wysuniętym posterunku (#19).
+	var rally := Vector2i.ZERO
 	## Numer oddziału po swojej stronie (od 1, w kolejności armii).
 	var squad := 0
 	## Kopijnik już zaszarżował (szarża działa tylko w pierwszym uderzeniu).
@@ -86,6 +89,11 @@ var structures: Dictionary[int, Structure] = {}
 var objective := 0
 ## Ile procent tempa strzelania mają wieże (zbrojownia bez strzał: 50%, #88).
 var tower_fire_percent := 100
+## Ustawienia obrony (#19, #20): zadanie oddziału obrońcy (klucz: numer oddziału), punkty patrolu
+## (kratki, na których da się stanąć) i priorytet celów wież (DefensePlan.TowerPriority).
+var defence: Dictionary[int, DefensePlan.Order] = {}
+var tower_priority := 0
+var _patrol: Dictionary[int, Array] = {}
 
 var _terrain: TerrainMap
 var _cells: PackedInt32Array
@@ -138,11 +146,11 @@ static func _dict_to_squads(army: Dictionary) -> Array:
 
 
 ## Bitwa z oddziałami (#89, #15): `attackers` i `defenders` to listy oddziałów [rodzaj, liczba]
-## (np. z Recruitment.battle_squads()), w kolejności ustawienia. `defender_posts` (#19): kratka
-## posterunku każdego oddziału obrońcy w tej samej kolejności (DefensePlan.battle_posts); oddział
-## bez posterunku (NO_POST, poza mapą albo poza listą) staje przy celu.
+## (np. z Recruitment.battle_squads()), w kolejności ustawienia. `defender_orders` (#19, #20): zadanie
+## każdego oddziału obrońcy w tej samej kolejności (DefensePlan.battle_orders); oddział staje na
+## miejscu swojego zadania, a bez zadania (null, miejsce poza mapą albo poza listą) przy celu.
 static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, defenders: Array, spawn: Vector2i,
-		seed_value: int, defender_posts: Array[Vector2i] = []) -> Battle:
+		seed_value: int, defender_orders: Array[DefensePlan.Order] = []) -> Battle:
 	var b := Battle.new()
 	b._rng = BattleRng.new(seed_value)
 	b._terrain = grid.terrain
@@ -165,8 +173,16 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 	var home := Vector2i(center) + Vector2i(0, 2)
 	var anchors: Array[Vector2i] = []
 	for i in defenders.size():
-		var post := defender_posts[i] if i < defender_posts.size() else DefensePlan.NO_POST
-		anchors.append(post if b._terrain.in_bounds(post) else home)
+		var o: DefensePlan.Order = defender_orders[i] if i < defender_orders.size() else null
+		if o == null or not b._terrain.in_bounds(o.post):
+			anchors.append(home)
+			continue
+		anchors.append(o.post)
+		b.defence[i + 1] = o
+		var points: Array = []
+		for p in o.patrol_points():
+			points.append(b._walkable_near(p))
+		b._patrol[i + 1] = points
 	b._spawn_squads(defenders, Side.DEFENDER, home, anchors)
 	return b
 
@@ -182,10 +198,12 @@ static func for_castle(grid: BuildGrid, attackers: Dictionary, defenders: Dictio
 
 
 ## for_castle z oddziałami [rodzaj, liczba] (fale PvE #16 i armia z rekrutacji).
-## `defender_posts`: posterunki oddziałów obrońcy z ustawień obrony (#19), jak w create_squads.
+## `defender_orders` i `tower_priority`: ustawienia obrony (#19, #20), jak w create_squads.
 static func for_castle_squads(grid: BuildGrid, attackers: Array, defenders: Array, spawn: Vector2i,
-		seed_value: int, research: Research = null, defender_posts: Array[Vector2i] = []) -> Battle:
-	var b := create_squads(grid, grid.keep_id(), attackers, defenders, spawn, seed_value, defender_posts)
+		seed_value: int, research: Research = null, defender_orders: Array[DefensePlan.Order] = [],
+		tower_priority: int = DefensePlan.TowerPriority.NEAREST) -> Battle:
+	var b := create_squads(grid, grid.keep_id(), attackers, defenders, spawn, seed_value, defender_orders)
+	b.tower_priority = tower_priority
 	b.add_side_morale(Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	return b
 
@@ -268,9 +286,9 @@ func routed(f: Fighter) -> bool:
 	return squad_morale(f.side, f.squad) < BattleConfig.MORALE_ROUT or _sq_retreat.has(_squad_key(f.side, f.squad))
 
 
-## Wycofana jednostka, która już stoi na swojej kratce startowej i nie ma dokąd uciekać.
+## Wycofana jednostka, która już stoi na swojej kratce wycofania i nie ma dokąd uciekać.
 func cornered(f: Fighter) -> bool:
-	return absi(f.cell().x - f.post.x) <= 1 and absi(f.cell().y - f.post.y) <= 1
+	return absi(f.cell().x - f.rally.x) <= 1 and absi(f.cell().y - f.rally.y) <= 1
 
 
 ## Obrażenia dla jednostki; śmierć zabiera morale jej oddziałowi (loss_morale).
@@ -356,6 +374,8 @@ func checksum() -> int:
 		h = _mix(h, 1 if f.charged else 0)
 		h = _mix(h, f.wp * 2 + (1 if f.climbed else 0))
 		h = _mix(h, f.climb)
+		# kratka wycofania (review #180): dwie bitwy z różnym rozstawieniem obrońców różnią się już na starcie
+		h = _mix(h, f.rally.x * 256 + f.rally.y)
 	for id: int in structures:
 		h = _mix(h, id)
 		h = _mix(h, structures[id].hp)
@@ -415,6 +435,8 @@ func _setup_astar() -> void:
 ## gdy lista go obejmuje (posterunki obrony, #19). Każdy punkt zaczepienia wypełnia się od środka
 ## w stałej kolejności, a kratka zajęta przez wcześniejszą jednostkę jest pomijana, więc dwa
 ## sąsiednie posterunki nie stawiają ludzi na sobie. Z jednym punktem wynik jest taki jak dawniej.
+## Jednostka z posterunku dostaje kratkę wycofania przy `at` (pod donżonem), reszta wycofuje się tam,
+## gdzie stanęła.
 func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector2i] = []) -> void:
 	var units: Array[int] = []
 	var squad_of: Array[int] = []
@@ -426,6 +448,7 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 	# punkt zaczepienia → ile kratek wokół niego już sprawdzono
 	var placed: Dictionary[Vector2i, int] = {}
 	var taken: Dictionary[Vector2i, bool] = {}
+	var rally_n := 0
 	for k in units.size():
 		var unit := units[k]
 		var f := Fighter.new()
@@ -448,6 +471,11 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 		f.x = cell.x * BattleConfig.SUB + BattleConfig.SUB / 2
 		f.y = cell.y * BattleConfig.SUB + BattleConfig.SUB / 2
 		f.post = cell
+		f.rally = cell
+		if anchor != at:
+			# kratki wycofania mogą się powtarzać z miejscami innych jednostek: to tylko cel marszu
+			f.rally = _free_cell_near(at, rally_n)
+			rally_n += 1
 		f.cooldown = _rng.range_int(0, BattleConfig.ATTACK_COOLDOWN_TICKS - 1)
 		fighters.append(f)
 		var key := _squad_key(side, f.squad)
@@ -478,7 +506,7 @@ func _act(f: Fighter) -> void:
 	if f.cooldown > 0:
 		f.cooldown -= 1
 	if routed(f):
-		# wycofanie (#98): bez walki do swojej kratki startowej, drogą omijającą żywe budynki
+		# wycofanie (#98): bez walki na swoją kratkę wycofania, drogą omijającą żywe budynki
 		f.target = 0
 		if not f.retreating:
 			f.retreating = true
@@ -490,12 +518,15 @@ func _act(f: Fighter) -> void:
 				f.target = near.id
 				_strike_unit(f, near)
 				return
-		_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
+		_walk(f, f.rally, f.rally.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.rally.y * BattleConfig.SUB + BattleConfig.SUB / 2,
 				false, _retreat_astar)
 		return
 	var order := _order(f)
 	if order != null:
 		_act_order(f, order)
+		return
+	if f.side == Side.DEFENDER and defence.has(f.squad):
+		_defend(f, defence[f.squad])
 		return
 	_default_act(f)
 
@@ -1204,6 +1235,66 @@ func _count_loss(f: Fighter) -> void:
 		_sq_retreat[key] = true
 
 
+# --- Zadania obrony (#20) ----------------------------------------------------------------------------
+
+func _defend(f: Fighter, o: DefensePlan.Order) -> void:
+	if o.task == DefensePlan.Task.PATROL:
+		_patrol_act(f)
+	else:
+		_hold_section(f)
+
+
+## Obrona odcinka: bije wroga w zasięgu, ściga tylko tych, którzy podeszli na HOLD_RADIUS kratek
+## do jej miejsca, a potem wraca na miejsce.
+func _hold_section(f: Fighter) -> void:
+	var enemy := _enemy_for(f)
+	if enemy != null:
+		var near := absi(enemy.cell().x - f.post.x) <= BattleConfig.HOLD_RADIUS \
+				and absi(enemy.cell().y - f.post.y) <= BattleConfig.HOLD_RADIUS
+		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+			f.target = enemy.id
+			_strike_unit(f, enemy)
+			return
+		if near:
+			f.target = enemy.id
+			_walk(f, enemy.cell(), enemy.x, enemy.y, false)
+			return
+	f.target = 0
+	_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2, false)
+
+
+## Patrol: krąży po punktach trasy oddziału (od miejsca startu), a wroga w zasięgu wzroku bije
+## i ściga jak bez zadania; potem wraca do punktu, do którego szedł. `wp` to numer tego punktu.
+func _patrol_act(f: Fighter) -> void:
+	var enemy := _enemy_for(f)
+	if enemy != null:
+		f.target = enemy.id
+		if _in_range(f, enemy.x, enemy.y, UnitTypes.attack_range(f.unit)):
+			_strike_unit(f, enemy)
+		else:
+			_walk(f, enemy.cell(), enemy.x, enemy.y, false)
+		return
+	f.target = 0
+	var points: Array = _patrol[f.squad]
+	var p: Vector2i = points[f.wp % points.size()]
+	if absi(f.cell().x - p.x) <= 1 and absi(f.cell().y - p.y) <= 1:
+		f.wp = (f.wp + 1) % points.size()
+		p = points[f.wp]
+	_walk(f, p, p.x * BattleConfig.SUB + BattleConfig.SUB / 2, p.y * BattleConfig.SUB + BattleConfig.SUB / 2, false)
+
+
+## Czy wieża woli tego atakującego według priorytetu celów (#20).
+func _tower_prefers(f: Fighter) -> bool:
+	match tower_priority:
+		DefensePlan.TowerPriority.RAM:
+			return f.unit == UnitTypes.Unit.RAM
+		DefensePlan.TowerPriority.RANGED:
+			return UnitTypes.unit_class(f.unit) == RecruitmentConfig.UnitClass.RANGED
+		DefensePlan.TowerPriority.CAVALRY:
+			return UnitTypes.unit_class(f.unit) == RecruitmentConfig.UnitClass.FAST
+	return false
+
+
 # --- Wieże i koniec ----------------------------------------------------------------------------------
 
 func _tower_act(s: Structure) -> void:
@@ -1213,15 +1304,25 @@ func _tower_act(s: Structure) -> void:
 	var cx := (s.rect.position.x * 2 + s.rect.size.x) * BattleConfig.SUB / 2
 	var cy := (s.rect.position.y * 2 + s.rect.size.y) * BattleConfig.SUB / 2
 	var r := BattleConfig.TOWER_RANGE * BattleConfig.SUB
+	# najbliższy w zasięgu, a z priorytetem (#20) najbliższy z wybranej grupy, jeśli jest
 	var best: Fighter = null
 	var best_d := 0
+	var pref: Fighter = null
+	var pref_d := 0
 	for f in fighters:
 		if f.side != Side.ATTACKER or not f.alive():
 			continue
 		var d := _dist2(cx, cy, f.x, f.y)
-		if d <= r * r and (best == null or d < best_d):
+		if d > r * r:
+			continue
+		if best == null or d < best_d:
 			best = f
 			best_d = d
+		if _tower_prefers(f) and (pref == null or d < pref_d):
+			pref = f
+			pref_d = d
+	if pref != null:
+		best = pref
 	if best == null:
 		return
 	@warning_ignore("integer_division")
