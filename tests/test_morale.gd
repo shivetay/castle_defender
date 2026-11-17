@@ -140,13 +140,13 @@ func test_retreat_goes_around_live_walls() -> bool:
 	var inside := Vector2i(r.position.x + 1, r.position.y + r.size.y / 2)
 	f.x = inside.x * BattleConfig.SUB + BattleConfig.SUB / 2
 	f.y = inside.y * BattleConfig.SUB + BattleConfig.SUB / 2
-	f.post = Vector2i(r.position.x - 2, inside.y)
+	f.rally = Vector2i(r.position.x - 2, inside.y)
 	b.add_side_morale(SIDE.ATTACKER, -50)
 	for t in BattleConfig.TICK_HZ * 60:
 		b._act(f)
-		if f.cell() == f.post:
+		if f.cell() == f.rally:
 			break
-	assert_eq(f.cell(), f.post, "wycofany obszedł mur przez lukę i wrócił na start")
+	assert_eq(f.cell(), f.rally, "wycofany obszedł mur przez lukę i wrócił na start")
 	for id: int in b.structures:
 		assert_eq(b.structures[id].hp, b.structures[id].max_hp, "nic nie zburzył")
 	return true
@@ -167,13 +167,13 @@ func test_routed_units_neither_capture_nor_defend() -> bool:
 	b.add_side_morale(SIDE.DEFENDER, -50)
 	for f in b.fighters:
 		if f.side == SIDE.DEFENDER:
-			f.post = at + Vector2i(10, 10)
+			f.rally = at + Vector2i(10, 10)
 	b._update_capture()
 	assert_eq(b.capture_ticks, 1, "wycofany obrońca w drodze nie broni celu")
 	# ten sam obrońca osaczony na swojej kratce przy donżonie broni go dalej (#16)
 	for f in b.fighters:
 		if f.side == SIDE.DEFENDER:
-			f.post = at
+			f.rally = at
 	b._update_capture()
 	assert_eq(b.capture_ticks, 0, "osaczony obrońca blokuje zdobywanie")
 	b.add_side_morale(SIDE.ATTACKER, 50)

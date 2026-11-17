@@ -40,6 +40,9 @@ class Fighter:
 	var path_goal := Vector2i(-1, -1)
 	## Kratka, wokół której obrońca trzyma pozycję.
 	var post := Vector2i.ZERO
+	## Kratka, na którą jednostka wycofuje się po złamaniu oddziału (#98): miejsce startu atakującego,
+	## a dla obrońcy kratka przy donżonie, także gdy jego oddział stał na wysuniętym posterunku (#19).
+	var rally := Vector2i.ZERO
 	## Numer oddziału po swojej stronie (od 1, w kolejności armii).
 	var squad := 0
 	## Kopijnik już zaszarżował (szarża działa tylko w pierwszym uderzeniu).
@@ -268,9 +271,9 @@ func routed(f: Fighter) -> bool:
 	return squad_morale(f.side, f.squad) < BattleConfig.MORALE_ROUT or _sq_retreat.has(_squad_key(f.side, f.squad))
 
 
-## Wycofana jednostka, która już stoi na swojej kratce startowej i nie ma dokąd uciekać.
+## Wycofana jednostka, która już stoi na swojej kratce wycofania i nie ma dokąd uciekać.
 func cornered(f: Fighter) -> bool:
-	return absi(f.cell().x - f.post.x) <= 1 and absi(f.cell().y - f.post.y) <= 1
+	return absi(f.cell().x - f.rally.x) <= 1 and absi(f.cell().y - f.rally.y) <= 1
 
 
 ## Obrażenia dla jednostki; śmierć zabiera morale jej oddziałowi (loss_morale).
@@ -409,6 +412,8 @@ func _setup_astar() -> void:
 ## gdy lista go obejmuje (posterunki obrony, #19). Każdy punkt zaczepienia wypełnia się od środka
 ## w stałej kolejności, a kratka zajęta przez wcześniejszą jednostkę jest pomijana, więc dwa
 ## sąsiednie posterunki nie stawiają ludzi na sobie. Z jednym punktem wynik jest taki jak dawniej.
+## Jednostka z posterunku dostaje kratkę wycofania przy `at` (pod donżonem), reszta wycofuje się tam,
+## gdzie stanęła.
 func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector2i] = []) -> void:
 	var units: Array[int] = []
 	var squad_of: Array[int] = []
@@ -420,6 +425,7 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 	# punkt zaczepienia → ile kratek wokół niego już sprawdzono
 	var placed: Dictionary[Vector2i, int] = {}
 	var taken: Dictionary[Vector2i, bool] = {}
+	var rally_n := 0
 	for k in units.size():
 		var unit := units[k]
 		var f := Fighter.new()
@@ -442,6 +448,11 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 		f.x = cell.x * BattleConfig.SUB + BattleConfig.SUB / 2
 		f.y = cell.y * BattleConfig.SUB + BattleConfig.SUB / 2
 		f.post = cell
+		f.rally = cell
+		if anchor != at:
+			# kratki wycofania mogą się powtarzać z miejscami innych jednostek: to tylko cel marszu
+			f.rally = _free_cell_near(at, rally_n)
+			rally_n += 1
 		f.cooldown = _rng.range_int(0, BattleConfig.ATTACK_COOLDOWN_TICKS - 1)
 		fighters.append(f)
 		var key := _squad_key(side, f.squad)
@@ -472,7 +483,7 @@ func _act(f: Fighter) -> void:
 	if f.cooldown > 0:
 		f.cooldown -= 1
 	if routed(f):
-		# wycofanie (#98): bez walki do swojej kratki startowej, drogą omijającą żywe budynki
+		# wycofanie (#98): bez walki na swoją kratkę wycofania, drogą omijającą żywe budynki
 		f.target = 0
 		if not f.retreating:
 			f.retreating = true
@@ -484,7 +495,7 @@ func _act(f: Fighter) -> void:
 				f.target = near.id
 				_strike_unit(f, near)
 				return
-		_walk(f, f.post, f.post.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.post.y * BattleConfig.SUB + BattleConfig.SUB / 2,
+		_walk(f, f.rally, f.rally.x * BattleConfig.SUB + BattleConfig.SUB / 2, f.rally.y * BattleConfig.SUB + BattleConfig.SUB / 2,
 				false, _retreat_astar)
 		return
 	var order := _order(f)

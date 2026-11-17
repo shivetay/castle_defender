@@ -208,7 +208,8 @@ obrony z #19 (posterunki załogi wokół donżonu).
   Obrona w kolumnie otwiera własny zamek w trybie edycji.
   - **Posterunki:** oddział załogi z rekrutacji dostaje kratkę w strefie 10 kratek wokół donżonu (na trawie,
     nie w wodzie i nie na budynku). W bitwie staje wokół niej i wraca tam, gdy nie ma wroga w zasięgu
-    wzroku. Oddział bez posterunku stoi jak dotąd przy donżonie. Promień strefy jest tymczasowy.
+    wzroku. Oddział bez posterunku stoi jak dotąd przy donżonie. Złamany oddział (#98) wycofuje się
+    pod donżon, także z wysuniętego posterunku. Promień strefy jest tymczasowy.
   - **Ekran:** strefa obrony na mapie, znaczniki posterunków z ikoną klasy, pasek oddziałów (Dalej
     przewija, gdy oddziałów jest więcej niż 6) i opis wybranego oddziału. Dotknięcie trawy ustawia
     posterunek wybranego oddziału, dotknięcie cudzego posterunku wybiera jego oddział. Przyciski: Zdejmij

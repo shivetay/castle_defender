@@ -235,3 +235,32 @@ func test_squad_bar_fits_and_pages() -> bool:
 	assert_eq(panel.first, 5, "wybór oddziału z drugiej strony przewija pasek")
 	panel.free()
 	return true
+
+
+## Review #179: złamany oddział z wysuniętego posterunku wycofuje się pod donżon (#98), a nie zostaje
+## na posterunku. Posterunek to miejsce walki, nie schronienie.
+func test_routed_outpost_falls_back_to_keep() -> bool:
+	var grid := _castle()
+	var keep := DefensePlan.keep_center(grid)
+	var post := _free_cells(grid, 8)[0]
+	var b := Battle.for_castle_squads(grid, [[U.PEASANT, 1]], [[U.PEASANT, 3], [U.ARCHER, 3]],
+			BotCastle.edge_road(grid.terrain), 9, null, [NO, post])
+	for f in _fighters(b, Battle.Side.DEFENDER, 2):
+		assert_true(_cheb(f.post, post) <= 1, "łucznicy zaczynają na posterunku")
+		assert_true(_cheb(f.rally, keep) <= 3, "a wycofują się pod donżon")
+	for f in _fighters(b, Battle.Side.DEFENDER, 1):
+		assert_eq(f.rally, f.post, "oddział przy donżonie wycofuje się tam, gdzie stoi")
+	for f in _fighters(b, Battle.Side.ATTACKER, 1):
+		assert_eq(f.rally, f.post, "atakujący wycofuje się na swoje miejsce startu")
+	b.add_squad_morale(Battle.Side.DEFENDER, 2, -100)
+	var archers := _fighters(b, Battle.Side.DEFENDER, 2)
+	var start := _cheb(archers[0].cell(), keep)
+	var t := 0
+	while t < 60 * BattleConfig.TICK_HZ and not archers.all(func(f: Battle.Fighter) -> bool: return b.cornered(f)):
+		b.step()
+		t += 1
+	assert_true(t < 60 * BattleConfig.TICK_HZ, "złamani łucznicy doszli pod donżon w 60 s")
+	for f in archers:
+		assert_true(_cheb(f.cell(), keep) <= 3 and _cheb(f.cell(), keep) < start,
+				"złamany łucznik pod donżonem (jest %s, donżon %s)" % [f.cell(), keep])
+	return true
