@@ -30,6 +30,8 @@ const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
+## Linia karty Strażnicy (#177): jeden poziom, więc zamiast kosztu ulepszenia krótki opis.
+const WATCHTOWER_INFO := "Fale i wyprawy na boty"
 ## Podgląd bitwy w wersji debug (#15): godot --path . -- --battle-preview. Bitwę z gry uruchomi #16.
 const BATTLE_PREVIEW_ARG := "--battle-preview"
 
@@ -48,6 +50,8 @@ var goods: Goods
 var recruitment := Recruitment.new()
 var recruit_panel: RecruitPanel
 var research_panel: ResearchPanel
+## Ustawienia (#177) pod zębatką w kolumnie HUD-u.
+var settings_panel: SettingsPanel
 var build_panel: BuildPanel
 var queue_panel: QueuePanel
 ## Ile fal samouczka PvE (#16) gracz obronił; trwająca bitwa (null poza bitwą).
@@ -102,6 +106,8 @@ func _ready() -> void:
 		_place_manor()
 	if grid.keep_id() == 0:
 		_place_keep()
+	if grid.watchtower_id() == 0:
+		_place_watchtower()
 	var keep_missing := grid.keep_id() == 0
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
 	textures.warm_up()
@@ -206,6 +212,12 @@ func _ready() -> void:
 	layer.add_child(recruit_panel)
 	recruit_panel.train_requested.connect(_on_train_requested)
 	recruit_panel.closed.connect(_on_overlay_closed)
+	settings_panel = SettingsPanel.new()
+	settings_panel.visible = false
+	layer.add_child(settings_panel)
+	settings_panel.closed.connect(_on_overlay_closed)
+	settings_panel.new_game_requested.connect(_on_new_game)
+	hud.settings_pressed.connect(_on_settings_opened)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
 	_save()
@@ -254,6 +266,16 @@ func _place_keep() -> void:
 	else:
 		# stary zapis bez miejsca na donżon: bitwa nie ma celu, więc HUD to pokaże (KEEP_NO_ROOM)
 		push_warning("Brak miejsca na donżon obok Dworu")
+
+
+## Strażnica (#177) staje obok Dworu po donżonie: z niej wyrusza się na fale i wyprawy PvE.
+## Starsze zapisy dostają ją przy wczytaniu, w najbliższym wolnym miejscu.
+func _place_watchtower() -> void:
+	var spot := grid.watchtower_spot(terrain.size)
+	if spot.has_area():
+		grid.place(spot, BuildingTypes.Kind.WATCHTOWER)
+	else:
+		push_warning("Brak miejsca na Strażnicę")
 
 
 func _process(_delta: float) -> void:
@@ -801,6 +823,25 @@ func _on_train_requested(unit: int, squad_id: int) -> void:
 		hud.message = Recruitment.MESSAGES[result]
 
 
+## Ustawienia (#177): zapis, karta i kursor się zamykają, a panel przykrywa mapę.
+func _on_settings_opened() -> void:
+	_tick()
+	_save()
+	_deselect()
+	_cursor = Rect2i()
+	hud.overlay = true
+	settings_panel.open()
+	hud.message = "Ustawienia"
+	queue_redraw()
+
+
+## Zacznij od nowa (potwierdzone w ustawieniach): usuwa zapis i przeładowuje scenę. Mapa zostaje
+## ta sama, bo seed należy do gracza (PlayerProfile).
+func _on_new_game() -> void:
+	SaveGame.delete(SaveGame.PATH)
+	get_tree().reload_current_scene()
+
+
 func _on_overlay_closed() -> void:
 	hud.overlay = false
 	hud.message = DEFAULT_MESSAGE
@@ -825,14 +866,15 @@ func _refresh_card() -> void:
 	var kind := grid.kinds[_selected_id]
 	var level := grid.levels[_selected_id]
 	var pending := queue.has_order(_selected_id)
-	var status := "poziom %d/%d" % [level, BuildingTypes.MAX_LEVEL]
+	var status := "poziom %d/%d" % [level, BuildingTypes.MAX_LEVEL] if BuildingTypes.has_levels(kind) else ""
 	if pending:
 		status = "budowa %s" % Hud.format_time(queue.remaining_ms(_selected_id, _now_ms()))
 	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level())
 	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
+	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
-	hud.card_info_missing = PackedStringArray() if pending or level >= BuildingTypes.MAX_LEVEL \
+	hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, BuildingTypes.MAX_LEVEL) \
 			else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
@@ -842,6 +884,8 @@ func _refresh_card() -> void:
 static func upgrade_info(kind: int, level: int, manor_level: int, pending: bool) -> String:
 	if pending:
 		return "Trwa budowa"
+	if not BuildingTypes.has_levels(kind):
+		return WATCHTOWER_INFO
 	if level >= BuildingTypes.MAX_LEVEL:
 		return "Najwyższy poziom"
 	var text := "Ulepsz: %s, %s" % [Hud.cost_text(BuildConfig.cost(kind, level + 1)),

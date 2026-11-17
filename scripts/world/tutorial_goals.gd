@@ -67,7 +67,7 @@ static func text(cleared: int, grid: BuildGrid, research: Research, recruitment:
 		return ""
 	var i := current(cleared, grid, research, recruitment)
 	if i < 0:
-		return "Oblężenie: fala %d z %d" % [cleared + 1, PveWaves.COUNT]
+		return "Strażnica: Oblężenie, fala %d z %d" % [cleared + 1, PveWaves.COUNT]
 	return GOALS[i][4] as String
 
 

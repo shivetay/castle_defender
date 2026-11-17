@@ -95,6 +95,8 @@ static func time_ms(kind: int, level: int) -> int:
 static func max_level(kind: int, manor_level: int) -> int:
 	if kind == BuildingTypes.Kind.MANOR:
 		return BuildingTypes.MAX_LEVEL
+	if not BuildingTypes.has_levels(kind):
+		return 1
 	return clampi(manor_level, 1, BuildingTypes.MAX_LEVEL)
 
 

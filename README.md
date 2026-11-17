@@ -316,17 +316,28 @@ obrony z #19 (posterunki załogi wokół donżonu).
   się z zegara systemowego, więc rośnie też, gdy gra jest w tle. Po powrocie komunikat podaje przyrost.
 - `scripts/gfx/pixel_icons.gd` (`PixelIcons`): ikony surowców 5×5 zapisane w kodzie jako wzory znaków
   (dwa bale, kamień, jabłko, moneta), kolory z palety, atlas w cache. Ikony 7×7 głównej kolumny HUD-u (#150):
-  młotek, księga, hełm, wieża, skrzyżowane miecze, tarcza, klepsydra.
+  młotek, księga, hełm, tarcza, klepsydra, zębatka (#177).
 - `scripts/ui/hud.gd`: interfejs na jeden kciuk w poziomie. Treść trzyma się 12 px od bocznych krawędzi
   (zaokrąglone narożniki), a wycięcia ekranu odsuwają ją dalej. U góry surowce z ikonami (pełny magazyn
   ma żółtą liczbę), a z prawej czas budowy z liczbą czekających zleceń oraz epoka i rok. U dołu komunikat
   i FPS. Przyciski trybów stoją w kolumnie przy prawej krawędzi, od góry (48×16 px, po teście na
   telefonie mniejsze niż dawne 56×22). W trybie oglądania kolumna jest wąska (#150): przyciski 18×16
   z ikoną na ciemnym okienku, nazwa w dymku po lewej, póki palec trzyma przycisk, a liczba zleceń
-  Kolejki w czerwonej plakietce. Pasek celu sięga do samej kolumny. Tryb oglądania: Buduj, Badania, Wojsko, Oblężenie (wyszarzone,
-  dojdzie z bitwą); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
+  Kolejki w czerwonej plakietce. Pasek celu sięga do samej kolumny. Tryb oglądania: Buduj, Badania, Wojsko, Obrona, Kolejka,
+  Ustawienia (Oblężenie i Wyprawa są na karcie Strażnicy); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
   Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
+- `scripts/ui/settings_panel.gd` (`SettingsPanel`, #177): gra startuje od razu w zamku (to gra PvP,
+  bez ekranu startowego). Ustawienia pod zębatką na dole kolumny HUD-u: Język polski/English
+  (angielski jako zapowiedź #64), Dźwięk: wkrótce, Zacznij od nowa (z potwierdzeniem; usuwa zapis
+  i przeładowuje scenę, mapa zostaje ta sama, bo seed należy do gracza) i Zamknij. Stopka: gra offline
+  z zapisem na telefonie i wersja z `project.godot`. Gra nie łączy się z siecią przy starcie.
+- Strażnica (`BuildingTypes.Kind.WATCHTOWER`, #177): budynek PvE 2×2, czatownia na słupach z drabiną.
+  Stoi od startu przy Dworze (z kratką odstępu od Dworu i donżonu), jest jedna, nie da się jej rozebrać
+  i ma jeden poziom (`BuildingTypes.has_levels`, decyzja właścicielki); starsze zapisy dostają ją przy
+  wczytaniu. Jej karta ma tylko Oblężenie (fale samouczka), Wyprawę (atak na zamek bota) i Zamknij;
+  Oblężenie i Atak zniknęły z kolumny HUD-u.
+  PvP dostanie osobny budynek w etapie 9.
 - `scripts/ui/queue_panel.gd` (`QueuePanel`, #163): ekran Kolejka pod przyciskiem Kolejka (z liczbą
   zleceń budowy i szkolenia) albo po dotknięciu czasu budowy na górnym pasku. Zakładka Budynki: zlecenia
   w kolejności wykonania (nazwa, „nowy” albo „poz. N→N+1”, czas; pierwsze z paskiem postępu, kolejne
@@ -458,5 +469,5 @@ build/           eksportowane APK i logi (ignorowane przez git)
 
 Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#20) i pułapki (#100).
 Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
-(#28). Następny jest etap 9 (#131): backend Supabase i PvP. Z etapów 4–5 zostają części zależne od bitwy,
+(#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Następny jest etap 9 (#131): backend Supabase i PvP. Z etapów 4–5 zostają części zależne od bitwy,
 planu ataku i generałów (#81, #89, #91, #97, #12).

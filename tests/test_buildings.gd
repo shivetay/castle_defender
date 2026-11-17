@@ -22,7 +22,9 @@ func test_same_input_same_pixels() -> bool:
 func test_every_level_looks_different() -> bool:
 	for kind in BuildingTypes.count():
 		var seen := {}
-		for level in range(1, BuildingTypes.MAX_LEVEL + 1):
+		# Strażnica (#177) ma jeden poziom
+		var top := BuildingTypes.MAX_LEVEL if BuildingTypes.has_levels(kind) else 1
+		for level in range(1, top + 1):
 			var img := BuildingArt.make_image(kind, level, BuildingTypes.State.INTACT, 0b1010)
 			assert_eq(img.get_size(), BuildingArt.image_size(kind), "rozmiar obrazu rodzaju %d" % kind)
 			var data := img.get_data()
@@ -385,8 +387,10 @@ func test_construction_site() -> bool:
 
 
 func test_manor_is_not_on_toolbar() -> bool:
-	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 2, "pasek bez Dworu i donżonu")
+	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 3, "pasek bez Dworu, donżonu i Strażnicy")
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.KEEP), "donżonu nie ma na pasku")
+	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.WATCHTOWER), "Strażnicy nie ma na pasku")
+	assert_eq(BuildingTypes.Kind.WATCHTOWER, 23, "Strażnica za Domem zwiadowców (stare zapisy bez zmian)")
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.MANOR), "Dworu nie ma na pasku")
 	assert_eq(BuildingTypes.Kind.MANOR, 5, "Dwór ma stały numer (zapisy)")
 	var in_panel := 0

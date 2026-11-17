@@ -181,6 +181,10 @@ func remaining_ms(building_id: int, now_ms: int) -> int:
 	return -1
 
 
+## Komunikat po dotknięciu budynku bez poziomów (Strażnica, #177).
+const NO_LEVELS_HINT := "Wybierz Oblężenie albo Wyprawę"
+
+
 ## Co pokazać o ulepszeniu budynku: stan zlecenia, najwyższy poziom, brak poziomu Dworu
 ## albo koszt i czas następnego poziomu.
 func upgrade_hint(grid: BuildGrid, building_id: int) -> String:
@@ -188,6 +192,8 @@ func upgrade_hint(grid: BuildGrid, building_id: int) -> String:
 	var next := grid.levels[building_id] + 1
 	if has_order(building_id):
 		return "W kolejce: poziom %d" % order_for(building_id).level
+	if not BuildingTypes.has_levels(kind):
+		return NO_LEVELS_HINT
 	if next > BuildingTypes.MAX_LEVEL:
 		return MESSAGES[Result.MAX_LEVEL]
 	if next > BuildConfig.max_level(kind, grid.manor_level()):

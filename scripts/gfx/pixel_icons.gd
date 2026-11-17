@@ -32,17 +32,16 @@ const CLASSES: Array = [
 ]
 
 ## Ikony 7×7 głównej kolumny HUD-u (#150), w kolejności Hud.column_targets(false): Buduj (młotek),
-## Badania (księga), Wojsko (hełm z nosalem), Oblężenie (wieża), Atak (skrzyżowane miecze),
-## Obrona (tarcza), Kolejka (klepsydra).
+## Badania (księga), Wojsko (hełm z nosalem), Obrona (tarcza), Kolejka (klepsydra), Ustawienia
+## (zębatka, #177). Oblężenie i Atak są na karcie Strażnicy.
 const MENU_SIZE := 7
 const MENU: Array = [
 	[".LLLLL.", ".LLLLL.", "...l...", "...w...", "...w...", "...w...", "...k..."],
 	[".......", "TTT.TTT", "TiT.TiT", "TTTkTTT", "TiTkTiT", "TTTkTTT", ".mmmmm."],
 	["...a...", "..LLL..", ".LLLLL.", ".LLLLL.", ".LsLsL.", ".L.L.L.", "......."],
-	[".l.l.l.", ".lllll.", "..lwl..", "..lkl..", "..lkl..", ".lllll.", "......."],
-	["L.....L", ".L...L.", "..L.L..", "...L...", "..TLT..", ".w...w.", "w.....w"],
 	[".mmmmm.", "mwwawwm", "mwwawwm", "mwaaawm", ".mwawm.", "..mwm..", "...m..."],
 	["lllllll", ".TTTTT.", "..TTT..", "...T...", "..T.T..", ".TTTTT.", "lllllll"],
+	["..i.i..", ".iiiii.", "iii.iii", "ii...ii", "iii.iii", ".iiiii.", "..i.i.."],
 ]
 
 static var _atlas: ImageTexture
