@@ -4,7 +4,8 @@ extends Node2D
 ## U góry: surowce z ikonami, a z prawej czas budowy (gdy kolejka pracuje) oraz epoka i rok.
 ## U dołu pasek komunikatu z FPS. Przyciski trybów stoją w kolumnie przy prawej krawędzi, od góry
 ## (po teście na telefonie: mniejsze i nie zasłaniają środka mapy):
-## - oglądanie: Buduj, Badania, Wojsko, Oblężenie, Atak, Obrona; dotknięcie budynku otwiera kartę,
+## - oglądanie: Buduj, Badania, Wojsko, Oblężenie, Atak, Obrona, Kolejka (z liczbą zleceń, #163);
+##   dotknięcie budynku otwiera kartę, a dotknięcie czasu budowy na górnym pasku otwiera Kolejkę,
 ## - budowa: Gotowe i Zmień (wraca do panelu budowy); dotknięcia mapy tylko stawiają wybrany
 ##   budynek, niczego nie zaznaczają,
 ## - karta budynku: stan, koszt ulepszenia oraz Ulepsz, Rozbierz (Anuluj dla zlecenia), przy budynku
@@ -25,10 +26,11 @@ signal army_pressed
 signal recruit_pressed
 signal attack_pressed
 signal defence_pressed
+signal queue_pressed
 
 enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, CARD = 100 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, CARD = 100 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -52,6 +54,7 @@ const CANCEL_LABEL := "Anuluj"
 const SIEGE_LABEL := "Oblężenie"
 const ATTACK_LABEL := "Atak"
 const DEFENCE_LABEL := "Obrona"
+const QUEUE_LABEL := "Kolejka"
 const BUILD_LABEL := "Buduj"
 const DONE_LABEL := "Gotowe"
 const CHANGE_LABEL := "Zmień"
@@ -95,6 +98,8 @@ var content_right := 320.0 - CORNER_INSET
 var overlay := false
 ## Trwa bitwa (samouczek PvE #16): w kolumnie jest tylko Tempo, a dotknięcia mapy nic nie robią.
 var battle := false
+## Zlecenia budowy i szkolenia razem (licznik na przycisku Kolejka).
+var queue_count := 0
 ## Napis przycisku tempa, np. „Tempo ×2”.
 var speed_label := "Tempo ×1"
 
@@ -158,7 +163,8 @@ static func column_targets(is_building: bool, in_battle: bool = false) -> Array[
 		return [Target.SPEED] as Array[int]
 	if is_building:
 		return [Target.DONE, Target.CHANGE] as Array[int]
-	return [Target.BUILD, Target.RESEARCH, Target.ARMY, Target.SIEGE, Target.ATTACK, Target.DEFENCE] as Array[int]
+	return [Target.BUILD, Target.RESEARCH, Target.ARMY, Target.SIEGE, Target.ATTACK, Target.DEFENCE,
+			Target.QUEUE] as Array[int]
 
 
 ## Przyciski karty budynku (Ulepsz, Rozbierz, [Szkol,] Zamknij), wyśrodkowane nad paskiem komunikatu.
@@ -318,7 +324,23 @@ static func top_right_text(queue: String, age: String, research: String = "") ->
 func _target_at(p: Vector2) -> int:
 	if overlay:
 		return Target.NONE
+	if not battle and queue_text_rect(content_right, queue_text, research_text, age_text).has_point(p):
+		return Target.QUEUE
 	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit, battle)
+
+
+## Pole czasu budowy i badania na górnym pasku (dotknięcie otwiera Kolejkę, #163): od lewego brzegu
+## tego tekstu do końca epoki, na całą wysokość paska. Puste, gdy nic się nie buduje.
+static func queue_text_rect(right: float, queue: String, research: String, age: String) -> Rect2:
+	if queue.is_empty():
+		return Rect2()
+	var w := PixelFont.text_width(top_right_text(queue, age, research))
+	return Rect2(right - w - 2, 0, w + 2, BAR_H)
+
+
+## Napis przycisku Kolejka: z liczbą zleceń budowy i szkolenia, gdy coś trwa.
+static func queue_label(count: int) -> String:
+	return QUEUE_LABEL if count <= 0 else "%s %d" % [QUEUE_LABEL, count]
 
 
 func _input(event: InputEvent) -> void:
@@ -371,6 +393,8 @@ func _activate(t: int) -> void:
 		attack_pressed.emit()
 	elif t == Target.DEFENCE:
 		defence_pressed.emit()
+	elif t == Target.QUEUE:
+		queue_pressed.emit()
 
 
 # --- Rysowanie ---------------------------------------------------------------------------------
@@ -390,6 +414,8 @@ func _draw() -> void:
 		var targets := column_targets(building, battle)
 		for i in targets.size():
 			var label := speed_label if targets[i] == Target.SPEED else column_label(targets[i])
+			if targets[i] == Target.QUEUE:
+				label = queue_label(queue_count)
 			_draw_button(column_rect(content_right, i), label, _pressed == targets[i], false)
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
@@ -412,6 +438,8 @@ static func column_label(t: int) -> String:
 			return ATTACK_LABEL
 		Target.DEFENCE:
 			return DEFENCE_LABEL
+		Target.QUEUE:
+			return QUEUE_LABEL
 		Target.DONE:
 			return DONE_LABEL
 		Target.CHANGE:

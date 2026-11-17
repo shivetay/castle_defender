@@ -10,6 +10,8 @@ extends Node2D
 ## ten sam ekran tylko z jednostkami tego budynku (RecruitPanel).
 ## Przycisk Obrona otwiera ustawienia obrony (DefensePanel, #19): oddziałom załogi wskazuje się
 ## posterunki w strefie wokół donżonu, a bitwa na własnym zamku stawia je tam na start.
+## Przycisk Kolejka (albo czas budowy na górnym pasku) otwiera ekran Kolejka (QueuePanel, #163) z zakładkami
+## Budynki i Jednostki: co się buduje i szkoli, z anulowaniem budowy.
 ## Przycisk Badania otwiera drzewko technologii (ResearchPanel); badanie trwa w czasie zegarowym
 ## jak budowa, jedno naraz.
 ## Gra zapisuje się (SaveGame) po każdej akcji, po ukończeniu budowy i przy zejściu do tła,
@@ -47,6 +49,7 @@ var recruitment := Recruitment.new()
 var recruit_panel: RecruitPanel
 var research_panel: ResearchPanel
 var build_panel: BuildPanel
+var queue_panel: QueuePanel
 ## Ile fal samouczka PvE (#16) gracz obronił; trwająca bitwa (null poza bitwą).
 var pve_cleared := 0
 var battle_view: BattleView
@@ -134,6 +137,7 @@ func _ready() -> void:
 	hud.research_pressed.connect(_on_research_opened)
 	hud.attack_pressed.connect(_on_attack_pressed)
 	hud.defence_pressed.connect(_on_defence_pressed)
+	hud.queue_pressed.connect(_on_queue_opened)
 
 	attack_panel = AttackPanel.new()
 	attack_panel.planner = planner
@@ -156,6 +160,19 @@ func _ready() -> void:
 	layer.add_child(build_panel)
 	build_panel.place_requested.connect(_on_place_requested)
 	build_panel.closed.connect(_on_build_panel_closed)
+
+	queue_panel = QueuePanel.new()
+	queue_panel.queue = queue
+	queue_panel.recruitment = recruitment
+	queue_panel.grid = grid
+	queue_panel.visible = false
+	layer.add_child(queue_panel)
+	queue_panel.closed.connect(_on_overlay_closed)
+	queue_panel.cancel_requested.connect(_on_queue_cancel)
+	queue_panel.focus_requested.connect(_on_queue_focus)
+	queue_panel.build_requested.connect(_on_build_panel_opened)
+	queue_panel.army_requested.connect(_on_army_opened.bind(0))
+	queue_panel.message.connect(func(text: String) -> void: hud.message = text)
 
 	research_panel = ResearchPanel.new()
 	research_panel.research = research
@@ -292,12 +309,15 @@ func _tick() -> void:
 		research_panel.now_ms = now
 	if recruit_panel != null:
 		recruit_panel.now_ms = now
+	if queue_panel != null:
+		queue_panel.now_ms = now
 	var trained := recruitment.update(now)
 	for unit in trained:
 		hud.message = "Wyszkolono: %s" % UnitTypes.unit_name(unit)
 	if not trained.is_empty():
 		_save()
 	hud.queue_text = ""
+	hud.queue_count = queue.orders.size() + recruitment.orders.size()
 	hud.research_text = "" if not research.is_busy() else "Bad. %s" % Hud.format_time(research.remaining_ms(now))
 	hud.age_text = Ages.label(0, grid.manor_level())
 	if not queue.orders.is_empty():
@@ -671,6 +691,42 @@ func _close_defence() -> void:
 	hud.message = DEFAULT_MESSAGE
 	_save()
 	queue_redraw()
+
+
+# --- Kolejka (#163) --------------------------------------------------------------------------------
+
+## Kolejka: co się buduje i szkoli. Karta budynku się zamyka, a HUD chowa swoje przyciski.
+func _on_queue_opened() -> void:
+	_tick()
+	_selected_id = 0
+	hud.hide_card()
+	hud.set_building(false)
+	_cursor = Rect2i()
+	hud.overlay = true
+	queue_panel.now_ms = _now_ms()
+	queue_panel.open()
+	hud.message = "Budowa i szkolenie"
+	queue_redraw()
+
+
+## Anulowanie z listy (po potwierdzeniu): jak Anuluj na karcie budynku.
+func _on_queue_cancel(id: int) -> void:
+	_tick()
+	var o := queue.order_for(id)
+	if o == null:
+		return
+	var title := BuildingTypes.NAMES[o.kind]
+	queue.cancel(grid, economy, id, _now_ms())
+	hud.message = "Anulowano: %s, surowce wróciły" % title
+	_save()
+	queue_redraw()
+
+
+## Dotknięcie wiersza budowy: kamera na budynek (ekran już się zamyka).
+func _on_queue_focus(id: int) -> void:
+	if grid.buildings.has(id):
+		camera.look_at_world(Vector2(grid.buildings[id].get_center() * TerrainMap.CELL))
+		_select(id)
 
 
 ## Drzewko badań przykrywa mapę: karta budynku się zamyka, a HUD chowa swoje przyciski.

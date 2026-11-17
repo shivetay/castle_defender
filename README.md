@@ -251,6 +251,14 @@ obrony z #19 (posterunki załogi wokół donżonu).
   dojdzie z bitwą); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
   Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
+- `scripts/ui/queue_panel.gd` (`QueuePanel`, #163): ekran Kolejka pod przyciskiem Kolejka (z liczbą
+  zleceń budowy i szkolenia) albo po dotknięciu czasu budowy na górnym pasku. Zakładka Budynki: zlecenia
+  w kolejności wykonania (nazwa, „nowy” albo „poz. N→N+1”, czas; pierwsze z paskiem postępu, kolejne
+  „czeka”), pod listą zajęte miejsca w kolejce. Anuluj przy wierszu prosi o drugie dotknięcie („Na pewno”,
+  komunikat podaje zwrot), dotknięcie wiersza pokazuje budynek na mapie. Zakładka Jednostki: szkolenia
+  pogrupowane według budynku rekrutacji (jednostka, oddział docelowy, czas, pasek trwającego), pod listą
+  armia względem limitu. Pusta zakładka ma przycisk Buduj albo Wojsko, Dalej przewija długą listę,
+  Zamknij albo dotknięcie pustego miejsca wraca do mapy. Anulowania szkolenia nie ma (decyzja balansowa).
 - `scripts/ui/build_panel.gd` (`BuildPanel`): panel pod Buduj, w układzie jak drzewko i Wojsko. Zakładki
   kategorii (Umocnienia, Gospodarka, Wytwórcy, Wojsko; `BuildingTypes.CATEGORIES`), kafelki budynków
   (zablokowane przygaszone) i szczegóły: rozmiar, stan, koszt i czas, wymagana technologia oraz co budynek
