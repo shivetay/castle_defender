@@ -329,8 +329,9 @@ func _target_at(p: Vector2) -> int:
 	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit, battle)
 
 
-## Pole czasu budowy i badania na górnym pasku (dotknięcie otwiera Kolejkę, #163): od lewego brzegu
-## tego tekstu do końca epoki, na całą wysokość paska. Puste, gdy nic się nie buduje.
+## Napis w prawym górnym rogu jako cel dotyku, który otwiera Kolejkę (#163): od lewego brzegu tekstu
+## do końca epoki, na całą wysokość paska. Działa tylko wtedy, gdy coś się buduje (jest czas budowy);
+## samo szkolenie albo badanie nie robi z paska celu, a Kolejkę otwiera wtedy przycisk w kolumnie.
 static func queue_text_rect(right: float, queue: String, research: String, age: String) -> Rect2:
 	if queue.is_empty():
 		return Rect2()

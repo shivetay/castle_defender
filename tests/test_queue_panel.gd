@@ -151,7 +151,8 @@ func test_empty_tabs_and_layout() -> bool:
 	assert_true(fit >= 7, "lista mieści co najmniej 7 wierszy (jest %d)" % fit)
 	var last := QueuePanel.row_rect(b.x, b.y, fit - 1)
 	assert_true(last.end.y < Hud.row_y(VIEW), "ostatni wiersz nad rzędem przycisków")
-	assert_true(QueuePanel.cancel_rect(last).size.y >= 10 and QueuePanel.cancel_rect(last).size.x >= 12, "Anuluj dość duże")
+	assert_true(QueuePanel.cancel_rect(last).size.y >= 12 and QueuePanel.cancel_rect(last).size.x >= 12,
+			"Anuluj co najmniej 12×12 px (review #183)")
 	for label: String in [QueuePanel.CANCEL_LABEL, QueuePanel.CONFIRM_LABEL]:
 		assert_true(PixelFont.text_width(label) <= QueuePanel.CANCEL_W - 2, "„%s” mieści się" % label)
 	for label: String in QueuePanel.ACTION_LABELS + [QueuePanel.CLOSE_LABEL, QueuePanel.MORE_LABEL, Hud.queue_label(12)]:

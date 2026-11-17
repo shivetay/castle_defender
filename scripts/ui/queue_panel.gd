@@ -29,7 +29,8 @@ const TAB_NAMES: Array[String] = ["Budynki", "Jednostki"]
 const TAB_Y := ResearchPanel.TAB_Y
 const TAB_H := ResearchPanel.TAB_H
 const LIST_Y := ResearchPanel.GRID_Y
-const ROW_H := 12
+## Wiersz 14 px, żeby Anuluj miał 12 px wysokości (minimum celu dotyku z CLAUDE.md, review #183).
+const ROW_H := 14
 const ROW_GAP := 1
 const CANCEL_W := 40
 ## Kolumna poziomu albo oddziału w wierszu (od lewego brzegu nazwy) i miejsce na nazwę przed nią.
@@ -338,13 +339,13 @@ func _draw() -> void:
 
 func _draw_row(r: Rect2, row: Dictionary, i: int) -> void:
 	if bool(row.get("header", false)):
-		PixelFont.draw_text(self, r.position + Vector2(1, 2), row["title"] as String, Palette.THATCH[2])
+		PixelFont.draw_text(self, r.position + Vector2(1, 3), row["title"] as String, Palette.THATCH[2])
 		return
 	draw_rect(r, Palette.WOOD[2] if _pressed == Target.ROW + i else Palette.WOOD[1])
 	var x := r.position.x + 3
-	PixelFont.draw_text(self, Vector2(x, r.position.y + 2), row["title"] as String, Palette.INK)
+	PixelFont.draw_text(self, Vector2(x, r.position.y + 3), row["title"] as String, Palette.INK)
 	var second: String = row.get("level", row.get("squad", "")) as String
-	PixelFont.draw_text(self, Vector2(x + SECOND_X, r.position.y + 2), second, Palette.THATCH[2])
+	PixelFont.draw_text(self, Vector2(x + SECOND_X, r.position.y + 3), second, Palette.THATCH[2])
 	var right := r.end.x - 3
 	if tab == Tab.BUILDINGS:
 		var c := cancel_rect(r)
@@ -354,7 +355,7 @@ func _draw_row(r: Rect2, row: Dictionary, i: int) -> void:
 			CastleView.draw_frame(self, Rect2i(c), Palette.ACCENT)
 		right = c.position.x - 4
 	var time: String = "czeka %s" % row["time"] if bool(row["waiting"]) else row["time"] as String
-	PixelFont.draw_right(self, right, r.position.y + 2, time, Palette.WOOD[3] if bool(row["waiting"]) else Palette.INK)
+	PixelFont.draw_right(self, right, r.position.y + 3, time, Palette.WOOD[3] if bool(row["waiting"]) else Palette.INK)
 	var progress := int(row["progress"])
 	if progress >= 0:
 		# pasek postępu 1 px na dole wiersza, w całych pikselach
