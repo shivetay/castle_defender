@@ -127,7 +127,6 @@ func test_layout_fits_and_targets() -> bool:
 	return true
 
 
-
 func test_plan_saves_with_the_game() -> bool:
 	var grid := BuildGrid.new(TerrainMap.generate(1337))
 	var p := AttackPlan.new()
