@@ -77,6 +77,9 @@ func open(p: DefensePlan, army: Array, squad_ids: Array[int], castle_grid: Build
 	ids = squad_ids
 	selected = clampi(selected, 0, maxi(0, squads.size() - 1))
 	first = 0
+	# zawsze od załogi, nawet gdy ostatnio zamknięto ekran w trybie pułapek (review #186)
+	trap_mode = false
+	trap_kind = 0
 	visible = true
 
 

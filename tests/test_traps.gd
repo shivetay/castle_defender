@@ -316,6 +316,10 @@ func test_save_and_panel() -> bool:
 			DefensePanel.Target.SQUAD + 4, "piąty kafelek pułapki")
 	panel.activate(DefensePanel.Target.CREW)
 	assert_true(not panel.trap_mode, "Załoga wraca do oddziałów")
+	panel.activate(DefensePanel.Target.TRAPS)
+	panel.activate(DefensePanel.Target.SQUAD + TK.LOGS)
+	panel.open(plan, [[U.ARCHER, 2]], [1] as Array[int], g, 0)
+	assert_true(not panel.trap_mode and panel.trap_kind == 0, "ponowne otwarcie zaczyna od załogi (review #186)")
 	assert_true(PixelFont.text_width(DefensePanel.TRAP_HINT) <= Hud.MESSAGE_MAX_WIDTH, "podpowiedź mieści się")
 	for k in TrapConfig.count():
 		assert_true(PixelFont.text_width("Brak surowców: " + TrapConfig.cost_text(k)) <= Hud.MESSAGE_MAX_WIDTH,

@@ -1600,6 +1600,7 @@ func _traps_act() -> void:
 						if f.side == Side.ATTACKER and f.alive() and near.has_point(f.cell()):
 							t.fired = true
 							t.until = tick + TrapConfig.FIRE_ARROWS_S * BattleConfig.TICK_HZ
+							_trap_fx(t.cell)  # rozpalony kosz (review #186)
 							break
 			TrapConfig.Kind.PITCH:
 				if not t.fired and _attacker_on(t.area) != null:
