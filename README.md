@@ -301,6 +301,17 @@ obrony z #19 (posterunki załogi wokół donżonu).
   (`Battle.arm_traps`) każda działa raz, a po bitwie odnawia się za darmo, bo układ się nie zmienia.
   Atakujący jej nie widzi; pole `revealed` czeka na zwiad (#28). Zamki-cele nie mają jeszcze pułapek.
   Liczby tymczasowe.
+- Wynik ataku (#99, `scripts/battle/battle_result.gd`, okno `scripts/ui/result_panel.gd`): liczony tylko ze
+  stanu skończonej bitwy, w liczbach całkowitych (ten sam u atakującego, w powtórce i na serwerze).
+  - **Procent zniszczeń:** zburzone budynki bez odcinków wału i palisady.
+  - **Gwiazdki:** brama zdobyta (zburzona brama albo atakujący na murze po drabinie), połowa zamku
+    (od 50%) i donżon (zburzony albo zdobyty, czyli wygrana).
+  - **Łup z zamku-bota:** skarbiec 1000 + 500 × numer drewna, kamienia i żywności oraz 20 + 10 × numer
+    złota; połowę chroni magazyn, z reszty do 20% w proporcji do zniszczeń; ponowny atak na zdobyty
+    zamek daje połowę. Łup wchodzi do magazynu do jego pojemności. Liczby tymczasowe.
+  - **Okno wyniku:** tytuł, gwiazdki, procent, spełnione warunki, łup, polegli i odblokowany zamek.
+  - **Odbudowa:** bitwa działa na kopii budynków, więc zamek obrońcy po bitwie jest w pełnym stanie.
+    Ranking (#27) i tarcza obrońcy (#25) dojdą z PvP.
 - Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
   - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
   - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
