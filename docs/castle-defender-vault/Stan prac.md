@@ -1,48 +1,93 @@
 # Stan prac
 
-Aktualizacja: 13.11.2026. Kod: repo `shivetay/castle_defender` (Godot 4.7, GDScript), tickety jako issues w repo z labelkami `mvp` i `v1.0` oraz kamieniami milowymi 0.1 MVP … 1.0 Premiera.
+Aktualizacja: 17.11.2026. Kod: repo `shivetay/castle_defender` (Godot 4.7, GDScript), wersja gry **0.3.0**. Tickety jako issues z labelkami `mvp` / `v1.0` oraz kamieniami milowymi 0.1 MVP … 1.0 Premiera.
 
 ## Wydania
 
-| Wersja | Stan | Co zawiera |
-| --- | --- | --- |
-| 0.0.1 | wydana | organizacja projektu, CI z debug APK przy każdym pushu, reguły agenta |
-| 0.1.0 | wydana | generator terenu 64×64, siatka budowy, kamera z gestami, budynki epoki I (wał, palisada, brama, wieża, chata drwala) z 5 poziomami |
-| 0.2.0 | PR #84 czeka na merge | stany zniszczeń, produkcja surowców także w tle, koszty i kolejka budowy, Dwór jako poziom zamku, zapis gry, poprawki bramy, wału i HUD |
+| Wersja | Data | Stan | Co zawiera |
+| --- | --- | --- | --- |
+| 0.0.1 | 13.11.2026 | wydana | organizacja projektu, CI z debug APK, reguły agenta |
+| 0.1.0 | 13.11.2026 | wydana | teren 64×64, siatka budowy, kamera, budynki epoki I z 5 poziomami |
+| 0.2.0 | 15.11.2026 | wydana | stany zniszczeń, ekonomia w tle, kolejka budowy, Dwór, zapis lokalny, poprawki bramy/wału/HUD |
+| 0.3.0 | 16.11.2026 | wydana | badania, towary i wytwórcy, rekrutacja, klasy jednostek, Chłop, panel budowy, zoom 0,5× |
+| po 0.3.0 | 16–17.11.2026 | na `main`, bez nowego tagu | bitwa, morale, donżon, samouczek PvE, plan ataku, obrona, pułapki, efekty, Dom zwiadowców |
+
+## Co weszło i kiedy
+
+### 12–13.11.2026 — fundament (etapy 1–4)
+
+- Etap 1–2: projekt Godot, CI, APK; generator terenu, siatka, kamera (#72, #123, #124).
+- Etap 3: paleta i prymitywy (#5), autotiling (#6), 5 budynków epoki I (#7), 4 stany zniszczeń (#78 / #8).
+- Etap 4: ekonomia także w tle (#79 / #10), koszty i kolejka budowy + Dwór (#80 / #11), zapis lokalny (#83 / #13), HUD z trybem Buduj (#118 / #9).
+- Poprawki: brama 3×1 nad drogą (#82), łączenie wału z palisadą (#85), margines zaokrągleń (#86).
+- Wydania 0.0.1 i 0.1.0.
+
+### 14–15.11.2026 — vault, seed, badania, produkcja (etap 5)
+
+- Vault Obsidiana w repo (#141).
+- Losowy seed mapy po stronie klienta (#138; ticket #97 częściowo, backend #166 otwarty).
+- Badania: drzewko 34 technologii + ekran (#139; ticket #12 nadal otwarty — braki efektów / epoki II).
+- Towary i łańcuchy (#140 / #88), 9 wytwórców (#142 / #90), Pole lnu i Rybak (#143 / #122), Stajnia (#144 / #91), budynki rekrutacji (#145 / #119), klasy i 13 jednostek MVP (#146 / #87).
+- Rekrutacja i ekran Wojsko (#147; ticket #89 częściowo — m.in. #164).
+- Wydanie 0.2.0 (#84).
+
+### 16.11.2026 — bitwa i UI (etapy 6–7, wydanie 0.3.0)
+
+- Wydanie 0.3.0 (#161): Chłop (#158), panel budowy z kategoriami (#160), zoom 0,5× (#159), powiązania badań (#157).
+- Symulacja bitwy (#148 / #14), donżon / Wieża grodowa (#152 / #120), jednostki w bitwie (#153 / #15), morale (#155 / #98).
+- Samouczek PvE: 5 fal pod Oblężenie (#170; ticket #16 częściowo — #185).
+- Efekty bitwy (#171; ticket #101 częściowo — m.in. Studnia / gaszenie).
+- Zwiadowca i Dom zwiadowców (#172 / część #92).
+- Polegli znikają z armii (#173).
+- Manewry ataku (#175 / #18), ekran planu ataku (#176 / #17).
+- UX: braki surowców na czerwono (#169), brama w linii umocnień (#168), opisy jednostek (#167).
+
+### 17.11.2026 — obrona i pułapki (etap 8)
+
+- Posterunki załogi wokół donżonu (#179; ticket #19 częściowo).
+- Zadania obrony: odcinek, patrol, priorytet wież (#181); strzelcy na murach, Wypad, domyślne (#184); ticket #20 częściowo (brak Gaszenia pożarów).
+- Wycofanie złamanego oddziału pod donżon (#180).
+- Poprawki manewrów po review (#178).
+- Ekran Kolejka w zakładkach (#183 / #163).
+- Badania wymagają budynku gałęzi (#182 / #165).
+- Pułapki: Wilczy dół, Kolczatka, Zrzucane kłody, Płonące strzały, Wrząca smoła (#186 / #100).
 
 ## Etapy MVP
 
-**Bieżący etap: 4 (#126), aktualne zadanie: #9 (HUD).**
+**Bieżący etap: 8 (#130).** Następny po domknięciu braków etapu 8: etap 9 Backend Supabase (#131).
 
 | Etap | Stan |
 | --- | --- |
 | 1. Projekt, APK, CI (#123) | gotowy |
 | 2. Teren, siatka, kamera (#124) | gotowy |
-| 3. Grafika proceduralna i budynki epoki I (#125) | prawie gotowy: otwarte #5 (paleta i prymitywy) |
-| 4. Ekonomia, progresja, zapis, HUD (#126) | w toku: gotowe #10, #11, #13; otwarte #9 (teraz), #81, #97 |
-| 5. Klasy, produkcja, rekrutacja, badania (#127) | do zrobienia (w tym #12) |
-| 6. Symulacja bitwy, donżon, PvE (#128) | do zrobienia |
-| 7–14 (#129–#136) | do zrobienia |
+| 3. Grafika i budynki epoki I (#125) | kod gotowy (#5–#8); otwarte #149, #150 (wygląd) |
+| 4. Ekonomia, progresja, zapis, HUD (#126) | prawie: otwarte #81 (Dwór przez epoki), #97 (reszta / backend seeda → #166) |
+| 5. Klasy, produkcja, rekrutacja, badania (#127) | prawie: otwarte #12 (pełne efekty / epoka II), #89 (dokończenie, #164) |
+| 6. Bitwa, jednostki, PvE (#128) | prawie: otwarte #16 (+ #185), #101 (dokończenie efektów) |
+| 7. Plan ataku i manewry (#129) | gotowy w kodzie (#17, #18) — ticket zbiorczy jeszcze otwarty |
+| 8. Obrona, zadania, pułapki (#130) | w toku: #100 gotowe; #19 i #20 częściowo |
+| 9–14 (#131–#136) | do zrobienia |
 
-Tickety MVP (bez ticketów etapów): 10 zamkniętych z 51. Wersje 0.2–1.0 mają tickety zbiorcze #38, #43, #46, #51, #137. Pełna lista etapów i zadań: [[Plan MVP]].
+Pełna lista etapów: [[Plan MVP]]. Pytania i braki: [[Otwarte pytania]].
 
-## Decyzje z 13.11.2026
+## Decyzje (narosłe)
 
-- Każda epoka ma jednostki w 5 klasach: lekka, ciężka, strzelecka, szybka, specjalna. Rekrutacja zużywa towary z budynków produkcyjnych (Garbarnia dla ciężkich, Łukmistrz i Strzałmistrz dla łuczników, Stajnia dla konnicy). Szczegóły: [[Klasy jednostek i produkcja]].
-- Stajnia i Jeździec przechodzą do epoki I (zatwierdzone). Każda klasa ma własny budynek rekrutacji (Koszary, Dom drużyny, Strzelnica, Stajnia) i osobnych wytwórców (Wytwórca zbroi skórzanych, Drzewcarz, Cięciwiarz, Łukmistrz, Strzałmistrz, Rymarz; kowal tylko od epoki III).
-- Epoki I–II bez metalu, od III żelazo z Kopalni rudy to główny koszt ciężkich jednostek. Jednostki specjalne mają własne surowce (smoła, zioła, bęben, proch).
-- MVP rośnie do 25 budynków i 13 jednostek.
-- Każdy gracz ma losowy seed mapy (dziś w kodzie stały seed 1337).
-- Tickety odpowiadają całemu vaultowi: każda notatka ma swoje tickety.
-- Celem ataku jest zniszczenie albo zdobycie donżonu (od epoki I Wieża grodowa), nie Dworu (#120).
-- Drzewko ma 131 technologii: doszły technologie klas, wytwórców i budynków gospodarczych (Chata myśliwego, Pole lnu, Rybak, Węglarz) (#121, #122).
-- Praca jest podzielona na 14 etapów MVP z ticketami Etap 1–14.
+### 13.11.2026
+
+- 5 klas jednostek; rekrutacja zużywa towary; Stajnia i Jeździec w epoce I; od III żelazo.
+- MVP: 25+ budynków i 13 jednostek; losowy seed mapy; celem ataku jest donżon (#120).
+- Drzewko: 131 technologii łącznie, 34 w MVP; praca w 14 etapach.
+
+### Od 16.11.2026 (z kodu)
+
+- Limit oddziałów w planie ataku: **3 w epoce I … 8 w epoce VI** (`AttackPlan.MAX_SQUADS_BY_AGE`) — zamyka pytanie z [[Otwarte pytania]].
+- Bitwą nikt nie steruje; plan i zadania obrony wykonują się same.
 
 ## Następne kroki
 
-1. Scalić wydanie 0.2.0 (#84).
-2. Etap 4: HUD (#9), Dwór przez epoki (#81), losowy seed mapy (#97); z etapu 3 domknąć #5.
-3. Etap 5: badania (#12), klasy, towary, wytwórcy i rekrutacja (#87–#91, #119, #122).
-4. Etap 6: symulacja bitwy z donżonem jako celem (#14, #120).
+1. Domknąć etap 8: komendant i pełne ustawienia obrony (#19), Gaszenie pożarów + Studnia (#20 / #35).
+2. Domknąć resztki 4–6: #81, #12, #89/#164, #16/#185, #101.
+3. Etap 9: Supabase i PvP (#131, #21–#27); seed mapy po stronie serwera (#166).
+4. Potem zwiad, wynik bitwy, generałowie, reklamy, epoka II (#132–#135).
 
-Powiązane: [[Plan MVP]], [[Roadmapa do 1.0]], [[Klasy jednostek i produkcja]]
+Powiązane: [[Plan MVP]], [[Roadmapa do 1.0]], [[Otwarte pytania]], [[Klasy jednostek i produkcja]]
