@@ -51,6 +51,13 @@ var battle_view: BattleView
 var _battle_wave := -1
 ## Oddziały armii w kolejności oddziałów bitwy, do rozliczenia strat po fali (#164).
 var _battle_ids: Array[int] = []
+## Atak na zamek-cel (#17): zapisany plan, ile zamków gracz już zdobył, ekran planu i zamek-cel.
+var attack_plan := AttackPlan.new()
+var bots_beaten := 0
+var planner: AttackPlanner
+var attack_panel: AttackPanel
+## Czy trwająca bitwa to atak (inaczej fala PvE).
+var _attacking := false
 
 var _terrain_tex: ImageTexture
 var _selected_id := 0
@@ -71,6 +78,8 @@ func _ready() -> void:
 		goods = saved.goods
 		recruitment = saved.recruitment
 		pve_cleared = saved.pve_cleared
+		attack_plan = saved.attack_plan
+		bots_beaten = saved.bots_beaten
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -97,6 +106,11 @@ func _ready() -> void:
 	camera.look_at_world(focus * TerrainMap.CELL)
 	camera.tapped.connect(_on_tapped)
 
+	planner = AttackPlanner.new()
+	planner.textures = textures
+	planner.visible = false
+	add_child(planner)
+
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	hud = Hud.new()
@@ -112,6 +126,15 @@ func _ready() -> void:
 	hud.demolish_pressed.connect(_on_middle_button)
 	hud.card_closed.connect(_deselect)
 	hud.research_pressed.connect(_on_research_opened)
+	hud.attack_pressed.connect(_on_attack_pressed)
+
+	attack_panel = AttackPanel.new()
+	attack_panel.planner = planner
+	attack_panel.visible = false
+	layer.add_child(attack_panel)
+	attack_panel.changed.connect(_on_plan_changed)
+	attack_panel.back_requested.connect(_close_attack)
+	attack_panel.attack_requested.connect(_on_attack_launched)
 
 	build_panel = BuildPanel.new()
 	build_panel.research = research
@@ -166,15 +189,9 @@ func _start_battle_preview() -> void:
 	hud.message = "Podgląd bitwy"
 
 
-## Pierwsza kratka drogi na krawędzi mapy (kolejność stała), a bez drogi środek dolnej krawędzi.
+## Wejście na mapę: pierwsza kratka drogi na krawędzi (BotCastle.edge_road).
 func _edge_road() -> Vector2i:
-	var last := terrain.size - 1
-	for i in terrain.size:
-		for c: Vector2i in [Vector2i(i, last), Vector2i(i, 0), Vector2i(0, i), Vector2i(last, i)]:
-			if terrain.get_tile(c) == TerrainMap.Tile.PATH:
-				return c
-	@warning_ignore("integer_division")
-	return Vector2i(terrain.size / 2, last - 1)
+	return BotCastle.edge_road(terrain)
 
 
 ## Dwór staje na pierwszym wolnym miejscu najbliżej środka mapy (kolejność stała dla seeda).
@@ -234,7 +251,7 @@ func _catch_up(prefix: String) -> void:
 ## Zapisuje grę. Błąd zapisu nie przerywa gry, tylko trafia do logu.
 func _save() -> void:
 	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared))
+			pve_cleared, attack_plan, bots_beaten))
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
 
@@ -283,6 +300,9 @@ func _tick() -> void:
 func _on_tapped(world_pos: Vector2) -> void:
 	if battle_view != null:
 		return  # w trakcie fali tylko tempo (#16)
+	if planner.visible:
+		_on_plan_changed(AttackPlanner.tap(planner.order(), planner.bot.grid, Vector2i((world_pos / TerrainMap.CELL).floor())))
+		return
 	_tick()
 	var cell := Vector2i((world_pos / TerrainMap.CELL).floor())
 	var id := grid.building_at(cell)
@@ -468,8 +488,11 @@ static func wave_end_message(wave: int, won: bool, reward: Array[int], fallen: i
 func _update_battle() -> void:
 	var b := battle_view.battle
 	var left_ms := (BattleConfig.time_limit_ticks() - b.tick) * 1000 / BattleConfig.TICK_HZ
-	hud.queue_text = "Fala %d %s" % [_battle_wave + 1, Hud.format_time(left_ms)]
+	hud.queue_text = "%s %s" % ["Atak" if _attacking else "Fala %d" % (_battle_wave + 1), Hud.format_time(left_ms)]
 	if b.winner == Battle.Winner.NONE:
+		return
+	if _attacking:
+		_finish_attack(b)
 		return
 	# polegli znikają z armii, ocalali (także wycofani) wracają do swoich oddziałów (#164)
 	var fallen := recruitment.apply_losses(_battle_ids, b.survivors(Battle.Side.DEFENDER))
@@ -486,6 +509,110 @@ func _update_battle() -> void:
 	_battle_wave = -1
 	_save()
 	queue_redraw()
+
+
+# --- Atak na zamek-cel (#17) -----------------------------------------------------------------------
+
+## Oddziały armii, które idą do ataku: pierwsze tyle, ile mieści plan w bieżącej epoce.
+func _attack_army() -> Array:
+	var army := recruitment.battle_squads()
+	return army.slice(0, AttackPlan.max_squads(CURRENT_AGE))
+
+
+func _bot() -> BotCastle:
+	if planner.bot != null and planner.bot.strength == bots_beaten \
+			and planner.bot.seed_value == BotCastle.seed_for(world_seed, bots_beaten):
+		return planner.bot
+	return BotCastle.generate(BotCastle.seed_for(world_seed, bots_beaten), bots_beaten)
+
+
+## Atak: ekran planu na zamku-celu. Bez wojska ekran się nie otwiera.
+func _on_attack_pressed() -> void:
+	_tick()
+	var army := _attack_army()
+	if army.is_empty():
+		hud.message = "Najpierw wyszkol wojsko: Koszary i Wojsko"
+		return
+	_selected_id = 0
+	hud.hide_card()
+	hud.set_building(false)
+	_cursor = Rect2i()
+	var bot := _bot()
+	planner.open(bot, attack_plan, army, CURRENT_AGE)
+	attack_panel.visible = true
+	hud.overlay = true
+	camera.look_at_world(Vector2(bot.grid.buildings[bot.objective].get_center() * TerrainMap.CELL))
+	var all := recruitment.battle_squads().size()
+	hud.message = AttackPlanner.HINT if all <= army.size() else \
+			"W ataku %d z %d oddziałów (limit epoki)" % [army.size(), all]
+	queue_redraw()
+
+
+func _on_plan_changed(message: String) -> void:
+	hud.message = message
+	planner.queue_redraw()
+	_save()
+
+
+## Wróć: koniec planowania, widok własnego zamku. Plan zostaje zapisany.
+func _close_attack() -> void:
+	planner.visible = false
+	attack_panel.visible = false
+	hud.overlay = false
+	hud.message = DEFAULT_MESSAGE
+	camera.look_at_world(Vector2(grid.buildings[grid.manor_id()].get_center() * TerrainMap.CELL))
+	_save()
+	queue_redraw()
+
+
+## Atakuj: bitwa na zamku-celu według planu. Ekran planu chowa się, a mapa celu zostaje.
+func _on_attack_launched() -> void:
+	var army := _attack_army()
+	var problem := attack_plan.problem(army.size(), CURRENT_AGE)
+	if army.is_empty():
+		problem = "Najpierw wyszkol wojsko: Koszary i Wojsko"
+	if not problem.is_empty():
+		hud.message = problem
+		return
+	var bot := planner.bot
+	_battle_ids = recruitment.battle_ids().slice(0, army.size())
+	var b := Battle.create_squads(bot.grid, bot.objective, army, bot.defenders, bot.spawn,
+			PixelCanvas.hash2(bot.seed_value, bots_beaten, 0xa77) & 0x7fffffff)
+	b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
+	_attacking = true
+	attack_panel.visible = false
+	planner.show_plan = false
+	planner.queue_redraw()
+	hud.overlay = false
+	battle_view = BattleView.new()
+	battle_view.battle = b
+	add_child(battle_view)
+	hud.battle = true
+	hud.speed_label = speed_label(battle_view.speed)
+	hud.message = "Atak: %d oddziały ruszają" % army.size() if army.size() > 1 else "Atak: oddział rusza"
+	_save()
+
+
+## Koniec ataku: polegli znikają z armii, a zdobyty zamek odblokowuje kolejny, mocniejszy cel.
+func _finish_attack(b: Battle) -> void:
+	var fallen := recruitment.apply_losses(_battle_ids, b.survivors(Battle.Side.ATTACKER))
+	var won := b.winner == Battle.Winner.ATTACKER
+	if won:
+		bots_beaten += 1
+		for o in attack_plan.orders:
+			AttackPlanner.clear(o)  # cel i trasa dotyczyły zdobytego zamku
+	battle_view.queue_free()
+	battle_view = null
+	hud.battle = false
+	_attacking = false
+	_close_attack()
+	hud.message = attack_end_message(won, fallen)
+	_save()
+
+
+static func attack_end_message(won: bool, fallen: int) -> String:
+	var head := "Zamek zdobyty!" if won else "Atak odparty."
+	return head if fallen == 0 else "%s Polegli: %d" % [head, fallen]
 
 
 ## Drzewko badań przykrywa mapę: karta budynku się zamyka, a HUD chowa swoje przyciski.
@@ -625,45 +752,14 @@ func _on_middle_button() -> void:
 
 func _draw() -> void:
 	draw_texture(_terrain_tex, Vector2.ZERO)
-	for id in grid.draw_order():
-		var kind := grid.kinds[id]
-		_draw_wall_stubs(id)
-		var tex := textures.draw_building(kind, grid.levels[id], BuildingTypes.State.INTACT,
-				grid.wall_mask(id), grid.is_vertical(id))
-		draw_texture(tex, Vector2(_texture_origin(grid.buildings[id].position, kind)))
+	CastleView.draw_buildings(self, grid, textures)
 	if not queue.orders.is_empty():
 		_draw_progress(queue.orders[0].building_id)
 	var frame := grid.buildings[_selected_id] if _selected_id != 0 else _cursor
 	if frame.has_area():
 		var ok := _selected_id != 0 or _cursor_ok
-		_draw_frame(Rect2i(frame.position * TerrainMap.CELL, frame.size * TerrainMap.CELL),
+		CastleView.draw_frame(self, Rect2i(frame.position * TerrainMap.CELL, frame.size * TerrainMap.CELL),
 				Palette.VALID if ok else Palette.ACCENT)
-
-
-func _texture_origin(cell: Vector2i, kind: int) -> Vector2i:
-	return cell * TerrainMap.CELL - Vector2i(0, BuildingArt.EXTRA[kind])
-
-
-## Wpusty: na kratce budynku przy sąsiedniej palisadzie rysuje się jej krótki odcinek (od krawędzi
-## do środka kratki), a budynek przykrywa go zaraz potem. Linia dochodzi wtedy do korpusu.
-func _draw_wall_stubs(id: int) -> void:
-	for stub in grid.wall_stubs(id):
-		var c := Vector2i(stub.x, stub.y)
-		var wall := grid.building_at(c + _dir_of(stub.z))
-		var kind := grid.kinds[wall]
-		var tex := textures.draw_building(kind, grid.levels[wall], BuildingTypes.State.INTACT, stub.z)
-		draw_texture(tex, Vector2(_texture_origin(c, kind)))
-
-
-static func _dir_of(bit: int) -> Vector2i:
-	match bit:
-		BuildingTypes.N:
-			return Vector2i.UP
-		BuildingTypes.E:
-			return Vector2i.RIGHT
-		BuildingTypes.S:
-			return Vector2i.DOWN
-	return Vector2i.LEFT
 
 
 ## Pasek postępu 2 px nad kratkami budowanego budynku, w całych pikselach.
@@ -677,11 +773,3 @@ func _draw_progress(id: int) -> void:
 	var fill := w * queue.progress_permille(id, _now_ms()) / 1000
 	draw_rect(Rect2(at.x, at.y, w, 2), Palette.SHADOW)
 	draw_rect(Rect2(at.x, at.y, fill, 2), Palette.VALID)
-
-
-## Ramka 1 px wewnątrz prostokąta, z czterech pełnych pasków na całych pikselach.
-func _draw_frame(r: Rect2i, col: Color) -> void:
-	draw_rect(Rect2(r.position.x, r.position.y, r.size.x, 1), col)
-	draw_rect(Rect2(r.position.x, r.end.y - 1, r.size.x, 1), col)
-	draw_rect(Rect2(r.position.x, r.position.y + 1, 1, r.size.y - 2), col)
-	draw_rect(Rect2(r.end.x - 1, r.position.y + 1, 1, r.size.y - 2), col)

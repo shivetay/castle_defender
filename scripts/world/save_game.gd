@@ -9,14 +9,14 @@ extends RefCounted
 ## też nie jest nadpisywany, tylko odkładany, a gra zaczyna od nowa.
 ## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, towary, kolejkę, badania i armię.
 
-const FORMAT_VERSION := 5
+const FORMAT_VERSION := 6
 const PATH := "user://castle.json"
 
 ## Migracje: wersja → funkcja przerabiająca słownik tej wersji na wersję o 1 wyższą.
 ## Przy zmianie formatu podnieś FORMAT_VERSION i dopisz tu migrację z poprzedniej wersji.
 ## Wersja 2 dodała badania (#12), wersja 3 towary w zbrojowni (#88), wersja 4 armię i szkolenie (#89),
-## wersja 5 postęp samouczka PvE (#16).
-static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3, 4: _from_v4}
+## wersja 5 postęp samouczka PvE (#16), wersja 6 plan ataku i zdobyte zamki (#17).
+static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3, 4: _from_v4, 5: _from_v5}
 
 ## Stan gry odczytany z pliku.
 class State:
@@ -24,6 +24,9 @@ class State:
 	var world_seed := 0
 	## Ile fal samouczka PvE (#16) gracz już obronił.
 	var pve_cleared := 0
+	## Zapisany plan ataku (#17) i ile zamków-celów gracz już zdobył.
+	var attack_plan := AttackPlan.new()
+	var bots_beaten := 0
 	var grid: BuildGrid
 	var economy: Economy
 	var queue: BuildQueue
@@ -36,7 +39,8 @@ class State:
 
 ## Słownik zapisu dla stanu gry.
 static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: BuildQueue,
-		research: Research = null, goods: Goods = null, recruitment: Recruitment = null, pve_cleared: int = 0) -> Dictionary:
+		research: Research = null, goods: Goods = null, recruitment: Recruitment = null, pve_cleared: int = 0,
+		attack_plan: AttackPlan = null, bots_beaten: int = 0) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -47,6 +51,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		"goods": goods.save_data() if goods != null else {},
 		"recruitment": recruitment.save_data() if recruitment != null else {},
 		"pve": {"cleared": pve_cleared},
+		"attack": {"plan": attack_plan.to_dict() if attack_plan != null else {}, "beaten": bots_beaten},
 	}
 
 
@@ -70,6 +75,9 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	s.recruitment = Recruitment.new()
 	s.skipped += s.recruitment.load_data(d.get("recruitment", {}) as Dictionary, s.grid, now_ms)
 	s.pve_cleared = clampi(int((d.get("pve", {}) as Dictionary).get("cleared", 0)), 0, PveWaves.COUNT)
+	var attack := d.get("attack", {}) as Dictionary
+	s.attack_plan = AttackPlan.from_dict(attack.get("plan", {}) as Dictionary)
+	s.bots_beaten = maxi(0, int(attack.get("beaten", 0)))
 	return s
 
 
@@ -94,6 +102,12 @@ static func _from_v3(d: Dictionary) -> Dictionary:
 ## Wersja 4 → 5: zapis sprzed samouczka PvE zaczyna od pierwszej fali.
 static func _from_v4(d: Dictionary) -> Dictionary:
 	d["pve"] = {"cleared": 0}
+	return d
+
+
+## Wersja 5 → 6: zapis sprzed planu ataku dostaje pusty plan i zero zdobytych zamków.
+static func _from_v5(d: Dictionary) -> Dictionary:
+	d["attack"] = {"plan": {}, "beaten": 0}
 	return d
 
 
