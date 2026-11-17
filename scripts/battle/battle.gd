@@ -363,6 +363,12 @@ func checksum() -> int:
 	for key: int in morale:
 		h = _mix(h, key)
 		h = _mix(h, int(morale[key]))
+	# stan rozkazów planu ataku (#18), żeby weryfikacja w trakcie bitwy (#29) widziała też je
+	for key: int in squad_size:
+		var flags := (1 if _sq_started.has(key) else 0) + (2 if _sq_done.has(key) else 0) \
+				+ (4 if _sq_retreat.has(key) else 0)
+		h = _mix(h, flags)
+		h = _mix(h, int(_sq_dead.get(key, 0)))
 	return h
 
 
@@ -785,10 +791,13 @@ func _destroy(s: Structure) -> void:
 # --- Plan ataku (#18) --------------------------------------------------------------------------------
 
 ## Ustawia plan ataku przed bitwą: trasy oddziałów (Oskrzydlenie bez własnej trasy dostaje punkt
-## obejścia z boku). Punkty trasy przesuwają się na najbliższą wolną kratkę.
+## obejścia z boku). Punkty trasy przesuwają się na najbliższą wolną kratkę. Null zdejmuje plan:
+## wszyscy walczą jak bez rozkazu.
 func set_plan(p: AttackPlan) -> void:
 	plan = p
 	_sq_route.clear()
+	if p == null:
+		return
 	for o in p.orders:
 		var route: Array = []
 		var points: Array[Vector2i] = o.waypoints.duplicate()
@@ -1078,20 +1087,35 @@ func _approach(f: Fighter, wall: Structure) -> Vector2i:
 
 
 ## Kratka zejścia za murem: wolna, przy murze, po przeciwnej stronie niż jednostka (najdalej od
-## niej), albo (-1, -1), gdy takiej nie ma.
+## niej), albo (-1, -1), gdy takiej nie ma. Kratki, na których stoi już inna żywa jednostka, idą
+## na koniec, żeby oddział nie lądował jeden na drugim (review PR 175); gdy wszystkie są zajęte,
+## jednostka schodzi na najlepszą z nich.
 func _landing(f: Fighter, wall: Structure) -> Vector2i:
 	var here := f.cell()
 	var wall_d := (wall.rect.get_center() - here).length_squared()
 	var best := Vector2i(-1, -1)
 	var best_d := -1
+	var best_free := false
 	for c in _ring(wall.rect):
 		if not _free_ground(c):
 			continue
 		var d := (c - here).length_squared()
-		if d > wall_d and d > best_d:
+		if d <= wall_d:
+			continue
+		var free := not _occupied(c, f)
+		if best_d < 0 or (free and not best_free) or (free == best_free and d > best_d):
 			best = c
 			best_d = d
+			best_free = free
 	return best
+
+
+## Czy na kratce `c` stoi żywa jednostka inna niż `who`.
+func _occupied(c: Vector2i, who: Fighter) -> bool:
+	for g in fighters:
+		if g != who and g.alive() and g.cell() == c:
+			return true
+	return false
 
 
 ## Kratki dookoła prostokąta, w stałej kolejności (wiersze od góry).
