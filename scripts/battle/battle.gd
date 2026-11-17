@@ -374,6 +374,8 @@ func checksum() -> int:
 		h = _mix(h, 1 if f.charged else 0)
 		h = _mix(h, f.wp * 2 + (1 if f.climbed else 0))
 		h = _mix(h, f.climb)
+		# kratka wycofania (review #180): dwie bitwy z różnym rozstawieniem obrońców różnią się już na starcie
+		h = _mix(h, f.rally.x * 256 + f.rally.y)
 	for id: int in structures:
 		h = _mix(h, id)
 		h = _mix(h, structures[id].hp)

@@ -260,6 +260,11 @@ func test_routed_outpost_falls_back_to_keep() -> bool:
 	for f in _fighters(b, Battle.Side.DEFENDER, 2):
 		assert_true(_cheb(f.post, post) <= 1, "łucznicy zaczynają na posterunku")
 		assert_true(_cheb(f.rally, keep) <= 3, "a wycofują się pod donżon")
+	var other := Battle.for_castle_squads(grid, [[U.PEASANT, 1]], [[U.PEASANT, 3], [U.ARCHER, 3]],
+			BotCastle.edge_road(grid.terrain), 9, null, DefensePlan.hold_orders([NO, post] as Array[Vector2i]))
+	for f in _fighters(other, Battle.Side.DEFENDER, 2):
+		f.rally = f.post
+	assert_true(other.checksum() != b.checksum(), "kratka wycofania wchodzi do sumy kontrolnej (review #180)")
 	for f in _fighters(b, Battle.Side.DEFENDER, 1):
 		assert_eq(f.rally, f.post, "oddział przy donżonie wycofuje się tam, gdzie stoi")
 	for f in _fighters(b, Battle.Side.ATTACKER, 1):
