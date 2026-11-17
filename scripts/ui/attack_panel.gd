@@ -94,7 +94,7 @@ func activate(t: int) -> void:
 		return
 	match t:
 		Target.MANOEUVRE:
-			o.manoeuvre = AttackPlanner.next_manoeuvre(o.manoeuvre, planner.age)
+			o.manoeuvre = AttackPlanner.next_manoeuvre(o.manoeuvre, planner.age, planner.research)
 			changed.emit(AttackPlan.MANOEUVRE_NAMES[o.manoeuvre])
 		Target.START:
 			AttackPlanner.next_start(o, planner.squads.size())

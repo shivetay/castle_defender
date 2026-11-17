@@ -117,6 +117,7 @@ func _ready() -> void:
 
 	planner = AttackPlanner.new()
 	planner.textures = textures
+	planner.research = research
 	planner.visible = false
 	add_child(planner)
 
@@ -222,6 +223,7 @@ func _start_battle_preview() -> void:
 	view.battle.tower_priority = defense.tower_priority
 	view.battle.arm_traps(defense.traps)
 	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
+	view.battle.apply_research(Battle.Side.DEFENDER, research)
 	add_child(view)
 	hud.message = "Podgląd bitwy"
 
@@ -483,6 +485,7 @@ func _on_siege_pressed() -> void:
 			defense.battle_orders(_battle_ids, recruitment.battle_squads(), grid, CURRENT_AGE),
 			defense.tower_priority)
 	b.arm_traps(defense.traps)  # pułapki działają raz na bitwę, a w układzie zostają (odnawiają się, #100)
+	b.apply_research(Battle.Side.DEFENDER, research)  # A2 łuki i O2 palisady obrońcy (#12)
 	battle_view = BattleView.new()
 	battle_view.battle = b
 	add_child(battle_view)
@@ -616,7 +619,7 @@ func _close_attack() -> void:
 ## Atakuj: bitwa na zamku-celu według planu. Ekran planu chowa się, a mapa celu zostaje.
 func _on_attack_launched() -> void:
 	var army := _attack_army()
-	var problem := attack_plan.problem(army.size(), CURRENT_AGE)
+	var problem := attack_plan.problem(army.size(), CURRENT_AGE, research)
 	if army.is_empty():
 		problem = "Najpierw wyszkol wojsko: Koszary i Wojsko"
 	if not problem.is_empty():
@@ -627,6 +630,7 @@ func _on_attack_launched() -> void:
 	var b := Battle.create_squads(bot.grid, bot.objective, army, bot.defenders, bot.spawn,
 			PixelCanvas.hash2(bot.seed_value, bots_beaten, 0xa77) & 0x7fffffff)
 	b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
+	b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
 	_attacking = true
 	attack_panel.visible = false
 	planner.show_plan = false

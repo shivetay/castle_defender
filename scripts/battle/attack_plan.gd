@@ -18,6 +18,8 @@ const MANOEUVRE_NAMES: Array[String] = ["Szturm frontalny", "Ostrzał z dystansu
 		"Szturm z drabinami", "Taranowanie bramy"]
 ## Od której epoki manewr jest dostępny (0 = I), z notatki.
 const MANOEUVRE_AGE: Array[int] = [0, 0, 0, 0, 1, 1]
+## Technologia, która odblokowuje manewr (#12, notatka Drzewko technologiczne); pusty napis: bez badań.
+const MANOEUVRE_TECH: Array[String] = ["", "", "A3", "A4", "A5", "A6"]
 const MAX_WAYPOINTS := 3
 ## Ile oddziałów mieści plan w epokach I–VI (Otwarte pytania, decyzja właściciela: 3 w epoce I,
 ## do 8 w epoce VI). Technologia U12 i generałowie dodadzą po +1 później.
@@ -69,7 +71,8 @@ func order_for(squad: int) -> Order:
 
 ## Pusty napis, gdy plan jest poprawny dla armii z `squad_count` oddziałów w epoce `age`;
 ## inaczej powód po polsku (dla ekranu planu, #17).
-func problem(squad_count: int, age: int) -> String:
+## Z `research` (badania atakującego) sprawdza też technologie manewrów (#12); bez badań je pomija.
+func problem(squad_count: int, age: int, research: Research = null) -> String:
 	if squad_count > max_squads(age):
 		return "Za dużo oddziałów: najwyżej %d" % max_squads(age)
 	for o in orders:
@@ -79,6 +82,8 @@ func problem(squad_count: int, age: int) -> String:
 			return "Nieznany manewr"
 		if MANOEUVRE_AGE[o.manoeuvre] > age:
 			return "%s: wymaga późniejszej epoki" % MANOEUVRE_NAMES[o.manoeuvre]
+		if research != null and not manoeuvre_unlocked(o.manoeuvre, research):
+			return tech_hint(o.manoeuvre)
 		if o.waypoints.size() > MAX_WAYPOINTS:
 			return "Najwyżej %d punkty trasy" % MAX_WAYPOINTS
 		if o.retreat_percent < 0 or o.retreat_percent > 100:
@@ -108,6 +113,18 @@ func _waits_in_cycle(squad: int) -> bool:
 			return false
 		seen[cur] = true
 	return false
+
+
+## Czy manewr `m` jest odblokowany badaniami `research` (manewr bez technologii zawsze).
+static func manoeuvre_unlocked(m: int, research: Research) -> bool:
+	var tech := MANOEUVRE_TECH[m]
+	return tech.is_empty() or (research != null and research.is_done(tech))
+
+
+## Komunikat o brakującej technologii manewru, np. „Oskrzydlenie: zbadaj A4 Taktyka oskrzydlenia”.
+static func tech_hint(m: int) -> String:
+	var tech := MANOEUVRE_TECH[m]
+	return "%s: zbadaj %s %s" % [MANOEUVRE_NAMES[m], tech, TechTree.tech_name(tech)]
 
 
 func to_dict() -> Dictionary:
