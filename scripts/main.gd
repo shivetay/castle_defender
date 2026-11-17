@@ -66,6 +66,8 @@ var bots_beaten := 0
 ## Cel Wyprawy: numer zamku-bota na liście BotRoster (#26) i ekran wyboru zamku.
 var attack_target := 0
 var bot_picker: BotPicker
+## Okno wyniku ataku (#99).
+var result_panel: ResultPanel
 var planner: AttackPlanner
 var attack_panel: AttackPanel
 ## Ustawienia obrony (#19): posterunki załogi i panel edycji (widoczny w trybie edycji obrony).
@@ -167,6 +169,10 @@ func _ready() -> void:
 	layer.add_child(bot_picker)
 	bot_picker.target_chosen.connect(_open_attack)
 	bot_picker.closed.connect(_on_overlay_closed)
+	result_panel = ResultPanel.new()
+	result_panel.visible = false
+	layer.add_child(result_panel)
+	result_panel.closed.connect(_on_overlay_closed)
 
 	defense_panel = DefensePanel.new()
 	defense_panel.research = research
@@ -700,10 +706,18 @@ func _on_attack_launched() -> void:
 
 ## Koniec ataku: polegli znikają z armii, a pierwsze zdobycie zamku odblokowuje kolejny, mocniejszy
 ## (#26). Zamek wraca do pełnego stanu, więc można go atakować znowu.
+## Wynik (#99): gwiazdki, procent zniszczeń i łup trafiają do okna wyniku; łup do magazynu.
 func _finish_attack(b: Battle) -> void:
 	var fallen := recruitment.apply_losses(_battle_ids, b.survivors(Battle.Side.ATTACKER))
 	var won := b.winner == Battle.Winner.ATTACKER
+	var result := BattleResult.of(b)
+	result.compute_loot(attack_target, BotRoster.is_beaten(attack_target, bots_beaten))
+	var got := result.apply_loot(economy)
 	var first := won and attack_target == bots_beaten and bots_beaten < BotRoster.COUNT
+	var unlock := ""
+	if first:
+		unlock = "Wszystkie zamki zdobyte!" if bots_beaten + 1 >= BotRoster.COUNT \
+				else "Odblokowany: %d. %s" % [bots_beaten + 2, BotRoster.NAMES[bots_beaten + 1]]
 	if first:
 		bots_beaten += 1
 		if bots_beaten < BotRoster.COUNT:
@@ -715,13 +729,11 @@ func _finish_attack(b: Battle) -> void:
 	hud.battle = false
 	_attacking = false
 	_close_attack()
-	hud.message = attack_end_message(won, fallen)
+	# wynik jest w oknie, więc pasek komunikatu go nie powtarza (review #194)
+	hud.message = ""
+	hud.overlay = true
+	result_panel.show_result(result, got, fallen, unlock)
 	_save()
-
-
-static func attack_end_message(won: bool, fallen: int) -> String:
-	var head := "Zamek zdobyty!" if won else "Atak odparty."
-	return head if fallen == 0 else "%s Polegli: %d" % [head, fallen]
 
 
 # --- Ustawienia obrony (#19) -------------------------------------------------------------------------
