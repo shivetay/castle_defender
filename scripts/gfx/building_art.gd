@@ -427,8 +427,10 @@ static func _draw_manor(img: Image, level: int) -> void:
 
 # --- Wytwórcy (#90) ---------------------------------------------------------------------------
 
-## Warsztat wytwórcy (2×2). Wszystkie mają ten sam szkielet, a rozpoznaje się je po rekwizycie
-## z prawej (_draw_prop). Poziomy: 1 wiata z rekwizytem, 2 izba pod strzechą, 3 większa z kominem,
+## Warsztat (2×2). Szkielet wspólny, dach wg kategorii w panelu budowy (czytelność z dystansu):
+## wytwórcy — strzecha dwuspadowa, wojsko — płaski pomost z desek, gospodarka — dach namiotowy.
+## Rozpoznanie rodzaju zostaje w rekwizycie z prawej (_draw_prop, bez zmian).
+## Poziomy: 1 wiata z rekwizytem, 2 izba pod dachem kategorii, 3 większa z kominem,
 ## 4 najszersza z większym rekwizytem, 5 z proporcem na kalenicy i drugim przy wejściu.
 static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.NONE) -> void:
 	var size := img.get_size()
@@ -443,13 +445,40 @@ static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.N
 	elif wide:
 		r = Rect2i(0, 1, 11, 11)
 	var body := _body(r, lean, size)
-	_roof(img, body, lean, 17 + kind)
+	_workshop_roof(img, body, lean, kind)
 	if level >= 3:
 		PixelCanvas.chimney(img, chimney_at(body))
 	_draw_prop(img, kind, Vector2i(11, 3), wide)
 	if level == 5:
 		PixelCanvas.pennant(img, Vector2i(body.position.x + 1, body.position.y + 1), Palette.ACCENT)
 		PixelCanvas.rect(img, Rect2i(body.position.x + 4, body.end.y, 2, 2), Palette.ACCENT)
+
+
+## Dach warsztatu wg kategorii: strzecha (wytwórcy), pomost (wojsko), namiotowy (gospodarka).
+## Przy murze wytwórcy zostają przy dachu jednospadowym; wojsko i gospodarka trzymają swoją bryłę,
+## a przybudówka wojska ma ciemną listwę od strony muru (poziomy 4–5 mają ten sam obrys co wolnostojące).
+static func _workshop_roof(img: Image, body: Rect2i, lean: int, kind: int) -> void:
+	match BuildingTypes.category(kind):
+		BuildingTypes.Category.MILITARY:
+			# płaska sylwetka koszar: deski w poziomie jak na mocku „pomost z bali”
+			PixelCanvas.deck(img, body, true, Palette.WOOD, 17 + kind)
+			if lean != Lean.NONE:
+				_deck_wall_rail(img, body, lean)
+		BuildingTypes.Category.ECONOMY:
+			PixelCanvas.roof_hip(img, body, Palette.THATCH, Palette.WOOD[0])
+		_:
+			_roof(img, body, lean, 17 + kind)
+
+
+## Ciemna krawędź pomostu od strony muru — przybudówka wojska czytelna także gdy korpus już dochodzi do krawędzi.
+static func _deck_wall_rail(img: Image, body: Rect2i, lean: int) -> void:
+	match lean:
+		Lean.WEST:
+			PixelCanvas.rect(img, Rect2i(body.position.x, body.position.y, 1, body.size.y), Palette.WOOD[0])
+		Lean.NORTH:
+			PixelCanvas.rect(img, Rect2i(body.position.x, body.position.y, body.size.x, 1), Palette.WOOD[0])
+		Lean.SOUTH:
+			PixelCanvas.rect(img, Rect2i(body.position.x, body.end.y - 1, body.size.x, 1), Palette.WOOD[0])
 
 
 ## Rekwizyt wytwórcy z góry, 5 px szerokości, od lewego górnego rogu `at`.

@@ -387,6 +387,34 @@ func test_construction_site() -> bool:
 	return true
 
 
+## Warsztaty od poziomu 2: dach wg kategorii (strzecha / pomost / namiot). Rekwizyty bez zmian;
+## chata drwala i umocnienia nie idą tą ścieżką.
+func test_workshop_roofs_by_category() -> bool:
+	var level := 2
+	var producer := BuildingArt.make_image(BuildingTypes.Kind.TANNERY, level, BuildingTypes.State.INTACT)
+	var military := BuildingArt.make_image(BuildingTypes.Kind.BARRACKS, level, BuildingTypes.State.INTACT)
+	var economy := BuildingArt.make_image(BuildingTypes.Kind.FISHER, level, BuildingTypes.State.INTACT)
+	# połać korpusu (nie kalenica y=6), z dala od propsu (x=11)
+	assert_true(Palette.THATCH.has(producer.get_pixel(5, 4)), "wytwórca: strzecha")
+	assert_true(Palette.WOOD.has(military.get_pixel(5, 4)), "wojsko: pomost z desek")
+	assert_true(not Palette.THATCH.has(military.get_pixel(5, 4)), "wojsko bez strzechy w korpusie")
+	assert_true(Palette.THATCH.has(economy.get_pixel(3, 4)), "gospodarka: dach namiotowy (strzecha)")
+	# hip ma ciemne krawędzie narożne — różny kontur niż dwuspadowa strzecha
+	assert_true(Palette.THATCH.has(economy.get_pixel(1, 2)), "namiot: ciemny narożnik")
+	assert_true(Palette.WOOD.has(economy.get_pixel(5, 6)), "namiot: szczyt z belki")
+	assert_true(producer.get_data() != military.get_data(), "wojsko ≠ wytwórca nawet bez patrzenia na props")
+	assert_true(producer.get_data() != economy.get_data(), "gospodarka ≠ wytwórca")
+	assert_true(military.get_data() != economy.get_data(), "gospodarka ≠ wojsko")
+	# props bez zmian: kadź garbarni (obwódka WOOD, środek EARTH)
+	assert_true(Palette.WOOD.has(producer.get_pixel(11, 5)), "garbarnia: obwódka kadzi")
+	assert_true(Palette.EARTH.has(producer.get_pixel(13, 5)), "garbarnia: środek kadzi")
+	# chata drwala to gospodarka, ale nie warsztat — zostaje przy strzesze dwuspadowej
+	var hut := BuildingArt.make_image(BuildingTypes.Kind.LUMBER_HUT, level, BuildingTypes.State.INTACT)
+	assert_true(Palette.THATCH.has(hut.get_pixel(5, 4)), "chata: strzecha jak wcześniej")
+	assert_true(hut.get_data() != economy.get_data(), "chata ≠ rybak (hip)")
+	return true
+
+
 func test_manor_is_not_on_toolbar() -> bool:
 	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 3, "pasek bez Dworu, donżonu i Strażnicy")
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.KEEP), "donżonu nie ma na pasku")
