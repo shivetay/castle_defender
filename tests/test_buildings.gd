@@ -437,3 +437,33 @@ func test_gate_does_not_replace_other_buildings_or_pending_walls() -> bool:
 	assert_eq(q.order_build(grid2, e, c2 + Vector2i(1, 0), BuildingTypes.Kind.GATE, 0), BuildQueue.Result.NO_PLACE,
 			"odcinki w budowie zostają")
 	return true
+
+
+## Po teście na telefonie: wieża, jak brama, staje na linii wału albo palisady, zastępuje odcinki pod
+## sobą i łączy się z linią po obu stronach. Odcinków w budowie ani innych budynków nie zastępuje.
+func test_tower_replaces_wall_segments() -> bool:
+	for wall: int in [BuildingTypes.Kind.PALISADE, BuildingTypes.Kind.RAMPART]:
+		var grid := BuildGrid.new(TerrainMap.generate(1337))
+		var o := _free_area(grid, Vector2i(7, 3))
+		var c := o + Vector2i(0, 1)
+		for dx in 7:
+			grid.place_kind(c + Vector2i(dx, 0), wall)
+		var before := grid.buildings.size()
+		var tower := grid.place_kind(c + Vector2i(3, 0), BuildingTypes.Kind.TOWER)
+		assert_true(tower > 0, "wieża na linii (%s)" % BuildingTypes.NAMES[wall])
+		var r := grid.buildings[tower]
+		assert_true(r.has_point(c + Vector2i(3, 0)), "obejmuje dotkniętą kratkę")
+		assert_eq(grid.walls_under(r).size(), 0, "odcinki pod wieżą zniknęły")
+		assert_eq(grid.buildings.size(), before - 2 + 1, "dwa odcinki zastąpione wieżą")
+		var west := grid.building_at(Vector2i(r.position.x - 1, c.y))
+		var east := grid.building_at(Vector2i(r.end.x, c.y))
+		assert_eq(grid.wall_mask(west) & BuildingTypes.E, BuildingTypes.E, "linia łączy się z wieżą od zachodu")
+		assert_eq(grid.wall_mask(east) & BuildingTypes.W, BuildingTypes.W, "i od wschodu")
+	var grid2 := BuildGrid.new(TerrainMap.generate(1337))
+	var e := Economy.new(0)
+	var q := BuildQueue.new()
+	var c2 := _free_area(grid2, Vector2i(7, 3)) + Vector2i(0, 1)
+	for dx in 2:
+		assert_eq(q.order_build(grid2, e, c2 + Vector2i(dx, 0), BuildingTypes.Kind.PALISADE, 0), BuildQueue.Result.OK, "palisada w kolejce")
+	assert_eq(q.order_build(grid2, e, c2, BuildingTypes.Kind.TOWER, 0), BuildQueue.Result.NO_PLACE, "odcinki w budowie zostają")
+	return true
