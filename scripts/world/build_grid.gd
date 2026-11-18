@@ -116,8 +116,8 @@ static func replaces_walls(kind: int) -> bool:
 
 
 ## Pierwsze miejsce, w które place_kind() postawiłby budynek dla kratki `c`, albo pusty prostokąt.
-## Brama najpierw szuka miejsca bez zastępowania umocnień (luka w linii), a dopiero potem stawia
-## się na odcinkach wału albo palisady.
+## Brama i wieża (replaces_walls) najpierw szukają miejsca bez zastępowania umocnień (luka w linii),
+## a dopiero potem stawiają się na odcinkach wału albo palisady.
 func placement_for(c: Vector2i, kind: int, stick: bool = false) -> Rect2i:
 	var candidates := placement_candidates(c, kind, stick)
 	for rect in candidates:

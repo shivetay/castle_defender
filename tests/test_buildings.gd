@@ -452,7 +452,7 @@ func test_tower_replaces_wall_segments() -> bool:
 		var tower := grid.place_kind(c + Vector2i(3, 0), BuildingTypes.Kind.TOWER)
 		assert_true(tower > 0, "wieża na linii (%s)" % BuildingTypes.NAMES[wall])
 		var r := grid.buildings[tower]
-		assert_true(r.has_point(c + Vector2i(3, 0)), "obejmuje dotkniętą kratkę")
+		assert_eq(r, Rect2i(c + Vector2i(3, 0), Vector2i(2, 2)), "dotknięta kratka to lewy górny róg (remis 2 odcinków)")
 		assert_eq(grid.walls_under(r).size(), 0, "odcinki pod wieżą zniknęły")
 		assert_eq(grid.buildings.size(), before - 2 + 1, "dwa odcinki zastąpione wieżą")
 		var west := grid.building_at(Vector2i(r.position.x - 1, c.y))
@@ -466,4 +466,30 @@ func test_tower_replaces_wall_segments() -> bool:
 	for dx in 2:
 		assert_eq(q.order_build(grid2, e, c2 + Vector2i(dx, 0), BuildingTypes.Kind.PALISADE, 0), BuildQueue.Result.OK, "palisada w kolejce")
 	assert_eq(q.order_build(grid2, e, c2, BuildingTypes.Kind.TOWER, 0), BuildQueue.Result.NO_PLACE, "odcinki w budowie zostają")
+	var grid3 := BuildGrid.new(TerrainMap.generate(1337))
+	var c3 := _free_area(grid3, Vector2i(7, 3)) + Vector2i(0, 1)
+	var hut := grid3.place_kind(c3 + Vector2i(2, 0), BuildingTypes.Kind.LUMBER_HUT)
+	assert_true(hut > 0, "chata stoi")
+	assert_true(not grid3.placement_for(c3 + Vector2i(3, 0), BuildingTypes.Kind.TOWER).intersects(grid3.buildings[hut]),
+			"chaty nie zastępuje")
+	return true
+
+
+## Wieża na pionowej linii: zastępuje 2 odcinki, a linia łączy się z nią od północy i południa.
+func test_tower_on_vertical_wall_line() -> bool:
+	for wall: int in [BuildingTypes.Kind.PALISADE, BuildingTypes.Kind.RAMPART]:
+		var grid := BuildGrid.new(TerrainMap.generate(1337))
+		var c := _free_area(grid, Vector2i(3, 7)) + Vector2i(1, 0)
+		for dy in 7:
+			grid.place_kind(c + Vector2i(0, dy), wall)
+		var before := grid.buildings.size()
+		var tower := grid.place_kind(c + Vector2i(0, 3), BuildingTypes.Kind.TOWER)
+		assert_true(tower > 0, "wieża na pionowej linii (%s)" % BuildingTypes.NAMES[wall])
+		var r := grid.buildings[tower]
+		assert_eq(r, Rect2i(c + Vector2i(0, 3), Vector2i(2, 2)), "dotknięta kratka to lewy górny róg")
+		assert_eq(grid.buildings.size(), before - 2 + 1, "dwa odcinki zastąpione wieżą")
+		var north := grid.building_at(Vector2i(c.x, r.position.y - 1))
+		var south := grid.building_at(Vector2i(c.x, r.end.y))
+		assert_eq(grid.wall_mask(north) & BuildingTypes.S, BuildingTypes.S, "linia łączy się z wieżą od północy")
+		assert_eq(grid.wall_mask(south) & BuildingTypes.N, BuildingTypes.N, "i od południa")
 	return true
