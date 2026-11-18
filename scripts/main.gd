@@ -914,7 +914,7 @@ func _refresh_card() -> void:
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
 	hud.card_needs = upgrade_needs(kind, level, grid.manor_level(), pending)
-	hud.card_needs_ok = pending or level < BuildConfig.max_level(kind, grid.manor_level())
+	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending)
 	hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, BuildingTypes.MAX_LEVEL) \
 			else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
@@ -923,7 +923,7 @@ func _refresh_card() -> void:
 
 ## Opis karty z kosztem ulepszenia, np. „Ulepsz: 180 Dr 60 Ka 60 Ży, 3:00”. Wymagania są osobno
 ## (upgrade_needs).
-static func upgrade_info(kind: int, level: int, manor_level: int, pending: bool) -> String:
+static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool) -> String:
 	if pending:
 		return "Trwa budowa"
 	if not BuildingTypes.has_levels(kind):
@@ -942,10 +942,12 @@ static func upgrade_needs(kind: int, level: int, manor_level: int, pending: bool
 		return ""
 	if kind == BuildingTypes.Kind.MANOR:
 		return "Wymaga: tylko surowców"
-	var next := level + 1
-	if next > BuildConfig.max_level(kind, manor_level):
-		return "Wymaga: Dwór poz. %d (masz %d)" % [next, manor_level]
-	return "Wymaga: Dwór poz. %d (masz %d)" % [next, manor_level]
+	return "Wymaga: Dwór poz. %d (masz %d)" % [level + 1, manor_level]
+
+
+## Czy wymagania następnego poziomu są spełnione (kolor linii „Wymaga:”: zielony albo czerwony).
+static func upgrade_needs_ok(kind: int, level: int, manor_level: int, pending: bool) -> bool:
+	return pending or level < BuildConfig.max_level(kind, manor_level)
 
 
 func _on_upgrade() -> void:

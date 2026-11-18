@@ -233,19 +233,38 @@ static func card_rects(view: Vector2, recruit: bool = false, pve: bool = false) 
 const CARD_MIN_W := 200
 
 
-## Linie opisu karty: `info` złamane na szerokość `width` (koszt „120 Dr” się nie rozrywa),
-## a pod nim `needs`, jeśli jest.
+## Linie opisu karty: `info` złamane na szerokość `width`, a pod nim linie `needs` (card_needs_lines).
+## Koszt „120 Dr” nie rozrywa się między liniami: liczba i skrót surowca łamią się razem.
 static func card_lines(info: String, needs: String, width: int) -> PackedStringArray:
+	var words := info.split(" ", false)
+	var groups: PackedStringArray = []
+	var i := 0
+	while i < words.size():
+		var w := words[i]
+		var next := words[i + 1] if i + 1 < words.size() else ""
+		if w.is_valid_int() and EconomyConfig.SHORT_NAMES.has(next.trim_suffix(",")):
+			w += " " + next
+			i += 1
+		groups.append(w)
+		i += 1
 	var out: PackedStringArray = []
-	var glued := info
-	for res in EconomyConfig.count():
-		var short := EconomyConfig.SHORT_NAMES[res]
-		glued = glued.replace(" " + short, "\u00a0" + short)
-	for line in PixelFont.wrap(glued, width):
-		out.append(line.replace("\u00a0", " "))
-	for line in PixelFont.wrap(needs, width):
+	var line := ""
+	for g in groups:
+		var cand := g if line.is_empty() else line + " " + g
+		if line.is_empty() or PixelFont.text_width(cand) <= width:
+			line = cand
+		else:
+			out.append(line)
+			line = g
+	if not line.is_empty():
 		out.append(line)
+	out.append_array(card_needs_lines(needs, width))
 	return out
+
+
+## Linie „Wymaga: …” karty (pusta tablica bez wymagań).
+static func card_needs_lines(needs: String, width: int) -> PackedStringArray:
+	return PixelFont.wrap(needs, width) if not needs.is_empty() else PackedStringArray()
 
 
 ## Tło karty z `lines` liniami opisu: tytuł, opis, przyciski; co najmniej CARD_MIN_W szerokie,
@@ -561,7 +580,7 @@ func _draw_card(view: Vector2) -> void:
 	draw_rect(panel, Color(Palette.SHADOW, 0.85))
 	PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
 	PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])
-	var needs_from := lines.size() - PixelFont.wrap(card_needs, width).size()
+	var needs_from := lines.size() - card_needs_lines(card_needs, width).size()
 	for i in lines.size():
 		var at := panel.position + Vector2(4, 13 + i * PixelFont.LINE)
 		if i >= needs_from:

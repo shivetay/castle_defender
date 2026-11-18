@@ -96,6 +96,11 @@ func test_card_shows_requirements_in_full() -> bool:
 	assert_eq(main.upgrade_needs(K.MANOR, 1, 1, false), "Wymaga: tylko surowców", "Dwór")
 	assert_eq(main.upgrade_needs(K.TOWER, 5, 5, false), "", "najwyższy poziom: bez linii")
 	assert_eq(main.upgrade_needs(K.TOWER, 1, 3, true), "", "w budowie: bez linii")
+	assert_true(main.upgrade_needs_ok(K.TOWER, 1, 3, false), "wieża 1 przy Dworze 3: zielona")
+	assert_true(not main.upgrade_needs_ok(K.TOWER, 3, 3, false), "wieża 3 przy Dworze 3: czerwona")
+	assert_true(main.upgrade_needs_ok(K.MANOR, 3, 3, false), "Dwór: zielona")
+	assert_eq(Hud.card_lines("Ulepsz: 180 Dr 60 Ka, 3:00", "", 70),
+			PackedStringArray(["Ulepsz: 180 Dr", "60 Ka, 3:00"]), "koszt łamie się całymi parami")
 	var view := Vector2(320, 180)
 	for kind in BuildingTypes.count():
 		for level in range(1, BuildingTypes.MAX_LEVEL):
@@ -110,8 +115,8 @@ func test_card_shows_requirements_in_full() -> bool:
 				for line in lines:
 					assert_true(not line.ends_with(" " + "%d" % BuildConfig.cost(kind, level + 1)[res]) \
 							or BuildConfig.cost(kind, level + 1)[res] == 0, "%d/%d: koszt w jednej linii" % [kind, level])
-			for recruit: bool in [false, true]:
-				var panel := Hud.card_panel(view, lines.size(), recruit)
+			for variant: Vector2i in [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1)]:
+				var panel := Hud.card_panel(view, lines.size(), variant.x == 1, variant.y == 1)
 				assert_true(panel.position.y > Hud.BAR_H + 10, "%d/%d: karta pod paskiem celu" % [kind, level])
 				assert_true(panel.position.x >= 0 and panel.end.x <= view.x, "%d/%d: karta na ekranie" % [kind, level])
 	return true
