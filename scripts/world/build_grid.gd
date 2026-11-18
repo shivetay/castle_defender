@@ -515,6 +515,54 @@ func seal_toward_anchors(from: Vector2i, kind: int, level: int) -> Array[int]:
 	return placed
 
 
+## Puste kratki będące lukami w umocnieniach (#199): `is_wall_gap` dla wału albo palisady.
+func fort_gaps() -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var seen := {}
+	for y in terrain.size:
+		for x in terrain.size:
+			var c := Vector2i(x, y)
+			if building_at(c) != 0 or seen.has(c):
+				continue
+			if is_wall_gap(c, BuildingTypes.Kind.RAMPART) or is_wall_gap(c, BuildingTypes.Kind.PALISADE):
+				seen[c] = true
+				out.append(c)
+	return out
+
+
+## Rodzaj odcinka do uszczelnienia luki `c`: sąsiedni wał/palisada, inaczej palisada.
+func wall_kind_for_gap(c: Vector2i) -> int:
+	var rampart := false
+	var palisade := false
+	for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+		var id := building_at(c + d)
+		if id == 0:
+			continue
+		match kinds[id]:
+			BuildingTypes.Kind.RAMPART:
+				rampart = true
+			BuildingTypes.Kind.PALISADE:
+				palisade = true
+	if rampart and not palisade:
+		return BuildingTypes.Kind.RAMPART
+	if palisade and not rampart:
+		return BuildingTypes.Kind.PALISADE
+	# luka do kotwicy: ten sam rodzaj co odcinek po drugiej stronie pustek
+	for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
+		for dir: Vector2i in [axis, -axis]:
+			var end := _gap_end(c, dir, BuildingTypes.Kind.PALISADE)
+			if end.is_empty():
+				end = _gap_end(c, dir, BuildingTypes.Kind.RAMPART)
+			if end.is_empty():
+				continue
+			var id: int = int(end["id"])
+			if BuildingTypes.is_wall(kinds[id]):
+				return kinds[id]
+	if is_wall_gap(c, BuildingTypes.Kind.RAMPART) and not is_wall_gap(c, BuildingTypes.Kind.PALISADE):
+		return BuildingTypes.Kind.RAMPART
+	return BuildingTypes.Kind.PALISADE
+
+
 ## Domknij krótkie luki wału/palisady dochodzące do bramy albo wieży `anchor_id`.
 func seal_walls_to_anchor(anchor_id: int) -> Array[int]:
 	var placed: Array[int] = []

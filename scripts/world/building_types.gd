@@ -14,6 +14,8 @@ enum Kind {
 	KEEP,
 	SCOUT_HOUSE,
 	WATCHTOWER,
+	## Komenda umocnień (#199): Sprawdź szczelność pierścienia i uszczelnij luki.
+	SEAL_HOUSE,
 }
 ## Stan budynku zależny od wytrzymałości: cały, pęknięcia, wyrwa w blankach, gruz.
 enum State { INTACT, CRACKED, BREACHED, RUBBLE }
@@ -31,19 +33,19 @@ const W := 8
 const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wieża drewniana", "Chata drwala", "Dwór",
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
 		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica",
-		"Wieża grodowa", "Dom zwiadowców", "Strażnica"]
+		"Wieża grodowa", "Dom zwiadowców", "Strażnica", "Komenda umocnień"]
 ## Napisy na kafelkach panelu budowy (BuildPanel, ok. 57–71 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
 		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
 		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica", "Donżon",
-		"Zwiadowcy", "Strażnica"]
+		"Zwiadowcy", "Strażnica", "Komenda"]
 const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
-		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2)]
+		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2)]
 ## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu): umocnienia, gospodarka (#122),
 ## wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119) i Dom zwiadowców (#92).
-const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.LUMBER_HUT,
+const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.SEAL_HOUSE, Kind.LUMBER_HUT,
 		Kind.FISHER, Kind.FLAX_FIELD, Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER,
 		Kind.FLETCHER, Kind.SADDLER, Kind.STABLE, Kind.TAR_KILN, Kind.BARRACKS, Kind.WARBAND_HOUSE,
 		Kind.ARCHERY_RANGE, Kind.SCOUT_HOUSE]
@@ -54,7 +56,7 @@ enum Category { DEFENSE, ECONOMY, PRODUCERS, MILITARY }
 const CATEGORY_NAMES: Array[String] = ["Umocnienia", "Gospodarka", "Wytwórcy", "Wojsko"]
 ## Rodzaje w kategoriach, w kolejności kafelków (ta sama kolejność co BUILD_BAR).
 const CATEGORIES: Array = [
-	[Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER],
+	[Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.SEAL_HOUSE],
 	[Kind.LUMBER_HUT, Kind.FISHER, Kind.FLAX_FIELD],
 	[Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER, Kind.FLETCHER,
 			Kind.SADDLER, Kind.TAR_KILN],

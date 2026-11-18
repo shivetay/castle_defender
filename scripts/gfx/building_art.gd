@@ -562,6 +562,14 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 			PixelCanvas.rect(img, Rect2i(x + 1, y + 6, 3, 1), Palette.THATCH[2])  # róg
 			if big:
 				PixelCanvas.pennant(img, Vector2i(x, y + 8), Palette.ACCENT)
+		BuildingTypes.Kind.SEAL_HOUSE:
+			# plan umocnień na stole: obrys pierścienia z luką na czerwono (#199)
+			PixelCanvas.rect(img, Rect2i(x, y, 5, 5), Palette.WOOD[1])
+			PixelCanvas.frame(img, Rect2i(x + 1, y + 1, 3, 3), Palette.WOOD[3])
+			PixelCanvas.px(img, x + 2, y + 1, Palette.ACCENT)  # luka
+			if big:
+				PixelCanvas.rect(img, Rect2i(x + 1, y + 6, 3, 1), Palette.WOOD[0])  # linijka
+				PixelCanvas.px(img, x + 4, y + 7, Palette.ACCENT)
 		BuildingTypes.Kind.TAR_KILN:
 			# mielerz z dymnikiem i beczka smoły
 			_ring(img, Rect2i(x, y, 5, 5), Palette.EARTH[1], Palette.EARTH[2])

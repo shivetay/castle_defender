@@ -409,6 +409,10 @@ w sekcji „Następny etap”.
   wczytaniu. Jej karta ma tylko Oblężenie (fale samouczka), Wyprawę (atak na zamek bota) i Zamknij;
   Oblężenie i Atak zniknęły z kolumny HUD-u.
   PvP dostanie osobny budynek w etapie 9.
+- Komenda umocnień (`BuildingTypes.Kind.SEAL_HOUSE`, #199): budynek 2×2 w zakładce Umocnienia.
+  Karta ma Sprawdź (odliczanie ~1 min, jedno naraz) i Domknij (uszczelnia wykrytą lukę odcinkiem
+  wału/palisady przez kolejkę budowy). Po Sprawdź luki świecą na czerwono na mapie; przy pełnej
+  szczelności komunikat „Obrona szczelna”. Bez gotowej Komendy nie ma tego flow (`SealCheck`).
 - `scripts/ui/queue_panel.gd` (`QueuePanel`, #163): ekran Kolejka pod przyciskiem Kolejka (z liczbą
   zleceń budowy i szkolenia) albo po dotknięciu czasu budowy na górnym pasku. Zakładka Budynki: zlecenia
   w kolejności wykonania (nazwa, „nowy” albo „poz. N→N+1”, czas; pierwsze z paskiem postępu, kolejne
@@ -560,4 +564,5 @@ Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a 
 backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym kontem (#22) oraz zapis
 `map_seed` i `start_attack` z seedem terenu (#166); następna jest pełna synchronizacja zamku (#23)
 i domknięcie ataku (#25). Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
-część efektów badań (#12), ogólny wygląd (#150) i sprawdzanie szczelności obrony (#199).
+część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
+(Komenda umocnień + Sprawdź / Domknij).
