@@ -2,7 +2,8 @@ class_name SupabaseSession
 extends RefCounted
 ## Sesja konta Supabase (#22): token dostępu, token odświeżania, czas wygaśnięcia i id gracza.
 ## Leży w `user://session.json`, czyli w prywatnym katalogu aplikacji na telefonie. Tokenów
-## nigdy nie wypisujemy do logów (skill `user-data-privacy`).
+## nigdy nie wypisujemy do logów (skill `user-data-privacy`). „Zacznij od nowa” jej nie kasuje: nowa gra
+## to ten sam gracz i to samo konto. Co wtedy dzieje się z zamkiem na serwerze, ustala synchronizacja (#23).
 
 const PATH := "user://session.json"
 ## Odświeżaj token tyle sekund przed wygaśnięciem.

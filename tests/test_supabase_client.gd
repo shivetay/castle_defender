@@ -31,7 +31,7 @@ func test_config_accepts_only_client_keys() -> bool:
 	var ok := SupabaseConfig.parse(JSON.stringify({"url": URL + "/", "publishable_key": " " + KEY}))
 	assert_true(ok.is_ready(), "adres HTTPS i klucz publishable")
 	assert_eq(ok.url, URL, "bez końcowego ukośnika")
-	assert_true(SupabaseConfig.is_client_key(_jwt("anon")), "dawny klucz anon")
+	assert_true(not SupabaseConfig.is_client_key(_jwt("anon")), "dawny klucz JWT odrzucony (jak w CI)")
 	assert_true(not SupabaseConfig.is_client_key(_jwt("service_role")), "service_role odrzucony")
 	assert_true(not SupabaseConfig.is_client_key("sb_secret_abc"), "klucz sekretny odrzucony")
 	assert_true(not SupabaseConfig.is_client_key(""), "pusty klucz")

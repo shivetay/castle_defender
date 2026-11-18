@@ -317,10 +317,11 @@ obrony z #19 (posterunki załogi wokół donżonu).
   (`/auth/v1/signup`), trzyma sesję w `user://session.json` i odświeża token przed wygaśnięciem.
   - **Offline:** bez sieci gra działa jak dotąd, a klient ponawia próby co 5 s, 15 s, 30 s… do 5 min.
     Odrzucony token odświeżania oznacza nowe konto (anonimowego nie da się odzyskać).
+    „Zacznij od nowa” zostawia konto (ten sam gracz); los zamku na serwerze ustali #23.
   - **Konfiguracja:** adres i klucz publishable w `config/supabase.json` (poza repo, wzór w
-    `config/supabase.example.json`). Bez pliku albo z kluczem serwera (`sb_secret_`, `service_role`)
-    klient się nie łączy. APK z CI dostaje plik ze zmiennych repozytorium `SUPABASE_URL`
-    i `SUPABASE_PUBLISHABLE_KEY`.
+    `config/supabase.example.json`). Działa tylko nowy klucz `sb_publishable_…` (w grze i w CI);
+    z kluczem serwera albo dawnym kluczem JWT klient się nie łączy. APK z CI dostaje plik ze zmiennych
+    repozytorium `SUPABASE_URL` i `SUPABASE_PUBLISHABLE_KEY`.
   - **Ustawienia** pokazują stan: offline, łączenie, połączono albo brak sieci.
 - Wynik ataku (#99, `scripts/battle/battle_result.gd`, okno `scripts/ui/result_panel.gd`): liczony tylko ze
   stanu skończonej bitwy, w liczbach całkowitych (ten sam u atakującego, w powtórce i na serwerze).
