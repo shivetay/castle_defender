@@ -39,10 +39,15 @@ static func parse_response(data: Variant) -> Dictionary:
 		"battle_seed": battle_seed,
 		"id": str(d.get("id", "")),
 	}
-	if d.has("bot_idx"):
-		out["bot_idx"] = int(d["bot_idx"])
-	if d.has("defender_id"):
-		out["defender_id"] = str(d["defender_id"])
+	# JSON null z Edge ma klucz, ale int(null)→0 / str(null) psują cel — tylko realne typy.
+	var bot: Variant = d.get("bot_idx")
+	if bot is int or bot is float:
+		var idx := int(bot)
+		if idx >= 0 and idx <= 19:
+			out["bot_idx"] = idx
+	var defender: Variant = d.get("defender_id")
+	if defender is String and not (defender as String).is_empty():
+		out["defender_id"] = defender as String
 	return out
 
 

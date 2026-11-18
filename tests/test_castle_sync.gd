@@ -48,3 +48,30 @@ func test_next_action_insert_then_update() -> bool:
 			"lokalny seed nie nadpisuje bazowego (UPDATE bez map_seed)")
 	return true
 
+
+## Busy sync nie gubi nowszego data — oznacza dirty i podmienia payload.
+func test_busy_sync_keeps_latest_payload() -> bool:
+	const PATH := "user://test_castle_sync_busy.json"
+	SupabaseSession.clear(PATH)
+	var c := SupabaseClient.new()
+	c.setup(SupabaseConfig.parse(JSON.stringify({
+		"url": "https://abc.supabase.co", "publishable_key": "sb_publishable_test123",
+	})), PATH)
+	c.handle_auth(SupabaseClient.Call.SIGNUP, HTTPRequest.RESULT_SUCCESS, 200, JSON.stringify({
+		"access_token": "t1", "refresh_token": "r1", "expires_in": 3600,
+		"user": {"id": "00000000-0000-0000-0000-00000000000a", "is_anonymous": true},
+	}))
+	c._rest = HTTPRequest.new()
+	c._castle_call = SupabaseClient.CastleCall.INSERT
+	c.sync_castle(1337, 8, {"n": 1})
+	assert_true(c._castle_dirty, "trwający zapis → dirty")
+	assert_eq(int(c._castle_data["n"]), 1, "payload")
+	c.sync_castle(1337, 8, {"n": 2})
+	assert_eq(int(c._castle_data["n"]), 2, "nowszy data zostaje")
+	assert_true(c._castle_dirty, "nadal dirty")
+	c._castle_dirty = false
+	c._castle_call = SupabaseClient.CastleCall.NONE
+	SupabaseSession.clear(PATH)
+	c.free()
+	return true
+

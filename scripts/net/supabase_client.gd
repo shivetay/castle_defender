@@ -37,6 +37,8 @@ var _castle_call: int = CastleCall.NONE
 var _castle_map_seed := 0
 var _castle_save_version := 0
 var _castle_data: Dictionary = {}
+## Gdy sync w toku, kolejny zapis tylko podmienia payload i czeka na dokończenie (#23).
+var _castle_dirty := false
 
 
 ## Konfiguracja przed dodaniem do drzewa (w testach inna ścieżka sesji); bez niej `_ready` czyta plik.
@@ -105,20 +107,20 @@ func rest_headers() -> PackedStringArray:
 	return headers_for(config.key, session.access_token if session != null else "")
 
 
-## Wysyła zamek z `map_seed` (#166). Bez sieci / w trakcie innego zapisu — no-op.
+## Wysyła zamek z `map_seed` (#166). Bez sieci — no-op. W trakcie innego zapisu zapamiętuje
+## najnowszy `data` i powtórzy sync po zakończeniu (żeby częsty `_save` nic nie gubił).
 func sync_castle(map_seed: int, save_version: int, data: Dictionary) -> void:
-	if not is_online() or _rest == null or _castle_call != CastleCall.NONE:
+	if not is_online() or _rest == null:
 		return
 	if not CastleSync.is_valid_map_seed(map_seed) or user_id().is_empty():
 		return
 	_castle_map_seed = map_seed
 	_castle_save_version = save_version
 	_castle_data = data
-	_castle_call = CastleCall.GET
-	var err := _rest.request(config.url + CastleSync.own_path(user_id()) + "&select=" + CastleSync.SELECT_OWN,
-			rest_headers(), HTTPClient.METHOD_GET)
-	if err != OK:
-		_castle_call = CastleCall.NONE
+	if _castle_call != CastleCall.NONE:
+		_castle_dirty = true
+		return
+	_castle_begin_get()
 
 
 # --- Logika bez sieci (testy) ------------------------------------------------------------------
@@ -196,7 +198,10 @@ func _on_rest_completed(result: int, code: int, _headers: PackedStringArray, bod
 func handle_castle_rest(call: int, result: int, code: int, body: String) -> void:
 	var pending := call
 	_castle_call = CastleCall.NONE
-	if pending == CastleCall.NONE or outcome_of(result, code) != Outcome.OK:
+	if pending == CastleCall.NONE:
+		return
+	if outcome_of(result, code) != Outcome.OK:
+		_castle_retry_if_dirty()
 		return
 	if pending == CastleCall.GET:
 		var rows: Variant = SupabaseConfig.parse_json(body)
@@ -208,8 +213,28 @@ func handle_castle_rest(call: int, result: int, code: int, body: String) -> void
 		elif action == CastleSync.Action.UPDATE:
 			_castle_send(CastleCall.UPDATE, HTTPClient.METHOD_PATCH, CastleSync.own_path(user_id()),
 					CastleSync.update_body(_castle_save_version, _castle_data))
+		else:
+			_castle_retry_if_dirty()
 		return
-	# INSERT / UPDATE: sukces kończy cykl; seed w bazie zostaje z INSERT
+	# INSERT / UPDATE: seed w bazie zostaje z INSERT; ewentualny nowszy zapis z dirty
+	_castle_retry_if_dirty()
+
+
+func _castle_begin_get() -> void:
+	_castle_call = CastleCall.GET
+	var err := _rest.request(config.url + CastleSync.own_path(user_id()) + "&select=" + CastleSync.SELECT_OWN,
+			rest_headers(), HTTPClient.METHOD_GET)
+	if err != OK:
+		_castle_call = CastleCall.NONE
+
+
+func _castle_retry_if_dirty() -> void:
+	if not _castle_dirty:
+		return
+	_castle_dirty = false
+	if is_online() and _rest != null and CastleSync.is_valid_map_seed(_castle_map_seed) \
+			and not user_id().is_empty():
+		_castle_begin_get()
 
 
 func _castle_send(call: int, method: int, path: String, body: Dictionary) -> void:
@@ -222,6 +247,7 @@ func _castle_send(call: int, method: int, path: String, body: Dictionary) -> voi
 	var err := _rest.request(config.url + path, headers, method, JSON.stringify(body))
 	if err != OK:
 		_castle_call = CastleCall.NONE
+		_castle_retry_if_dirty()
 
 
 func _set_state(s: int) -> void:

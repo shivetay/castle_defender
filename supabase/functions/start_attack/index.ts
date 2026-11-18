@@ -118,13 +118,19 @@ Deno.serve(async (req) => {
     return json({ error: "insert_failed" }, 500);
   }
 
-  return json({
+  // bez kluczy null — klient z has()/filtrami typu nie dostaje fałszywego bot_idx: 0
+  const payload: Record<string, unknown> = {
     id: attack.id,
     map_seed: attack.map_seed,
     battle_seed: attack.battle_seed,
-    defender_id: attack.defender_id,
-    bot_idx: attack.bot_idx,
-  });
+  };
+  if (attack.defender_id != null) {
+    payload.defender_id = attack.defender_id;
+  }
+  if (attack.bot_idx != null) {
+    payload.bot_idx = attack.bot_idx;
+  }
+  return json(payload);
 });
 
 function json(body: unknown, status = 200): Response {
