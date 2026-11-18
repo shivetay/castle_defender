@@ -244,7 +244,7 @@ obrony z #19 (posterunki załogi wokół donżonu).
     zawsze ma cel. Wybrany cel jest w zapisie (`attack.target`).
   - **Zamek-cel:** `BotCastle` buduje zamek z listy: Dwór i donżon w palisadzie (albo wale) z bramą
     od strony drogi, chaty, wieże i budynki rekrutacji poza pierścieniem oraz załogę. Pierścień jest
-    szczelny: droga, która go przecina, dostaje bramę w poprzek, a bez miejsca na nią odcinek muru.
+    szczelny: tam, gdzie przecina go droga, stoi odcinek muru (bez drugiej bramy).
   - **Ekran:** strefa rozstawienia przy wejściu, strzałki planu i pasek oddziałów (w ataku pierwsze
     3 oddziały armii, limit epoki I). Przyciski: Manewr, Start (od razu, po 10/20/30 s, po oddziale),
     Odwrót (nigdy, 30/50/70% strat), Wyczyść, Atakuj i Wróć.

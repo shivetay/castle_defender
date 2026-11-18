@@ -99,11 +99,12 @@ func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int =
 	return id
 
 
-## Stawia budynek bez sprawdzania rodzaju terenu, np. odcinek palisady na drodze. Tylko dla generatora
-## zamków-botów (BotCastle), gdy brama w luce się nie mieści. Kratki muszą być na mapie, wolne
-## i bez wody. Zwraca id albo 0.
+## Stawia odcinek wału albo palisady bez sprawdzania rodzaju terenu, np. na drodze. Tylko dla generatora
+## zamków-botów (BotCastle), który tak zamyka pierścień tam, gdzie przecina go droga. Inne rodzaje
+## budynków dają 0 (review #200). Kratki muszą być na mapie, wolne i bez wody. Zwraca id albo 0.
+## Takiego odcinka nie odtworzy load_data (wymaga can_place), ale zamków-botów się nie zapisuje.
 func place_on_any_ground(rect: Rect2i, kind: int, level: int = 1) -> int:
-	if not rect.has_area():
+	if not rect.has_area() or not BuildingTypes.is_wall(kind):
 		return 0
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):

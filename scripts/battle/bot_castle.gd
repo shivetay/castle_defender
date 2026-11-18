@@ -70,9 +70,10 @@ static func edge_road(terrain: TerrainMap) -> Vector2i:
 
 ## Pierścień umocnień `kind` po brzegu `ring` z bramą 3×1 (albo przejściem bez bramy) w boku od strony
 ## wejścia (górnym albo dolnym). Kratki z wodą i poza mapą zostają luką (tam i tak nikt nie przejdzie),
-## a zajęte przez inny budynek zamyka ten budynek. Droga, która przecina pierścień, dostaje bramę
-## w poprzek, a gdy brama się nie mieści, odcinek umocnienia na drodze, więc pierścień z bramą jest
-## szczelny (w zamku 1 droga zostawiała lukę, przez którą wchodzili Chłopi).
+## a zajęte przez inny budynek zamyka ten budynek. Droga, która przecina pierścień, dostaje odcinek
+## umocnienia mimo drogi (BuildGrid.place_on_any_ground), więc pierścień z bramą jest szczelny (w zamku 1
+## droga zostawiała lukę, przez którą wchodzili Chłopi). Bez drugiej bramy, żeby gwiazdka „Brama
+## zdobyta” nie przychodziła łatwiej z boku (review #200).
 ## `gate_x` < 0: brama na środku boku. Zwraca lewą kolumnę bramy.
 static func _place_ring(grid: BuildGrid, ring: Rect2i, level: int, spawn: Vector2i, kind: int = K.PALISADE,
 		gate: bool = true, gate_x: int = -1) -> int:
@@ -97,22 +98,5 @@ static func _place_ring(grid: BuildGrid, ring: Rect2i, level: int, spawn: Vector
 			for i in 3:
 				holes.append(Vector2i(gx + i, gate_y))
 	for c in holes:
-		_seal(grid, ring, c, kind, level)
+		grid.place_on_any_ground(Rect2i(c, Vector2i.ONE), kind, level)
 	return gx
-
-
-## Zamyka lukę `c` w pierścieniu `ring`: brama w poprzek drogi leżąca w całości na boku pierścienia,
-## a bez miejsca na nią odcinek umocnienia `kind` postawiony mimo drogi.
-static func _seal(grid: BuildGrid, ring: Rect2i, c: Vector2i, kind: int, level: int) -> void:
-	if grid.building_at(c) != 0:
-		return  # zamknęła ją już brama postawiona dla sąsiedniej luki
-	var on_row := c.y == ring.position.y or c.y == ring.end.y - 1
-	var on_col := c.x == ring.position.x or c.x == ring.end.x - 1
-	for back: int in [1, 0, 2]:
-		if on_row and c.x - back >= ring.position.x and c.x - back + 3 <= ring.end.x \
-				and grid.place(Rect2i(c.x - back, c.y, 3, 1), K.GATE, level) != 0:
-			return
-		if on_col and c.y - back >= ring.position.y and c.y - back + 3 <= ring.end.y \
-				and grid.place(Rect2i(c.x, c.y - back, 1, 3), K.GATE, level) != 0:
-			return
-	grid.place_on_any_ground(Rect2i(c, Vector2i.ONE), kind, level)

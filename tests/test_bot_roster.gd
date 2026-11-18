@@ -181,3 +181,38 @@ func _reaches_keep(bot: BotCastle) -> bool:
 			seen[n] = true
 			todo.append(n)
 	return false
+
+
+## Odcinek mimo drogi stawia tylko generator i tylko umocnienie: na drodze tak, na wodzie i dla innych
+## rodzajów nie. Zewnętrzny wał zostawia przejście na wprost bramy.
+func test_wall_on_road_and_outer_gap() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var road := Vector2i(-1, -1)
+	var water := Vector2i(-1, -1)
+	for y in grid.terrain.size:
+		for x in grid.terrain.size:
+			var c := Vector2i(x, y)
+			if road.x < 0 and grid.terrain.get_tile(c) == TerrainMap.Tile.PATH:
+				road = c
+			if water.x < 0 and grid.terrain.get_tile(c) == TerrainMap.Tile.WATER:
+				water = c
+	assert_true(road.x >= 0 and water.x >= 0, "mapa ma drogę i wodę")
+	assert_eq(grid.place_on_any_ground(Rect2i(road, Vector2i.ONE), K.LUMBER_HUT), 0, "chata na drodze: nie")
+	assert_eq(grid.place_on_any_ground(Rect2i(water, Vector2i.ONE), K.PALISADE), 0, "na wodzie: nie")
+	assert_true(grid.place_on_any_ground(Rect2i(road, Vector2i.ONE), K.PALISADE) != 0, "palisada na drodze: tak")
+	assert_eq(grid.place_on_any_ground(Rect2i(road, Vector2i.ONE), K.PALISADE), 0, "na zajętej kratce: nie")
+	var bot := BotRoster.generate(BotRoster.OUTER_WALL_FROM)
+	var gates := 0
+	var gate := Rect2i()
+	for id: int in bot.grid.kinds:
+		if bot.grid.kinds[id] == K.GATE:
+			gates += 1
+			gate = bot.grid.buildings[id]
+	assert_eq(gates, 1, "jedna brama")
+	# kratki zewnętrznego wału na wprost bramy (2 kratki dalej od pierścienia) są wolne
+	var dy := -2 if bot.spawn.y < gate.position.y else 2
+	for i in 3:
+		var c := gate.position + Vector2i(i, dy)
+		assert_true(bot.grid.building_at(c) == 0 or bot.grid.kinds[bot.grid.building_at(c)] != K.RAMPART,
+				"przejście w zewnętrznym wale %d" % i)
+	return true
