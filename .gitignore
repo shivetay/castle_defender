@@ -21,3 +21,6 @@ build/
 
 # Python
 __pycache__/
+
+# Konfiguracja Supabase (#22): tworzy się lokalnie albo w CI, nie trafia do repo
+/config/supabase.json

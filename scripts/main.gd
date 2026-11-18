@@ -52,6 +52,8 @@ var recruit_panel: RecruitPanel
 var research_panel: ResearchPanel
 ## Ustawienia (#177) pod zębatką w kolumnie HUD-u.
 var settings_panel: SettingsPanel
+## Konto gracza w Supabase (#22); bez konfiguracji albo sieci gra działa offline.
+var net: SupabaseClient
 var build_panel: BuildPanel
 var queue_panel: QueuePanel
 ## Ile fal samouczka PvE (#16) gracz obronił; trwająca bitwa (null poza bitwą).
@@ -239,6 +241,9 @@ func _ready() -> void:
 	layer.add_child(info_popup)  # ostatnie dziecko: dostaje dotyk przed panelami
 	hud.resource_pressed.connect(_on_resource_info)
 	recruit_panel.limit_pressed.connect(_on_army_limit_info)
+	net = SupabaseClient.new()
+	net.state_changed.connect(func(st: int) -> void: settings_panel.net_state = st)
+	add_child(net)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
 	_save()

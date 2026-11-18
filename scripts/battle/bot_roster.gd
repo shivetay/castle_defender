@@ -2,7 +2,8 @@ class_name BotRoster
 extends RefCounted
 ## 20 zamków-botów (#26): cele Wypraw ze Strażnicy, zanim będzie wielu graczy. Lista jest wspólna dla
 ## wszystkich graczy (seed z numeru zamku, nie ze świata gracza), więc w etapie 9 przejdzie do bazy
-## jako 20 wierszy z seedem. Trudność rośnie z numerem: poziom budynków, wieże, zewnętrzny wał,
+## jako 20 wierszy z seedem. Trudność rośnie z numerem: poziom budynków, wieże, wał zamiast palisady
+## w co drugim z pierwszych 10 zamków, zewnętrzny wał,
 ## budynki rekrutacji i załoga z coraz większej liczby klas. Zamki 16–20 to epoka II (jednostki epoki II).
 ## Po ataku zamek wraca do pełnego stanu (jest generowany od nowa), więc nowy gracz zawsze ma kogo
 ## zaatakować. Wszystkie liczby TYMCZASOWE, do balansu.
@@ -31,6 +32,12 @@ static func seed_of(i: int) -> int:
 
 static func age_of(i: int) -> int:
 	return 1 if i >= AGE_II_FROM else 0
+
+
+## Umocnienie wewnętrznego pierścienia: zamki 2, 4, 6, 8 i 10 to grody na wale ziemnym, reszta ma
+## palisadę (od zamku 11 z zewnętrznym wałem). Pierwszy zamek zostaje najłatwiejszy. TYMCZASOWE.
+static func inner_wall_of(i: int) -> int:
+	return K.RAMPART if i < OUTER_WALL_FROM and i % 2 == 1 else K.PALISADE
 
 
 ## Poziom budynków zamku: 1 dla zamków 1–4, potem co 4 zamki o jeden wyżej, do 5.

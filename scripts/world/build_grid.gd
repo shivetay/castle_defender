@@ -99,6 +99,28 @@ func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int =
 	return id
 
 
+## Stawia odcinek wału albo palisady bez sprawdzania rodzaju terenu, np. na drodze. Tylko dla generatora
+## zamków-botów (BotCastle), który tak zamyka pierścień tam, gdzie przecina go droga. Inne rodzaje
+## budynków dają 0 (review #200). Kratki muszą być na mapie, wolne i bez wody. Zwraca id albo 0.
+## Takiego odcinka nie odtworzy load_data (wymaga can_place), ale zamków-botów się nie zapisuje.
+func place_on_any_ground(rect: Rect2i, kind: int, level: int = 1) -> int:
+	if not rect.has_area() or not BuildingTypes.is_wall(kind):
+		return 0
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			var c := Vector2i(x, y)
+			if not terrain.in_bounds(c) or cells[y * terrain.size + x] != 0 \
+					or terrain.get_tile(c) == TerrainMap.Tile.WATER:
+				return 0
+	var id := _next_id
+	_next_id += 1
+	buildings[id] = rect
+	kinds[id] = kind
+	levels[id] = clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	_fill(rect, id)
+	return id
+
+
 ## Stawia budynek danego rodzaju na dotkniętej kratce `c`. Zwykle `c` to lewy górny róg.
 ## Brama (3×1) staje środkiem na dotkniętej kratce, a gdy tam się nie mieści, dosuwa się tak,
 ## żeby dotknięta kratka była jej końcem. Staje pionowo (1×3), gdy obok jest pionowa palisada.

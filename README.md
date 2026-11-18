@@ -234,15 +234,17 @@ obrony z #19 (posterunki załogi wokół donżonu).
   - **20 zamków-botów (#26, `scripts/battle/bot_roster.gd`):** lista wspólna dla wszystkich graczy
     (seed z numeru zamku; w etapie 9 przejdzie do bazy), z nazwami. Trudność rośnie: poziom budynków
     1–5 (co 4 zamki), do 4 wież, budynki rekrutacji (Koszary od 4., Strzelnica od 7., Dom drużyny
-    od 10., Stajnia od 13.), zewnętrzny wał od 11. i załoga z coraz większej liczby klas (od 4 Chłopów
+    od 10., Stajnia od 13.), gród na wale zamiast palisady w zamkach 2, 4, 6, 8 i 10, zewnętrzny wał od 11.
+    i załoga z coraz większej liczby klas (od 4 Chłopów
     do 77 obrońców). Zamki 16–20 to epoka II: bronią ich też Włócznicy, Drużynnicy, Strzelcy z łukiem
     refleksyjnym i Kopijnicy. Liczby tymczasowe.
   - **Wybór celu (`scripts/ui/bot_picker.gd`):** siatka 5×4 z numerami (zdobyte na zielono, epoka II
     z czerwonym znacznikiem), pod nią nazwa, trudność, epoka i załoga. Zamek odblokowuje się po zdobyciu
     poprzedniego. Zdobyte można atakować znowu, bo po ataku zamek wraca do pełnego stanu, więc gracz
     zawsze ma cel. Wybrany cel jest w zapisie (`attack.target`).
-  - **Zamek-cel:** `BotCastle` buduje zamek z listy: Dwór i donżon w palisadzie z bramą od strony
-    drogi, chaty, wieże i budynki rekrutacji poza pierścieniem oraz załogę.
+  - **Zamek-cel:** `BotCastle` buduje zamek z listy: Dwór i donżon w palisadzie (albo wale) z bramą
+    od strony drogi, chaty, wieże i budynki rekrutacji poza pierścieniem oraz załogę. Pierścień jest
+    szczelny: tam, gdzie przecina go droga, stoi odcinek muru (bez drugiej bramy).
   - **Ekran:** strefa rozstawienia przy wejściu, strzałki planu i pasek oddziałów (w ataku pierwsze
     3 oddziały armii, limit epoki I). Przyciski: Manewr, Start (od razu, po 10/20/30 s, po oddziale),
     Odwrót (nigdy, 30/50/70% strat), Wyczyść, Atakuj i Wróć.
@@ -313,6 +315,16 @@ obrony z #19 (posterunki załogi wokół donżonu).
   - **Wyzwalacze:** konto Auth zakłada wiersz gracza; zapis zamku albo obrony podbija `revision`.
   - **Testy:** `supabase/tests/database/rls_test.sql` (50 testów pgTAP), np. obcy gracz nie zmieni cudzego zamku,
     `anon` nie czyta danych graczy, a serwer zapisuje ataki, tarcze i nagrody.
+- Klient Supabase (#22, `scripts/net/`): przy starcie gra zakłada anonimowe konto gracza
+  (`/auth/v1/signup`), trzyma sesję w `user://session.json` i odświeża token przed wygaśnięciem.
+  - **Offline:** bez sieci gra działa jak dotąd, a klient ponawia próby co 5 s, 15 s, 30 s… do 5 min.
+    Odrzucony token odświeżania oznacza nowe konto (anonimowego nie da się odzyskać).
+    „Zacznij od nowa” zostawia konto (ten sam gracz); los zamku na serwerze ustali #23.
+  - **Konfiguracja:** adres i klucz publishable w `config/supabase.json` (poza repo, wzór w
+    `config/supabase.example.json`). Działa tylko nowy klucz `sb_publishable_…` (w grze i w CI);
+    z kluczem serwera albo dawnym kluczem JWT klient się nie łączy. APK z CI dostaje plik ze zmiennych
+    repozytorium `SUPABASE_URL` i `SUPABASE_PUBLISHABLE_KEY`.
+  - **Ustawienia** pokazują stan: offline, łączenie, połączono albo brak sieci.
 - Wynik ataku (#99, `scripts/battle/battle_result.gd`, okno `scripts/ui/result_panel.gd`): liczony tylko ze
   stanu skończonej bitwy, w liczbach całkowitych (ten sam u atakującego, w powtórce i na serwerze).
   - **Procent zniszczeń:** zburzone budynki bez odcinków wału i palisady.
@@ -449,6 +461,10 @@ supabase start      # lokalny stos Supabase z migracjami
 supabase test db    # testy RLS (pgTAP)
 ```
 
+Połączenie gry z projektem Supabase (#22): skopiuj `config/supabase.example.json` do
+`config/supabase.json` i wpisz adres projektu oraz klucz publishable (Dashboard → Project Settings →
+API Keys). Plik jest w `.gitignore`; klucza serwera (`sb_secret_…`, `service_role`) nigdy tam nie wpisuj.
+
 ## Wersje i changelog
 
 Wersja to SemVer `MAJOR.MINOR.PATCH`. Pierwsze wydanie, 0.0.1, obejmuje etapy 1 i 2 (szkielet projektu,
@@ -502,6 +518,8 @@ scripts/world/   dane świata: teren, siatka budowy, ekonomia, badania, armia
 scripts/battle/  deterministyczna symulacja bitwy (bez renderu)
 scripts/camera/  kamera z gestami (zoom 0,5×/1×/2×/4×)
 scripts/ui/      HUD
+scripts/net/     klient Supabase: konto anonimowe, sesja, tryb offline
+config/          wzór konfiguracji Supabase (właściwy plik poza repo)
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
 tools/           narzędzia (version.py, changelog.py i ich testy)
 supabase/        backend PvP: config.toml, migracje SQL i testy RLS (pgTAP)
@@ -517,6 +535,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#20) i pułapki (#100).
 Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
 (#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
-backend Supabase i PvP. Jest schemat bazy z RLS (#21, opis niżej); następne jest logowanie anonimowe
-i klient Supabase w Godot (#22). Z etapów 4–5 zostają części zależne od bitwy,
+backend Supabase i PvP. Jest schemat bazy z RLS (#21) i klient z anonimowym kontem (#22, opis niżej);
+następna jest synchronizacja zamku z serwerem (#23). Z etapów 4–5 zostają części zależne od bitwy,
 planu ataku i generałów (#81, #89, #91, #97, #12).
