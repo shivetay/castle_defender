@@ -15,7 +15,7 @@ Gra to asynchroniczne PvP. Gracze rozbudowują własne zamki i atakują zamki in
 6. **Bitwa (60–180 s).** Symulacja przebiega sama według rozkazów i taktyki obrońcy. Nikt nie steruje bitwą: atak i obrona działają wyłącznie według ustawionych planów, a gracz może ją tylko oglądać. O wyniku decyduje jakość planu i zwiadu.
 7. **Wynik.** Celem ataku jest zniszczenie albo zdobycie donżonu (w epoce I Wieży grodowej, w VI Cytadeli), nie Dworu. Zdobycie = piechota atakującego utrzyma wnętrze donżonu przez 10 s bez obrońców. Procent zniszczeń i 0–3 gwiazdki (zdobycie bramy, zniszczenie 50%, zniszczenie lub zdobycie donżonu). Atakujący dostaje łup, do 20% niechronionych surowców, oraz punkty rankingu. Obrońca dostaje powiadomienie, powtórkę bitwy i tarczę na 8–12 h. Budynki odbudowują się same, nie są tracone na stałe.
 
-Oblężenia PvE z falami komputerowych wrogów zostają jako samouczek i dodatkowe źródło surowców.
+PvE: ze Strażnicy startuje Oblężenie (5 fal samouczka na własnym zamku) oraz Wyprawa na 20 zamków-botów z lokalnym wynikiem (gwiazdki, łup). Kampania z lokacjami — później.
 
 Klany i sojusze dochodzą dopiero w późniejszych wersjach gry.
 

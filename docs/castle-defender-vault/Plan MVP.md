@@ -5,7 +5,7 @@ Pierwsza grywalna wersja obejmuje epoki I i II z okrojoną zawartością, pełn�
 | Obszar | W MVP | Później |
 | --- | --- | --- |
 | Epoki | I i II, z przejściem I → II | III–VI |
-| Budynki | 29: Wał ziemny, Fosa sucha, Palisada, Brama drewniana, Wieża drewniana, Kopiec, Chata drwala, Pole i spichlerz, Studnia, Kamieniołom, Dwór grodowy, Koszary (od epoki I), Stajnia (od epoki I), Wieża sygnałowa, Dom drużyny, Strzelnica, Chata myśliwego, Garbarnia, Wytwórca zbroi skórzanych, Drzewcarz, Cięciwiarz, Łukmistrz, Strzałmistrz, Rymarz, Smolarnia, Pole lnu, Rybak, Wieża grodowa i Wieża na kopcu (donżon) | Pomost strzelecki, Częstokół, Młyn, Kaplica, Dom zwiadowców i budynki epok III–VI |
+| Budynki | 31: Wał ziemny, Fosa sucha, Palisada, Brama drewniana, Wieża drewniana, Kopiec, Chata drwala, Pole i spichlerz, Studnia, Kamieniołom, Dwór grodowy, Koszary (od epoki I), Stajnia (od epoki I), Wieża sygnałowa, Dom drużyny, Strzelnica, Chata myśliwego, Garbarnia, Wytwórca zbroi skórzanych, Drzewcarz, Cięciwiarz, Łukmistrz, Strzałmistrz, Rymarz, Smolarnia, Pole lnu, Rybak, Wieża grodowa i Wieża na kopcu (donżon), Dom zwiadowców, Strażnica (PvE) | Pomost strzelecki, Częstokół, Młyn, Kaplica i budynki epok III–VI |
 | Poziomy | budynki i zamek poziomy 1–5 | bez zmian |
 | Jednostki | 13 w 5 klasach: Wojownik z toporem, Oszczepnik, Łucznik, Tarczownik, Podpalacz, Tropiciel, Jeździec (epoka I), Włócznik, Drużynnik w przeszywanicy, Strzelec z łukiem refleksyjnym, Kopijnik (epoka II), Taran, Kopacz | pozostałe 50, w tym cała artyleria |
 | Towary | bez metalu: skóry, skórzane pancerze, przeszywanice, tarcze, siodła, łuki, strzały z kościanymi grotami, smoła, konie; rekrutacja je zużywa ([[Klasy jednostek i produkcja]]) | żelazo od epoki III (Kopalnia rudy), kusze, zbroje, broń palna, proch |
@@ -16,7 +16,7 @@ Pierwsza grywalna wersja obejmuje epoki I i II z okrojoną zawartością, pełn�
 | Perki władcy | 1 miejsce, 6 perków: Zdobywca, Łupieżca, Gospodarz grodu, Gospodarny, Budowniczy, Ukochany władca | miejsca 2 i 3, pozostałe 13 perków |
 | Surowce | drewno, kamień, żywność, złoto (z łupu i PvE) | proch, żelazo |
 | PvP | dobór przeciwnika, zwiad z mgłą wojny, plan ataku, bitwa bez sterowania, łup, tarcza, ranking, powtórka, 20 zamków-botów | sezony rankingu, weryfikacja bitew na serwerze (Godot headless) |
-| PvE | samouczek: 5 fal oblężenia | kampania z lokacjami |
+| PvE | samouczek: 5 fal Oblężenia ze Strażnicy + Wyprawa na 20 zamków-botów | kampania z lokacjami |
 | Reklamy z nagrodą | przyspieszenie budowy, szybsze zbieranie surowców | skrócenie czasu do ataku, wywiad, sabotaż, ochrona magazynu |
 | Backend | Supabase: logowanie, zapis zamku i obrony, `start_attack` / `finish_attack`, tarcze, boty, weryfikacja reklam (AdMob SSV), powiadomienia push | klany i sojusze |
 | Grafika | rzut 3/4, paleta epok I–II, 4 stany zniszczeń, mieszkańcy, dym, flagi, pora dnia | pogoda, tryb Kronika |
@@ -44,6 +44,6 @@ Każdy etap ma w repo ticket „Etap N” z podpiętymi zadaniami (sub-issues, e
 
 Wersje po MVP mają tickety zbiorcze z podpiętymi zadaniami: Etap 0.2 (#38), 0.3 (#43), 0.4 (#46), 0.5 (#51), 1.0 (#137).
 
-Bieżący stan (17.11.2026): etap 8 w toku, szczegóły i daty wdrożeń w [[Stan prac]]; pytania i braki w [[Otwarte pytania]].
+Bieżący stan (18.11.2026): gra **0.4.0** — etap 8 prawie, etap 9 (schemat Supabase) zaczęty; szczegóły w [[Stan prac]]; pytania i braki w [[Otwarte pytania]].
 
 Powiązane: [[Stack technologiczny]], [[Backend PvP]], [[Otwarte pytania]], [[Jednostki]], [[Drzewko technologiczne]]

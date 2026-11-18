@@ -2,11 +2,13 @@
 
 Asynchroniczne PvP wymaga serwera, który przechowuje zamki i układy obrony, dobiera przeciwników i zapisuje wyniki. Supabase daje to w jednym hostowanym pakiecie (Postgres, logowanie, funkcje) z darmowym progiem na start.
 
+**Stan (18.11.2026):** na `main` jest schemat bazy z RLS i migracją snapshotów ataku (#196 / #21). Gra **0.4.0** nadal gra lokalnie (Oblężenie / Wyprawa). Auth, Edge Functions i pełny przebieg ataku — przed nami (etap 9).
+
 | Element | Rozwiązanie |
 | --- | --- |
 | Logowanie | Supabase Auth: konto anonimowe przy pierwszym uruchomieniu, potem powiązanie z Google |
 | Połączenie z grą | `HTTPRequest` w Godot do REST i RPC Supabase (bez wtyczek) |
-| Dane | Postgres: `players`, `castles` (układ budynków w JSON + wersja + `map_seed`, losowy seed terenu gracza), `defense_layouts`, `attacks` (seed, rozkazy, wynik), `shields` |
+| Dane | Postgres: `players`, `castles` (JSON stanu + `save_version` + stały `map_seed`), `defense_layouts`, `bot_castles` (20 wspólnych), `attacks` (seed, rozkazy, wynik + snapshoty), `shields` |
 | Dobór przeciwnika | funkcja RPC w Postgres: bez tarczy, epoka ±1, ranking ±100, nie atakowany przez Ciebie w ostatnich 24 h |
 | Przebieg ataku | Edge Function `start_attack` blokuje cel i zwraca kopię obrony, seed terenu obrońcy i seed bitwy; `finish_attack` zapisuje wynik, łup i tarczę |
 | Powiadomienia | Firebase Cloud Messaging wywoływany z Edge Function („Twój zamek został zaatakowany”) |

@@ -4,7 +4,7 @@ Zamek z góry pod kątem 3/4 (top-down z widoczną przednią ścianą murów). T
 
 ## Siatka i skala
 - Mapa 64×64 kratki, kratka 8×8 px; ekran 320×180 px, skalowany całkowicie (4× → 1280×720).
-- Trzy poziomy zoomu (szczypanie): 1× cała twierdza, 2× dzielnica, 4× pojedynczy żołnierze.
+- Zoom (szczypanie): 0,5× (cała mapa), 1× twierdza, 2× dzielnica, 4× pojedynczy żołnierze.
 - Wysokość = liczba pikseli „ściany” pod dachem: palisada 4 px, mur kamienny 10 px, donjon 24 px, bastion 6 px (niższy, szerszy).
 
 ## Seed mapy

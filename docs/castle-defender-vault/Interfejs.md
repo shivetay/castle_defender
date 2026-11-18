@@ -1,16 +1,18 @@
 # Interfejs
 
-Trzy elementy na stałe, reszta ekranu należy do zamku. Orientacja pozioma, obsługa jednym kciukiem.
+Trzy warstwy na stałe, reszta ekranu należy do zamku. Orientacja pozioma, obsługa jednym kciukiem.
 
 | Element | Miejsce | Zawartość |
 | --- | --- | --- |
 | Pasek surowców | góra, 12 px | ikony 5×5 px rysowane kodem + liczby, epoka i rok („III · 1287”) |
-| Przycisk Buduj | prawy dolny róg | lista budynków bieżącej epoki, przewijana w poziomie |
-| Przycisk Oblężenie | lewy dolny róg | startuje falę; w trakcie tylko przewijanie czasu |
+| Kolumna HUD | prawy dolny róg | Buduj, Badania, Wojsko, Obrona, Kolejka (z liczbą zleceń), Ustawienia (zębatka) |
+| Karta Strażnicy | po tapnięciu Strażnicy | Oblężenie (kolejna fala samouczka), Wyprawa (wybór zamku-bota), Zamknij |
 
-**Gesty:** przeciągnięcie = kamera, szczypanie = zoom, dotknięcie budynku = karta (poziom, ulepsz, przebuduj, rozbierz), przytrzymanie pustej kratki w trybie budowy = podgląd zasięgu.
+**Gesty:** przeciągnięcie = kamera, szczypanie = zoom (0,5×–4×), dotknięcie budynku = karta (poziom, ulepsz, przebuduj, rozbierz; Strażnica: tylko Oblężenie / Wyprawa), przytrzymanie pustej kratki w trybie budowy = podgląd zasięgu.
 
 **Zasady:** czcionka pikselowa 3×5 lub 4×6 px z bitmapy w skrypcie, cele dotyku min. 48 dp, ekrany zamykane tapnięciem poza nimi.
+
+**PvE (od 0.4.0):** Strażnica stoi obok Dworu od startu. Oblężenie odpala 5 fal na własnym zamku (z prowadzeniem gracza). Wyprawa otwiera wybór spośród 20 zamków-botów, potem plan ataku, bitwę i okno wyniku (gwiazdki, % zniszczeń, łup).
 
 **Ekrany PvP** (każdy korzysta z tego samego widoku zamku, zmienia się tylko nakładka):
 
@@ -23,4 +25,4 @@ Trzy elementy na stałe, reszta ekranu należy do zamku. Orientacja pozioma, obs
 | Bitwa | widok na żywo bez sterowania, przewijanie czasu ×2 i ×4 |
 | Raport i powtórka | wynik, gwiazdki, łup; obrońca może obejrzeć powtórkę i od razu poprawić obronę |
 
-Powiązane: [[Widok zamku]], [[Koncept gry]]
+Powiązane: [[Widok zamku]], [[Koncept gry]], [[Stan prac]]
