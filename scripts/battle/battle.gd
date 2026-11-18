@@ -411,9 +411,20 @@ func squads_view(side: int) -> Array[Dictionary]:
 		if n == 0:
 			continue
 		@warning_ignore("integer_division")
-		v["x"] = int(v["x"]) / n
+		var cx := int(v["x"]) / n
 		@warning_ignore("integer_division")
-		v["y"] = int(v["y"]) / n
+		var cy := int(v["y"]) / n
+		# pozycja odznaki to żywa jednostka oddziału najbliżej jego środka (przy remisie pierwsza): średnia
+		# oddziału rozdzielonego murem wypadała na murze, choć nikt tam nie stał (po teście na telefonie)
+		var best_d := -1
+		for f in fighters:
+			if f.side == side and f.squad == sq and f.alive():
+				var d := _dist2(f.x, f.y, cx, cy)
+				if best_d < 0 or d < best_d:
+					best_d = d
+					v["x"] = f.x
+					v["y"] = f.y
+		v["key"] = _squad_key(side, sq)
 		out.append(v)
 	return out
 

@@ -201,7 +201,9 @@ obrony z #19 (posterunki załogi wokół donżonu).
   Taran (bije tylko bramy, jedzie do najbliższej), Jeździec (omija wolne cele), Oszczepnik (rzut
   z 3 kratek), Podpalacz (podpala drewniane budynki na 10 s). Wartości w `BattleConfig`, część
   tymczasowa. `BattleView`: jednostki nie są ludzikami, oddział to ikona klasy w ramce koloru strony,
-  liczba żywych i pasek zdrowia; odznaki nie nachodzą na siebie. Podgląd w wersji debug:
+  liczba żywych i pasek zdrowia; odznaka stoi na jednej z jednostek oddziału (nie w jego średniej), a każda
+  jednostka ma kropkę 2×2 w kolorze strony. Odznaki nie nachodzą na siebie, a zepchnięta niżej trzyma wiersz
+  (bez skakania co klatkę). Mapa w bitwie rysuje stan zniszczeń budynków (pęknięcia, wyłomy, gruz). Podgląd w wersji debug:
   `godot --path . -- --battle-preview`; bitwę z gry uruchomi samouczek (#16).
 - Samouczek PvE (#16, `scripts/battle/pve_waves.gd`): Oblężenie startuje kolejną z 5 fal o rosnącej
   trudności (od 3 Chłopów do armii z konnicą). Fala idzie z drogi przy krawędzi mapy na

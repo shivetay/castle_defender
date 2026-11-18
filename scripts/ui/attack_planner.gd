@@ -27,6 +27,8 @@ var textures: BuildingTextures
 ## Strzałki planu; w trakcie bitwy schowane, żeby nie zasłaniały walki.
 var show_plan := true
 var _terrain_tex: ImageTexture
+## Stan zniszczeń budynków celu w trwającej bitwie (BattleView.states_of); poza bitwą pusty.
+var states: Dictionary = {}
 
 
 ## Otwiera plan dla zamku `target` i oddziałów `army`. Rozkazy dla brakujących oddziałów to
@@ -35,6 +37,7 @@ func open(target: BotCastle, attack_plan: AttackPlan, army: Array, current_age: 
 	if bot != target:
 		_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(target.grid.terrain))
 	bot = target
+	states = {}
 	plan = attack_plan
 	squads = army
 	age = current_age
@@ -202,7 +205,7 @@ func _draw() -> void:
 	if bot == null:
 		return
 	draw_texture(_terrain_tex, Vector2.ZERO)
-	CastleView.draw_buildings(self, bot.grid, textures)
+	CastleView.draw_buildings(self, bot.grid, textures, states)
 	var zone := zone_rect(bot.spawn, bot.grid.terrain.size)
 	draw_rect(Rect2(zone.position * TerrainMap.CELL, zone.size * TerrainMap.CELL), Color(Palette.VALID, 0.25))
 	CastleView.draw_frame(self, Rect2i(zone.position * TerrainMap.CELL, zone.size * TerrainMap.CELL), Palette.VALID)

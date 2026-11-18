@@ -59,6 +59,8 @@ var queue_panel: QueuePanel
 ## Ile fal samouczka PvE (#16) gracz obronił; trwająca bitwa (null poza bitwą).
 var pve_cleared := 0
 var battle_view: BattleView
+## Stan zniszczeń budynków własnego zamku w trwającej bitwie (BattleView.states_of).
+var battle_states: Dictionary = {}
 var _battle_wave := -1
 ## Oddziały armii w kolejności oddziałów bitwy, do rozliczenia strat po fali (#164).
 var _battle_ids: Array[int] = []
@@ -542,6 +544,7 @@ func _on_siege_pressed() -> void:
 	b.apply_research(Battle.Side.DEFENDER, research)  # A2 łuki i O2 palisady obrońcy (#12)
 	battle_view = BattleView.new()
 	battle_view.battle = b
+	battle_view.states_changed.connect(_on_battle_states)
 	add_child(battle_view)
 	hud.battle = true
 	hud.speed_label = speed_label(battle_view.speed)
@@ -612,6 +615,7 @@ func _update_battle() -> void:
 		hud.message = TutorialGoals.done_message(reward, fallen)  # koniec prowadzenia (#185), dalej zwykła gra
 	battle_view.queue_free()
 	battle_view = null
+	_on_battle_states({})  # po bitwie zamek znów jest cały
 	hud.battle = false
 	_battle_wave = -1
 	_save()
@@ -686,6 +690,17 @@ func _close_attack() -> void:
 	queue_redraw()
 
 
+## Stan zniszczeń z bitwy: przy Wyprawie rysuje go mapa celu (AttackPlanner), w obronie własny zamek.
+func _on_battle_states(states: Dictionary) -> void:
+	if _attacking:
+		planner.states = states
+		planner.queue_redraw()
+	else:
+		planner.states = {}
+		battle_states = states
+		queue_redraw()
+
+
 ## Atakuj: bitwa na zamku-celu według planu. Ekran planu chowa się, a mapa celu zostaje.
 func _on_attack_launched() -> void:
 	var army := _attack_army()
@@ -708,6 +723,7 @@ func _on_attack_launched() -> void:
 	hud.overlay = false
 	battle_view = BattleView.new()
 	battle_view.battle = b
+	battle_view.states_changed.connect(_on_battle_states)
 	add_child(battle_view)
 	hud.battle = true
 	hud.speed_label = speed_label(battle_view.speed)
@@ -737,6 +753,7 @@ func _finish_attack(b: Battle) -> void:
 				AttackPlanner.clear(o)  # cel i trasa dotyczyły zdobytego zamku
 	battle_view.queue_free()
 	battle_view = null
+	_on_battle_states({})  # po bitwie zamek znów jest cały
 	hud.battle = false
 	_attacking = false
 	_close_attack()
@@ -1010,7 +1027,7 @@ func _on_middle_button() -> void:
 
 func _draw() -> void:
 	draw_texture(_terrain_tex, Vector2.ZERO)
-	CastleView.draw_buildings(self, grid, textures)
+	CastleView.draw_buildings(self, grid, textures, battle_states)
 	if not queue.orders.is_empty():
 		_draw_progress(queue.orders[0].building_id)
 	var frame := grid.buildings[_selected_id] if _selected_id != 0 else _cursor
