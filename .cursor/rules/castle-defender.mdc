@@ -1,0 +1,30 @@
+---
+description: Zasady projektu Castle Defender, bezpieczeństwo danych graczy i review (wspólne z Claude Code)
+alwaysApply: true
+---
+
+# Castle Defender: zasady dla agenta Cursor
+
+Zasady projektu są w `CLAUDE.md` w katalogu głównym. Przeczytaj go na początku pracy i stosuj tak,
+jak gdyby był napisany dla Ciebie (dotyczy każdego agenta AI, nie tylko Claude Code). W razie
+sprzeczności z tym plikiem wygrywa `CLAUDE.md`.
+
+## Bezpieczeństwo (zawsze)
+
+Gra trzyma dane graczy w Supabase, a klient (telefon gracza) nie jest zaufany. Przed pracą, której
+to dotyczy, przeczytaj odpowiedni skill z `.claude/skills/`:
+
+- `supabase-security/SKILL.md`: każda zmiana w `supabase/` i kod klienta API;
+- `pvp-anti-cheat/SKILL.md`: atak, wynik, łup, ranking, tarcze, nagrody, synchronizacja zamku;
+- `user-data-privacy/SKILL.md`: dane graczy, logowanie, logi, usługi zewnętrzne, sekrety;
+- `security-review/SKILL.md`: każde review i sprawdzenie własnej zmiany przed zgłoszeniem.
+
+Twarde zasady: RLS i minimalne granty na każdej tabeli z testami pgTAP; w kliencie tylko klucz
+publishable, nigdy `service_role`; wynik, łup, ranking i tarcze liczy albo weryfikuje serwer; bez
+danych osobowych i tokenów w logach; sekretów nie commitujesz; zmian na projekcie Supabase
+w chmurze nie robisz bez zgody właścicielki.
+
+## Review
+
+Review zaczyna się od bezpieczeństwa według `.claude/skills/security-review/SKILL.md`, z wagami
+🔴 krytyczne / 🟠 ważne / 🟡 drobne. Szczegóły dla Bugbota są w `.cursor/BUGBOT.md`.
