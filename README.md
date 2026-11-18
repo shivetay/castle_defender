@@ -102,7 +102,7 @@ obrony z #19 (posterunki załogi wokół donżonu).
   i G2 +15% żywności (`PRODUCTION_BONUS`). W bitwie (`Battle.apply_research`, osobno dla każdej strony)
   działają A1 (wojownik z toporem +15% w drewno), A2 (łuki +20% zasięgu: łucznik 6 → 7, łuk refleksyjny
   7 → 8) i O2 (palisady obrońcy +20% wytrzymałości). Manewry wymagają technologii: Podpalenie A3,
-  Oskrzydlenie A4, Drabiny A5, Taranowanie A6 (przycisk Manewr je pomija, Atakuj podaje, czego brakuje).
+  Oskrzydlenie A4, Drabiny A5, Taranowanie A6 (na liście Manewr są wyszarzone z tym, czego brakuje).
   Jednostki i budynki wymagają swoich technologii już wcześniej. Bez efektu zostają technologie, których
   rzecz jeszcze nie istnieje: O1 Kopiec, O3 fosa, G4 Kamieniołom, S2 Wieża sygnałowa (#35), S1 zwiad (#28),
   G6 przejście do epoki III.
@@ -223,6 +223,10 @@ obrony z #19 (posterunki załogi wokół donżonu).
   atakującego dostaje przed bitwą rozkaz i wykonuje go sam.
   - **Manewry:** Szturm frontalny, Ostrzał z dystansu, Podpalenie, Oskrzydlenie, Szturm z drabinami
     i Taranowanie bramy (dwa ostatnie od epoki II).
+  - **Jednostki:** manewr musi pasować do jednostek oddziału (`AttackPlan.unit_can`): Ostrzał tylko
+    z zasięgiem 3+ kratek, Podpalenie tylko Podpalacze, Drabiny piechota lekka i ciężka, Taranowanie
+    Taran i piechota w osłonie, Oskrzydlenie wszyscy poza Taranem. Zmiana składu armii cofa niepasujący
+    rozkaz do Szturmu, a Atakuj odrzuca plan z takim rozkazem.
   - **Parametry:** cel (kratka budynku), trasa (0–3 punkty), start (od razu, po X s, po zadaniu innego
     oddziału) i odwrót (przy X% strat).
   - **Limit:** plan mieści 3 oddziały w epoce I, do 8 w epoce VI.
@@ -247,7 +251,8 @@ obrony z #19 (posterunki załogi wokół donżonu).
     szczelny: tam, gdzie przecina go droga, stoi odcinek muru (bez drugiej bramy).
   - **Ekran:** strefa rozstawienia przy wejściu, strzałki planu i pasek oddziałów (w ataku pierwsze
     3 oddziały armii, limit epoki I). Przyciski: Manewr, Start (od razu, po 10/20/30 s, po oddziale),
-    Odwrót (nigdy, 30/50/70% strat), Wyczyść, Atakuj i Wróć.
+    Odwrót (nigdy, 30/50/70% strat), Wyczyść, Atakuj i Wróć. Manewr otwiera listę 6 manewrów:
+    dostępne z krótkim opisem, niedostępne wyszarzone z tym, czego brakuje (jednostka, epoka, badanie).
   - **Dotyk mapy:** budynek to cel, trawa to punkt trasy (do 3).
   - **Zapis:** plan jest w save'ie (wersja 6 z migracją). Po ataku polegli znikają z armii.
   - **Bez łupu:** atak nie daje jeszcze łupu (#99). Strefa rozstawienia jest jedna, przy drodze.
@@ -369,7 +374,7 @@ obrony z #19 (posterunki załogi wokół donżonu).
   telefonie mniejsze niż dawne 56×22). W trybie oglądania kolumna jest wąska (#150): przyciski 18×16
   z ikoną na ciemnym okienku, nazwa w dymku po lewej, póki palec trzyma przycisk, a liczba zleceń
   Kolejki w czerwonej plakietce. Pasek celu sięga do samej kolumny. Tryb oglądania: Buduj, Badania, Wojsko, Obrona, Kolejka,
-  Ustawienia (Oblężenie i Wyprawa są na karcie Strażnicy); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia;
+  Ustawienia (Oblężenie i Wyprawa są na karcie Strażnicy); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia łamane na linie oraz „Wymaga:” z poziomem Dworu dla następnego poziomu, na zielono albo czerwono;
   Ulepsz, Rozbierz lub Anuluj, Zamknij). Dotknięcie surowca na górnym pasku otwiera okienko z informacją
   (`InfoPopup`, treść z `InfoText`): zapas i magazyn, produkcja na godzinę z rozbiciem na gród, budynki
   i badania, kiedy magazyn się zapełni i jak zdobyć więcej. Na ekranie Wojsko dotknięcie licznika

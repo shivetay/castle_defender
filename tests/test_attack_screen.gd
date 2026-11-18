@@ -164,3 +164,75 @@ func test_attack_on_bot_follows_the_plan() -> bool:
 	assert_true(a.winner != Battle.Winner.NONE, "atak się rozstrzyga")
 	assert_eq(a.checksum(), b.checksum(), "deterministycznie")
 	return true
+
+
+## Manewry według jednostek (po teście na telefonie Chłopi mieli Ostrzał z dystansu): Ostrzał tylko
+## z zasięgiem, Podpalenie tylko Podpalacz, Drabiny piechota, Taranowanie Taran i piechota.
+func test_manoeuvres_follow_units() -> bool:
+	assert_true(not AttackPlan.unit_can(M.RANGED, U.PEASANT), "Chłop nie strzela")
+	assert_true(AttackPlan.unit_can(M.RANGED, U.ARCHER) and AttackPlan.unit_can(M.RANGED, U.JAVELINEER),
+			"Łucznik i Oszczepnik strzelają")
+	assert_true(AttackPlan.unit_can(M.FIRE, U.FIRE_RAISER) and not AttackPlan.unit_can(M.FIRE, U.AXE_WARRIOR),
+			"podpala tylko Podpalacz")
+	assert_true(AttackPlan.unit_can(M.LADDERS, U.PEASANT) and not AttackPlan.unit_can(M.LADDERS, U.RIDER),
+			"drabiny: piechota tak, konnica nie")
+	assert_true(AttackPlan.unit_can(M.RAM_GATE, U.RAM) and not AttackPlan.unit_can(M.FLANK, U.RAM), "Taran")
+	for u in UnitTypes.count():
+		assert_true(AttackPlan.unit_can(M.FRONTAL, u), "%d: szturm dla każdego" % u)
+	assert_eq(AttackPlanner.next_manoeuvre(M.FRONTAL, 0, null, U.PEASANT), M.FLANK, "Chłop: po szturmie oskrzydlenie")
+	assert_eq(AttackPlan.missing(M.RANGED, U.PEASANT, 0), "tylko strzelcy", "powód: jednostka")
+	assert_eq(AttackPlan.missing(M.RANGED, U.ARCHER, 0), "", "Łucznik: dostępny")
+	var r := Research.new()
+	assert_true(AttackPlan.missing(M.LADDERS, U.PEASANT, 0, r).contains("epoka II"), "powód: epoka")
+	assert_true(AttackPlan.missing(M.FLANK, U.PEASANT, 0, r).contains("A4"), "powód: badanie")
+	var p := AttackPlan.new()
+	p.add(1, M.RANGED)
+	assert_true(not p.problem(1, 0, null, [U.PEASANT] as Array[int]).is_empty(), "plan: Chłopi z Ostrzałem odrzucony")
+	assert_eq(p.problem(1, 0, null, [U.ARCHER] as Array[int]), "", "Łucznicy z Ostrzałem w porządku")
+	AttackPlanner.fit_plan(p, 1, [U.PEASANT] as Array[int])
+	assert_eq(p.order_for(1).manoeuvre, M.FRONTAL, "zły manewr po zmianie armii wraca do szturmu")
+	return true
+
+
+## Lista manewrów: 6 wierszy nad opisem rozkazu i obok kolumny, opis albo powód mieści się w wierszu;
+## niedostępny wiersz nie zmienia rozkazu, dostępny zmienia i zamyka listę.
+func test_manoeuvre_picker() -> bool:
+	var left := float(Hud.CORNER_INSET)
+	var right := VIEW.x - Hud.CORNER_INSET
+	var r := Research.new()
+	for m in AttackPlan.MANOEUVRE_NAMES.size():
+		var row := AttackPanel.pick_rect(right, left, m)
+		assert_true(row.size.y >= 12, "%d: cel dotyku 12 px" % m)
+		assert_true(row.end.y < AttackPanel.info_rect(VIEW, left, right).position.y, "%d: nad opisem rozkazu" % m)
+		assert_true(row.end.x < Hud.column_rect(right, 0).position.x, "%d: obok kolumny" % m)
+		assert_eq(AttackPanel.pick_at(row.get_center(), left, right), m, "%d: trafienie" % m)
+		assert_true(PixelFont.text_width(AttackPlan.MANOEUVRE_DESC[m]) <= row.size.x - 4, "%d: opis mieści się" % m)
+		for u in UnitTypes.count():
+			for age in 2:
+				var why := AttackPanel.reason_line(m, u, AttackPlan.missing(m, u, age, r))
+				assert_true(PixelFont.text_width(why) <= row.size.x - 4, "%d/%d/%d: „%s” mieści się" % [m, u, age, why])
+	var list := AttackPanel.list_rect(left, right)
+	var gap := Vector2(list.get_center().x, AttackPanel.pick_rect(right, left, 0).end.y + 1)
+	assert_true(list.has_point(gap) and AttackPanel.pick_at(gap, left, right) < 0, "luka między wierszami należy do listy")
+	assert_eq(AttackPanel.reason_line(M.RANGED, U.PEASANT, "tylko strzelcy"), "Niedostępne: tylko strzelcy",
+			"niezdolność jednostki")
+	assert_eq(AttackPanel.reason_line(M.FLANK, U.PEASANT, "A4 x"), "Wymaga: A4 x", "brak badania")
+	var planner := AttackPlanner.new()
+	planner.plan = AttackPlan.new()
+	planner.squads = [[U.PEASANT, 5]]
+	planner.research = r
+	AttackPlanner.fit_plan(planner.plan, 1)
+	var panel := AttackPanel.new()
+	panel.planner = planner
+	panel.activate(AttackPanel.Target.MANOEUVRE)
+	assert_true(panel.picking, "Manewr otwiera listę")
+	panel.choose(M.RANGED)
+	assert_eq(planner.order().manoeuvre, M.FRONTAL, "niedostępny: rozkaz bez zmian")
+	assert_true(panel.picking, "i lista zostaje")
+	r.done["A4"] = true
+	panel.choose(M.FLANK)
+	assert_eq(planner.order().manoeuvre, M.FLANK, "dostępny: nowy rozkaz")
+	assert_true(not panel.picking, "lista się zamyka")
+	panel.free()
+	planner.free()
+	return true

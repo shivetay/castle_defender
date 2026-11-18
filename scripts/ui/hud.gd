@@ -93,6 +93,9 @@ var card_can_upgrade := true
 var card_info := ""
 ## Fragmenty card_info na czerwono (brakujące surowce na ulepszenie).
 var card_info_missing: PackedStringArray = []
+## Linia „Wymaga: …” karty (wymagania następnego poziomu) i czy są spełnione; pusta: bez linii.
+var card_needs := ""
+var card_needs_ok := true
 ## Środkowy przycisk: Rozbierz, a dla budynku w kolejce Anuluj.
 var card_cancel := false
 var card_middle_enabled := true
@@ -226,6 +229,54 @@ static func card_rects(view: Vector2, recruit: bool = false, pve: bool = false) 
 	for i in n:
 		out.append(Rect2(Vector2(x + i * (BUTTON_SIZE.x + BUTTON_GAP), row_y(view)), BUTTON_SIZE))
 	return out
+
+
+## Najmniejsza szerokość tła karty: dłuższe opisy łamią się na linie zamiast ucinać się „...”.
+const CARD_MIN_W := 200
+
+
+## Linie opisu karty: `info` złamane na szerokość `width`, a pod nim linie `needs` (card_needs_lines).
+## Koszt „120 Dr” nie rozrywa się między liniami: liczba i skrót surowca łamią się razem.
+static func card_lines(info: String, needs: String, width: int) -> PackedStringArray:
+	var words := info.split(" ", false)
+	var groups: PackedStringArray = []
+	var i := 0
+	while i < words.size():
+		var w := words[i]
+		var next := words[i + 1] if i + 1 < words.size() else ""
+		if w.is_valid_int() and EconomyConfig.SHORT_NAMES.has(next.trim_suffix(",")):
+			w += " " + next
+			i += 1
+		groups.append(w)
+		i += 1
+	var out: PackedStringArray = []
+	var line := ""
+	for g in groups:
+		var cand := g if line.is_empty() else line + " " + g
+		if line.is_empty() or PixelFont.text_width(cand) <= width:
+			line = cand
+		else:
+			out.append(line)
+			line = g
+	if not line.is_empty():
+		out.append(line)
+	out.append_array(card_needs_lines(needs, width))
+	return out
+
+
+## Linie „Wymaga: …” karty (pusta tablica bez wymagań).
+static func card_needs_lines(needs: String, width: int) -> PackedStringArray:
+	return PixelFont.wrap(needs, width) if not needs.is_empty() else PackedStringArray()
+
+
+## Tło karty z `lines` liniami opisu: tytuł, opis, przyciski; co najmniej CARD_MIN_W szerokie,
+## wyśrodkowane nad przyciskami.
+static func card_panel(view: Vector2, line_count: int, recruit: bool = false, pve: bool = false) -> Rect2:
+	var rects := card_rects(view, recruit, pve)
+	var span := rects[-1].end.x - rects[0].position.x + 8
+	var w := maxf(span, CARD_MIN_W)
+	var top := rects[0].position.y - 13 - PixelFont.LINE * maxi(1, line_count) - 5
+	return Rect2(floorf((view.x - w) / 2.0), top, w, rects[0].end.y + 4 - top)
 
 
 ## Przycisk karty (CardButton) na miejscu `i`.
@@ -542,14 +593,19 @@ static func column_label(t: int) -> String:
 func _draw_card(view: Vector2) -> void:
 	var rects := card_rects(view, card_recruit, card_pve)
 	var buttons := card_buttons(card_recruit, card_pve)
-	var r0 := rects[0]
-	var panel := Rect2(r0.position - Vector2(4, 26), Vector2(rects[-1].end.x - r0.position.x + 8, r0.size.y + 30))
+	var width := int(maxf(rects[-1].end.x - rects[0].position.x + 8, CARD_MIN_W)) - 8
+	var lines := card_lines(card_info, card_needs, width)
+	var panel := card_panel(view, lines.size(), card_recruit, card_pve)
 	draw_rect(panel, Color(Palette.SHADOW, 0.85))
 	PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
 	PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])
-	var info_width := int(panel.size.x - 8)
-	draw_highlighted(self, panel.position + Vector2(4, 13), ResearchPanel.fit_text(card_info, info_width),
-			Palette.WOOD[3], card_info_missing, Palette.ACCENT)
+	var needs_from := lines.size() - card_needs_lines(card_needs, width).size()
+	for i in lines.size():
+		var at := panel.position + Vector2(4, 13 + i * PixelFont.LINE)
+		if i >= needs_from:
+			PixelFont.draw_text(self, at, lines[i], Palette.VALID if card_needs_ok else Palette.ACCENT)
+		else:
+			draw_highlighted(self, at, lines[i], Palette.WOOD[3], card_info_missing, Palette.ACCENT)
 	for i in rects.size():
 		var button := buttons[i]
 		var label := CANCEL_LABEL if button == CardButton.DEMOLISH and card_cancel else card_label(button)
