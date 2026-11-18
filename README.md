@@ -33,18 +33,23 @@ obrony z #19 (posterunki załogi wokół donżonu).
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
 
-- `scripts/gfx/pixel_canvas.gd` (`PixelCanvas`): prymitywy rysowania: ściana z bali, ściana z desek,
-  belki szkieletu, dach strzechowy, okno, drzwi, flaga i dithering 2×2. Faktura idzie przez `hash2`.
-- `scripts/gfx/building_art.gd` (`BuildingArt`): budynki w rzucie 3/4, każdy z 5 poziomami o różnym
-  wyglądzie, i 4 stany zniszczeń: cały, pęknięcia, wyrwa w blankach, gruz. W wale i palisadzie
-  wyrwa obniża ścianę w blokach 2×2, a gruz leży na kształcie odcinka, więc autotiling dalej się łączy.
-  Budynki wielokratkowe dostają wyłomy w górnej krawędzi i kopiec rumowiska na swoich kratkach.
-  Wał i palisada mają autotiling: odcinek 1×1 to środek plus ramię do każdego sąsiada z maski N/E/S/W
-  (16 wariantów). Ramiona dochodzą do krawędzi kratki, więc dowolny kształt łączy się bez dziur.
-  Ściana i blanki rysują się osobno, a palisada ma ścianę wysoką na 4 px.
-  Chata i warsztaty przy murze to przybudówki (`Lean`): przy murze z boku dach jednospadowy opada od muru
-  (kształt trójkąta prostokątnego, wariant wschodni to lustro zachodniego), a przy murze z tyłu jedna
-  połać. Dwór, wieża, brama, mury i pole lnu zostają bez zmian.
+- `scripts/gfx/pixel_canvas.gd` (`PixelCanvas`): prymitywy rysowania w rzucie z góry: dach dwuspadowy,
+  jednospadowy i namiotowy, pomost z desek, stos bali, komin, proporzec, obwódka i dithering 2×2.
+  Faktura idzie przez `hash2`, a światło pada z lewej góry (połacie od północy i zachodu są jasne).
+- `scripts/gfx/building_art.gd` (`BuildingArt`): budynki w rzucie z góry, każdy z 5 poziomami o różnym
+  wyglądzie, i 4 stany zniszczeń: cały, pęknięcia, wyrwa, gruz. Obraz ma dokładnie rozmiar kratek
+  budynku, więc nic nie zasłania sąsiadów, a wysokość oddaje cień na południowy wschód (dłuższy
+  za wieżą, donżonem i Strażnicą, krótki za murem i polem lnu).
+  - **Dachy:** chaty, warsztaty i Dwór mają strzechę z kalenicą wzdłuż dłuższego boku, wieża i donżon dach
+    namiotowy, wieża niżej pomost z desek. Warsztaty rozpoznaje się po rekwizycie z prawej (kadź, tarcza,
+    rama ze skórą, koń przy żłobie...).
+  - **Umocnienia:** korona wału (z darnią, fosą, palikami albo płotem) i wierzchy pali palisady z jasną
+    stroną od północy. Wał i palisada mają autotiling: odcinek 1×1 to środek plus ramię do każdego sąsiada
+    z maski N/E/S/W (16 wariantów), a ramiona dochodzą do krawędzi kratki, więc dowolny kształt łączy się
+    bez dziur. Wyrwa wybija bloki 2×2, a gruz leży na kształcie odcinka.
+  - **Przybudówki (`Lean`):** chata i warsztaty przy murze dochodzą do niego korpusem i mają dach
+    jednospadowy z kalenicą przy murze (wariant wschodni to lustro zachodniego z poprawionym światłem).
+    Dwór, wieża, brama, mury i pole lnu zostają bez zmian.
 - `scripts/gfx/terrain_renderer.gd` (`TerrainRenderer`, ożywiony w #150): trawa w 4 odcieniach wysokości
   z ziarnem i źdźbłami. Na styku wysokości odcień liczy się z interpolacji środków kratek z szumem,
   więc wzgórze ma miękkie, poszarpane zbocza zamiast schodków. Na trawie są ozdoby z seeda: kępki,

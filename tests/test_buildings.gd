@@ -65,12 +65,13 @@ func test_damage_stays_inside_building() -> bool:
 							added += 1
 				assert_eq(added, 0, "rodzaj %d poz. %d stan %d: nowe piksele poza sylwetką" % [kind, level, state])
 			var rubble := BuildingArt.make_image(kind, level, BuildingTypes.State.RUBBLE, 0b1111)
-			var high := 0
-			for y in BuildingArt.EXTRA[kind] - 2:
+			var used := intact.get_used_rect()
+			var outside := 0
+			for y in rubble.get_height():
 				for x in rubble.get_width():
-					if rubble.get_pixel(x, y).a > 0.0:
-						high += 1
-			assert_eq(high, 0, "rodzaj %d poz. %d: gruz nie wystaje ponad kratki" % [kind, level])
+					if rubble.get_pixel(x, y).a > 0.0 and not used.has_point(Vector2i(x, y)):
+						outside += 1
+			assert_eq(outside, 0, "rodzaj %d poz. %d: gruz leży tam, gdzie stał budynek" % [kind, level])
 	return true
 
 
@@ -315,7 +316,7 @@ func test_tower_gets_stubs_toward_palisade() -> bool:
 func test_vertical_gate_image() -> bool:
 	for level in range(1, BuildingTypes.MAX_LEVEL + 1):
 		var v := BuildingArt.make_image(BuildingTypes.Kind.GATE, level, BuildingTypes.State.INTACT, 0, true)
-		assert_eq(v.get_size(), Vector2i(8, 24 + BuildingArt.EXTRA[BuildingTypes.Kind.GATE]), "rozmiar bramy pionowej 1×3")
+		assert_eq(v.get_size(), Vector2i(8, 24), "rozmiar bramy pionowej 1×3")
 		assert_true(not v.is_invisible(), "brama pionowa poziom %d coś rysuje" % level)
 	var a := BuildingArt.make_image(BuildingTypes.Kind.GATE, 1, 0, 0, true).get_data()
 	var b := BuildingArt.make_image(BuildingTypes.Kind.GATE, 5, 0, 0, true).get_data()
@@ -330,30 +331,30 @@ func _row_has_pixel(img: Image, y: int) -> bool:
 	return false
 
 
-## Szczyty dachów i flag muszą mieścić się w obrazie (px() po cichu ucina piksele poza nim).
-## Najwyższe elementy dochodzą do wiersza 0, a wiersz 0 ma kolor ze strzechy albo flagi.
-func test_tallest_parts_fit_in_image() -> bool:
+## Rzut z góry: obraz ma dokładnie rozmiar kratek (nic nie wystaje na sąsiadów), a wieże i donżon
+## mają dach namiotowy ze szczytem w środku. Brama poziom 3 jest symetryczna (daszki na obu słupach).
+func test_top_down_fits_cells() -> bool:
+	for kind in BuildingTypes.count():
+		assert_eq(BuildingArt.image_size(kind), BuildingTypes.size_of(kind) * BuildingArt.CELL,
+				"%s: obraz równy kratkom" % BuildingTypes.NAMES[kind])
+	for kind: int in [BuildingTypes.Kind.TOWER, BuildingTypes.Kind.KEEP]:
+		var img := BuildingArt.make_image(kind, 4, BuildingTypes.State.INTACT)
+		var peak := img.get_pixel(8, 8)
+		assert_true(Palette.WOOD.has(peak), "%s: szczyt dachu w środku" % BuildingTypes.NAMES[kind])
+		assert_true(Palette.THATCH.has(img.get_pixel(5, 3)), "%s: strzecha z góry" % BuildingTypes.NAMES[kind])
 	var gate := BuildingTypes.Kind.GATE
-	for level: int in [4, 5]:
-		var v := BuildingArt.make_image(gate, level, BuildingTypes.State.INTACT, 0, true)
-		assert_true(_row_has_pixel(v, 0), "brama pionowa poziom %d: szczyt strzechy w wierszu 0" % level)
-		# lewa krawędź strzechy: 24 wiersze dachu + okap; ucięty dach miałby ich mniej
-		var eave := 0
-		for y in v.get_height():
-			if v.get_pixel(1, y) == Palette.THATCH[0]:
-				eave += 1
-		assert_eq(eave, 25, "brama pionowa poziom %d: cała krawędź strzechy w obrazie" % level)
-	var tower := BuildingArt.make_image(BuildingTypes.Kind.TOWER, 5, BuildingTypes.State.INTACT)
-	assert_true(_row_has_pixel(tower, 0), "wieża poziom 5: flaga sięga wiersza 0")
-	assert_eq(tower.get_pixel(8, 0), Palette.ACCENT, "wieża poziom 5: górny wiersz proporca")
-	assert_eq(tower.get_pixel(8, 1), Palette.ACCENT, "wieża poziom 5: dolny wiersz proporca (cały w obrazie)")
-	# daszki słupów bramy poziom 3: symetryczne, oba w całości w obrazie
 	var g3 := BuildingArt.make_image(gate, 3, BuildingTypes.State.INTACT)
 	var w := g3.get_width()
 	for y in g3.get_height():
 		for x in w:
 			assert_eq(g3.get_pixel(x, y).a > 0.0, g3.get_pixel(w - 1 - x, y).a > 0.0,
 					"brama poziom 3 symetryczna w (%d, %d)" % [x, y])
+	# brama pionowa to ta sama sylwetka z zamienionymi osiami
+	var h := BuildingArt.make_image(gate, 4, BuildingTypes.State.INTACT)
+	var v := BuildingArt.make_image(gate, 4, BuildingTypes.State.INTACT, 0, true)
+	for y in h.get_height():
+		for x in h.get_width():
+			assert_eq(h.get_pixel(x, y).a > 0.0, v.get_pixel(y, x).a > 0.0, "brama pionowa w (%d, %d)" % [x, y])
 	return true
 
 

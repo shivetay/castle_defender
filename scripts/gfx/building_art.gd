@@ -1,34 +1,28 @@
 class_name BuildingArt
 extends RefCounted
-## Rysuje budynki epoki I w rzucie 3/4. Obraz ma szerokość kratek budynku, a wysokość kratek
-## plus EXTRA pikseli, o które budynek wystaje ponad swoje kratki. Wiersz obrazu `g + EXTRA`
-## odpowiada wierszowi `g` na ziemi, więc obraz rysuje się w (rect.position * 8) - (0, EXTRA).
+## Rysuje budynki epoki I w rzucie z góry: widać dachy, pomosty, korony murów i blanki, a wysokość
+## oddaje cień rzucany na południowy wschód (BuildingTextures.shadow). Obraz ma dokładnie rozmiar
+## kratek budynku (8 px na kratkę) i rysuje się w rect.position * 8, więc nic nie zasłania sąsiadów.
+## Światło pada z lewej góry: połacie od północy i zachodu są jasne, od południa i wschodu ciemne.
 ##
 ## Wał i palisada to odcinki 1×1 z autotilingiem: środek plus ramię do każdego sąsiada z maski
 ## N/E/S/W (16 wariantów). Ramiona dochodzą do krawędzi kratki, więc sąsiednie odcinki
-## łączą się bez dziur. Ściana i blanki rysują się osobnymi przebiegami.
+## łączą się bez dziur.
 @warning_ignore_start("integer_division")
 
 const CELL := 8
 ## Krycie cienia rzucanego na trawę (#150).
 const SHADOW_ALPHA := 0.3
-## Ile pikseli budynek wystaje ponad swoje kratki (stałe dla rodzaju, niezależne od poziomu).
-const EXTRA: Array[int] = [4, 4, 12, 20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 8, 10, 10, 10, 10, 10, 22, 10, 18]
 
 
 ## Rozmiar obrazu. `vertical` obraca obrys budynku (brama w pionowej linii palisady).
 static func image_size(kind: int, vertical: bool = false) -> Vector2i:
 	var s := BuildingTypes.size_of(kind) * CELL
-	if vertical:
-		s = Vector2i(s.y, s.x)
-	return Vector2i(s.x, s.y + EXTRA[kind])
+	return Vector2i(s.y, s.x) if vertical else s
 
 
-## Obraz budynku. `mask` ma znaczenie tylko dla wału i palisady, `vertical` tylko dla bramy.
-## Poziom 0 to plac budowy (stan nie ma wtedy znaczenia).
 ## Przybudówka przy murze (#149): strona, po której stoi wał albo palisada. Budynek przy murze ma dach
-## jednospadowy, wyższy przy murze: przy murze z boku fasada jest trójkątem prostokątnym, przy murze
-## z tyłu albo z przodu dach to jedna połać bez szczytu.
+## jednospadowy z kalenicą przy murze, a korpus dochodzi do krawędzi kratek od strony muru.
 enum Lean { NONE, NORTH, EAST, SOUTH, WEST }
 
 
@@ -54,6 +48,19 @@ static func lean_from(dir: Vector2i) -> int:
 	return Lean.NONE
 
 
+static func _lean_dir(lean: int) -> Vector2i:
+	match lean:
+		Lean.NORTH:
+			return Vector2i.UP
+		Lean.EAST:
+			return Vector2i.RIGHT
+		Lean.SOUTH:
+			return Vector2i.DOWN
+		Lean.WEST:
+			return Vector2i.LEFT
+	return Vector2i.ZERO
+
+
 static func make_image(kind: int, level: int, state: int, mask: int = 0, vertical: bool = false,
 		lean: int = Lean.NONE) -> Image:
 	var v := vertical and kind == BuildingTypes.Kind.GATE
@@ -74,10 +81,7 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 		BuildingTypes.Kind.PALISADE:
 			_draw_palisade(img, lv, mask, state)
 		BuildingTypes.Kind.GATE:
-			if v:
-				_draw_gate_vertical(img, lv)
-			else:
-				_draw_gate(img, lv)
+			_draw_gate(img, lv, v)
 		BuildingTypes.Kind.TOWER:
 			_draw_tower(img, lv)
 		BuildingTypes.Kind.LUMBER_HUT:
@@ -94,10 +98,603 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 			_draw_workshop(img, kind, lv, ln)
 	if mirror:
 		img.flip_x()
+		_relight_mirrored(img)
 	_apply_state(img, kind, state, mask)
 	if has_outline(kind):
 		_outline_and_light(img)
 	return img
+
+
+## Po odbiciu w poziomie jasna połać wypada na wschodzie. Dach jednospadowy przy murze z prawej
+## patrzy na zachód, więc jest jasny: zamieniamy odcienie strzechy o stopień w górę.
+static func _relight_mirrored(img: Image) -> void:
+	var swap := {
+		Palette.THATCH[1].to_rgba32(): Palette.THATCH[2],
+		Palette.THATCH[0].to_rgba32(): Palette.THATCH[1],
+	}
+	for y in img.get_height():
+		for x in img.get_width():
+			var c := img.get_pixel(x, y)
+			if c.a == 1.0 and swap.has(c.to_rgba32()):
+				img.set_pixel(x, y, swap[c.to_rgba32()])
+
+
+# --- Autotiling umocnień -------------------------------------------------------------------
+
+## Kształt odcinka na ziemi (8×8, 1 = umocnienie): środek grubości `t` i ramiona z maski.
+static func wall_shape(mask: int, t: int) -> PackedByteArray:
+	var f := PackedByteArray()
+	f.resize(CELL * CELL)
+	var lo := (CELL - t) / 2
+	var hi := lo + t
+	for y in CELL:
+		for x in CELL:
+			var in_x := x >= lo and x < hi
+			var in_y := y >= lo and y < hi
+			var on := in_x and in_y
+			on = on or (in_x and y < lo and mask & BuildingTypes.N != 0)
+			on = on or (in_x and y >= hi and mask & BuildingTypes.S != 0)
+			on = on or (in_y and x >= hi and mask & BuildingTypes.E != 0)
+			on = on or (in_y and x < lo and mask & BuildingTypes.W != 0)
+			f[y * CELL + x] = 1 if on else 0
+	return f
+
+
+static func _on(f: PackedByteArray, x: int, y: int) -> bool:
+	return x >= 0 and y >= 0 and x < CELL and y < CELL and f[y * CELL + x] == 1
+
+
+## Jak _on, ale poza kratką patrzy na ramię sąsiada: odcinek ciągnie się dalej, gdy maska ma
+## sąsiada w tę stronę (ramię sąsiada ma ten sam przekrój).
+static func _on_line(f: PackedByteArray, mask: int, t: int, x: int, y: int) -> bool:
+	var lo := (CELL - t) / 2
+	var hi := lo + t
+	if y < 0:
+		return mask & BuildingTypes.N != 0 and x >= lo and x < hi
+	if y >= CELL:
+		return mask & BuildingTypes.S != 0 and x >= lo and x < hi
+	if x < 0:
+		return mask & BuildingTypes.W != 0 and y >= lo and y < hi
+	if x >= CELL:
+		return mask & BuildingTypes.E != 0 and y >= lo and y < hi
+	return f[y * CELL + x] == 1
+
+
+## Strona piksela umocnienia względem światła: -1 brzeg od północy albo zachodu (jasny),
+## 1 brzeg od południa albo wschodu (w cieniu), 0 środek korony.
+static func _edge(f: PackedByteArray, mask: int, t: int, x: int, y: int) -> int:
+	if not _on_line(f, mask, t, x, y - 1) or not _on_line(f, mask, t, x - 1, y):
+		return -1
+	if not _on_line(f, mask, t, x, y + 1) or not _on_line(f, mask, t, x + 1, y):
+		return 1
+	return 0
+
+
+## Grubość odcinka umocnienia na ziemi w pikselach.
+static func wall_thickness(kind: int) -> int:
+	return 4 if kind == BuildingTypes.Kind.RAMPART else 2
+
+
+## Czy piksel leży w wyrwie: bloki 2×2 wybrane przez hash2, blok w środku kratki pęka zawsze,
+## więc wyrwa jest widoczna w każdym wariancie autotilingu. Wzór zależy tylko od położenia w kratce.
+static func _breached(kind: int, x: int, y: int) -> bool:
+	var bx := x >> 1
+	var by := y >> 1
+	return (bx == 2 and by == 2) or (bx == 1 and by == 1) or PixelCanvas.hash2(bx, by, 17 + kind) % 3 == 0
+
+
+## Piksel wyrwy: połowa pikseli bloku znika (widać ziemię pod spodem), reszta to ciemne szczątki.
+static func _breach_pixel(img: Image, kind: int, x: int, y: int) -> void:
+	if (x + y) % 2 == 0:
+		img.set_pixel(x, y, Color(Palette.SHADOW, 0.0))
+	else:
+		img.set_pixel(x, y, Palette.EARTH[0] if kind == BuildingTypes.Kind.RAMPART else Palette.WOOD[0])
+
+
+## Wał ziemny z góry: nasyp z jasnym zboczem od północy i zachodu, ciemnym od południa i wschodu.
+## Poziomy: 1 goła ziemia, 2 darń na koronie, 3 z suchą fosą wokół, 4 z palikami na koronie,
+## 5 z płotem na koronie.
+static func _draw_rampart(img: Image, level: int, mask: int, state: int) -> void:
+	var kind := BuildingTypes.Kind.RAMPART
+	var t := wall_thickness(kind)
+	var f := wall_shape(mask, t)
+	if level >= 3:
+		# sucha fosa: piksel ziemi stykający się z wałem (także z ramieniem sąsiada)
+		for y in CELL:
+			for x in CELL:
+				if _on(f, x, y):
+					continue
+				if _on_line(f, mask, t, x, y - 1) or _on_line(f, mask, t, x, y + 1) \
+						or _on_line(f, mask, t, x - 1, y) or _on_line(f, mask, t, x + 1, y):
+					PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[0], Palette.SHADOW))
+	var grass := level >= 2
+	for y in CELL:
+		for x in CELL:
+			if not _on(f, x, y):
+				continue
+			var e := _edge(f, mask, t, x, y)
+			var col: Color
+			if e < 0:
+				col = Palette.GRASS[3] if grass else Palette.EARTH[3]
+			elif e > 0:
+				col = Palette.EARTH[1]
+			else:
+				col = PixelCanvas.dither(x, y, Palette.GRASS[2], Palette.GRASS[3]) if grass \
+						else PixelCanvas.dither(x, y, Palette.EARTH[3], Palette.EARTH[2])
+				if level == 4 and (x + y) % 3 == 0:
+					col = Palette.WOOD[2]  # paliki na koronie
+				elif level == 5:
+					col = Palette.WOOD[3] if (x + y) % 3 == 0 else Palette.WOOD[1]  # płot
+			PixelCanvas.px(img, x, y, col)
+			if state == BuildingTypes.State.BREACHED and _breached(kind, x, y):
+				_breach_pixel(img, kind, x, y)
+
+
+## Palisada z góry: wierzchy pali 2 px grubości, jasna strona od północy albo zachodu.
+## Poziomy: 1 płaskie pale, 2 zaostrzone (jasne szpice), 3 z belką spinającą od wewnątrz,
+## 4 na ziemnym podsypaniu, 5 z żelaznymi obręczami.
+static func _draw_palisade(img: Image, level: int, mask: int, state: int) -> void:
+	var kind := BuildingTypes.Kind.PALISADE
+	var t := wall_thickness(kind)
+	var f := wall_shape(mask, t)
+	if level >= 3:
+		for y in CELL:
+			for x in CELL:
+				if _on(f, x, y):
+					continue
+				var behind := _on_line(f, mask, t, x, y - 1) or _on_line(f, mask, t, x - 1, y)
+				var front := _on_line(f, mask, t, x, y + 1) or _on_line(f, mask, t, x + 1, y)
+				if level >= 4 and (behind or front):
+					PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
+				if behind:
+					PixelCanvas.px(img, x, y, Palette.WOOD[0])  # belka spinająca po stronie cienia
+	for y in CELL:
+		for x in CELL:
+			if not _on(f, x, y):
+				continue
+			var stake := (x + y) % 2
+			var lit := _edge(f, mask, t, x, y) < 0
+			var col: Color
+			if lit:
+				col = Palette.WOOD[2] if stake == 0 else Palette.WOOD[1]
+				if level >= 2 and stake == 0:
+					col = Palette.WOOD[3]  # szpic
+			else:
+				col = Palette.WOOD[1] if stake == 0 else Palette.WOOD[0]
+				if level == 5 and (x + y) % 4 == 1:
+					col = Palette.SHADOW  # obręcz
+			PixelCanvas.px(img, x, y, col)
+			if state == BuildingTypes.State.BREACHED and _breached(kind, x, y):
+				_breach_pixel(img, kind, x, y)
+
+
+# --- Budynki wielokratkowe -----------------------------------------------------------------
+
+## Punkt bramy we współrzędnych (wzdłuż, w poprzek): brama pozioma rysuje się wprost,
+## pionowa z zamienionymi osiami. Strona „w poprzek = 0” jest zawsze od północy albo zachodu,
+## więc światło pada tak samo w obu ułożeniach.
+static func _gate_px(img: Image, vertical: bool, a: int, b: int, col: Color) -> void:
+	if vertical:
+		PixelCanvas.px(img, b, a, col)
+	else:
+		PixelCanvas.px(img, a, b, col)
+
+
+static func _gate_rect(vertical: bool, a: int, b: int, la: int, lb: int) -> Rect2i:
+	return Rect2i(b, a, lb, la) if vertical else Rect2i(a, b, la, lb)
+
+
+## Brama drewniana (3×1) w linii palisady, z góry. Poziomy: 1 dwa słupy i zamknięte skrzydła,
+## 2 z pomostem nad przejazdem, 3 z daszkami na słupach, 4 z izbą bramną pod strzechą,
+## 5 ze sztandarami na słupach i okuciami na okapie.
+static func _draw_gate(img: Image, level: int, vertical: bool) -> void:
+	var length := 3 * CELL
+	var post := 3 if level >= 3 else 2
+	# skrzydła: deski w poprzek linii, szpara pośrodku
+	for a in range(post, length - post):
+		for b in range(3, 5):
+			var col: Color = Palette.WOOD[2] if b == 3 else Palette.WOOD[1]
+			if a == length / 2 or a == length / 2 - 1:
+				col = Palette.SHADOW if a == length / 2 else Palette.WOOD[0]
+			_gate_px(img, vertical, a, b, col)
+	if level >= 2:
+		# pomost nad przejazdem: deski wzdłuż bramy
+		for a in range(post, length - post):
+			for b in range(2, 6):
+				var col: Color = Palette.WOOD[3] if b % 2 == 0 else Palette.WOOD[2]
+				if b == 5:
+					col = Palette.WOOD[0]
+				_gate_px(img, vertical, a, b, col)
+	# słupy z góry: kwadrat z jasnym rogiem
+	for a0: int in [0, length - post]:
+		for a in range(a0, a0 + post):
+			var b0 := 3 - (post - 2)
+			for b in range(b0, 5):
+				var col: Color = Palette.WOOD[1]
+				if a == a0 or b == b0:
+					col = Palette.WOOD[3]
+				_gate_px(img, vertical, a, b, col)
+		if level == 3:
+			var r := _gate_rect(vertical, a0, 2, post, 4)
+			PixelCanvas.roof_hip(img, r, Palette.THATCH, Palette.WOOD[1])
+	if level >= 4:
+		var roof := _gate_rect(vertical, 1, 0, length - 2, CELL)
+		PixelCanvas.roof_gable(img, roof, not vertical, Palette.THATCH, Palette.WOOD[1], 7)
+	if level == 5:
+		for a0: int in [0, length - 2]:
+			var r := _gate_rect(vertical, a0, 1, 2, 3)
+			PixelCanvas.rect(img, r, Palette.ACCENT)
+		for a in range(3, length - 3, 3):
+			_gate_px(img, vertical, a, CELL - 1, Palette.SHADOW)
+
+
+## Wieża drewniana (2×2) z góry. Poziomy: 1 pomost z desek na czterech nogach, 2 z balustradą,
+## 3 z obudową z bali wokół pomostu, 4 pod dachem namiotowym, 5 pod wyższym dachem z flagą.
+static func _draw_tower(img: Image, level: int) -> void:
+	var w := img.get_width()
+	if level >= 3:
+		# obudowa z bali: pierścień 2 px z czołami bali na rogach
+		PixelCanvas.rect(img, Rect2i(1, 1, w - 2, w - 2), Palette.WOOD[1])
+		PixelCanvas.rect(img, Rect2i(1, 1, w - 2, 1), Palette.WOOD[2])
+		PixelCanvas.rect(img, Rect2i(1, 1, 1, w - 2), Palette.WOOD[2])
+		for c: Vector2i in [Vector2i(1, 1), Vector2i(w - 3, 1), Vector2i(1, w - 3), Vector2i(w - 3, w - 3)]:
+			PixelCanvas.rect(img, Rect2i(c, Vector2i(2, 2)), Palette.THATCH[1])
+	PixelCanvas.deck(img, Rect2i(3, 3, w - 6, w - 6), true, Palette.WOOD, 3)
+	if level <= 2:
+		# nogi wystające spod pomostu na rogach
+		for c: Vector2i in [Vector2i(2, 2), Vector2i(w - 4, 2), Vector2i(2, w - 4), Vector2i(w - 4, w - 4)]:
+			PixelCanvas.rect(img, Rect2i(c, Vector2i(2, 2)), Palette.WOOD[0])
+	if level == 2:
+		PixelCanvas.frame(img, Rect2i(3, 3, w - 6, w - 6), Palette.WOOD[1])
+		for c: Vector2i in [Vector2i(3, 3), Vector2i(w - 4, 3), Vector2i(3, w - 4), Vector2i(w - 4, w - 4)]:
+			PixelCanvas.px(img, c.x, c.y, Palette.WOOD[3])
+	if level == 3:
+		PixelCanvas.px(img, w / 2, w / 2, Palette.SHADOW)  # właz na pomost
+	if level >= 4:
+		var inset := 2 if level == 4 else 1
+		PixelCanvas.roof_hip(img, Rect2i(inset, inset, w - 2 * inset, w - 2 * inset), Palette.THATCH, Palette.WOOD[1])
+	if level == 5:
+		PixelCanvas.pennant(img, Vector2i(w / 2, w / 2 - 2), Palette.ACCENT)
+
+
+## Korpus chaty albo warsztatu: zwykle z odstępem od krawędzi, przy murze dochodzi do jego boku.
+static func _body(r: Rect2i, lean: int, size: Vector2i) -> Rect2i:
+	match lean:
+		Lean.WEST:
+			return Rect2i(0, r.position.y, r.end.x, r.size.y)
+		Lean.NORTH:
+			return Rect2i(r.position.x, 0, r.size.x, r.end.y)
+		Lean.SOUTH:
+			return Rect2i(r.position.x, r.position.y, r.size.x, size.y - r.position.y)
+	return r
+
+
+## Dach korpusu: dwuspadowy z kalenicą wzdłuż dłuższego boku albo jednospadowy przy murze.
+static func _roof(img: Image, body: Rect2i, lean: int, tex_seed: int) -> void:
+	if lean == Lean.NONE:
+		PixelCanvas.roof_gable(img, body, body.size.x >= body.size.y, Palette.THATCH, Palette.WOOD[0], tex_seed)
+	else:
+		PixelCanvas.roof_mono(img, body, _lean_dir(lean), Palette.THATCH, Palette.WOOD[0], tex_seed)
+
+
+## Wiata (poziom 1) z góry: daszek z desek, przy murze oparty o niego.
+static func _shed(img: Image, r: Rect2i, lean: int, size: Vector2i) -> void:
+	var body := _body(r, lean, size)
+	PixelCanvas.deck(img, body, body.size.x < body.size.y, Palette.WOOD, 11)
+	PixelCanvas.rect(img, Rect2i(body.position.x, body.end.y - 1, body.size.x, 1), Palette.WOOD[0])
+
+
+## Komin na dachu: w prawej trzeciej części korpusu, tuż pod kalenicą od strony cienia.
+static func chimney_at(body: Rect2i) -> Vector2i:
+	return Vector2i(body.position.x + body.size.x * 2 / 3, body.position.y + body.size.y / 2 + 1)
+
+
+## Chata drwala (2×2). Poziomy: 1 wiata ze stosem bali, 2 chata pod strzechą, 3 ze stosem bali
+## z boku, 4 większa z kominem, 5 z drugim stosem i proporcem.
+static func _draw_hut(img: Image, level: int, lean: int = Lean.NONE) -> void:
+	var size := img.get_size()
+	if level == 1:
+		_shed(img, Rect2i(1, 1, 11, 6), lean, size)
+		PixelCanvas.log_pile(img, Rect2i(3, 8, 7, 4))
+		PixelCanvas.rect(img, Rect2i(12, 12, 2, 2), Palette.WOOD[2])  # pieniek
+		PixelCanvas.px(img, 12, 12, Palette.THATCH[1])
+		return
+	var body := _body(Rect2i(1, 2, 10, 9) if level < 4 else Rect2i(1, 1, 11, 10), lean, size)
+	_roof(img, body, lean, 3)
+	if level >= 4:
+		PixelCanvas.chimney(img, chimney_at(body))
+	if level >= 3:
+		PixelCanvas.log_pile(img, Rect2i(12, 2, 4, 8))
+	if level == 5:
+		PixelCanvas.log_pile(img, Rect2i(2, 13, 8, 2))
+		PixelCanvas.pennant(img, Vector2i(body.position.x + 1, body.position.y + 1), Palette.ACCENT)
+
+
+## Dwór (2×2), siedziba władcy i poziom zamku. Poziomy: 1 izba pod strzechą, 2 z kominem,
+## 3 większy, 4 z daszkiem nad wejściem od południa, 5 z flagą i tarczami pod okapem.
+static func _draw_manor(img: Image, level: int) -> void:
+	var body := Rect2i(2, 2, 12, 9) if level < 3 else Rect2i(1, 1, 14, 11)
+	PixelCanvas.roof_gable(img, body, true, Palette.THATCH, Palette.WOOD[0], 13)
+	if level >= 2:
+		PixelCanvas.chimney(img, chimney_at(body))
+	if level >= 4:
+		PixelCanvas.roof_gable(img, Rect2i(6, body.end.y, 4, 3), false, Palette.THATCH, Palette.WOOD[1], 14)
+	if level == 5:
+		PixelCanvas.pennant(img, Vector2i(body.position.x + 1, body.position.y + body.size.y / 2), Palette.ACCENT)
+		for x: int in [3, 11]:
+			PixelCanvas.rect(img, Rect2i(x, body.end.y, 2, 2), Palette.ACCENT)
+
+
+# --- Wytwórcy (#90) ---------------------------------------------------------------------------
+
+## Warsztat wytwórcy (2×2). Wszystkie mają ten sam szkielet, a rozpoznaje się je po rekwizycie
+## z prawej (_draw_prop). Poziomy: 1 wiata z rekwizytem, 2 izba pod strzechą, 3 większa z kominem,
+## 4 najszersza z większym rekwizytem, 5 z proporcem na kalenicy i drugim przy wejściu.
+static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.NONE) -> void:
+	var size := img.get_size()
+	if level == 1:
+		_shed(img, Rect2i(1, 1, 10, 7), lean, size)
+		_draw_prop(img, kind, Vector2i(11, 3), false)
+		return
+	var wide := level >= 4
+	var r := Rect2i(1, 2, 10, 9)
+	if level == 3:
+		r = Rect2i(1, 1, 10, 10)
+	elif wide:
+		r = Rect2i(0, 1, 11, 11)
+	var body := _body(r, lean, size)
+	_roof(img, body, lean, 17 + kind)
+	if level >= 3:
+		PixelCanvas.chimney(img, chimney_at(body))
+	_draw_prop(img, kind, Vector2i(11, 3), wide)
+	if level == 5:
+		PixelCanvas.pennant(img, Vector2i(body.position.x + 1, body.position.y + 1), Palette.ACCENT)
+		PixelCanvas.rect(img, Rect2i(body.position.x + 4, body.end.y, 2, 2), Palette.ACCENT)
+
+
+## Rekwizyt wytwórcy z góry, 5 px szerokości, od lewego górnego rogu `at`.
+## `big` to wersja dla poziomów 4–5 (więcej towaru).
+static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
+	var x := at.x
+	var y := at.y
+	match kind:
+		BuildingTypes.Kind.HUNTER:
+			# rama z rozpiętą skórą
+			PixelCanvas.rect(img, Rect2i(x, y, 5, 6), Palette.WOOD[0])
+			for yy in range(y + 1, y + 5):
+				for xx in range(x + 1, x + 4):
+					PixelCanvas.px(img, xx, yy, PixelCanvas.dither(xx, yy, Palette.EARTH[3], Palette.WOOD[2]))
+			if big:
+				PixelCanvas.rect(img, Rect2i(x + 1, y + 7, 3, 2), Palette.THATCH[2])  # pióra
+		BuildingTypes.Kind.TANNERY:
+			# okrągła kadź z garbnikiem
+			_ring(img, Rect2i(x, y, 5, 5), Palette.WOOD[0], Palette.EARTH[1])
+			if big:
+				_ring(img, Rect2i(x, y + 6, 5, 5), Palette.WOOD[0], Palette.EARTH[3])
+		BuildingTypes.Kind.LEATHERWORKER:
+			# okrągła tarcza obita skórą z czerwonym umbem
+			_ring(img, Rect2i(x, y, 5, 5), Palette.EARTH[2], Palette.EARTH[3])
+			PixelCanvas.px(img, x + 2, y + 2, Palette.ACCENT)
+			if big:
+				PixelCanvas.rect(img, Rect2i(x + 1, y + 6, 3, 4), Palette.WOOD[2])  # zbroja na kozłach
+		BuildingTypes.Kind.POLEARM:
+			# drzewca złożone na kozłach, z kamiennymi grotami
+			var poles := 5 if big else 3
+			for i in poles:
+				PixelCanvas.rect(img, Rect2i(x + i, y + 1, 1, 8), Palette.WOOD[3])
+				PixelCanvas.px(img, x + i, y, Palette.EARTH[3])
+			PixelCanvas.rect(img, Rect2i(x, y + 4, 5, 1), Palette.WOOD[0])
+		BuildingTypes.Kind.BOWSTRING:
+			# cięciwy schnące między dwoma kołkami
+			PixelCanvas.rect(img, Rect2i(x, y, 1, 7), Palette.WOOD[0])
+			PixelCanvas.rect(img, Rect2i(x + 4, y, 1, 7), Palette.WOOD[0])
+			var lines := 4 if big else 2
+			for i in lines:
+				PixelCanvas.rect(img, Rect2i(x + 1, y + 1 + 2 * i, 3, 1), Palette.THATCH[2])
+		BuildingTypes.Kind.BOWYER:
+			# łuk z cięciwą leżący na ziemi (drugi łuk na wyższych poziomach)
+			var bows := 2 if big else 1
+			for b in bows:
+				var bx := x + b * 2
+				PixelCanvas.rect(img, Rect2i(bx + 1, y + 1, 1, 6), Palette.WOOD[2])
+				PixelCanvas.px(img, bx + 2, y, Palette.WOOD[2])
+				PixelCanvas.px(img, bx + 2, y + 7, Palette.WOOD[2])
+				PixelCanvas.rect(img, Rect2i(bx + 2, y + 1, 1, 6), Palette.THATCH[2])
+		BuildingTypes.Kind.FLETCHER:
+			# beczka strzał z lotkami
+			_ring(img, Rect2i(x, y, 5, 5), Palette.WOOD[1], Palette.WOOD[0])
+			var arrows := 4 if big else 2
+			for i in arrows:
+				PixelCanvas.px(img, x + 1 + i % 3, y + 1 + i / 3 + i % 2, Palette.THATCH[2] if i % 2 == 0 else Palette.ACCENT)
+		BuildingTypes.Kind.SADDLER:
+			# siodło z czaprakiem na koźle
+			PixelCanvas.rect(img, Rect2i(x, y + 2, 5, 1), Palette.WOOD[1])
+			PixelCanvas.rect(img, Rect2i(x + 1, y, 3, 5), Palette.EARTH[2])
+			PixelCanvas.rect(img, Rect2i(x + 1, y + 2, 3, 1), Palette.ACCENT)
+			if big:
+				PixelCanvas.rect(img, Rect2i(x + 1, y + 7, 3, 1), Palette.WOOD[2])  # uprząż
+				PixelCanvas.rect(img, Rect2i(x + 1, y + 7, 1, 3), Palette.WOOD[2])
+		BuildingTypes.Kind.FISHER:
+			# sieć rozpięta na żerdziach, obok ryby (na wyższych poziomach łódka)
+			for yy in range(y, y + 5):
+				for xx in range(x, x + 5):
+					if (xx + yy) % 2 == 0:
+						PixelCanvas.px(img, xx, yy, Palette.THATCH[1])
+			PixelCanvas.rect(img, Rect2i(x + 1, y + 6, 2, 1), Palette.WATER[2])
+			if big:
+				PixelCanvas.rect(img, Rect2i(x + 1, y + 8, 3, 3), Palette.WOOD[1])  # łódka
+				PixelCanvas.px(img, x + 2, y + 9, Palette.WOOD[0])
+		BuildingTypes.Kind.STABLE:
+			# koń z góry przy żłobie z sianem (na wyższych poziomach drugi, gniady)
+			_draw_horse(img, Vector2i(x + 1, y + 1), Palette.WOOD[2])
+			PixelCanvas.rect(img, Rect2i(x, y, 3, 1), Palette.THATCH[1])  # żłób z sianem
+			if big:
+				_draw_horse(img, Vector2i(x + 3, y + 2), Palette.WOOD[1])
+		BuildingTypes.Kind.BARRACKS:
+			# manekin z góry: słup z poprzeczką i słomiana głowa (na wyższych poziomach z tarczą)
+			PixelCanvas.rect(img, Rect2i(x, y + 2, 5, 1), Palette.WOOD[1])
+			PixelCanvas.rect(img, Rect2i(x + 1, y + 1, 3, 3), Palette.THATCH[2])
+			PixelCanvas.px(img, x + 2, y + 2, Palette.THATCH[1])
+			if big:
+				_ring(img, Rect2i(x + 1, y + 5, 3, 3), Palette.EARTH[3], Palette.EARTH[3])
+				PixelCanvas.px(img, x + 2, y + 6, Palette.ACCENT)
+		BuildingTypes.Kind.WARBAND_HOUSE:
+			# tarcze drużyny w rzędzie (na wyższych poziomach dwa rzędy)
+			var rows := 2 if big else 1
+			for row in rows:
+				for i in 2:
+					var sx := x + i * 3 - (1 if i == 1 else 0)
+					var sy := y + row * 4
+					PixelCanvas.rect(img, Rect2i(sx, sy, 3, 3), Palette.EARTH[3])
+					PixelCanvas.px(img, sx + 1, sy + 1, Palette.ACCENT)
+		BuildingTypes.Kind.ARCHERY_RANGE:
+			# słomiana tarcza strzelnicza z czerwonym środkiem (na wyższych poziomach ze strzałą)
+			_ring(img, Rect2i(x, y, 5, 5), Palette.THATCH[2], Palette.THATCH[1])
+			PixelCanvas.px(img, x + 2, y + 2, Palette.ACCENT)
+			if big:
+				PixelCanvas.rect(img, Rect2i(x + 2, y + 5, 1, 4), Palette.WOOD[3])  # strzała
+				PixelCanvas.px(img, x + 2, y + 9, Palette.THATCH[0])  # lotka
+		BuildingTypes.Kind.SCOUT_HOUSE:
+			# czatownia na żerdzi: pomost z rogiem sygnałowym (na wyższych poziomach z proporcem)
+			PixelCanvas.rect(img, Rect2i(x, y, 5, 5), Palette.WOOD[2])
+			PixelCanvas.rect(img, Rect2i(x + 1, y + 1, 3, 3), Palette.WOOD[3])
+			PixelCanvas.px(img, x + 2, y + 2, Palette.WOOD[0])  # żerdź
+			PixelCanvas.rect(img, Rect2i(x + 1, y + 6, 3, 1), Palette.THATCH[2])  # róg
+			if big:
+				PixelCanvas.pennant(img, Vector2i(x, y + 8), Palette.ACCENT)
+		BuildingTypes.Kind.TAR_KILN:
+			# mielerz z dymnikiem i beczka smoły
+			_ring(img, Rect2i(x, y, 5, 5), Palette.EARTH[1], Palette.EARTH[2])
+			PixelCanvas.px(img, x + 2, y + 2, Palette.SHADOW)
+			if big:
+				_ring(img, Rect2i(x + 1, y + 6, 3, 3), Palette.WOOD[0], Palette.SHADOW)  # beczka smoły
+
+
+## Okrąg z góry w prostokącie (koło przybliżone ściętymi rogami): obwódka `rim`, środek `fill`.
+static func _ring(img: Image, r: Rect2i, rim: Color, fill: Color) -> void:
+	for y in range(r.position.y, r.end.y):
+		for x in range(r.position.x, r.end.x):
+			var ex := x == r.position.x or x == r.end.x - 1
+			var ey := y == r.position.y or y == r.end.y - 1
+			if ex and ey:
+				continue
+			PixelCanvas.px(img, x, y, rim if ex or ey else fill)
+
+
+## Koń z góry, 2×5 px: tułów, głowa z grzywą na północ i ogon.
+static func _draw_horse(img: Image, at: Vector2i, coat: Color) -> void:
+	PixelCanvas.rect(img, Rect2i(at.x, at.y + 1, 2, 4), coat)
+	PixelCanvas.px(img, at.x, at.y, coat)
+	PixelCanvas.px(img, at.x + 1, at.y + 1, Palette.SHADOW)  # grzywa
+	PixelCanvas.px(img, at.x, at.y + 5, Palette.SHADOW)  # ogon
+
+
+## Wieża grodowa (2×2, donżon epoki I, #120) z góry: najwyższa budowla zamku i cel każdego ataku.
+## Poziomy: 1 wieża pod dachem namiotowym na ziemnej podmurówce, 2 większa, 3 z gankiem (hurdycją)
+## z desek wokół dachu, 4 z wyższym dachem i belkami ganku, 5 z flagą i proporcem.
+static func _draw_keep(img: Image, level: int) -> void:
+	var w := img.get_width()
+	for y in range(1, w - 1):
+		for x in range(1, w - 1):
+			PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
+	if level >= 3:
+		PixelCanvas.deck(img, Rect2i(2, 2, w - 4, w - 4), false, Palette.WOOD, 23)
+		if level >= 4:
+			for c: Vector2i in [Vector2i(2, 2), Vector2i(w - 3, 2), Vector2i(2, w - 3), Vector2i(w - 3, w - 3)]:
+				PixelCanvas.px(img, c.x, c.y, Palette.WOOD[0])
+	var roof: Array[int] = [8, 10, 10, 12, 12]
+	var rs := roof[level - 1]
+	var o := (w - rs) / 2
+	PixelCanvas.roof_hip(img, Rect2i(o, o, rs, rs), Palette.THATCH, Palette.WOOD[0] if level >= 2 else Palette.WOOD[1])
+	if level == 5:
+		PixelCanvas.pennant(img, Vector2i(w / 2, w / 2 - 2), Palette.ACCENT)
+		PixelCanvas.rect(img, Rect2i(2, w / 2, 1, 3), Palette.ACCENT)
+
+
+## Strażnica (2×2, #177) z góry: pomost z desek z balustradą, czatownia pod daszkiem namiotowym
+## z proporcem, kosz z ogniem sygnałowym w rogu i drabina od południa. Ma jeden poziom
+## (BuildingTypes.has_levels), więc rysunek od niego nie zależy.
+static func _draw_watchtower(img: Image) -> void:
+	var w := img.get_width()
+	PixelCanvas.deck(img, Rect2i(1, 1, w - 2, w - 3), true, Palette.WOOD, 29)
+	PixelCanvas.frame(img, Rect2i(1, 1, w - 2, w - 3), Palette.WOOD[1])
+	PixelCanvas.roof_hip(img, Rect2i(4, 3, 8, 8), Palette.THATCH, Palette.WOOD[1])
+	PixelCanvas.pennant(img, Vector2i(8, 5), Palette.ACCENT)
+	# kosz z ogniem sygnałowym
+	PixelCanvas.rect(img, Rect2i(11, 10, 2, 2), Palette.SHADOW)
+	PixelCanvas.px(img, 11, 10, Palette.ACCENT)
+	PixelCanvas.px(img, 12, 11, Palette.THATCH[2])
+	# drabina od południa
+	for y in range(w - 3, w):
+		PixelCanvas.px(img, 7, y, Palette.WOOD[2])
+		PixelCanvas.px(img, 9, y, Palette.WOOD[2])
+		if y % 2 == 0:
+			PixelCanvas.px(img, 8, y, Palette.WOOD[3])
+
+
+## Pole lnu (2×2, #122): zaorana ziemia z rzędami lnu. Poziomy: 1 mała grządka z siewkami,
+## 2 całe pole w zielonych rzędach, 3 len kwitnie na niebiesko, 4 snopki na skraju pola,
+## 5 strach na wróble z czerwoną chustą.
+static func _draw_flax_field(img: Image, level: int) -> void:
+	var field := Rect2i(1, 1, 14, 14) if level >= 2 else Rect2i(3, 4, 8, 7)
+	for y in range(field.position.y, field.end.y):
+		for x in range(field.position.x, field.end.x):
+			PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
+	# rzędy roślin co 3 piksele
+	for y in range(field.position.y + 1, field.end.y, 3):
+		for x in range(field.position.x, field.end.x):
+			if (x + y) % 2 != 0 and level >= 2:
+				continue
+			if level == 1 and x % 2 != 0:
+				continue
+			PixelCanvas.px(img, x, y, Palette.GRASS[3])
+			if level >= 2:
+				PixelCanvas.px(img, x, y + 1, Palette.GRASS[2])
+			if level >= 3 and PixelCanvas.hash2(x, y, 19) % 3 == 0:
+				PixelCanvas.px(img, x, y, Palette.WATER[2])  # niebieski kwiat lnu
+	if level >= 4:
+		for sx: int in [2, 5]:
+			PixelCanvas.rect(img, Rect2i(sx, 2, 2, 2), Palette.THATCH[1])
+			PixelCanvas.px(img, sx, 2, Palette.THATCH[2])
+	if level == 5:
+		# strach na wróble z góry: krzyż z kapeluszem i chustą
+		PixelCanvas.rect(img, Rect2i(10, 5, 5, 1), Palette.WOOD[1])
+		PixelCanvas.rect(img, Rect2i(11, 4, 3, 3), Palette.THATCH[2])
+		PixelCanvas.rect(img, Rect2i(12, 7, 1, 2), Palette.ACCENT)
+
+
+# --- Plac budowy -----------------------------------------------------------------------------
+
+## Plac budowy (poziom 0) z góry: ubita ziemia na kratkach budynku, belki fundamentu po obwodzie,
+## słupy rusztowania w rogach z poprzeczką i stos bali. Umocnienia dostają ziemię na kształcie
+## odcinka i rzadkie paliki, więc plac budowy też łączy się z sąsiadami.
+static func _draw_site(img: Image, kind: int, mask: int) -> void:
+	if BuildingTypes.is_wall(kind):
+		var f := wall_shape(mask, wall_thickness(kind))
+		for y in CELL:
+			for x in CELL:
+				if not _on(f, x, y):
+					continue
+				PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
+				if (x + 2 * y) % 5 == 0:
+					PixelCanvas.px(img, x, y, Palette.WOOD[3])
+		return
+	var sz := img.get_size()
+	var lot := Rect2i(1, 1, sz.x - 2, sz.y - 2)
+	for y in range(lot.position.y, lot.end.y):
+		for x in range(lot.position.x, lot.end.x):
+			var edge := x == lot.position.x or x == lot.end.x - 1 or y == lot.position.y or y == lot.end.y - 1
+			var col := PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1])
+			if edge:
+				col = Palette.WOOD[1] if (x + y) % 3 != 0 else Palette.WOOD[0]
+			PixelCanvas.px(img, x, y, col)
+	# rusztowanie: słupy w rogach placu i poprzeczka wzdłuż północnego boku
+	for c: Vector2i in [lot.position + Vector2i(1, 1), Vector2i(lot.end.x - 2, lot.position.y + 1)]:
+		PixelCanvas.px(img, c.x, c.y, Palette.WOOD[3])
+	for x in range(lot.position.x + 2, lot.end.x - 2):
+		PixelCanvas.px(img, x, lot.position.y + 1, Palette.WOOD[2])
+	if lot.size.x >= 8 and lot.size.y >= 6:
+		PixelCanvas.log_pile(img, Rect2i(lot.position.x + 2, lot.end.y - 4, 4, 2))
 
 
 ## Czy budynek dostaje obrys i światło (#150). Umocnienia, brama i wieża łączą się z sąsiednimi
@@ -163,825 +760,14 @@ static func shadow_image(img: Image, offset: Vector2i) -> Image:
 	return out
 
 
-## Przesunięcie cienia: budynki rzucają dłuższy cień niż niskie odcinki muru.
+## Przesunięcie cienia na południowy wschód: im wyższa budowla, tym dłuższy cień. Niskie odcinki
+## muru i pole lnu rzucają krótki cień, wieże i donżon najdłuższy.
 static func shadow_offset(kind: int) -> Vector2i:
-	return Vector2i(1, 1) if BuildingTypes.is_wall(kind) else Vector2i(3, 1)
-
-
-## Dach jednospadowy przybudówki nad ścianą `wall`, `rows` wierszy w najwyższym miejscu (#149).
-## WEST: najwyżej przy lewej krawędzi (przy murze), opada w prawo, więc z fasadą tworzy trójkąt
-## prostokątny. NORTH: jedna połać opadająca ku patrzącemu, najwyżej przy murze z tyłu. SOUTH: połać
-## opada od muru z przodu w głąb, widać tylko niski okap.
-static func _draw_lean_roof(img: Image, wall: Rect2i, rows: int, lean: int) -> void:
-	match lean:
-		Lean.WEST:
-			var span := maxi(1, wall.size.x)
-			for x in range(0, wall.end.x + 1):
-				var h := maxi(2, rows - maxi(0, x - wall.position.x) * (rows - 2) / span)
-				for y in range(wall.position.y - h, wall.position.y):
-					var row := y - (wall.position.y - h)
-					var col: Color = Palette.THATCH[2] if row < 2 else Palette.THATCH[1]
-					if y == wall.position.y - 1:
-						col = Palette.THATCH[0]
-					elif PixelCanvas.hash2(x, y, 61) % 5 == 0:
-						col = Palette.THATCH[0]
-					PixelCanvas.px(img, x, y, col)
-		Lean.NORTH:
-			for y in range(wall.position.y - rows, wall.position.y):
-				var row := y - (wall.position.y - rows)
-				for x in range(maxi(0, wall.position.x - 1), mini(img.get_width(), wall.end.x + 1)):
-					var col: Color = Palette.THATCH[2] if row < rows / 2 else Palette.THATCH[1]
-					if row == rows - 1:
-						col = Palette.THATCH[0]
-					elif PixelCanvas.hash2(x, y, 61) % 5 == 0:
-						col = Palette.THATCH[0]
-					PixelCanvas.px(img, x, y, col)
-		_:
-			var low := maxi(2, rows / 2)
-			for y in range(wall.position.y - low, wall.position.y):
-				for x in range(maxi(0, wall.position.x - 1), mini(img.get_width(), wall.end.x + 1)):
-					var col: Color = Palette.THATCH[1] if y < wall.position.y - 1 else Palette.THATCH[0]
-					PixelCanvas.px(img, x, y, col)
-
-
-## Daszek wiaty (poziom 1) przy murze: słupy różnej wysokości i deski pochylone od muru (#149).
-static func _draw_lean_shed(img: Image, base: int, posts: Array[int], top: int, lean: int) -> void:
-	if lean == Lean.WEST:
-		var tall: int = posts[0]
-		var short: int = posts[1]
-		PixelCanvas.rect(img, Rect2i(tall, top + 2, 1, base - top - 1), Palette.WOOD[1])
-		PixelCanvas.rect(img, Rect2i(short, top + 5, 1, base - top - 4), Palette.WOOD[1])
-		for x in range(0, short + 3):
-			var y := top + x * 3 / maxi(1, short + 2)
-			PixelCanvas.px(img, x, y, Palette.WOOD[2])
-			PixelCanvas.px(img, x, y + 1, Palette.WOOD[0])
-		return
-	for x: int in posts:
-		PixelCanvas.rect(img, Rect2i(x, top + 2, 1, base - top - 1), Palette.WOOD[1])
-	var depth := 3 if lean == Lean.NORTH else 2
-	PixelCanvas.draw_plank_wall(img, Rect2i(0, top, posts[1] + 2, depth), Palette.WOOD)
-
-
-# --- Autotiling umocnień -------------------------------------------------------------------
-
-## Kształt odcinka na ziemi (8×8, 1 = umocnienie): środek grubości `t` i ramiona z maski.
-static func wall_shape(mask: int, t: int) -> PackedByteArray:
-	var f := PackedByteArray()
-	f.resize(CELL * CELL)
-	var lo := (CELL - t) / 2
-	var hi := lo + t
-	for y in CELL:
-		for x in CELL:
-			var in_x := x >= lo and x < hi
-			var in_y := y >= lo and y < hi
-			var on := in_x and in_y
-			on = on or (in_x and y < lo and mask & BuildingTypes.N != 0)
-			on = on or (in_x and y >= hi and mask & BuildingTypes.S != 0)
-			on = on or (in_y and x >= hi and mask & BuildingTypes.E != 0)
-			on = on or (in_y and x < lo and mask & BuildingTypes.W != 0)
-			f[y * CELL + x] = 1 if on else 0
-	return f
-
-
-static func _on(f: PackedByteArray, x: int, y: int) -> bool:
-	return x >= 0 and y >= 0 and x < CELL and y < CELL and f[y * CELL + x] == 1
-
-
-## Grubość odcinka umocnienia na ziemi w pikselach.
-static func wall_thickness(kind: int) -> int:
-	return 4 if kind == BuildingTypes.Kind.RAMPART else 2
-
-
-## Wysokość ściany w każdym pikselu kształtu: pełna `h`, a przy wyrwie niższa w blokach 2×2
-## wybranych przez hash2. Blok w środku kratki pęka zawsze, więc wyrwa jest widoczna w każdym
-## wariancie autotilingu. Wzór zależy tylko od położenia w kratce, więc odcinki dalej się łączą.
-## Gdy odcinek ciągnie się na południe, wyrwa nie schodzi poniżej wierzchu ostatniego wiersza,
-## bo pod nim zaczyna się już obraz sąsiedniej kratki.
-static func _wall_heights(kind: int, f: PackedByteArray, mask: int, h: int, state: int) -> PackedInt32Array:
-	var hm := PackedInt32Array()
-	hm.resize(CELL * CELL)
-	for y in CELL:
-		for x in CELL:
-			if not _on(f, x, y):
-				continue
-			var drop := 0
-			if state == BuildingTypes.State.BREACHED:
-				var bx := x >> 1
-				var by := y >> 1
-				if (bx == 2 and by == 2) or (bx == 1 and by == 1) or PixelCanvas.hash2(bx, by, 17 + kind) % 3 == 0:
-					drop = mini(h, 1 + PixelCanvas.hash2(x, y, 23 + kind) % 2 + (1 if h >= 4 else 0))
-				if mask & BuildingTypes.S != 0:
-					drop = mini(drop, CELL - 1 - y)
-			hm[y * CELL + x] = h - drop
-	return hm
-
-
-## Wysokość umocnienia tuż na południe od piksela, do której schodzi jego czoło: 0, gdy przed
-## nim jest ziemia, wysokość sąsiada w kształcie, albo pełna `h`, gdy odcinek ciągnie się w kratce
-## poniżej (tamta kratka rysuje się osobno).
-static func _south_height(f: PackedByteArray, hm: PackedInt32Array, mask: int, x: int, y: int, h: int) -> int:
-	if y == CELL - 1:
-		return h if mask & BuildingTypes.S != 0 else 0
-	if _on(f, x, y + 1):
-		return mini(hm[(y + 1) * CELL + x], hm[y * CELL + x])
-	return 0
-
-
-## Czy piksel kształtu ma widoczne czoło (od południa nie ma dalszej części umocnienia).
-static func _has_face(f: PackedByteArray, mask: int, x: int, y: int) -> bool:
-	if y == CELL - 1 and mask & BuildingTypes.S != 0:
-		return false
-	return not _on(f, x, y + 1)
-
-
-## Czy piksel leży na północnym skraju umocnienia (tam stoją blanki).
-static func _is_crest(f: PackedByteArray, mask: int, x: int, y: int) -> bool:
-	if y == 0 and mask & BuildingTypes.N != 0:
-		return false
-	return not _on(f, x, y - 1)
-
-
-## Wał ziemny: nasyp z ditheringiem 2×2. Poziomy: 1 goła ziemia, 2 wyższy i zarośnięty,
-## 3 z suchą fosą, 4 z palikami na koronie, 5 z płotem na koronie.
-static func _draw_rampart(img: Image, level: int, mask: int, state: int) -> void:
-	var kind := BuildingTypes.Kind.RAMPART
-	var h := 2 if level == 1 else 3
-	var ex: int = EXTRA[kind]
-	var t := wall_thickness(kind)
-	var f := wall_shape(mask, t)
-	var hm := _wall_heights(kind, f, mask, h, state)
-	_wall_ground(img, f, mask, ex, level >= 3)
-	for y in CELL:
-		for x in CELL:
-			if not _on(f, x, y):
-				continue
-			var hh := hm[y * CELL + x]
-			var top := y + ex - hh
-			for i in range(1, hh - _south_height(f, hm, mask, x, y, h) + 1):
-				PixelCanvas.px(img, x, top + i, PixelCanvas.dither(x, top + i, Palette.EARTH[1], Palette.EARTH[2]))
-			# korona: ziemia albo darń przemieszana z ziemią; w biegu pionowym ciemniejsze zbocza
-			var grass := level >= 2
-			var a: Color = Palette.GRASS[3] if grass else Palette.EARTH[3]
-			var b: Color = Palette.EARTH[3] if grass else Palette.EARTH[2]
-			var col := PixelCanvas.dither(x, y, a, b)
-			var lo := (CELL - t) / 2
-			if (y < lo or y >= lo + t) and (x == lo or x == lo + t - 1):
-				col = Palette.EARTH[2] if x == lo else Palette.EARTH[1]
-			if hh < h:
-				# dno wyrwy: rozkopana ziemia bez darni
-				col = PixelCanvas.dither(x, y, Palette.EARTH[1], Palette.EARTH[0])
-			PixelCanvas.px(img, x, top, col)
-	# blanki: paliki (poziom 4) albo płot (poziom 5) na północnym skraju korony
-	if level < 4:
-		return
-	for y in CELL:
-		for x in CELL:
-			if not (_on(f, x, y) and _is_crest(f, mask, x, y)) or hm[y * CELL + x] < h:
-				continue
-			var top := y + ex - h
-			if level == 4:
-				if x % 2 == 0:
-					PixelCanvas.px(img, x, top - 1, Palette.WOOD[2])
-			else:
-				PixelCanvas.px(img, x, top - 1, Palette.WOOD[2] if x % 2 == 0 else Palette.WOOD[1])
-				if x % 2 == 0:
-					PixelCanvas.px(img, x, top - 2, Palette.WOOD[3])
-
-
-## Palisada: pale 2 px grubości, ściana wysoka na 4 px. Poziomy: 1 płaskie pale,
-## 2 zaostrzone (blanki), 3 z belką spinającą, 4 na ziemnym podsypaniu, 5 z żelazną obręczą
-## i wyższymi ostrzami.
-static func _draw_palisade(img: Image, level: int, mask: int, state: int) -> void:
-	var kind := BuildingTypes.Kind.PALISADE
-	var h := 4
-	var ex: int = EXTRA[kind]
-	var t := wall_thickness(kind)
-	var f := wall_shape(mask, t)
-	var hm := _wall_heights(kind, f, mask, h, state)
-	var lo := (CELL - t) / 2
-	var hi := lo + t
-	_wall_ground(img, f, mask, ex, false)
-	if level >= 4:
-		_wall_mound(img, f, mask, ex)
-	for y in CELL:
-		for x in CELL:
-			if not _on(f, x, y):
-				continue
-			var hh := hm[y * CELL + x]
-			var top := y + ex - hh
-			# czoło od wierzchu w dół; przy wyrwie także bok wyższego pala nad niższym sąsiadem
-			for i in range(1, hh - _south_height(f, hm, mask, x, y, h) + 1):
-				var col: Color = Palette.WOOD[2] if x % 2 == 0 else Palette.WOOD[1]
-				if i == hh:
-					col = Palette.WOOD[0]
-				elif level >= 3 and i == 2 and hh == h:
-					col = Palette.SHADOW if level == 5 else Palette.WOOD[0]
-				PixelCanvas.px(img, x, top + i, col)
-			# wierzch pali: w biegu pionowym pale idą wzdłuż y, w poziomym wzdłuż x
-			var vertical := y < lo or y >= hi
-			var stake := y if vertical else x
-			var top_col: Color = Palette.WOOD[3] if stake % 2 == 0 else Palette.WOOD[2]
-			if vertical and x == hi - 1:
-				top_col = Palette.WOOD[1]
-			if hh < h:
-				# złamany pal: ciemny, postrzępiony wierzch
-				top_col = Palette.WOOD[0] if (x + y) % 2 == 0 else Palette.SHADOW
-			PixelCanvas.px(img, x, top, top_col)
-	if level < 2:
-		return
-	for y in CELL:
-		for x in CELL:
-			if _on(f, x, y) and _is_crest(f, mask, x, y) and x % 2 == 0 and hm[y * CELL + x] == h:
-				var top := y + ex - h
-				PixelCanvas.px(img, x, top - 1, Palette.WOOD[3])
-				if level == 5:
-					PixelCanvas.px(img, x, top - 2, Palette.WOOD[3])
-
-
-## Cień (albo sucha fosa) na ziemi tuż przed czołem umocnienia.
-static func _wall_ground(img: Image, f: PackedByteArray, mask: int, ex: int, ditch: bool) -> void:
-	for y in CELL:
-		for x in CELL:
-			if not (_on(f, x, y) and _has_face(f, mask, x, y)):
-				continue
-			if ditch:
-				for d in range(1, 3):
-					var row := y + d
-					if row < CELL and not _on(f, x, row):
-						PixelCanvas.px(img, x, row + ex, PixelCanvas.dither(x, row, Palette.EARTH[0], Palette.SHADOW))
-			elif y + 1 < CELL:
-				PixelCanvas.px(img, x, y + 1 + ex, Color(Palette.SHADOW, 0.5))
-
-
-## Ziemne podsypanie u stóp palisady (2 wiersze ditheringu 2×2 przed czołem).
-static func _wall_mound(img: Image, f: PackedByteArray, mask: int, ex: int) -> void:
-	for y in CELL:
-		for x in CELL:
-			if not (_on(f, x, y) and _has_face(f, mask, x, y)):
-				continue
-			for d in range(0, 2):
-				var row := y + d
-				if row < CELL:
-					PixelCanvas.px(img, x, row + ex, PixelCanvas.dither(x, row, Palette.EARTH[1], Palette.EARTH[2]))
-
-
-# --- Budynki wielokratkowe -----------------------------------------------------------------
-
-## Brama drewniana (3×1) w linii palisady. Poziomy: 1 dwa skrzydła między słupami,
-## 2 z nadprożem, 3 z daszkami na słupach, 4 z izbą bramną i dachem, 5 ze sztandarami i okuciami.
-static func _draw_gate(img: Image, level: int) -> void:
-	var w := img.get_width()
-	var base := 4 + EXTRA[BuildingTypes.Kind.GATE]  # dolny wiersz czoła (ziemia, wiersz 4)
-	var post_w := 3 if level >= 3 else 2
-	var post_h: Array[int] = [7, 9, 11, 13, 13]
-	var door_h := 6 if level == 1 else 7
-	PixelCanvas.rect(img, Rect2i(0, base + 1, w, 1), Color(Palette.SHADOW, 0.5))
-	# skrzydła bramy
-	var door_x := post_w
-	var half := (w - 2 * post_w) / 2
-	PixelCanvas.draw_door(img, Rect2i(door_x, base - door_h + 1, half, door_h))
-	PixelCanvas.draw_door(img, Rect2i(door_x + half, base - door_h + 1, half, door_h))
-	if level == 5:
-		for y: int in [base - door_h + 2, base - 1]:
-			for x in range(door_x + 1, w - post_w - 1, 3):
-				PixelCanvas.px(img, x, y, Palette.SHADOW)
-	# izba bramna nad nadprożem
-	if level >= 4:
-		PixelCanvas.draw_log_wall(img, Rect2i(1, 4, w - 2, base - door_h - 4), Palette.WOOD, 5)
-		PixelCanvas.draw_window(img, Vector2i(w / 2 - 1, 6))
-	# słupy
-	for x0: int in [0, w - post_w]:
-		var top: int = base - post_h[level - 1] + 1
-		PixelCanvas.rect(img, Rect2i(x0, top, post_w, post_h[level - 1]), Palette.WOOD[1])
-		PixelCanvas.rect(img, Rect2i(x0, top, 1, post_h[level - 1]), Palette.WOOD[2])
-		PixelCanvas.rect(img, Rect2i(x0, top, post_w, 1), Palette.WOOD[3])
-		if level == 3:
-			# daszki 4 px nad słupami 3 px: nawis do środka bramy, żeby nie wyjść poza obraz
-			var roof_cx := x0 + 2 if x0 == 0 else x0 + 1
-			PixelCanvas.draw_roof(img, roof_cx, top - 2, 2, 2, Palette.THATCH)
-		if level == 5:
-			PixelCanvas.rect(img, Rect2i(x0 + (1 if x0 == 0 else 0), top + 3, 2, 4), Palette.ACCENT)
-	# nadproże
-	if level >= 2:
-		var lintel := base - door_h - 1
-		PixelCanvas.rect(img, Rect2i(0, lintel, w, 2), Palette.WOOD[0])
-		PixelCanvas.rect(img, Rect2i(0, lintel, w, 1), Palette.WOOD[2])
-	if level >= 4:
-		PixelCanvas.draw_roof(img, w / 2, 0, 10, 4, Palette.THATCH)
-
-
-## Brama w pionowej linii palisady (1×3), widziana z boku: słup na każdym końcu, między nimi
-## zamknięte skrzydła widoczne od góry. Słupy stoją na osi palisady (kolumny 2..5), więc
-## pionowe odcinki dochodzą do nich bez szpary. Poziomy jak w bramie poziomej.
-static func _draw_gate_vertical(img: Image, level: int) -> void:
-	var ex: int = EXTRA[BuildingTypes.Kind.GATE]
-	var length := img.get_height() - ex  # długość bramy w pikselach (wzdłuż osi y)
-	var post_h: Array[int] = [6, 8, 9, 10, 10]
-	var ph := post_h[level - 1]
-	var door_h := 5 if level == 1 else 6
-	PixelCanvas.rect(img, Rect2i(2, length + ex - 0, 4, 1), Color(Palette.SHADOW, 0.5))
-	# skrzydła od góry: ciemne deski z jasną krawędzią, szpara między skrzydłami, okucia na poziomie 5
-	for g in range(3, length - 3):
-		var top := g + ex - door_h
-		PixelCanvas.px(img, 3, top, Palette.WOOD[2] if g % 2 == 0 else Palette.WOOD[1])
-		PixelCanvas.px(img, 4, top, Palette.WOOD[0] if g != length / 2 - 1 else Palette.SHADOW)
-		if level == 5 and g % 3 == 0:
-			PixelCanvas.px(img, 3, top, Palette.SHADOW)
-	for g0: int in [0, length - 3]:
-		var top := g0 + ex - ph
-		# wierzch słupa, czoło od dolnego wiersza i jasna lewa krawędź
-		PixelCanvas.rect(img, Rect2i(2, top, 4, 3), Palette.WOOD[3])
-		PixelCanvas.rect(img, Rect2i(2, top + 3, 4, ph), Palette.WOOD[1])
-		PixelCanvas.rect(img, Rect2i(2, top + 3, 1, ph), Palette.WOOD[2])
-		PixelCanvas.rect(img, Rect2i(2, top + 2 + ph, 4, 1), Palette.WOOD[0])
-		if level == 3:
-			PixelCanvas.draw_roof(img, 4, top - 2, 2, 3, Palette.THATCH)
-		if level == 5:
-			PixelCanvas.rect(img, Rect2i(3, top + 4, 2, 3), Palette.ACCENT)
-		if g0 == 0 and level >= 2:
-			# nadproże: belka wzdłuż bramy na wysokości szczytu słupów
-			for g in range(3, length - 3):
-				PixelCanvas.px(img, 3, g + ex - ph, Palette.WOOD[2])
-				PixelCanvas.px(img, 4, g + ex - ph, Palette.WOOD[0])
-	# izba bramna: strzecha nad całą bramą
-	if level >= 4:
-		# szczyt strzechy w wierszu 0 obrazu (ph = 10 na poziomach 4–5), okap pod spodem
-		var roof_top := ex - ph - 2
-		for g in range(0, length):
-			var y := g + roof_top
-			PixelCanvas.px(img, 1, y, Palette.THATCH[0])
-			for x in range(2, 6):
-				PixelCanvas.px(img, x, y, Palette.THATCH[2] if (x + g) % 3 != 0 else Palette.THATCH[1])
-			PixelCanvas.px(img, 6, y, Palette.THATCH[0])
-		PixelCanvas.rect(img, Rect2i(1, roof_top + length, 6, 1), Palette.THATCH[0])
-
-
-## Wieża drewniana (2×2). Poziomy: 1 pomost na nogach, 2 z balustradą, 3 z obudowanym dołem,
-## 4 z izbą i dachem, 5 wyższa, z flagą.
-static func _draw_tower(img: Image, level: int) -> void:
-	var w := img.get_width()
-	var base := 13 + EXTRA[BuildingTypes.Kind.TOWER]
-	var floor_y := base - 16
-	PixelCanvas.rect(img, Rect2i(2, base + 1, w - 4, 1), Color(Palette.SHADOW, 0.5))
-	if level < 3:
-		# tylne nogi, przednie nogi i zastrzał
-		for x: int in [4, 11]:
-			PixelCanvas.rect(img, Rect2i(x, floor_y + 3, 1, base - floor_y - 5), Palette.WOOD[0])
-		for x: int in [2, 12]:
-			PixelCanvas.rect(img, Rect2i(x, floor_y + 3, 2, base - floor_y - 2), Palette.WOOD[1])
-			PixelCanvas.rect(img, Rect2i(x, floor_y + 3, 1, base - floor_y - 2), Palette.WOOD[2])
-		for i in range(0, 8):
-			PixelCanvas.px(img, 4 + i, floor_y + 4 + i, Palette.WOOD[0])
-			PixelCanvas.px(img, 11 - i, floor_y + 4 + i, Palette.WOOD[0])
-	else:
-		PixelCanvas.draw_log_wall(img, Rect2i(2, floor_y + 3, w - 4, base - floor_y - 2), Palette.WOOD, 7)
-		PixelCanvas.draw_beams(img, Rect2i(2, floor_y + 3, w - 4, base - floor_y - 2), Palette.WOOD[0])
-		PixelCanvas.draw_door(img, Rect2i(6, base - 5, 4, 6))
-	# pomost
-	PixelCanvas.rect(img, Rect2i(1, floor_y, w - 2, 1), Palette.WOOD[3])
-	PixelCanvas.rect(img, Rect2i(1, floor_y + 1, w - 2, 1), Palette.WOOD[2])
-	PixelCanvas.rect(img, Rect2i(1, floor_y + 2, w - 2, 1), Palette.WOOD[0])
-	if level == 2 or level == 3:
-		PixelCanvas.rect(img, Rect2i(1, floor_y - 4, w - 2, 1), Palette.WOOD[2])
-		for x: int in [1, 5, 10, 14]:
-			PixelCanvas.rect(img, Rect2i(x, floor_y - 3, 1, 3), Palette.WOOD[1])
-	if level >= 4:
-		var room_top := floor_y - 6
-		PixelCanvas.draw_log_wall(img, Rect2i(2, room_top, w - 4, 6), Palette.WOOD, 9)
-		PixelCanvas.draw_beams(img, Rect2i(2, room_top, w - 4, 6), Palette.WOOD[0])
-		PixelCanvas.draw_window(img, Vector2i(5, room_top + 2))
-		PixelCanvas.draw_window(img, Vector2i(9, room_top + 2))
-		var roof_rows := 6 if level == 4 else 8
-		PixelCanvas.draw_roof(img, w / 2, room_top - roof_rows, 2, roof_rows, Palette.THATCH)
-		if level == 5:
-			PixelCanvas.draw_flag(img, Vector2i(w / 2 - 1, room_top - roof_rows - 1), 3, Palette.ACCENT)
-
-
-## Chata drwala (2×2). Poziomy: 1 wiata ze stosem drewna, 2 chata ze strzechą, 3 ze stosem
-## bali z boku, 4 z oknem i szkieletem belek, 5 z drugim stosem i flagą.
-static func _draw_hut(img: Image, level: int, lean: int = Lean.NONE) -> void:
-	var base := 13 + EXTRA[BuildingTypes.Kind.LUMBER_HUT]
-	PixelCanvas.rect(img, Rect2i(1, base + 1, 14, 1), Color(Palette.SHADOW, 0.5))
-	if level == 1 and lean != Lean.NONE:
-		_draw_lean_shed(img, base, [2, 11] as Array[int], base - 11, lean)
-		_log_pile(img, Rect2i(4, base - 3, 6, 4))
-		PixelCanvas.rect(img, Rect2i(13, base - 1, 2, 2), Palette.WOOD[2])
-		return
-	if level == 1:
-		for x: int in [2, 11]:
-			PixelCanvas.rect(img, Rect2i(x, base - 9, 1, 10), Palette.WOOD[1])
-		PixelCanvas.draw_plank_wall(img, Rect2i(1, base - 11, 12, 2), Palette.WOOD)
-		_log_pile(img, Rect2i(4, base - 3, 6, 4))
-		PixelCanvas.rect(img, Rect2i(13, base - 1, 2, 2), Palette.WOOD[2])
-		return
-	var wall := Rect2i(2, base - 7, 10, 8) if level < 4 else Rect2i(1, base - 7, 12, 8)
-	PixelCanvas.draw_log_wall(img, wall, Palette.WOOD, 3)
-	if level >= 4:
-		PixelCanvas.draw_beams(img, wall, Palette.WOOD[0])
-		PixelCanvas.draw_window(img, Vector2i(wall.end.x - 4, base - 5))
-	PixelCanvas.draw_door(img, Rect2i(wall.position.x + 2, base - 4, 3, 5))
-	var cx := wall.position.x + wall.size.x / 2
-	if lean != Lean.NONE:
-		_draw_lean_roof(img, wall, 7, lean)
-	else:
-		PixelCanvas.draw_roof(img, cx, wall.position.y - 7, 2, 7, Palette.THATCH)
-	if level >= 3:
-		_log_pile(img, Rect2i(12, base - 3, 4, 4))
-	if level == 5:
-		_log_pile(img, Rect2i(12, base - 5, 4, 2))
-		PixelCanvas.draw_flag(img, Vector2i(cx - 1, wall.position.y - 8), 5, Palette.ACCENT)
-
-
-## Dwór (2×2), siedziba władcy i poziom zamku. Poziomy: 1 izba z bali pod strzechą,
-## 2 ze szkieletem belek i oknem, 3 wyższy z drugim oknem, 4 z daszkiem nad wejściem,
-## 5 z flagą na szczycie i tarczami na ścianie.
-static func _draw_manor(img: Image, level: int) -> void:
-	var base := 13 + EXTRA[BuildingTypes.Kind.MANOR]
-	PixelCanvas.rect(img, Rect2i(0, base + 1, 16, 1), Color(Palette.SHADOW, 0.5))
-	var wall_h := 8 if level < 3 else 10
-	var wall := Rect2i(1, base - wall_h + 1, 14, wall_h)
-	PixelCanvas.draw_log_wall(img, wall, Palette.WOOD, 13)
-	if level >= 2:
-		PixelCanvas.draw_beams(img, wall, Palette.WOOD[0])
-		PixelCanvas.draw_window(img, Vector2i(3, base - 6))
-	if level >= 3:
-		PixelCanvas.draw_window(img, Vector2i(11, base - 6))
-	PixelCanvas.draw_door(img, Rect2i(6, base - 4, 4, 5))
-	PixelCanvas.draw_roof(img, 8, wall.position.y - 7, 2, 7, Palette.THATCH)
-	if level >= 4:
-		PixelCanvas.draw_roof(img, 8, base - 7, 4, 2, Palette.THATCH)
-	if level == 5:
-		PixelCanvas.draw_flag(img, Vector2i(7, wall.position.y - 8), 3, Palette.ACCENT)
-		for x: int in [2, 12]:
-			PixelCanvas.rect(img, Rect2i(x, base - 3, 2, 3), Palette.ACCENT)
-			PixelCanvas.px(img, x + 1, base - 1, Palette.WOOD[0])
-
-
-# --- Wytwórcy (#90) ---------------------------------------------------------------------------
-
-## Warsztat wytwórcy (2×2). Wszystkie mają ten sam szkielet, a rozpoznaje się je po rekwizycie
-## z prawej (_draw_prop) i po ścianie (bale albo deski). Poziomy: 1 wiata z rekwizytem pod daszkiem,
-## 2 izba pod strzechą z rekwizytem obok, 3 z oknem i wyższym dachem, 4 szersza ze szkieletem belek
-## i większym rekwizytem, 5 z flagą i proporcem na ścianie.
-static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.NONE) -> void:
-	var base := 13 + EXTRA[kind]
-	PixelCanvas.rect(img, Rect2i(1, base + 1, 14, 1), Color(Palette.SHADOW, 0.5))
-	if level == 1 and lean != Lean.NONE:
-		_draw_lean_shed(img, base, [1, 10] as Array[int], base - 10, lean)
-		_draw_prop(img, kind, Vector2i(3, base), false)
-		return
-	if level == 1:
-		for x: int in [1, 10]:
-			PixelCanvas.rect(img, Rect2i(x, base - 8, 1, 9), Palette.WOOD[1])
-		PixelCanvas.draw_plank_wall(img, Rect2i(0, base - 10, 12, 2), Palette.WOOD)
-		_draw_prop(img, kind, Vector2i(3, base), false)
-		return
-	var wide := level >= 4
-	# szersza izba rośnie w lewo, żeby rekwizyt (kolumny 11–15) stał obok, a nie na ścianie
-	var wall := Rect2i(0, base - 8, 11, 9) if wide else Rect2i(1, base - 7, 10, 8)
-	if _plank_walls(kind):
-		PixelCanvas.draw_plank_wall(img, wall, Palette.WOOD)
-		PixelCanvas.rect(img, Rect2i(wall.position, Vector2i(wall.size.x, 1)), Palette.WOOD[0])
-	else:
-		PixelCanvas.draw_log_wall(img, wall, Palette.WOOD, 17 + kind)
-	if wide:
-		PixelCanvas.draw_beams(img, wall, Palette.WOOD[0])
-	if level >= 3:
-		PixelCanvas.draw_window(img, Vector2i(wall.end.x - 3, base - 5))
-	PixelCanvas.draw_door(img, Rect2i(wall.position.x + 1, base - 4, 3, 5))
-	var cx := wall.position.x + wall.size.x / 2
-	var rows := 6 if level == 2 else (7 if level < 5 else 8)
-	if lean != Lean.NONE:
-		_draw_lean_roof(img, wall, rows, lean)
-	else:
-		PixelCanvas.draw_roof(img, cx, wall.position.y - rows, 2, rows, Palette.THATCH)
-	_draw_prop(img, kind, Vector2i(11, base), wide)
-	if level == 5:
-		PixelCanvas.draw_flag(img, Vector2i(cx - 1, wall.position.y - rows - 1), 3, Palette.ACCENT)
-		PixelCanvas.rect(img, Rect2i(wall.position.x + 5, base - 6, 2, 3), Palette.ACCENT)
-		PixelCanvas.px(img, wall.position.x + 5, base - 4, Palette.WOOD[0])  # wcięcie proporca
-
-
-## Garbarnia, Cięciwiarz, Strzałmistrz, Rymarz i Strzelnica mają ściany z desek, reszta z bali.
-static func _plank_walls(kind: int) -> bool:
-	return kind in [BuildingTypes.Kind.TANNERY, BuildingTypes.Kind.BOWSTRING, BuildingTypes.Kind.FLETCHER,
-			BuildingTypes.Kind.SADDLER, BuildingTypes.Kind.ARCHERY_RANGE]
-
-
-## Rekwizyt wytwórcy 5 px szerokości, stojący na wierszu `at.y` od kolumny `at.x`.
-## `big` to wersja dla poziomów 4–5 (więcej towaru).
-static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
-	var x := at.x
-	var y := at.y
-	match kind:
-		BuildingTypes.Kind.HUNTER:
-			# rama z rozpiętą skórą
-			for px: int in [x, x + 4]:
-				PixelCanvas.rect(img, Rect2i(px, y - 6, 1, 7), Palette.WOOD[0])
-			PixelCanvas.rect(img, Rect2i(x, y - 6, 5, 1), Palette.WOOD[1])
-			for yy in range(y - 5, y - 1):
-				for xx in range(x + 1, x + 4):
-					PixelCanvas.px(img, xx, yy, PixelCanvas.dither(xx, yy, Palette.EARTH[3], Palette.WOOD[2]))
-			if big:
-				PixelCanvas.rect(img, Rect2i(x + 1, y - 1, 3, 1), Palette.THATCH[2])  # pióra
-		BuildingTypes.Kind.TANNERY:
-			# kadź z garbnikiem
-			PixelCanvas.rect(img, Rect2i(x, y - 3, 5, 4), Palette.WOOD[0])
-			PixelCanvas.rect(img, Rect2i(x + 1, y - 3, 3, 1), Palette.EARTH[1])
-			PixelCanvas.rect(img, Rect2i(x, y - 1, 5, 1), Palette.WOOD[2])
-			if big:
-				PixelCanvas.rect(img, Rect2i(x + 1, y - 6, 3, 3), Palette.EARTH[3])  # skóra na kadzi
-		BuildingTypes.Kind.LEATHERWORKER:
-			# okrągła tarcza obita skórą z czerwonym umbem
-			PixelCanvas.rect(img, Rect2i(x + 1, y - 6, 3, 5), Palette.EARTH[3])
-			PixelCanvas.rect(img, Rect2i(x, y - 5, 5, 3), Palette.EARTH[3])
-			PixelCanvas.px(img, x + 2, y - 4, Palette.ACCENT)
-			PixelCanvas.rect(img, Rect2i(x + 2, y - 1, 1, 2), Palette.WOOD[0])
-			if big:
-				PixelCanvas.rect(img, Rect2i(x - 1, y - 2, 2, 3), Palette.WOOD[2])  # zbroja na kołku
-		BuildingTypes.Kind.POLEARM:
-			# drzewca oparte o ścianę, z kamiennymi grotami
-			var poles := 5 if big else 3
-			for i in poles:
-				var px := x + i
-				PixelCanvas.rect(img, Rect2i(px, y - 7 + (i % 2), 1, 8 - (i % 2)), Palette.WOOD[3])
-				PixelCanvas.px(img, px, y - 8 + (i % 2), Palette.EARTH[3])
-		BuildingTypes.Kind.BOWSTRING:
-			# sznury cięciw schnące między dwoma kołkami
-			for px: int in [x, x + 4]:
-				PixelCanvas.rect(img, Rect2i(px, y - 6, 1, 7), Palette.WOOD[0])
-			var lines := 4 if big else 2
-			for i in lines:
-				PixelCanvas.rect(img, Rect2i(x + 1, y - 5 + 2 * i, 3, 1), Palette.THATCH[2])
-		BuildingTypes.Kind.BOWYER:
-			# łuk z cięciwą (drugi łuk na wyższych poziomach)
-			var bows := 2 if big else 1
-			for b in bows:
-				var bx := x + b  # drugi łuk o 1 px w prawo: cięciwa w kolumnie 15, w obrazie
-				PixelCanvas.rect(img, Rect2i(bx + 1, y - 6, 1, 6), Palette.WOOD[2])
-				PixelCanvas.px(img, bx + 2, y - 7, Palette.WOOD[2])
-				PixelCanvas.px(img, bx + 2, y, Palette.WOOD[2])
-				PixelCanvas.rect(img, Rect2i(bx + 3, y - 7, 1, 8), Palette.THATCH[2])
-		BuildingTypes.Kind.FLETCHER:
-			# beczka strzał z lotkami
-			PixelCanvas.rect(img, Rect2i(x, y - 3, 4, 4), Palette.WOOD[1])
-			PixelCanvas.rect(img, Rect2i(x, y - 2, 4, 1), Palette.WOOD[0])
-			var arrows := 4 if big else 2
-			for i in arrows:
-				PixelCanvas.rect(img, Rect2i(x + i, y - 6, 1, 3), Palette.WOOD[3])
-				PixelCanvas.px(img, x + i, y - 6, Palette.THATCH[2] if i % 2 == 0 else Palette.ACCENT)
-		BuildingTypes.Kind.SADDLER:
-			# siodło z czaprakiem na koźle
-			for px: int in [x, x + 4]:
-				PixelCanvas.rect(img, Rect2i(px, y - 2, 1, 3), Palette.WOOD[0])
-			PixelCanvas.rect(img, Rect2i(x, y - 3, 5, 1), Palette.WOOD[1])
-			PixelCanvas.rect(img, Rect2i(x, y - 5, 5, 2), Palette.EARTH[2])
-			PixelCanvas.rect(img, Rect2i(x + 1, y - 4, 3, 1), Palette.ACCENT)
-			if big:
-				PixelCanvas.rect(img, Rect2i(x + 1, y - 8, 3, 1), Palette.WOOD[2])  # uprząż na kołku
-				PixelCanvas.rect(img, Rect2i(x + 1, y - 7, 1, 2), Palette.WOOD[2])
-				PixelCanvas.rect(img, Rect2i(x + 3, y - 7, 1, 2), Palette.WOOD[2])
-		BuildingTypes.Kind.FISHER:
-			# sieć rozpięta na dwóch żerdziach, pod nią ryby (na wyższych poziomach łódka)
-			for px: int in [x, x + 4]:
-				PixelCanvas.rect(img, Rect2i(px, y - 7, 1, 8), Palette.WOOD[0])
-			for yy in range(y - 6, y - 2):
-				for xx in range(x + 1, x + 4):
-					if (xx + yy) % 2 == 0:
-						PixelCanvas.px(img, xx, yy, Palette.THATCH[1])
-			PixelCanvas.rect(img, Rect2i(x + 1, y - 1, 2, 1), Palette.WATER[2])
-			if big:
-				PixelCanvas.rect(img, Rect2i(x - 1, y, 6, 1), Palette.WOOD[1])  # łódka
-				PixelCanvas.rect(img, Rect2i(x, y - 1, 1, 1), Palette.WOOD[1])
-				PixelCanvas.rect(img, Rect2i(x + 3, y - 1, 1, 1), Palette.WATER[2])
-		BuildingTypes.Kind.STABLE:
-			# koń przy żłobie z sianem (na wyższych poziomach drugi koń, gniady)
-			_draw_horse(img, Vector2i(x, y), Palette.WOOD[2])
-			PixelCanvas.rect(img, Rect2i(x - 1, y - 1, 1, 2), Palette.THATCH[1])  # siano
-			if big:
-				_draw_horse(img, Vector2i(x, y - 4), Palette.WOOD[1])
-		BuildingTypes.Kind.BARRACKS:
-			# manekin do ćwiczeń: słup z poprzeczką, słomiany tułów i głowa (na wyższych poziomach z tarczą)
-			PixelCanvas.rect(img, Rect2i(x + 2, y - 7, 1, 8), Palette.WOOD[0])
-			PixelCanvas.rect(img, Rect2i(x, y - 5, 5, 1), Palette.WOOD[1])
-			PixelCanvas.rect(img, Rect2i(x + 1, y - 4, 3, 3), Palette.THATCH[2])
-			PixelCanvas.rect(img, Rect2i(x + 2, y - 7, 1, 2), Palette.THATCH[1])
-			if big:
-				PixelCanvas.rect(img, Rect2i(x + 3, y - 4, 2, 3), Palette.EARTH[3])
-				PixelCanvas.px(img, x + 4, y - 3, Palette.ACCENT)
-		BuildingTypes.Kind.WARBAND_HOUSE:
-			# tarcze drużyny w rzędzie na kołkach (na wyższych poziomach dwa rzędy)
-			var rows := 2 if big else 1
-			for row in rows:
-				for i in 2:
-					var sx := x + i * 3 - row
-					var sy := y - 3 - row * 4
-					PixelCanvas.rect(img, Rect2i(sx, sy - 1, 3, 3), Palette.EARTH[3])
-					PixelCanvas.px(img, sx + 1, sy, Palette.ACCENT)
-			PixelCanvas.rect(img, Rect2i(x, y, 5, 1), Palette.WOOD[0])
-		BuildingTypes.Kind.ARCHERY_RANGE:
-			# słomiana tarcza strzelnicza z czerwonym środkiem na kozłach (na wyższych poziomach ze strzałą)
-			PixelCanvas.rect(img, Rect2i(x + 1, y - 6, 3, 5), Palette.THATCH[2])
-			PixelCanvas.rect(img, Rect2i(x, y - 5, 5, 3), Palette.THATCH[2])
-			PixelCanvas.rect(img, Rect2i(x + 1, y - 5, 3, 3), Palette.THATCH[1])
-			PixelCanvas.px(img, x + 2, y - 4, Palette.ACCENT)
-			for lx: int in [x, x + 4]:
-				PixelCanvas.rect(img, Rect2i(lx, y - 1, 1, 2), Palette.WOOD[0])
-			if big:
-				PixelCanvas.rect(img, Rect2i(x + 2, y - 4, 3, 1), Palette.WOOD[3])  # strzała w tarczy
-				PixelCanvas.px(img, x + 4, y - 4, Palette.THATCH[0])  # lotka
-		BuildingTypes.Kind.SCOUT_HOUSE:
-			# czatownia: wysoka żerdź z pomostem i rogiem sygnałowym (na wyższych poziomach z proporcem)
-			PixelCanvas.rect(img, Rect2i(x + 2, y - 9, 1, 10), Palette.WOOD[0])
-			PixelCanvas.rect(img, Rect2i(x, y - 9, 5, 1), Palette.WOOD[2])
-			for lx: int in [x, x + 4]:
-				PixelCanvas.px(img, lx, y - 8, Palette.WOOD[1])  # poręcz pomostu
-			PixelCanvas.rect(img, Rect2i(x + 3, y - 5, 2, 1), Palette.THATCH[2])  # róg na rzemieniu
-			PixelCanvas.px(img, x + 4, y - 6, Palette.THATCH[2])
-			PixelCanvas.rect(img, Rect2i(x + 1, y - 1, 3, 2), Palette.WOOD[1])  # siodło na kozłach
-			if big:
-				PixelCanvas.rect(img, Rect2i(x + 2, y - 12, 1, 3), Palette.WOOD[0])
-				PixelCanvas.rect(img, Rect2i(x + 3, y - 12, 2, 2), Palette.ACCENT)
-		BuildingTypes.Kind.TAR_KILN:
-			# mielerz z otworem i beczką smoły
-			PixelCanvas.rect(img, Rect2i(x, y - 3, 5, 4), Palette.EARTH[2])
-			PixelCanvas.rect(img, Rect2i(x + 1, y - 4, 3, 1), Palette.EARTH[2])
-			PixelCanvas.px(img, x + 2, y - 1, Palette.SHADOW)
-			PixelCanvas.px(img, x + 2, y, Palette.SHADOW)
-			if big:
-				PixelCanvas.rect(img, Rect2i(x + 2, y - 7, 1, 3), Color(Palette.SHADOW, 0.5))  # dym
-				PixelCanvas.rect(img, Rect2i(x - 1, y - 2, 2, 3), Palette.SHADOW)  # beczka smoły
-
-
-## Wieża grodowa (2×2, donżon epoki I, #120): najwyższa budowla zamku i cel każdego ataku.
-## Poziomy: 1 wieża z bali na podmurówce z ziemi, 2 wyższa z otworem strzelniczym, 3 z gankiem
-## (hurdycją) pod dachem, 4 ze szkieletem belek i drugim rzędem otworów, 5 z flagą i proporcem.
-static func _draw_keep(img: Image, level: int) -> void:
-	var base := 13 + EXTRA[BuildingTypes.Kind.KEEP]
-	PixelCanvas.rect(img, Rect2i(1, base + 1, 14, 1), Color(Palette.SHADOW, 0.5))
-	# ziemna podmurówka
-	for y in range(base - 1, base + 1):
-		for x in range(1, 15):
-			PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
-	var wall_h: Array[int] = [14, 18, 18, 22, 22]
-	var h := wall_h[level - 1]
-	var wall := Rect2i(3, base - 1 - h, 10, h)
-	PixelCanvas.draw_log_wall(img, wall, Palette.WOOD, 23)
-	PixelCanvas.draw_door(img, Rect2i(6, base - 6, 4, 5))
-	if level >= 2:
-		PixelCanvas.rect(img, Rect2i(7, wall.position.y + 3, 2, 3), Palette.SHADOW)
-	if level >= 4:
-		PixelCanvas.draw_beams(img, wall, Palette.WOOD[0])
-		for x: int in [4, 10]:
-			PixelCanvas.rect(img, Rect2i(x, wall.position.y + 8, 1, 3), Palette.SHADOW)
-	var top := wall.position.y
-	if level >= 3:
-		# ganek z desek wysunięty poza ścianę
-		PixelCanvas.draw_plank_wall(img, Rect2i(1, top - 3, 14, 3), Palette.WOOD)
-		PixelCanvas.rect(img, Rect2i(1, top, 14, 1), Palette.WOOD[0])
-		top -= 3
-	PixelCanvas.draw_roof(img, 8, top - 5, 2, 5, Palette.THATCH)
-	if level == 5:
-		PixelCanvas.draw_flag(img, Vector2i(7, top - 4), 3, Palette.ACCENT)
-		PixelCanvas.rect(img, Rect2i(4, wall.position.y + 2, 2, 4), Palette.ACCENT)
-
-
-## Strażnica (2×2, #177): budynek PvE, z którego wyrusza się na fale i wyprawy. Czatownia z desek
-## na czterech słupach ze skośnym zastrzałem i drabiną, balustrada, dach ze strzechy, czerwony proporzec
-## i kosz z ogniem sygnałowym. Ma jeden poziom (BuildingTypes.has_levels), więc rysunek go nie zależy.
-static func _draw_watchtower(img: Image) -> void:
-	var base := 13 + EXTRA[BuildingTypes.Kind.WATCHTOWER]
-	PixelCanvas.rect(img, Rect2i(2, base + 1, 12, 1), Color(Palette.SHADOW, 0.5))
-	var deck := base - 15
-	# słupy i zastrzał w kształcie X między przednimi słupami
-	for x: int in [3, 12]:
-		PixelCanvas.rect(img, Rect2i(x, deck, 1, base - deck + 1), Palette.WOOD[1])
-	for x: int in [5, 10]:
-		PixelCanvas.rect(img, Rect2i(x, deck + 2, 1, base - deck - 3), Palette.WOOD[0])
-	var span := base - deck - 3
-	for i in span:
-		var dx := i * 8 / span
-		PixelCanvas.px(img, 4 + dx, deck + 2 + i, Palette.WOOD[2])
-		PixelCanvas.px(img, 11 - dx, deck + 2 + i, Palette.WOOD[2])
-	# drabina z przodu
-	for y in range(deck + 1, base + 1):
-		PixelCanvas.px(img, 7, y, Palette.WOOD[2])
-		PixelCanvas.px(img, 9, y, Palette.WOOD[2])
-		if (y - deck) % 2 == 0:
-			PixelCanvas.px(img, 8, y, Palette.WOOD[3])
-	# pomost z balustradą i czatownia
-	PixelCanvas.draw_plank_wall(img, Rect2i(1, deck - 1, 14, 2), Palette.WOOD)
-	PixelCanvas.rect(img, Rect2i(1, deck - 3, 1, 2), Palette.WOOD[1])
-	PixelCanvas.rect(img, Rect2i(14, deck - 3, 1, 2), Palette.WOOD[1])
-	PixelCanvas.rect(img, Rect2i(1, deck - 3, 2, 1), Palette.WOOD[2])
-	PixelCanvas.rect(img, Rect2i(13, deck - 3, 2, 1), Palette.WOOD[2])
-	PixelCanvas.draw_plank_wall(img, Rect2i(3, deck - 6, 10, 5), Palette.WOOD)
-	PixelCanvas.rect(img, Rect2i(5, deck - 5, 6, 2), Palette.SHADOW)
-	PixelCanvas.draw_roof(img, 8, deck - 10, 2, 4, Palette.THATCH)
-	PixelCanvas.draw_flag(img, Vector2i(8, deck - 10), 3, Palette.ACCENT)
-	# kosz z ogniem sygnałowym na rogu pomostu
-	PixelCanvas.rect(img, Rect2i(13, deck - 4, 2, 2), Palette.SHADOW)
-	PixelCanvas.px(img, 13, deck - 5, Palette.ACCENT)
-	PixelCanvas.px(img, 14, deck - 5, Palette.THATCH[2])
-
-
-## Koń z boku, 5×4 px, stojący na wierszu `at.y` od kolumny `at.x`: tułów, głowa z grzywą
-## w prawo i dwie nogi (z boku tylna i przednia para zlewają się w jedną).
-static func _draw_horse(img: Image, at: Vector2i, coat: Color) -> void:
-	PixelCanvas.rect(img, Rect2i(at.x, at.y - 3, 4, 2), coat)
-	PixelCanvas.rect(img, Rect2i(at.x + 4, at.y - 4, 1, 2), coat)
-	PixelCanvas.px(img, at.x + 3, at.y - 4, Palette.SHADOW)  # grzywa
-	PixelCanvas.px(img, at.x - 1, at.y - 3, Palette.SHADOW)  # ogon
-	for lx: int in [0, 3]:
-		PixelCanvas.rect(img, Rect2i(at.x + lx, at.y - 1, 1, 2), Palette.WOOD[0])
-
-
-## Pole lnu (2×2, #122): zaorana ziemia z rzędami lnu. Poziomy: 1 mała grządka z siewkami,
-## 2 całe pole w zielonych rzędach, 3 len kwitnie na niebiesko, 4 snopki na skraju pola,
-## 5 strach na wróble z czerwoną chustą.
-static func _draw_flax_field(img: Image, level: int) -> void:
-	var ex := EXTRA[BuildingTypes.Kind.FLAX_FIELD]
-	var field := Rect2i(1, ex + 2, 14, 12) if level >= 2 else Rect2i(3, ex + 5, 8, 7)
-	for y in range(field.position.y, field.end.y):
-		for x in range(field.position.x, field.end.x):
-			PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
-	# rzędy roślin co 3 piksele; łodygi sięgają 1–2 px ponad bruzdę
-	var stalk := 1 if level == 1 else 2
-	for y in range(field.position.y + 1, field.end.y, 3):
-		for x in range(field.position.x, field.end.x):
-			if (x + y) % 2 != 0:
-				continue
-			PixelCanvas.rect(img, Rect2i(x, y - stalk + 1, 1, stalk), Palette.GRASS[3])
-			if level >= 3 and PixelCanvas.hash2(x, y, 19) % 3 == 0:
-				PixelCanvas.px(img, x, y - stalk, Palette.WATER[2])  # niebieski kwiat lnu
-	if level >= 4:
-		# snopki lnu na skraju pola
-		for sx: int in [1, 4]:
-			PixelCanvas.rect(img, Rect2i(sx, ex - 2, 2, 5), Palette.THATCH[1])
-			PixelCanvas.px(img, sx, ex - 3, Palette.THATCH[2])
-			PixelCanvas.rect(img, Rect2i(sx, ex, 2, 1), Palette.THATCH[0])
-	if level == 5:
-		# strach na wróble
-		PixelCanvas.rect(img, Rect2i(12, ex - 6, 1, 10), Palette.WOOD[0])
-		PixelCanvas.rect(img, Rect2i(10, ex - 3, 5, 1), Palette.WOOD[1])
-		PixelCanvas.rect(img, Rect2i(11, ex - 8, 3, 2), Palette.THATCH[2])
-		PixelCanvas.rect(img, Rect2i(11, ex - 6, 3, 2), Palette.ACCENT)
-
-
-# --- Plac budowy -----------------------------------------------------------------------------
-
-## Plac budowy (poziom 0): ubita ziemia na kratkach budynku, belki fundamentu po obwodzie,
-## rusztowanie z dwóch słupów z poprzeczkami i stos bali. Umocnienia dostają ziemię na kształcie
-## odcinka i rzadkie paliki, więc plac budowy też łączy się z sąsiadami.
-static func _draw_site(img: Image, kind: int, mask: int) -> void:
-	var ex: int = EXTRA[kind]
-	if BuildingTypes.is_wall(kind):
-		var f := wall_shape(mask, wall_thickness(kind))
-		for y in CELL:
-			for x in CELL:
-				if not _on(f, x, y):
-					continue
-				PixelCanvas.px(img, x, y + ex, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
-				if (x + 2 * y) % 5 == 0:
-					PixelCanvas.px(img, x, y + ex - 1, Palette.WOOD[2])
-					PixelCanvas.px(img, x, y + ex - 2, Palette.WOOD[3])
-		return
-	var sz := img.get_size()
-	var lot := Rect2i(1, ex + 1, sz.x - 2, sz.y - ex - 2)
-	for y in range(lot.position.y, lot.end.y):
-		for x in range(lot.position.x, lot.end.x):
-			var edge := x == lot.position.x or x == lot.end.x - 1 or y == lot.position.y or y == lot.end.y - 1
-			var col := PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1])
-			if edge:
-				col = Palette.WOOD[1] if (x + y) % 3 != 0 else Palette.WOOD[0]
-			PixelCanvas.px(img, x, y, col)
-	# rusztowanie: rama z dwóch słupów z tyłu placu, wystająca ponad kratki, z poprzeczkami
-	var foot := lot.position.y + 2
-	var height := mini(10, foot)
-	var left := lot.position.x + 1
-	var right := lot.end.x - 2
-	for i in height:
-		PixelCanvas.px(img, left, foot - i, Palette.WOOD[3])
-		PixelCanvas.px(img, right, foot - i, Palette.WOOD[3])
-		if i % 3 == 1:
-			for x in range(left + 1, right):
-				PixelCanvas.px(img, x, foot - i, Palette.WOOD[1])
-	if right - left >= 6:
-		_log_pile(img, Rect2i(left + 2, lot.end.y - 3, 4, 2))
-
-
-## Stos drewna od czoła: końce bali 2×2 (jasny słój, ciemna kora).
-static func _log_pile(img: Image, r: Rect2i) -> void:
-	for y in range(r.position.y, r.end.y):
-		for x in range(r.position.x, r.end.x):
-			var lx := (x - r.position.x) % 2
-			var ly := (y - r.position.y) % 2
-			var col: Color = Palette.WOOD[2]
-			if lx == 0 and ly == 0:
-				col = Palette.THATCH[1]
-			elif lx == 1 and ly == 1:
-				col = Palette.WOOD[0]
-			PixelCanvas.px(img, x, y, col)
+	if BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.FLAX_FIELD:
+		return Vector2i(1, 1)
+	if kind in [BuildingTypes.Kind.TOWER, BuildingTypes.Kind.KEEP, BuildingTypes.Kind.WATCHTOWER]:
+		return Vector2i(3, 3)
+	return Vector2i(2, 2)
 
 
 # --- Stan ---------------------------------------------------------------------------------
@@ -1016,34 +802,32 @@ static func _column_top(img: Image, x: int) -> int:
 	return -1
 
 
-## Rysy: od punktu w górnej połowie kolumny w dół, co krok o piksel w bok albo prosto.
-## Malują tylko istniejące piksele budynku, więc nie wychodzą poza jego sylwetkę.
+## Rysy: z punktów wybranych przez hash2 spośród pikseli budynku, co krok o piksel w dół i w bok
+## albo prosto. Malują tylko istniejące piksele budynku, więc nie wychodzą poza jego sylwetkę.
 static func _draw_cracks(img: Image, kind: int) -> void:
 	var sz := img.get_size()
+	var solid: Array[Vector2i] = []
+	for y in sz.y:
+		for x in sz.x:
+			if _opaque(img, x, y):
+				solid.append(Vector2i(x, y))
+	if solid.is_empty():
+		return
 	var wall := BuildingTypes.is_wall(kind)
 	var count := 2 if wall else 3
 	var length := 3 if wall else 6
 	for n in count:
-		var x := PixelCanvas.hash2(n, 7, 51 + kind) % sz.x
-		var top := -1
-		for i in sz.x:
-			top = _column_top(img, (x + i) % sz.x)
-			if top >= 0:
-				x = (x + i) % sz.x
-				break
-		if top < 0:
-			return
-		var y := top + 1 + PixelCanvas.hash2(n, 8, 51 + kind) % (2 if wall else 5)
+		# punkty startu rozłożone po całej sylwetce, żeby rysy się nie nakładały
+		var p := solid[(PixelCanvas.hash2(n, 7, 51 + kind) % maxi(1, solid.size() / count) + n * solid.size() / count) % solid.size()]
 		for step in length:
-			if x >= 0 and x < sz.x and y < sz.y and _opaque(img, x, y):
-				img.set_pixel(x, y, Palette.SHADOW)
-			y += 1
-			x += PixelCanvas.hash2(n, step, 53 + kind) % 3 - 1
+			if p.x >= 0 and p.y >= 0 and p.x < sz.x and p.y < sz.y and _opaque(img, p.x, p.y):
+				img.set_pixel(p.x, p.y, Palette.SHADOW)
+			p += Vector2i(PixelCanvas.hash2(n, step, 53 + kind) % 3 - 1, 1)
 
 
-## Dwa wyłomy w górnej krawędzi budynku (dach, blanki, szczyt słupów): kolumny ścięte o 4–6 px
-## z postrzępionym dnem i ciemną krawędzią przełomu. Wyłomy leżą w środkowej części sylwetki
-## i nie ścinają więcej niż połowy kolumny.
+## Dwa wyłomy od północnej krawędzi budynku (zapadnięty dach, wyrwa w pomoście): kolumny ścięte
+## o 4–6 px z postrzępionym dnem i ciemną krawędzią przełomu. Wyłomy leżą w środkowej części
+## sylwetki i nie ścinają więcej niż połowy kolumny (w niskich co najmniej piksel).
 static func _carve_breach(img: Image, kind: int) -> void:
 	var sz := img.get_size()
 	var tops := PackedInt32Array()
@@ -1067,7 +851,7 @@ static func _carve_breach(img: Image, kind: int) -> void:
 		for x in range(start, start + w):
 			if tops[x] < 0:
 				continue
-			var d := mini(depth - PixelCanvas.hash2(x, n, 43 + kind) % 2, (bottoms[x] - tops[x]) / 2)
+			var d := mini(depth - PixelCanvas.hash2(x, n, 43 + kind) % 2, maxi(1, (bottoms[x] - tops[x] + 1) / 2))
 			for y in range(tops[x], tops[x] + d):
 				img.set_pixel(x, y, Color(Palette.SHADOW, 0.0))
 			var edge := tops[x] + d
@@ -1085,23 +869,19 @@ static func _rubble_color(kind: int, x: int, y: int) -> Color:
 	return debris[h % debris.size()]
 
 
-## Gruz umocnienia: niski kopiec dokładnie na kształcie odcinka, więc rumowisko też się łączy
-## z sąsiadami. Z palisady sterczą kikuty pali.
+## Gruz umocnienia: rumowisko dokładnie na kształcie odcinka, więc też się łączy z sąsiadami.
+## Z palisady zostają leżące pale.
 static func _wall_rubble(img: Image, kind: int, mask: int) -> void:
-	var ex: int = EXTRA[kind]
 	var f := wall_shape(mask, wall_thickness(kind))
 	img.fill(Color(Palette.SHADOW, 0.0))
 	for y in CELL:
 		for x in CELL:
 			if not _on(f, x, y):
 				continue
-			PixelCanvas.px(img, x, y + ex, _rubble_color(kind, x, y))
-			var h := PixelCanvas.hash2(x, y, 79 + kind) % 4
-			if h == 0:
-				PixelCanvas.px(img, x, y + ex - 1, _rubble_color(kind, x, y + 1))
-			elif h == 1 and kind == BuildingTypes.Kind.PALISADE and x % 2 == 0:
-				PixelCanvas.px(img, x, y + ex - 1, Palette.WOOD[1])
-				PixelCanvas.px(img, x, y + ex - 2, Palette.WOOD[0])
+			var col := _rubble_color(kind, x, y)
+			if kind == BuildingTypes.Kind.PALISADE and PixelCanvas.hash2(x, y, 79 + kind) % 4 == 1:
+				col = Palette.WOOD[1]
+			PixelCanvas.px(img, x, y, col)
 
 
 ## Pierwsza i ostatnia niepusta kolumna (x, y) według wierzchów kolumn.
@@ -1115,36 +895,23 @@ static func _opaque_span(tops: PackedInt32Array) -> Vector2i:
 	return span
 
 
-## Gruz budynku wielokratkowego: kopiec rumowiska przy froncie, najwyższy pośrodku, za nim
-## rozrzucone szczątki na kratkach budynku i kilka osmalonych kikutów belek. Zajmuje tylko
-## kolumny, w których stał budynek.
+## Gruz budynku wielokratkowego z góry: rumowisko na zajmowanej części kratek (gęstsze w środku,
+## na skraju rozrzucone szczątki) i kilka osmalonych belek leżących w poprzek.
 static func _building_rubble(img: Image, kind: int) -> void:
-	var sz := img.get_size()
-	var tops := PackedInt32Array()
-	for x in sz.x:
-		tops.append(_column_top(img, x))
-	var span := _opaque_span(tops)
+	var used := img.get_used_rect()
 	img.fill(Color(Palette.SHADOW, 0.0))
-	var ground: int = EXTRA[kind]
-	var front := sz.y - 2
-	for x in range(span.x, span.y + 1):
-		if tops[x] < 0:
-			continue
-		var heap := mini(5, 1 + mini(x - span.x, span.y - x) * 2 / 3) + PixelCanvas.hash2(x, 0, 75 + kind) % 2
-		var top := front - heap
-		for y in range(ground + 1, front + 1):
-			if y > top:
-				img.set_pixel(x, y, _rubble_color(kind, x, y))
-			elif y == top:
-				img.set_pixel(x, y, Palette.EARTH[3] if PixelCanvas.hash2(x, y, 76 + kind) % 3 == 0 else Palette.WOOD[2])
-			elif PixelCanvas.hash2(x, y, 71 + kind) % 4 == 0:
-				img.set_pixel(x, y, _rubble_color(kind, x, y))
-		PixelCanvas.px(img, x, front + 1, Color(Palette.SHADOW, 0.5))
+	if not used.has_area():
+		return
+	var c := used.get_center()
+	for y in range(used.position.y, used.end.y):
+		for x in range(used.position.x, used.end.x):
+			var far := absi(x - int(c.x)) * 2 > used.size.x - 3 or absi(y - int(c.y)) * 2 > used.size.y - 3
+			if far and PixelCanvas.hash2(x, y, 71 + kind) % 3 != 0:
+				continue
+			img.set_pixel(x, y, _rubble_color(kind, x, y))
 	for n in 3:
-		var x := span.x + PixelCanvas.hash2(n, 3, 77 + kind) % (span.y - span.x + 1)
-		if tops[x] < 0:
-			continue
-		var base := front - 2 - PixelCanvas.hash2(n, 4, 77 + kind) % 3
-		var height := 3 + PixelCanvas.hash2(n, 5, 77 + kind) % 3
-		for i in height:
-			img.set_pixel(x, base - i, Palette.WOOD[0] if i == height - 1 else Palette.WOOD[1])
+		var y := used.position.y + 1 + PixelCanvas.hash2(n, 3, 77 + kind) % maxi(1, used.size.y - 2)
+		var x0 := used.position.x + PixelCanvas.hash2(n, 4, 77 + kind) % maxi(1, used.size.x / 2)
+		var length := 3 + PixelCanvas.hash2(n, 5, 77 + kind) % 4
+		for i in length:
+			PixelCanvas.px(img, x0 + i, y, Palette.WOOD[0] if i == length - 1 else Palette.WOOD[1])
