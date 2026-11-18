@@ -4,7 +4,7 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 **Stack:** Godot 4.7 (GDScript), renderer GL Compatibility, eksport na Androida. Backend PvP: Supabase (etap 9, #131; schemat w `supabase/`).
 
-## Stan: etap 8 z planu MVP
+## Stan: etap 9 z planu MVP
 
 Numeracja etapów i zadań idzie za issues na GitHubie (ticket zbiorczy etapu ma etykietę `etap`).
 Etapy 1 (szkielet, viewport 320×180, testowy APK) i 2 (teren 64×64 z seeda, siatka budowy, kamera
@@ -27,8 +27,10 @@ Rekrutacja z #89: kolejki szkolenia w budynkach klas, koszt w żywności i towar
 i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
 Etap 6 (#128) zaczyna deterministyczna symulacja bitwy z #14 (logika bez renderu) i donżon jako cel
 ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
-Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) zaczynają ustawienia
-obrony z #19 (posterunki załogi wokół donżonu).
+Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) ustawienia obrony
+z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#100). Trwa etap 9 (#131): backend
+Supabase i PvP, czyli schemat bazy z RLS (#21) i anonimowe konto gracza (#22); stan i kolejne kroki są
+w sekcji „Następny etap”.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -179,9 +181,11 @@ obrony z #19 (posterunki załogi wokół donżonu).
   i w szkoleniu; zablokowane przygaszone z powodem (technologia, epoka, brak budynku); brakujące towary
   na czerwono z budynkiem, który je robi. Długie teksty (nazwa, koszt, braki) zawijają się po słowach
   (`PixelFont.wrap`) w 4 liniach szczegółów; braki towarów, pogrupowane według budynku, który je robi,
-  mają do 2 linii. Pod nimi rząd wyboru oddziału na całej szerokości treści:
-  Nowy albo oddziały tego rodzaju („2: 7/10”), pełne przygaszone; domyślnie pierwszy oddział z wolnym
-  miejscem.
+  mają do 2 linii. Przycisk Opis przełącza szczegóły: koszt → opis jednostki (rola, przewagi) →
+  produkcja cywilna postawionych wytwórców (np. Chata drwala +Dr/h, Drzewcarz z tempem towarów z
+  `EconomyConfig` / `GoodsConfig`) → z powrotem koszt. Pod nimi rząd wyboru oddziału na całej
+  szerokości treści: Nowy albo oddziały tego rodzaju („2: 7/10”), pełne przygaszone; domyślnie
+  pierwszy oddział z wolnym miejscem.
 - `scripts/battle/battle.gd` (`Battle`): deterministyczna symulacja bitwy (#14). Stały krok 30 Hz, pozycje
   w podjednostkach kratki (256 na kratkę), tylko liczby całkowite, własny RNG (`BattleRng`, xorshift32)
   i ścieżki z AStarGrid2D, w którym budynki są drogie, ale przechodnie: atakujący burzą najsłabsze miejsce
@@ -204,7 +208,7 @@ obrony z #19 (posterunki załogi wokół donżonu).
   liczba żywych i pasek zdrowia; odznaka stoi na jednej z jednostek oddziału (nie w jego średniej), a każda
   jednostka ma kropkę 2×2 w kolorze strony. Odznaki nie nachodzą na siebie, a zepchnięta niżej trzyma wiersz
   (bez skakania co klatkę). Mapa w bitwie rysuje stan zniszczeń budynków (pęknięcia, wyłomy, gruz). Podgląd w wersji debug:
-  `godot --path . -- --battle-preview`; bitwę z gry uruchomi samouczek (#16).
+  `godot --path . -- --battle-preview`; w grze bitwę uruchamia samouczek (#16) i Wyprawa (#26).
 - Samouczek PvE (#16, `scripts/battle/pve_waves.gd`): Oblężenie startuje kolejną z 5 fal o rosnącej
   trudności (od 3 Chłopów do armii z konnicą). Fala idzie z drogi przy krawędzi mapy na
   donżon, a bronią go wyszkolone oddziały (`Battle.for_castle_squads`, premia U1). Bez wojska fala nie
@@ -264,7 +268,8 @@ obrony z #19 (posterunki załogi wokół donżonu).
     dostępne z krótkim opisem, niedostępne wyszarzone z tym, czego brakuje (jednostka, epoka, badanie).
   - **Dotyk mapy:** budynek to cel, trawa to punkt trasy (do 3).
   - **Zapis:** plan jest w save'ie (wersja 6 z migracją). Po ataku polegli znikają z armii.
-  - **Bez łupu:** atak nie daje jeszcze łupu (#99). Strefa rozstawienia jest jedna, przy drodze.
+  - **Łup:** wygrany atak daje łup z zamku-bota (#99, opis w „Wynik ataku” niżej). Strefa rozstawienia
+    jest jedna, przy drodze.
 - Ustawienia obrony (#19, `scripts/battle/defense_plan.gd` i `scripts/ui/defense_panel.gd`): przycisk
   Obrona w kolumnie otwiera własny zamek w trybie edycji.
   - **Posterunki:** oddział załogi z rekrutacji dostaje kratkę w strefie 10 kratek wokół donżonu (na trawie,
@@ -359,7 +364,7 @@ obrony z #19 (posterunki załogi wokół donżonu).
   Efekty powstają ze zdarzeń, które bitwa zapisuje tylko dla widoku (`Battle.take_fx`). Nie wchodzą do
   sumy kontrolnej, więc nie zmieniają przebiegu. Ogień w symulacji przechodzi po 4 s na sąsiednie
   drewniane budynki, także po skosie (bez losowania; wał ziemny nie płonie; czas tymczasowy).
-  Gaszenie wodą ze Studni czeka na Studnię (#35) i zadania obrony (#20).
+  Gaszenie wodą ze Studni czeka na Studnię (#35).
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -550,5 +555,6 @@ Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#
 Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
 (#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
 backend Supabase i PvP. Jest schemat bazy z RLS (#21) i klient z anonimowym kontem (#22, opis niżej);
-następna jest synchronizacja zamku z serwerem (#23). Z etapów 4–5 zostają części zależne od bitwy,
-planu ataku i generałów (#81, #89, #91, #97, #12).
+następna jest synchronizacja zamku z serwerem (#23). Z wcześniejszych etapów zostają: Dwór z epokami
+i garnizonem (#81), seed mapy na serwerze (#97, #166), część efektów badań (#12), ogólny wygląd (#150)
+i sprawdzanie szczelności obrony (#199).

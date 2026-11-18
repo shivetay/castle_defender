@@ -9,6 +9,8 @@ extends Node2D
 ## szkolić, są przygaszone. Dotknięcie kafelka pokazuje szczegóły: koszt, brakujące towary
 ## z budynkiem, który je robi, szkolenie, a w ostatnim rzędzie wybór oddziału: Nowy albo istniejący
 ## oddział tego rodzaju z zajętymi miejscami (pełne są przygaszone).
+## Przycisk Opis przełącza szczegóły: koszt → opis jednostki → produkcja cywilna (postawieni
+## wytwórcy: chata drwala, drzewcarz i inni) → z powrotem koszt.
 
 signal train_requested(unit: int, squad_id: int)
 signal closed
@@ -16,6 +18,8 @@ signal closed
 signal limit_pressed
 
 enum Target { NONE = -1, CLOSE = 1, TRAIN = 2, INFO = 3, LIMIT = 4, TILE = 200, SQUAD = 300 }
+## Tryb szczegółów pod kafelkami: koszt szkolenia, opis bojowy albo produkcja cywilnych wytwórców.
+enum DetailMode { COST, INFO, PRODUCTION }
 
 const TITLE_Y := Hud.BAR_H + 3
 const GRID_Y := TITLE_Y + 11
@@ -40,6 +44,10 @@ const NEW_SQUAD_LABEL := "Nowy"
 const TRAIN_LABEL := "Szkol"
 const INFO_LABEL := "Opis"
 const COST_LABEL := "Koszt"
+const PROD_LABEL := "Prod."
+const PROD_TITLE := "Produkcja cywilna"
+const PROD_STATE := "wytwórcy"
+const PROD_EMPTY := "Brak wytwórców. Postaw Chatę drwala lub Drzewcarza (Buduj)."
 const CLOSE_LABEL := "Zamknij"
 
 var recruitment: Recruitment
@@ -56,8 +64,8 @@ var building_id := 0
 var selected := 0
 ## Oddział, do którego trafi następna jednostka (Recruitment.NEW_SQUAD = nowy).
 var target_squad := Recruitment.NEW_SQUAD
-## Szczegóły pokazują opis jednostki (rola i przewagi) zamiast kosztu i braków.
-var show_info := false
+## Co pokazują szczegóły: koszt, opis jednostki albo produkcję cywilnych wytwórców.
+var detail_mode := DetailMode.COST
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
 
@@ -70,6 +78,7 @@ func open(id: int = 0) -> void:
 	building_kind = grid.kinds[id] if id != 0 and grid.buildings.has(id) else -1
 	visible = true
 	_pressed = Target.NONE
+	detail_mode = DetailMode.COST
 	var list := units()
 	if not list.has(selected) and not list.is_empty():
 		selected = list[0]
@@ -194,10 +203,21 @@ static func close_rect(view: Vector2, right: float) -> Rect2:
 	return Hud.right_corner_rect(view, right)
 
 
-## Przycisk Opis w dolnym rzędzie przy lewej granicy treści: przełącza szczegóły między kosztem
-## a opisem jednostki (rola, przewagi).
+## Przycisk Opis/Prod./Koszt w dolnym rzędzie przy lewej granicy treści: przełącza szczegóły
+## między kosztem, opisem jednostki i produkcją cywilnych wytwórców.
 static func info_rect(view: Vector2, left: float) -> Rect2:
 	return Rect2(Vector2(left, Hud.row_y(view)), Hud.BUTTON_SIZE)
+
+
+## Napis na przycisku trybu szczegółów: następny tryb po obecnym (Koszt → Opis → Prod. → Koszt).
+static func mode_button_label(mode: int) -> String:
+	match mode:
+		DetailMode.COST:
+			return INFO_LABEL
+		DetailMode.INFO:
+			return PROD_LABEL
+		_:
+			return COST_LABEL
 
 
 ## Linie opisu jednostki [tekst, kolor, tekst z prawej] pod linią nazwy: rola (zawinięta) i przewagi.
@@ -221,6 +241,77 @@ static func limit_rect(left: float, right: float) -> Rect2:
 ## licznik da się dotknąć.
 static func title_text(r: Recruitment, g: BuildGrid) -> String:
 	return "Wojsko: %d/%d, wolne %d (?)" % [r.army_size() + r.orders.size(), Recruitment.army_limit(g), r.free_army(g)]
+
+## Teksty produkcji postawionych wytwórców cywilnych z danych gry (EconomyConfig / GoodsConfig):
+## np. „Chata drwala ×2: +150 Dr/h”, „Drzewcarz ×1: Topór kamienny 2/h, Oszczep 6/h”.
+static func civilian_texts(g: BuildGrid) -> PackedStringArray:
+	var out: PackedStringArray = []
+	if g == null:
+		return out
+	for kind: int in EconomyConfig.BUILDING_PRODUCTION:
+		var n := 0
+		var sum := 0
+		var entry: Array = EconomyConfig.BUILDING_PRODUCTION[kind]
+		var res: int = entry[0]
+		var per_level: Array = entry[1]
+		for id: int in g.buildings:
+			if g.kinds[id] == kind and g.levels[id] >= 1:
+				n += 1
+				sum += int(per_level[clampi(g.levels[id], 1, per_level.size()) - 1])
+		if n > 0:
+			out.append("%s ×%d: +%d %s/h" % [BuildingTypes.NAMES[kind], n, sum, EconomyConfig.SHORT_NAMES[res]])
+	var by_producer := Goods.producers(g)
+	for producer: String in GoodsConfig.PRODUCERS:
+		var levels: Array = by_producer.get(producer, [])
+		if levels.is_empty():
+			continue
+		var goods_rate := {}
+		var res_rate := {}
+		for level: int in levels:
+			for recipe in GoodsConfig.RECIPES.size():
+				var row: Array = GoodsConfig.RECIPES[recipe]
+				if row[0] != producer:
+					continue
+				var cph := GoodsConfig.cycles_per_hour(recipe, level)
+				if cph <= 0:
+					continue
+				for good: int in row[5] as Dictionary:
+					goods_rate[good] = int(goods_rate.get(good, 0)) + cph * int((row[5] as Dictionary)[good])
+				for res: int in row[6] as Dictionary:
+					res_rate[res] = int(res_rate.get(res, 0)) + cph * int((row[6] as Dictionary)[res])
+		var parts: PackedStringArray = []
+		for recipe in GoodsConfig.RECIPES.size():
+			var row: Array = GoodsConfig.RECIPES[recipe]
+			if row[0] != producer:
+				continue
+			for good: int in row[5] as Dictionary:
+				if goods_rate.has(good):
+					parts.append("%s %d/h" % [GoodsConfig.NAMES[good], int(goods_rate[good])])
+					goods_rate.erase(good)
+		for res: int in EconomyConfig.count():
+			if res_rate.has(res):
+				parts.append("+%d %s/h" % [int(res_rate[res]), EconomyConfig.SHORT_NAMES[res]])
+		if not parts.is_empty():
+			out.append("%s ×%d: %s" % [GoodsConfig.PRODUCER_NAMES[producer], levels.size(), ", ".join(parts)])
+	return out
+
+
+## Linie produkcji cywilnej [tekst, kolor, ""] pod tytułem trybu; puste, gdy brak postawionych wytwórców.
+static func civilian_lines(g: BuildGrid, width: int, room: int) -> Array:
+	var out: Array = []
+	var texts := civilian_texts(g)
+	if texts.is_empty():
+		for l in PixelFont.wrap(PROD_EMPTY, width, room):
+			out.append([l, Palette.THATCH[2], ""])
+		return out
+	for text in texts:
+		if out.size() >= room:
+			break
+		for l in PixelFont.wrap(text, width, room - out.size()):
+			out.append([l, Palette.INK, ""])
+			if out.size() >= room:
+				break
+	return out
 
 
 static func target_at(p: Vector2, view: Vector2, left: float, right: float, count: int, squad_count: int = 0) -> int:
@@ -323,7 +414,7 @@ func _activate(t: int) -> void:
 	elif t == Target.TRAIN:
 		train_requested.emit(selected, target_squad)
 	elif t == Target.INFO:
-		show_info = not show_info
+		detail_mode = (detail_mode + 1) % DetailMode.size()
 	elif t == Target.LIMIT:
 		limit_pressed.emit()
 	elif t == Target.CLOSE:
@@ -357,8 +448,8 @@ func _draw() -> void:
 	_draw_details()
 	var can_train := train_check() == Recruitment.Result.OK
 	Hud.paint_button(self, train_rect(view, content_right), TRAIN_LABEL, _pressed == Target.TRAIN, not can_train)
-	Hud.paint_button(self, info_rect(view, content_left), COST_LABEL if show_info else INFO_LABEL,
-			_pressed == Target.INFO or show_info, false)
+	Hud.paint_button(self, info_rect(view, content_left), mode_button_label(detail_mode),
+			_pressed == Target.INFO or detail_mode != DetailMode.COST, false)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
 
 
@@ -397,8 +488,11 @@ func _draw_details() -> void:
 		extra_col = Palette.WOOD[3]
 	var lines := detail_lines(UnitTypes.unit_name(selected), state_text(recruitment, selected, grid, research, age),
 			cost, extra, extra_col, width)
-	if show_info:
+	if detail_mode == DetailMode.INFO:
 		lines = lines.slice(0, 1) + info_lines(selected, width, DETAIL_LINES - 1)
+	elif detail_mode == DetailMode.PRODUCTION:
+		lines = detail_lines(PROD_TITLE, PROD_STATE, "", "", Palette.INK, width).slice(0, 1)
+		lines.append_array(civilian_lines(grid, width, DETAIL_LINES - 1))
 	var y := float(DETAIL_Y)
 	var res_cost: Array[int] = []
 	res_cost.resize(EconomyConfig.count())
@@ -406,6 +500,8 @@ func _draw_details() -> void:
 	for res: int in unit_cost:
 		res_cost[res] = int(unit_cost[res])
 	var missing_res := Hud.missing_tokens(res_cost, economy.amounts) if economy != null else PackedStringArray()
+	if detail_mode != DetailMode.COST:
+		missing_res = PackedStringArray()
 	for l: Array in lines:
 		Hud.draw_highlighted(self, Vector2(content_left, y), l[0] as String, l[1] as Color, missing_res, Palette.ACCENT)
 		if not (l[2] as String).is_empty():
