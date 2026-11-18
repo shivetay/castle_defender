@@ -160,6 +160,9 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 		var o: Order = orders.pop_front()
 		if grid.buildings.has(o.building_id):
 			grid.levels[o.building_id] = o.level
+			# ukończony wał/palisada/brama/wieża domyka krótkie luki do bramy i wieży
+			if o.level >= 1:
+				grid.seal_after_place(o.building_id)
 		if not orders.is_empty():
 			orders[0].start_ms = at
 		done.append(o)

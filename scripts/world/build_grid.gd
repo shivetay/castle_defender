@@ -5,6 +5,9 @@ extends RefCounted
 ## zajmuje już kratki, ale jeszcze nie działa (nie produkuje, rysuje się jako rusztowanie).
 ## Identyfikatory rosną od 1 (0 oznacza wolną kratkę) i nie są używane ponownie.
 
+## Najdłuższa krótka luka (liczba pustych kratek), którą domyka uszczelnienie do bramy/wieży.
+const SEAL_MAX := 2
+
 var terrain: TerrainMap
 var cells: PackedInt32Array
 var buildings: Dictionary[int, Rect2i] = {}
@@ -126,14 +129,26 @@ func place_on_any_ground(rect: Rect2i, kind: int, level: int = 1) -> int:
 ## Brama (3×1) staje środkiem na dotkniętej kratce, a gdy tam się nie mieści, dosuwa się tak,
 ## żeby dotknięta kratka była jej końcem. Staje pionowo (1×3), gdy obok jest pionowa palisada.
 ## Dotknięta droga ustawia bramę w poprzek drogi, z drogą pośrodku.
+## Gotowy odcinek umocnienia (poziom ≥ 1) domyka krótkie luki do bramy i wieży; gotowa brama
+## albo wieża domyka luki od strony istniejących wałów i palisad.
 func place_kind(c: Vector2i, kind: int, level: int = 1, stick: bool = false) -> int:
 	var rect := placement_for(c, kind, stick)
-	return place(rect, kind, level) if rect.has_area() else 0
+	if not rect.has_area():
+		return 0
+	var id := place(rect, kind, level)
+	if id != 0 and level >= 1:
+		seal_after_place(id)
+	return id
 
 
 ## Czy budynek `kind` może stanąć na odcinkach wału i palisady i je zastąpić: brama i wieża
 ## (po teście na telefonie), bo obie stoją w linii umocnień.
 static func replaces_walls(kind: int) -> bool:
+	return kind == BuildingTypes.Kind.GATE or kind == BuildingTypes.Kind.TOWER
+
+
+## Czy budynek jest kotwicą linii umocnień, do której odcinki mają dochodzić bez szpary.
+static func is_fort_anchor(kind: int) -> bool:
 	return kind == BuildingTypes.Kind.GATE or kind == BuildingTypes.Kind.TOWER
 
 
@@ -390,15 +405,15 @@ func wall_contact(r: Rect2i) -> int:
 ## Kratki dla odcinka umocnienia. Wierzch umocnienia rysuje się o pół kratki wyżej niż jego kratka,
 ## a palec na telefonie zakrywa kilka kratek, więc dotknięcie widocznej luki w linii często trafia
 ## w kratkę obok. Gdy dotknięta kratka sama nie jest luką, a sąsiednia wolna kratka jest (łączy się
-## z co najmniej dwoma odcinkami), odcinek wskakuje w tę lukę. Najpierw sprawdzana jest kratka
-## pod dotkniętą, bo tam najczęściej leży luka, w którą celował gracz.
+## z co najmniej dwoma odcinkami albo domyka krótką lukę do bramy/wieży), odcinek wskakuje w tę lukę.
+## Najpierw sprawdzana jest kratka pod dotkniętą, bo tam najczęściej leży luka, w którą celował gracz.
 func _wall_candidates(c: Vector2i, kind: int) -> Array[Rect2i]:
 	var tapped := Rect2i(c, Vector2i.ONE)
-	if wall_links(c, kind) >= 2:
+	if is_wall_gap(c, kind):
 		return [tapped]
 	for d: Vector2i in [Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP]:
 		var n := c + d
-		if wall_links(n, kind) >= 2 and can_place(Rect2i(n, Vector2i.ONE), kind):
+		if is_wall_gap(n, kind):
 			return [Rect2i(n, Vector2i.ONE), tapped]
 	return [tapped]
 
@@ -419,10 +434,34 @@ func gap_near(pos: Vector2, kind: int, tolerance: int) -> Vector2i:
 		var n := c + dirs[i]
 		if dist[i] > best_dist or building_at(n) != 0:
 			continue
-		if wall_links(n, kind) >= 2 and can_place(Rect2i(n, Vector2i.ONE), kind):
+		if is_wall_gap(n, kind):
 			best = n
 			best_dist = dist[i]
 	return best
+
+
+## Czy wolna kratka `c` to luka do wypełnienia odcinkiem `kind`: łączy co najmniej dwa budynki
+## albo leży na krótkiej prostej między wałem/palisadą a bramą/wieżą (do SEAL_MAX pustych).
+func is_wall_gap(c: Vector2i, kind: int) -> bool:
+	if not can_place(Rect2i(c, Vector2i.ONE), kind):
+		return false
+	if wall_links(c, kind) >= 2:
+		return true
+	for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
+		var forward := _gap_end(c, axis, kind)
+		var back := _gap_end(c, -axis, kind)
+		if forward.is_empty() or back.is_empty():
+			continue
+		var a: int = forward["id"]
+		var b: int = back["id"]
+		var empty_count: int = int(forward["empties"]) + 1 + int(back["empties"])
+		if empty_count > SEAL_MAX:
+			continue
+		if BuildingTypes.is_wall(kinds[a]) and is_fort_anchor(kinds[b]) and _anchor_dir_ok(b, axis):
+			return true
+		if BuildingTypes.is_wall(kinds[b]) and is_fort_anchor(kinds[a]) and _anchor_dir_ok(a, -axis):
+			return true
+	return false
 
 
 ## Z iloma sąsiednimi budynkami połączyłby się odcinek umocnienia `kind` postawiony na kratce `c`.
@@ -430,13 +469,92 @@ func wall_links(c: Vector2i, kind: int) -> int:
 	var n := 0
 	for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
 		var other := building_at(c + d)
-		if other == 0 or not BuildingTypes.connects(kind, kinds[other]):
-			continue
-		# z bramą łączy się tylko odcinek leżący na jej osi
-		if kinds[other] == BuildingTypes.Kind.GATE and (d.x == 0) != is_vertical(other):
+		if other == 0 or not _connects_dir(kind, other, d):
 			continue
 		n += 1
 	return n
+
+
+## Po postawieniu gotowego budynku: wał/palisada domyka lukę do bramy/wieży, a brama/wieża
+## domyka luki od strony istniejących odcinków. Plac budowy (poziom 0) nie uszczelnia — dopiero
+## ukończenie w kolejce (BuildQueue) albo place_kind z poziomem ≥ 1.
+func seal_after_place(id: int) -> Array[int]:
+	if not buildings.has(id) or levels[id] < 1:
+		return []
+	var kind := kinds[id]
+	if BuildingTypes.is_wall(kind):
+		return seal_toward_anchors(buildings[id].position, kind, levels[id])
+	if is_fort_anchor(kind):
+		return seal_walls_to_anchor(id)
+	return []
+
+
+## Domknij krótkie luki od kratki odcinka `from` w stronę bramy i wieży: stawia ten sam rodzaj
+## umocnienia na pustych kratkach (1..SEAL_MAX). Nie wypełnia luk między samymi odcinkami.
+func seal_toward_anchors(from: Vector2i, kind: int, level: int) -> Array[int]:
+	var placed: Array[int] = []
+	if not BuildingTypes.is_wall(kind):
+		return placed
+	for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+		var empties: Array[Vector2i] = []
+		var p := from + d
+		while empties.size() < SEAL_MAX and terrain.in_bounds(p) and building_at(p) == 0:
+			if not can_place(Rect2i(p, Vector2i.ONE), kind):
+				break
+			empties.append(p)
+			p += d
+		if empties.is_empty():
+			continue
+		var end := building_at(p)
+		if end == 0 or not is_fort_anchor(kinds[end]) or not _connects_dir(kind, end, d):
+			continue
+		for cell in empties:
+			var id := place(Rect2i(cell, Vector2i.ONE), kind, level)
+			if id != 0:
+				placed.append(id)
+	return placed
+
+
+## Domknij krótkie luki wału/palisady dochodzące do bramy albo wieży `anchor_id`.
+func seal_walls_to_anchor(anchor_id: int) -> Array[int]:
+	var placed: Array[int] = []
+	if not buildings.has(anchor_id) or not is_fort_anchor(kinds[anchor_id]):
+		return placed
+	var wall_ids: Array[int] = []
+	wall_ids.assign(buildings.keys())
+	for wid in wall_ids:
+		if not buildings.has(wid) or not BuildingTypes.is_wall(kinds[wid]) or levels[wid] < 1:
+			continue
+		placed.append_array(seal_toward_anchors(buildings[wid].position, kinds[wid], levels[wid]))
+	return placed
+
+
+## Id budynku na końcu prostej od `from` w kierunku `dir` (przez co najwyżej SEAL_MAX pustych
+## kratek, na których da się postawić `kind`) albo pusty słownik.
+func _gap_end(from: Vector2i, dir: Vector2i, kind: int) -> Dictionary:
+	var p := from + dir
+	var empties := 0
+	while terrain.in_bounds(p) and building_at(p) == 0:
+		if empties >= SEAL_MAX or not can_place(Rect2i(p, Vector2i.ONE), kind):
+			return {}
+		empties += 1
+		p += dir
+	if not terrain.in_bounds(p) or building_at(p) == 0:
+		return {}
+	return {"id": building_at(p), "empties": empties}
+
+
+func _connects_dir(wall_kind: int, other_id: int, d: Vector2i) -> bool:
+	if not BuildingTypes.connects(wall_kind, kinds[other_id]):
+		return false
+	return _anchor_dir_ok(other_id, d)
+
+
+## Z bramą łączy się tylko odcinek leżący na jej osi (nie z boku skrzydeł).
+func _anchor_dir_ok(other_id: int, d: Vector2i) -> bool:
+	if kinds[other_id] != BuildingTypes.Kind.GATE:
+		return true
+	return (d.x == 0) == is_vertical(other_id)
 
 
 ## Czy budynek stoi pionowo (dłuższy w osi y), np. brama w pionowej linii palisady.
@@ -478,10 +596,7 @@ func wall_mask(id: int) -> int:
 	var dirs: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 	for i in dirs.size():
 		var other := building_at(c + dirs[i])
-		if other == 0 or not BuildingTypes.connects(kinds[id], kinds[other]):
-			continue
-		# z bramą łączy się tylko odcinek leżący na jej osi (nie z boku skrzydeł)
-		if kinds[other] == BuildingTypes.Kind.GATE and (dirs[i].x == 0) != is_vertical(other):
+		if other == 0 or not _connects_dir(kinds[id], other, dirs[i]):
 			continue
 		mask |= bits[i]
 	return mask

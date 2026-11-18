@@ -182,3 +182,80 @@ func test_tap_near_gap_edge_targets_gap() -> bool:
 	grid.place_kind(gap, BuildingTypes.Kind.PALISADE)
 	assert_eq(grid.gap_near(left_px + Vector2(cell - 1, 4), BuildingTypes.Kind.PALISADE, 3), Vector2i(-1, -1), "luka zapełniona")
 	return true
+
+
+## Gotowy odcinek umocnienia domyka krótką lukę (1–2 kratki) do bramy i wieży, bez szpary
+## w gameplayu i na rysunku. Luka między samymi odcinkami nie dostaje darmowego domknięcia.
+func test_wall_seals_gap_to_gate_and_tower() -> bool:
+	for wall: int in [BuildingTypes.Kind.PALISADE, BuildingTypes.Kind.RAMPART]:
+		var name := BuildingTypes.NAMES[wall]
+		# wał/palisada → 2 puste → brama: place_kind domyka obie kratki
+		var g1 := BuildGrid.new(TerrainMap.generate(1337))
+		var o := _free_area(g1, Vector2i(8, 3)) + Vector2i(0, 1)
+		assert_true(g1.place(Rect2i(o + Vector2i(3, 0), Vector2i(3, 1)), BuildingTypes.Kind.GATE) > 0, "%s: brama" % name)
+		var id := g1.place_kind(o, wall)
+		assert_true(id > 0, "%s: odcinek przy luce do bramy" % name)
+		assert_true(BuildingTypes.is_wall(g1.kinds[g1.building_at(o + Vector2i(1, 0))]), "%s: pierwsza luka do bramy zapełniona" % name)
+		assert_true(BuildingTypes.is_wall(g1.kinds[g1.building_at(o + Vector2i(2, 0))]), "%s: druga luka do bramy zapełniona" % name)
+		assert_eq(g1.wall_mask(g1.building_at(o + Vector2i(2, 0))) & BuildingTypes.E, BuildingTypes.E,
+				"%s: linia łączy się z bramą" % name)
+		# wał/palisada → 2 puste → wieża
+		var g2 := BuildGrid.new(TerrainMap.generate(1337))
+		var t := _free_area(g2, Vector2i(7, 4)) + Vector2i(0, 1)
+		assert_true(g2.place(Rect2i(t + Vector2i(3, 0), Vector2i(2, 2)), BuildingTypes.Kind.TOWER) > 0, "%s: wieża" % name)
+		assert_true(g2.place_kind(t, wall) > 0, "%s: odcinek przy luce do wieży" % name)
+		assert_true(BuildingTypes.is_wall(g2.kinds[g2.building_at(t + Vector2i(1, 0))]), "%s: luka do wieży zapełniona" % name)
+		assert_true(BuildingTypes.is_wall(g2.kinds[g2.building_at(t + Vector2i(2, 0))]), "%s: druga luka do wieży zapełniona" % name)
+		var west := g2.building_at(t + Vector2i(2, 0))
+		assert_eq(g2.wall_mask(west) & BuildingTypes.E, BuildingTypes.E, "%s: linia łączy się z wieżą" % name)
+	# luka 2 kratki między samym wałem a palisadą: bez kotwicy nie ma darmowego uszczelnienia
+	var g3 := BuildGrid.new(TerrainMap.generate(1337))
+	var w := _free_area(g3, Vector2i(6, 3)) + Vector2i(0, 1)
+	g3.place_kind(w, BuildingTypes.Kind.PALISADE)
+	g3.place(Rect2i(w + Vector2i(3, 0), Vector2i.ONE), BuildingTypes.Kind.RAMPART, 1)
+	assert_eq(g3.building_at(w + Vector2i(1, 0)), 0, "luka ściana–ściana bez auto-fill")
+	assert_eq(g3.building_at(w + Vector2i(2, 0)), 0, "druga kratka też pusta")
+	return true
+
+
+## Dotknięcie nad luką do bramy/wieży (także 2-kratkową) wskakuje w lukę jak przy luce między odcinkami.
+func test_wall_snaps_into_gap_toward_gate_or_tower() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var o := _free_area(grid, Vector2i(8, 4)) + Vector2i(0, 1)
+	grid.place(Rect2i(o, Vector2i.ONE), BuildingTypes.Kind.PALISADE, 1)
+	grid.place(Rect2i(o + Vector2i(3, 0), Vector2i(3, 1)), BuildingTypes.Kind.GATE, 1)
+	var gap := o + Vector2i(1, 0)
+	assert_true(grid.is_wall_gap(gap, BuildingTypes.Kind.PALISADE), "kratka na drodze do bramy to luka")
+	assert_true(grid.is_wall_gap(o + Vector2i(2, 0), BuildingTypes.Kind.RAMPART), "wał też widzi lukę do bramy")
+	var id := grid.place_kind(gap + Vector2i.UP, BuildingTypes.Kind.PALISADE, 0)
+	assert_eq(grid.buildings[id].position, gap, "dotknięcie nad luką do bramy wypełnia lukę")
+	# wieża: luka 1 kratka, snap z boku
+	var g2 := BuildGrid.new(TerrainMap.generate(1337))
+	var t := _free_area(g2, Vector2i(6, 4)) + Vector2i(1, 0)
+	g2.place(Rect2i(t, Vector2i.ONE), BuildingTypes.Kind.RAMPART, 1)
+	g2.place(Rect2i(t + Vector2i(0, 2), Vector2i(2, 2)), BuildingTypes.Kind.TOWER, 1)
+	var mid := t + Vector2i(0, 1)
+	assert_true(g2.is_wall_gap(mid, BuildingTypes.Kind.RAMPART), "luka wał–wieża")
+	var side := g2.place_kind(mid + Vector2i(1, 0), BuildingTypes.Kind.RAMPART, 0)
+	assert_eq(g2.buildings[side].position, mid, "dotknięcie z boku wypełnia lukę do wieży")
+	return true
+
+
+## Ukończenie odcinka w kolejce budowy też uszczelnia lukę do bramy (plac budowy sam tego nie robi).
+func test_wall_seals_on_queue_completion() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var e := Economy.new(0)
+	for res in EconomyConfig.count():
+		e.amounts[res] = 1_000_000
+	var q := BuildQueue.new()
+	var o := _free_area(grid, Vector2i(8, 3)) + Vector2i(0, 1)
+	grid.place(Rect2i(o + Vector2i(3, 0), Vector2i(3, 1)), BuildingTypes.Kind.GATE, 1)
+	assert_eq(q.order_build(grid, e, o, BuildingTypes.Kind.PALISADE, 0), BuildQueue.Result.OK, "zlecenie")
+	var site := q.placed_id
+	assert_eq(grid.levels[site], 0, "jeszcze plac budowy")
+	assert_eq(grid.building_at(o + Vector2i(1, 0)), 0, "przed ukończeniem luka pusta")
+	q.update(BuildConfig.time_ms(BuildingTypes.Kind.PALISADE, 1), grid, e)
+	assert_eq(grid.levels[site], 1, "ukończona palisada")
+	assert_true(BuildingTypes.is_wall(grid.kinds[grid.building_at(o + Vector2i(1, 0))]), "po ukończeniu luka domknięta")
+	assert_true(BuildingTypes.is_wall(grid.kinds[grid.building_at(o + Vector2i(2, 0))]), "druga kratka też")
+	return true
