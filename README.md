@@ -66,6 +66,8 @@ obrony z #19 (posterunki załogi wokół donżonu).
   Brama może też stanąć na ciągłej linii wału albo palisady: zastępuje odcinki pod sobą (bez zwrotu
   kosztu), a linia łączy się z nią po obu stronach. Luka w linii ma pierwszeństwo, a odcinki w budowie
   i inne budynki zostają.
+  Wieża drewniana też może stanąć na linii wału albo palisady (po teście na telefonie): dotknięty odcinek
+  wybiera położenie wieży, które przykrywa najwięcej odcinków, i zastępuje je tak samo jak brama.
   Dwór stoi od startu na środku mapy, jest jeden, nie ma go na pasku budowy i nie da się go rozebrać.
   `state_for_hp(hp, max_hp)` wybiera stan z procentu wytrzymałości: od 76% cały, od 41% pęknięcia,
   od 1% wyrwa, 0 to gruz.

@@ -22,7 +22,8 @@ func _init(map: TerrainMap) -> void:
 ## musi też stykać się bokiem z wodą (rzeka z generatora terenu, #122).
 ## Brama (`kind` = GATE) może też stać na drodze, ale tylko w poprzek: pozioma brama na drodze
 ## biegnącej z północy na południe, pionowa na drodze ze wschodu na zachód. Brama może też stanąć
-## na odcinkach wału i palisady (po teście na telefonie): place() je wtedy zastępuje.
+## na odcinkach wału i palisady (po teście na telefonie): place() je wtedy zastępuje. Tak samo wieża
+## (replaces_walls).
 func can_place(rect: Rect2i, kind: int = -1) -> bool:
 	if rect.size.x <= 0 or rect.size.y <= 0:
 		return false
@@ -37,7 +38,7 @@ func can_place(rect: Rect2i, kind: int = -1) -> bool:
 				return false
 			var occupant := cells[y * terrain.size + x]
 			if occupant != 0:
-				if kind == BuildingTypes.Kind.GATE and BuildingTypes.is_wall(kinds.get(occupant, -1)):
+				if replaces_walls(kind) and BuildingTypes.is_wall(kinds.get(occupant, -1)):
 					continue
 				return false
 			if terrain.is_buildable(c):
@@ -87,7 +88,7 @@ func _is_road(c: Vector2i) -> bool:
 func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int = 1) -> int:
 	if not can_place(rect, kind):
 		return 0
-	if kind == BuildingTypes.Kind.GATE:
+	if replaces_walls(kind):
 		for wall in walls_under(rect):
 			remove(wall)
 	var id := _next_id
@@ -130,13 +131,19 @@ func place_kind(c: Vector2i, kind: int, level: int = 1, stick: bool = false) -> 
 	return place(rect, kind, level) if rect.has_area() else 0
 
 
+## Czy budynek `kind` może stanąć na odcinkach wału i palisady i je zastąpić: brama i wieża
+## (po teście na telefonie), bo obie stoją w linii umocnień.
+static func replaces_walls(kind: int) -> bool:
+	return kind == BuildingTypes.Kind.GATE or kind == BuildingTypes.Kind.TOWER
+
+
 ## Pierwsze miejsce, w które place_kind() postawiłby budynek dla kratki `c`, albo pusty prostokąt.
-## Brama najpierw szuka miejsca bez zastępowania umocnień (luka w linii), a dopiero potem stawia
-## się na odcinkach wału albo palisady.
+## Brama i wieża (replaces_walls) najpierw szukają miejsca bez zastępowania umocnień (luka w linii),
+## a dopiero potem stawiają się na odcinkach wału albo palisady.
 func placement_for(c: Vector2i, kind: int, stick: bool = false) -> Rect2i:
 	var candidates := placement_candidates(c, kind, stick)
 	for rect in candidates:
-		if can_place(rect, kind) and (kind != BuildingTypes.Kind.GATE or walls_under(rect).is_empty()):
+		if can_place(rect, kind) and (not replaces_walls(kind) or walls_under(rect).is_empty()):
 			return rect
 	for rect in candidates:
 		if can_place(rect, kind):
@@ -267,6 +274,8 @@ func placement_candidates(c: Vector2i, kind: int, stick: bool = false) -> Array[
 		# wieża łączy się z linią umocnień, więc staje w niej, a nie obok; Dwór i donżon stoją od startu
 		if stick and kind != BuildingTypes.Kind.TOWER and not BuildingTypes.is_unique(kind):
 			return _stick_candidates(c, kind, size)
+		if kind == BuildingTypes.Kind.TOWER and _is_palisade(c):
+			return _tower_on_wall_candidates(c, size)
 		return [Rect2i(c, size)] as Array[Rect2i]
 	var axis := road_axis(c)
 	var vertical := axis == Vector2i.RIGHT
@@ -281,6 +290,29 @@ func placement_candidates(c: Vector2i, kind: int, stick: bool = false) -> Array[
 	for back: int in [1, 0, 2]:
 		out.append(Rect2i(c - along * back, rect_size))
 	return out
+
+
+## Wieża dotknięta na odcinku umocnienia: każde położenie, które obejmuje dotkniętą kratkę, najpierw
+## te, które przykrywają najwięcej odcinków (wieża w linii, nie obok niej), przy remisie w stałej
+## kolejności od dotkniętej kratki jako lewego górnego rogu.
+func _tower_on_wall_candidates(c: Vector2i, size: Vector2i) -> Array[Rect2i]:
+	var out: Array[Rect2i] = []
+	for dy in size.y:
+		for dx in size.x:
+			out.append(Rect2i(c - Vector2i(dx, dy), size))
+	var under: Dictionary[Rect2i, int] = {}
+	for r in out:
+		var n := 0
+		for y in range(r.position.y, r.end.y):
+			for x in range(r.position.x, r.end.x):
+				n += int(_is_palisade(Vector2i(x, y)))
+		under[r] = n
+	var sorted: Array[Rect2i] = []
+	for want in range(size.x * size.y, 0, -1):
+		for r in out:
+			if under[r] == want:
+				sorted.append(r)
+	return sorted
 
 
 ## Kandydaci zwykłego budynku (#149): gdy przy dotkniętej kratce (do 1 kratki od budynku) biegnie wał

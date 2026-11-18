@@ -408,8 +408,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 			_deselect()
 		queue_redraw()
 		return
-	if id != 0 and hud.selected_kind == BuildingTypes.Kind.GATE and BuildingTypes.is_wall(grid.kinds[id]):
-		id = 0  # brama na wale albo palisadzie: zastępuje odcinki w linii (po teście na telefonie)
+	if id != 0 and BuildGrid.replaces_walls(hud.selected_kind) and BuildingTypes.is_wall(grid.kinds[id]):
+		id = 0  # brama albo wieża na wale lub palisadzie: zastępuje odcinki w linii (po teście na telefonie)
 	if id != 0 and BuildingTypes.is_wall(hud.selected_kind):
 		# palec w wąskiej luce linii umocnień trafił w sąsiedni odcinek: budujemy w luce
 		var gap := grid.gap_near(world_pos, hud.selected_kind, GAP_TAP_TOLERANCE)
