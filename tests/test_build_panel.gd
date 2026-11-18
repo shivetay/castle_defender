@@ -83,9 +83,37 @@ func test_card_shows_upgrade_cost() -> bool:
 	assert_true(info.begins_with("Ulepsz: "), "koszt ulepszenia")
 	assert_true(info.contains(Hud.cost_text(BuildConfig.cost(K.TOWER, 2))), "koszt poziomu 2")
 	assert_eq(load("res://scripts/main.gd").upgrade_info(K.TOWER, 5, 5, false), "Najwyższy poziom", "poziom 5")
-	assert_true((load("res://scripts/main.gd").upgrade_info(K.TOWER, 3, 3, false) as String).contains("najpierw Dwór"),
-			"ponad poziom Dworu")
 	assert_eq(load("res://scripts/main.gd").upgrade_info(K.TOWER, 1, 3, true), "Trwa budowa", "w kolejce")
+	return true
+
+
+## Karta pokazuje wymagania następnego poziomu (po teście na telefonie), a cały opis mieści się
+## w liniach karty bez ucinania „...”.
+func test_card_shows_requirements_in_full() -> bool:
+	var main: GDScript = load("res://scripts/main.gd")
+	assert_eq(main.upgrade_needs(K.TOWER, 3, 3, false), "Wymaga: Dwór poz. 4 (masz 3)", "ponad poziom Dworu")
+	assert_eq(main.upgrade_needs(K.TOWER, 1, 3, false), "Wymaga: Dwór poz. 2 (masz 3)", "spełnione")
+	assert_eq(main.upgrade_needs(K.MANOR, 1, 1, false), "Wymaga: tylko surowców", "Dwór")
+	assert_eq(main.upgrade_needs(K.TOWER, 5, 5, false), "", "najwyższy poziom: bez linii")
+	assert_eq(main.upgrade_needs(K.TOWER, 1, 3, true), "", "w budowie: bez linii")
+	var view := Vector2(320, 180)
+	for kind in BuildingTypes.count():
+		for level in range(1, BuildingTypes.MAX_LEVEL):
+			var info: String = main.upgrade_info(kind, level, 1, false)
+			var needs: String = main.upgrade_needs(kind, level, 1, false)
+			var lines := Hud.card_lines(info, needs, Hud.CARD_MIN_W - 8)
+			var joined := " ".join(lines)
+			assert_eq(joined, (info + " " + needs).strip_edges(), "%d/%d: cały tekst" % [kind, level])
+			for line in lines:
+				assert_true(PixelFont.text_width(line) <= Hud.CARD_MIN_W - 8, "%d/%d: „%s” mieści się" % [kind, level, line])
+			for res in EconomyConfig.count():
+				for line in lines:
+					assert_true(not line.ends_with(" " + "%d" % BuildConfig.cost(kind, level + 1)[res]) \
+							or BuildConfig.cost(kind, level + 1)[res] == 0, "%d/%d: koszt w jednej linii" % [kind, level])
+			for recruit: bool in [false, true]:
+				var panel := Hud.card_panel(view, lines.size(), recruit)
+				assert_true(panel.position.y > Hud.BAR_H + 10, "%d/%d: karta pod paskiem celu" % [kind, level])
+				assert_true(panel.position.x >= 0 and panel.end.x <= view.x, "%d/%d: karta na ekranie" % [kind, level])
 	return true
 
 
