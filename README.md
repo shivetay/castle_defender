@@ -377,7 +377,11 @@ obrony z #19 (posterunki załogi wokół donżonu).
   z ikoną na ciemnym okienku, nazwa w dymku po lewej, póki palec trzyma przycisk, a liczba zleceń
   Kolejki w czerwonej plakietce. Pasek celu sięga do samej kolumny. Tryb oglądania: Buduj, Badania, Wojsko, Obrona, Kolejka,
   Ustawienia (Oblężenie i Wyprawa są na karcie Strażnicy); dotknięcie budynku otwiera kartę (poziom albo czas budowy, koszt i czas ulepszenia łamane na linie oraz „Wymaga:” z poziomem Dworu dla następnego poziomu, na zielono albo czerwono;
-  Ulepsz, Rozbierz lub Anuluj, Zamknij). Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
+  Ulepsz, Rozbierz lub Anuluj, Zamknij). Dotknięcie surowca na górnym pasku otwiera okienko z informacją
+  (`InfoPopup`, treść z `InfoText`): zapas i magazyn, produkcja na godzinę z rozbiciem na gród, budynki
+  i badania, kiedy magazyn się zapełni i jak zdobyć więcej. Na ekranie Wojsko dotknięcie licznika
+  „Wojsko: 12/12 (?)” mówi, skąd jest limit armii (Dwór i każde Koszary) i jak go podnieść (Koszary zliczone w jednej linii); pełny licznik
+  jest czerwony. Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
 - `scripts/ui/settings_panel.gd` (`SettingsPanel`, #177): gra startuje od razu w zamku (to gra PvP,
   bez ekranu startowego). Ustawienia pod zębatką na dole kolumny HUD-u: Język polski/English

@@ -72,6 +72,8 @@ var bot_picker: BotPicker
 var result_panel: ResultPanel
 var planner: AttackPlanner
 var attack_panel: AttackPanel
+## Okienko z informacją (produkcja surowca, limit armii).
+var info_popup: InfoPopup
 ## Ustawienia obrony (#19): posterunki załogi i panel edycji (widoczny w trybie edycji obrony).
 var defense := DefensePlan.new()
 var defense_panel: DefensePanel
@@ -235,6 +237,10 @@ func _ready() -> void:
 	settings_panel.closed.connect(_on_overlay_closed)
 	settings_panel.new_game_requested.connect(_on_new_game)
 	hud.settings_pressed.connect(_on_settings_opened)
+	info_popup = InfoPopup.new()
+	layer.add_child(info_popup)  # ostatnie dziecko: dostaje dotyk przed panelami
+	hud.resource_pressed.connect(_on_resource_info)
+	recruit_panel.limit_pressed.connect(_on_army_limit_info)
 	net = SupabaseClient.new()
 	net.state_changed.connect(func(st: int) -> void: settings_panel.net_state = st)
 	add_child(net)
@@ -865,6 +871,17 @@ func _on_train_requested(unit: int, squad_id: int) -> void:
 		hud.message = RecruitPanel.missing_text(unit, goods)
 	else:
 		hud.message = Recruitment.MESSAGES[result]
+
+
+## Okienko surowca z górnego paska: zapas, produkcja z rozbiciem i jak zdobyć więcej.
+func _on_resource_info(res: int) -> void:
+	_tick()
+	info_popup.open(EconomyConfig.NAMES[res], InfoText.resource(res, grid, research, economy.amounts))
+
+
+## Okienko limitu armii z ekranu Wojsko: skąd bierze się limit i jak go podnieść.
+func _on_army_limit_info() -> void:
+	info_popup.open("Limit armii", InfoText.army(grid, recruitment))
 
 
 ## Ustawienia (#177): zapis, karta i kursor się zamykają, a panel przykrywa mapę.

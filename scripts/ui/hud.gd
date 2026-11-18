@@ -29,10 +29,12 @@ signal attack_pressed
 signal defence_pressed
 signal queue_pressed
 signal settings_pressed
+## Dotknięto surowca na górnym pasku (okienko z produkcją, InfoText.resource).
+signal resource_pressed(res: int)
 
 enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, CARD = 100 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, RESOURCE = 50, CARD = 100 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -408,6 +410,17 @@ static func resource_layout(amounts: Array[int], left: int) -> Array[int]:
 	return xs
 
 
+## Cele dotyku surowców na górnym pasku: od ikony do następnej ikony, na całą wysokość paska; ostatni
+## kończy się na swojej liczbie, żeby nie wchodzić na napis kolejki z prawej.
+static func resource_rects(amounts: Array[int], left: int) -> Array[Rect2]:
+	var xs := resource_layout(amounts, left)
+	var out: Array[Rect2] = []
+	for i in xs.size() - 1:
+		var end := xs[i + 1] if i + 1 < xs.size() - 1 else xs[-1] + 2
+		out.append(Rect2(xs[i] - 2, 0, end - xs[i], BAR_H))
+	return out
+
+
 ## Tekst w prawym górnym rogu: czas budowy i badania (jeśli trwają) oraz epoka i rok.
 static func top_right_text(queue: String, age: String, research: String = "") -> String:
 	var parts: PackedStringArray = []
@@ -422,6 +435,10 @@ static func top_right_text(queue: String, age: String, research: String = "") ->
 func _target_at(p: Vector2) -> int:
 	if overlay:
 		return Target.NONE
+	if economy != null:
+		var res := hit(resource_rects(economy.amounts, int(content_left)), p)
+		if res >= 0:
+			return Target.RESOURCE + res
 	if not battle and queue_text_rect(content_right, queue_text, research_text, age_text).has_point(p):
 		return Target.QUEUE
 	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit, battle, card_pve)
@@ -470,7 +487,9 @@ func _input(event: InputEvent) -> void:
 
 
 func _activate(t: int) -> void:
-	if t >= Target.CARD:
+	if t >= Target.RESOURCE and t < Target.CARD:
+		resource_pressed.emit(t - Target.RESOURCE)
+	elif t >= Target.CARD:
 		match t - Target.CARD:
 			CardButton.UPGRADE:
 				upgrade_pressed.emit()
