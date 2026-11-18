@@ -12,8 +12,10 @@ extends Node2D
 
 signal train_requested(unit: int, squad_id: int)
 signal closed
+## Dotknięto licznika armii w tytule (okienko z limitem, InfoText.army).
+signal limit_pressed
 
-enum Target { NONE = -1, CLOSE = 1, TRAIN = 2, INFO = 3, TILE = 200, SQUAD = 300 }
+enum Target { NONE = -1, CLOSE = 1, TRAIN = 2, INFO = 3, LIMIT = 4, TILE = 200, SQUAD = 300 }
 
 const TITLE_Y := Hud.BAR_H + 3
 const GRID_Y := TITLE_Y + 11
@@ -210,9 +212,22 @@ static func info_lines(unit: int, width: int, room: int) -> Array:
 	return out
 
 
+## Licznik armii w tytule jako cel dotyku: lewa połowa wiersza tytułu, 12 px wysokości.
+static func limit_rect(left: float, right: float) -> Rect2:
+	return Rect2(left, TITLE_Y - 2, floorf((right - left) / 2.0), 12)
+
+
+## Tytuł ekranu z licznikiem armii, np. „Wojsko: 12/12, wolne 0 (?)”; znak zapytania mówi, że
+## licznik da się dotknąć.
+static func title_text(r: Recruitment, g: BuildGrid) -> String:
+	return "Wojsko: %d/%d, wolne %d (?)" % [r.army_size() + r.orders.size(), Recruitment.army_limit(g), r.free_army(g)]
+
+
 static func target_at(p: Vector2, view: Vector2, left: float, right: float, count: int, squad_count: int = 0) -> int:
 	if close_rect(view, right).has_point(p):
 		return Target.CLOSE
+	if limit_rect(left, right).has_point(p):
+		return Target.LIMIT
 	if info_rect(view, left).has_point(p):
 		return Target.INFO
 	if train_rect(view, right).has_point(p):
@@ -309,6 +324,8 @@ func _activate(t: int) -> void:
 		train_requested.emit(selected, target_squad)
 	elif t == Target.INFO:
 		show_info = not show_info
+	elif t == Target.LIMIT:
+		limit_pressed.emit()
 	elif t == Target.CLOSE:
 		close()
 
@@ -328,9 +345,9 @@ func _draw() -> void:
 		return
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, Hud.BAR_H, view.x, view.y - 2 * Hud.BAR_H), Color(Palette.SHADOW, 0.92))
-	var title := "Wojsko: %d/%d, wolne %d" % [recruitment.army_size() + recruitment.orders.size(),
-			Recruitment.army_limit(grid), recruitment.free_army(grid)]
-	PixelFont.draw_text(self, Vector2(content_left, TITLE_Y), title, Palette.INK)
+	var full := recruitment.free_army(grid) <= 0
+	PixelFont.draw_text(self, Vector2(content_left, TITLE_Y), title_text(recruitment, grid),
+			Palette.ACCENT if full else Palette.INK)
 	var mode := BuildingTypes.NAMES[building_kind] if building_kind >= 0 else "wszystkie jednostki"
 	PixelFont.draw_right(self, content_right, TITLE_Y, mode, Palette.THATCH[2])
 	var list := units()
