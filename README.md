@@ -313,6 +313,15 @@ obrony z #19 (posterunki załogi wokół donżonu).
   - **Wyzwalacze:** konto Auth zakłada wiersz gracza; zapis zamku albo obrony podbija `revision`.
   - **Testy:** `supabase/tests/database/rls_test.sql` (50 testów pgTAP), np. obcy gracz nie zmieni cudzego zamku,
     `anon` nie czyta danych graczy, a serwer zapisuje ataki, tarcze i nagrody.
+- Klient Supabase (#22, `scripts/net/`): przy starcie gra zakłada anonimowe konto gracza
+  (`/auth/v1/signup`), trzyma sesję w `user://session.json` i odświeża token przed wygaśnięciem.
+  - **Offline:** bez sieci gra działa jak dotąd, a klient ponawia próby co 5 s, 15 s, 30 s… do 5 min.
+    Odrzucony token odświeżania oznacza nowe konto (anonimowego nie da się odzyskać).
+  - **Konfiguracja:** adres i klucz publishable w `config/supabase.json` (poza repo, wzór w
+    `config/supabase.example.json`). Bez pliku albo z kluczem serwera (`sb_secret_`, `service_role`)
+    klient się nie łączy. APK z CI dostaje plik ze zmiennych repozytorium `SUPABASE_URL`
+    i `SUPABASE_PUBLISHABLE_KEY`.
+  - **Ustawienia** pokazują stan: offline, łączenie, połączono albo brak sieci.
 - Wynik ataku (#99, `scripts/battle/battle_result.gd`, okno `scripts/ui/result_panel.gd`): liczony tylko ze
   stanu skończonej bitwy, w liczbach całkowitych (ten sam u atakującego, w powtórce i na serwerze).
   - **Procent zniszczeń:** zburzone budynki bez odcinków wału i palisady.
@@ -445,6 +454,10 @@ supabase start      # lokalny stos Supabase z migracjami
 supabase test db    # testy RLS (pgTAP)
 ```
 
+Połączenie gry z projektem Supabase (#22): skopiuj `config/supabase.example.json` do
+`config/supabase.json` i wpisz adres projektu oraz klucz publishable (Dashboard → Project Settings →
+API Keys). Plik jest w `.gitignore`; klucza serwera (`sb_secret_…`, `service_role`) nigdy tam nie wpisuj.
+
 ## Wersje i changelog
 
 Wersja to SemVer `MAJOR.MINOR.PATCH`. Pierwsze wydanie, 0.0.1, obejmuje etapy 1 i 2 (szkielet projektu,
@@ -498,6 +511,8 @@ scripts/world/   dane świata: teren, siatka budowy, ekonomia, badania, armia
 scripts/battle/  deterministyczna symulacja bitwy (bez renderu)
 scripts/camera/  kamera z gestami (zoom 0,5×/1×/2×/4×)
 scripts/ui/      HUD
+scripts/net/     klient Supabase: konto anonimowe, sesja, tryb offline
+config/          wzór konfiguracji Supabase (właściwy plik poza repo)
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
 tools/           narzędzia (version.py, changelog.py i ich testy)
 supabase/        backend PvP: config.toml, migracje SQL i testy RLS (pgTAP)
@@ -513,6 +528,6 @@ build/           eksportowane APK i logi (ignorowane przez git)
 Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#20) i pułapki (#100).
 Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
 (#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
-backend Supabase i PvP. Jest schemat bazy z RLS (#21, opis niżej); następne jest logowanie anonimowe
-i klient Supabase w Godot (#22). Z etapów 4–5 zostają części zależne od bitwy,
+backend Supabase i PvP. Jest schemat bazy z RLS (#21) i klient z anonimowym kontem (#22, opis niżej);
+następna jest synchronizacja zamku z serwerem (#23). Z etapów 4–5 zostają części zależne od bitwy,
 planu ataku i generałów (#81, #89, #91, #97, #12).

@@ -30,11 +30,23 @@ const LANGUAGES: Array[String] = ["polski", "English"]
 const ENGLISH_LATER := "English: wkrótce, na razie po polsku"
 const SOUND_LATER := "Dźwięk dojdzie w kolejnych wersjach"
 const OFFLINE_NOTE := "Gra offline, zapis na telefonie"
+## Stan połączenia z serwerem (#22) według SupabaseClient.State: DISABLED, CONNECTING, ONLINE, OFFLINE.
+const NET_NOTES: Array[String] = [
+	OFFLINE_NOTE,
+	"Łączenie z serwerem...",
+	"Połączono z serwerem",
+	"Brak sieci, gra offline",
+]
 
 var screen := Screen.SETTINGS
 var language := 0
 ## Krótka podpowiedź pod przyciskami (np. o języku angielskim).
 var hint := ""
+## Stan połączenia z serwerem (SupabaseClient.State); ustawia go main.gd.
+var net_state := 0:
+	set(v):
+		net_state = v
+		queue_redraw()
 
 var _pressed: int = Target.NONE
 
@@ -83,6 +95,10 @@ func label(t: int) -> String:
 
 
 ## Wersja gry z project.godot, np. „Wersja 0.3.0”.
+static func net_note(s: int) -> String:
+	return NET_NOTES[clampi(s, 0, NET_NOTES.size() - 1)]
+
+
 static func version_text() -> String:
 	return "Wersja %s" % str(ProjectSettings.get_setting("application/config/version", "?"))
 
@@ -147,5 +163,5 @@ func _draw() -> void:
 	if not hint.is_empty():
 		PixelFont.draw_centered(self, Rect2(0, rects[-1].end.y + 6, view.x, 10), hint, Palette.THATCH[2])
 	# stopka nad dolnym paskiem HUD-u, który prześwituje przez przyciemnienie
-	PixelFont.draw_centered(self, Rect2(0, view.y - FOOTER_Y, view.x, 10), OFFLINE_NOTE, Palette.WOOD[3])
+	PixelFont.draw_centered(self, Rect2(0, view.y - FOOTER_Y, view.x, 10), net_note(net_state), Palette.WOOD[3])
 	PixelFont.draw_centered(self, Rect2(0, view.y - FOOTER_Y + 10, view.x, 10), version_text(), Palette.WOOD[3])

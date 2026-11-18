@@ -64,6 +64,28 @@ jobs:
             echo "GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android"
           } >> "$GITHUB_ENV"
 
+      # Adres i klucz publishable ze zmiennych repozytorium (Settings → Variables), nie z repo.
+      # Klucz publishable jest publiczny z założenia (trafia do APK); klucza serwera tu nie ma.
+      - name: Konfiguracja Supabase
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "Brak zmiennych SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY: APK działa offline"
+            exit 0
+          fi
+          case "$SUPABASE_PUBLISHABLE_KEY" in
+            sb_publishable_*) ;;
+            *) echo "::error::SUPABASE_PUBLISHABLE_KEY musi zaczynać się od sb_publishable_"; exit 1 ;;
+          esac
+          case "$SUPABASE_URL" in
+            https://*) ;;
+            *) echo "::error::SUPABASE_URL musi zaczynać się od https://"; exit 1 ;;
+          esac
+          python3 -c 'import json, os; json.dump({"url": os.environ["SUPABASE_URL"], "publishable_key": os.environ["SUPABASE_PUBLISHABLE_KEY"]}, open("config/supabase.json", "w"))'
+          echo "Zapisano config/supabase.json"
+
       - name: Eksport APK
         run: |
           VERSION=$(python3 tools/version.py current)
