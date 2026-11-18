@@ -28,6 +28,8 @@ var content_right := 320.0 - Hud.CORNER_INSET
 var _pressed := Target.NONE
 ## Otwarta lista wyboru manewru.
 var picking := false
+## Dotknięcie zamknęło listę: jego puszczenie nie trafia już do mapy.
+var _swallow_release := false
 
 
 func _ready() -> void:
@@ -63,6 +65,12 @@ static func pick_rect(right: float, left: float, i: int) -> Rect2:
 	return Rect2(left, Hud.BAR_H + 2 + i * (PICK_H + PICK_GAP), w, PICK_H)
 
 
+## Cała lista manewrów (wiersze z lukami między nimi): dotknięcie w niej nie zamyka listy.
+static func list_rect(left: float, right: float) -> Rect2:
+	var first := pick_rect(right, left, 0)
+	return first.merge(pick_rect(right, left, AttackPlan.MANOEUVRE_NAMES.size() - 1))
+
+
 ## Manewr pod punktem na otwartej liście albo -1.
 static func pick_at(p: Vector2, left: float, right: float) -> int:
 	for i in AttackPlan.MANOEUVRE_NAMES.size():
@@ -88,8 +96,8 @@ func _input(event: InputEvent) -> void:
 	var touch := event as InputEventScreenTouch
 	if touch == null:
 		return
-	if picking:
-		# otwarta lista łapie wszystko: wiersz wybiera manewr, dotknięcie obok zamyka listę
+	if picking and list_rect(content_left, content_right).has_point(touch.position):
+		# w obrębie listy (z lukami między wierszami): wiersz wybiera manewr, luka nic nie robi
 		get_viewport().set_input_as_handled()
 		var row := pick_at(touch.position, content_left, content_right)
 		var hit := Target.PICK + row if row >= 0 else Target.NONE
@@ -98,12 +106,24 @@ func _input(event: InputEvent) -> void:
 			return
 		var was_row := _pressed
 		_pressed = Target.NONE
-		if hit == Target.NONE and was_row == Target.NONE:
-			picking = false
-			changed.emit(AttackPlanner.HINT)
-		elif hit == was_row:
+		if hit != Target.NONE and hit == was_row:
 			choose(row)
 		return
+	if _swallow_release and not touch.pressed:
+		_swallow_release = false
+		get_viewport().set_input_as_handled()
+		return
+	if picking and touch.pressed:
+		# poza listą: zamyka ją, a przycisk albo oddział pod palcem działa od razu; mapa i sam Manewr
+		# tylko zamykają listę (puszczenie palca nie stawia punktu trasy ani nie otwiera listy znowu)
+		picking = false
+		var under := target_at(touch.position, get_viewport_rect().size, content_left, content_right, planner.squads.size())
+		if under == Target.NONE or under == Target.MANOEUVRE:
+			get_viewport().set_input_as_handled()
+			_pressed = Target.NONE
+			_swallow_release = true
+			changed.emit(AttackPlanner.HINT)
+			return
 	var t := target_at(touch.position, get_viewport_rect().size, content_left, content_right, planner.squads.size())
 	if touch.pressed:
 		_pressed = t
@@ -205,6 +225,13 @@ func _draw() -> void:
 		_draw_picker()
 
 
+## Druga linia wiersza niedostępnego manewru: „Niedostępne: …”, gdy jednostka oddziału go nie umie
+## (stała niezdolność), inaczej „Wymaga: …” (epoka, badanie).
+static func reason_line(m: int, unit: int, why: String) -> String:
+	var unit_ok := unit < 0 or AttackPlan.unit_can(m, unit)
+	return ("Wymaga: " if unit_ok else "Niedostępne: ") + why
+
+
 func _draw_picker() -> void:
 	var o := planner.order()
 	if o == null:
@@ -219,5 +246,5 @@ func _draw_picker() -> void:
 			CastleView.draw_frame(self, Rect2i(r), Palette.INK)
 		var name_col: Color = Palette.INK if why.is_empty() else Palette.WOOD[2]
 		PixelFont.draw_text(self, r.position + Vector2(3, 1), AttackPlan.MANOEUVRE_NAMES[m], name_col)
-		var line := AttackPlan.MANOEUVRE_DESC[m] if why.is_empty() else "Wymaga: " + why
+		var line := AttackPlan.MANOEUVRE_DESC[m] if why.is_empty() else reason_line(m, planner.unit_of(o.squad), why)
 		PixelFont.draw_text(self, r.position + Vector2(3, 9), line, Palette.THATCH[2] if why.is_empty() else Palette.ACCENT)

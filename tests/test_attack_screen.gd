@@ -209,8 +209,14 @@ func test_manoeuvre_picker() -> bool:
 		assert_true(PixelFont.text_width(AttackPlan.MANOEUVRE_DESC[m]) <= row.size.x - 4, "%d: opis mieści się" % m)
 		for u in UnitTypes.count():
 			for age in 2:
-				var why := "Wymaga: " + AttackPlan.missing(m, u, age, r)
+				var why := AttackPanel.reason_line(m, u, AttackPlan.missing(m, u, age, r))
 				assert_true(PixelFont.text_width(why) <= row.size.x - 4, "%d/%d/%d: „%s” mieści się" % [m, u, age, why])
+	var list := AttackPanel.list_rect(left, right)
+	var gap := Vector2(list.get_center().x, AttackPanel.pick_rect(right, left, 0).end.y + 1)
+	assert_true(list.has_point(gap) and AttackPanel.pick_at(gap, left, right) < 0, "luka między wierszami należy do listy")
+	assert_eq(AttackPanel.reason_line(M.RANGED, U.PEASANT, "tylko strzelcy"), "Niedostępne: tylko strzelcy",
+			"niezdolność jednostki")
+	assert_eq(AttackPanel.reason_line(M.FLANK, U.PEASANT, "A4 x"), "Wymaga: A4 x", "brak badania")
 	var planner := AttackPlanner.new()
 	planner.plan = AttackPlan.new()
 	planner.squads = [[U.PEASANT, 5]]
