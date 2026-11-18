@@ -26,7 +26,8 @@ func test_every_castle_is_complete() -> bool:
 		assert_true(bot.objective != 0 and bot.grid.kinds[bot.objective] == K.KEEP, "%d: donżon jako cel" % i)
 		assert_eq(int(kinds.get(K.MANOR, 0)), 1, "%d: Dwór" % i)
 		assert_true(int(kinds.get(K.GATE, 0)) >= 1, "%d: brama" % i)
-		assert_true(int(kinds.get(K.PALISADE, 0)) > 8, "%d: pierścień palisady" % i)
+		var inner := BotRoster.inner_wall_of(i)
+		assert_true(int(kinds.get(inner, 0)) > 8, "%d: pierścień %s" % [i, BuildingTypes.NAMES[inner]])
 		assert_true(bot.grid.terrain.get_tile(bot.spawn) == TerrainMap.Tile.PATH, "%d: wejście na drodze" % i)
 		assert_true(BotRoster.defender_count(i) > 0, "%d: załoga" % i)
 		seeds[BotRoster.seed_of(i)] = true
@@ -66,7 +67,7 @@ func test_difficulty_grows() -> bool:
 
 
 ## Epoki: zamki 1–15 bronią tylko jednostki epoki I, 16–20 mają też jednostki epoki II.
-## Od zamku 4 budynki rekrutacji, od zamku 11 zewnętrzny wał.
+## Od zamku 4 budynki rekrutacji, zamki 2, 4, …, 10 na wale zamiast palisady, od zamku 11 zewnętrzny wał.
 func test_ages_recruit_buildings_and_outer_wall() -> bool:
 	for i in BotRoster.COUNT:
 		var max_age := 0
@@ -77,7 +78,12 @@ func test_ages_recruit_buildings_and_outer_wall() -> bool:
 		var kinds := _kinds(bot)
 		for kind in BotRoster.recruit_buildings(i):
 			assert_true(kinds.has(kind), "%d: stoi %s" % [i, BuildingTypes.NAMES[kind]])
-		assert_eq(kinds.has(K.RAMPART), i >= BotRoster.OUTER_WALL_FROM, "%d: zewnętrzny wał" % i)
+		assert_eq(kinds.has(K.RAMPART), i >= BotRoster.OUTER_WALL_FROM or BotRoster.inner_wall_of(i) == K.RAMPART,
+				"%d: wał (pierścień albo zewnętrzny)" % i)
+		assert_eq(kinds.has(K.PALISADE), BotRoster.inner_wall_of(i) == K.PALISADE, "%d: palisada" % i)
+	assert_eq(BotRoster.inner_wall_of(0), K.PALISADE, "zamek 1: palisada")
+	assert_eq(BotRoster.inner_wall_of(1), K.RAMPART, "zamek 2: wał")
+	assert_eq(BotRoster.inner_wall_of(BotRoster.OUTER_WALL_FROM + 1), K.PALISADE, "z zewnętrznym wałem: palisada")
 	assert_true(BotRoster.recruit_buildings(2).is_empty() and BotRoster.recruit_buildings(3).has(K.BARRACKS),
 			"Koszary od zamku 4")
 	return true
@@ -145,4 +151,68 @@ func test_target_survives_save() -> bool:
 	(d["attack"] as Dictionary).erase("target")
 	s = SaveGame.from_dict(JSON.parse_string(JSON.stringify(d)) as Dictionary, 0)
 	assert_eq(s.attack_target, 5, "stary zapis: najwyższy dostępny zamek")
+	return true
+
+
+## Pierścień wokół donżonu jest szczelny: od wejścia nie da się dojść do donżonu bez burzenia
+## budynku (w zamku 1 droga przecinała palisadę i zostawała luka, przez którą wchodzili Chłopi).
+func test_inner_ring_is_sealed() -> bool:
+	for i in BotRoster.COUNT:
+		var bot := BotRoster.generate(i)
+		assert_true(not _reaches_keep(bot), "%d: do donżonu bez wyłomu" % i)
+	return true
+
+
+## Czy pieszy dojdzie od wejścia do kratki przy donżonie po trawie i drodze (bez budynków i wody).
+func _reaches_keep(bot: BotCastle) -> bool:
+	var g := bot.grid
+	var near := g.buildings[bot.objective].grow(1)
+	var seen := {bot.spawn: true}
+	var todo: Array[Vector2i] = [bot.spawn]
+	while not todo.is_empty():
+		var c: Vector2i = todo.pop_back()
+		if near.has_point(c) and g.building_at(c) == 0:
+			return true
+		for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+			var n := c + d
+			if seen.has(n) or not g.terrain.in_bounds(n) or g.building_at(n) != 0 \
+					or g.terrain.get_tile(n) == TerrainMap.Tile.WATER:
+				continue
+			seen[n] = true
+			todo.append(n)
+	return false
+
+
+## Odcinek mimo drogi stawia tylko generator i tylko umocnienie: na drodze tak, na wodzie i dla innych
+## rodzajów nie. Zewnętrzny wał zostawia przejście na wprost bramy.
+func test_wall_on_road_and_outer_gap() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var road := Vector2i(-1, -1)
+	var water := Vector2i(-1, -1)
+	for y in grid.terrain.size:
+		for x in grid.terrain.size:
+			var c := Vector2i(x, y)
+			if road.x < 0 and grid.terrain.get_tile(c) == TerrainMap.Tile.PATH:
+				road = c
+			if water.x < 0 and grid.terrain.get_tile(c) == TerrainMap.Tile.WATER:
+				water = c
+	assert_true(road.x >= 0 and water.x >= 0, "mapa ma drogę i wodę")
+	assert_eq(grid.place_on_any_ground(Rect2i(road, Vector2i.ONE), K.LUMBER_HUT), 0, "chata na drodze: nie")
+	assert_eq(grid.place_on_any_ground(Rect2i(water, Vector2i.ONE), K.PALISADE), 0, "na wodzie: nie")
+	assert_true(grid.place_on_any_ground(Rect2i(road, Vector2i.ONE), K.PALISADE) != 0, "palisada na drodze: tak")
+	assert_eq(grid.place_on_any_ground(Rect2i(road, Vector2i.ONE), K.PALISADE), 0, "na zajętej kratce: nie")
+	var bot := BotRoster.generate(BotRoster.OUTER_WALL_FROM)
+	var gates := 0
+	var gate := Rect2i()
+	for id: int in bot.grid.kinds:
+		if bot.grid.kinds[id] == K.GATE:
+			gates += 1
+			gate = bot.grid.buildings[id]
+	assert_eq(gates, 1, "jedna brama")
+	# kratki zewnętrznego wału na wprost bramy (2 kratki dalej od pierścienia) są wolne
+	var dy := -2 if bot.spawn.y < gate.position.y else 2
+	for i in 3:
+		var c := gate.position + Vector2i(i, dy)
+		assert_true(bot.grid.building_at(c) == 0 or bot.grid.kinds[bot.grid.building_at(c)] != K.RAMPART,
+				"przejście w zewnętrznym wale %d" % i)
 	return true

@@ -234,15 +234,17 @@ obrony z #19 (posterunki załogi wokół donżonu).
   - **20 zamków-botów (#26, `scripts/battle/bot_roster.gd`):** lista wspólna dla wszystkich graczy
     (seed z numeru zamku; w etapie 9 przejdzie do bazy), z nazwami. Trudność rośnie: poziom budynków
     1–5 (co 4 zamki), do 4 wież, budynki rekrutacji (Koszary od 4., Strzelnica od 7., Dom drużyny
-    od 10., Stajnia od 13.), zewnętrzny wał od 11. i załoga z coraz większej liczby klas (od 4 Chłopów
+    od 10., Stajnia od 13.), gród na wale zamiast palisady w zamkach 2, 4, 6, 8 i 10, zewnętrzny wał od 11.
+    i załoga z coraz większej liczby klas (od 4 Chłopów
     do 77 obrońców). Zamki 16–20 to epoka II: bronią ich też Włócznicy, Drużynnicy, Strzelcy z łukiem
     refleksyjnym i Kopijnicy. Liczby tymczasowe.
   - **Wybór celu (`scripts/ui/bot_picker.gd`):** siatka 5×4 z numerami (zdobyte na zielono, epoka II
     z czerwonym znacznikiem), pod nią nazwa, trudność, epoka i załoga. Zamek odblokowuje się po zdobyciu
     poprzedniego. Zdobyte można atakować znowu, bo po ataku zamek wraca do pełnego stanu, więc gracz
     zawsze ma cel. Wybrany cel jest w zapisie (`attack.target`).
-  - **Zamek-cel:** `BotCastle` buduje zamek z listy: Dwór i donżon w palisadzie z bramą od strony
-    drogi, chaty, wieże i budynki rekrutacji poza pierścieniem oraz załogę.
+  - **Zamek-cel:** `BotCastle` buduje zamek z listy: Dwór i donżon w palisadzie (albo wale) z bramą
+    od strony drogi, chaty, wieże i budynki rekrutacji poza pierścieniem oraz załogę. Pierścień jest
+    szczelny: tam, gdzie przecina go droga, stoi odcinek muru (bez drugiej bramy).
   - **Ekran:** strefa rozstawienia przy wejściu, strzałki planu i pasek oddziałów (w ataku pierwsze
     3 oddziały armii, limit epoki I). Przyciski: Manewr, Start (od razu, po 10/20/30 s, po oddziale),
     Odwrót (nigdy, 30/50/70% strat), Wyczyść, Atakuj i Wróć.

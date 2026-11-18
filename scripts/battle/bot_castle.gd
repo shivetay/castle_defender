@@ -1,7 +1,7 @@
 class_name BotCastle
 extends RefCounted
 ## Zamek-cel do ataku (#17) i zamek-bot z listy BotRoster (#26): gród z seeda. Dwór i donżon
-## w pierścieniu palisady z bramą od strony drogi, wieże, budynki gospodarcze i rekrutacji poza
+## w pierścieniu palisady albo wału (BotRoster.inner_wall_of) z bramą od strony drogi, wieże, budynki gospodarcze i rekrutacji poza
 ## pierścieniem, od zamku 11 zewnętrzny wał, oraz załoga. `strength` (numer zamku na liście, 0–19)
 ## wybiera wszystko z BotRoster. Ten sam seed i siła dają zawsze ten sam zamek. Liczby TYMCZASOWE.
 
@@ -43,7 +43,7 @@ static func generate(seed_value: int, strength: int = 0) -> BotCastle:
 	if bot.objective != 0:
 		inner = inner.merge(grid.buildings[bot.objective])
 	var ring := inner.grow(2)
-	var gx := _place_ring(grid, ring, level, bot.spawn, K.PALISADE, true)
+	var gx := _place_ring(grid, ring, level, bot.spawn, BotRoster.inner_wall_of(bot.strength), true)
 	if bot.strength >= BotRoster.OUTER_WALL_FROM:
 		# zewnętrzny wał 2 kratki dalej, z przejściem na wprost bramy
 		_place_ring(grid, ring.grow(2), level, bot.spawn, K.RAMPART, false, gx)
@@ -69,22 +69,34 @@ static func edge_road(terrain: TerrainMap) -> Vector2i:
 
 
 ## Pierścień umocnień `kind` po brzegu `ring` z bramą 3×1 (albo przejściem bez bramy) w boku od strony
-## wejścia (górnym albo dolnym). Kratki z wodą, poza mapą i zajęte zostają luką w pierścieniu.
+## wejścia (górnym albo dolnym). Kratki z wodą i poza mapą zostają luką (tam i tak nikt nie przejdzie),
+## a zajęte przez inny budynek zamyka ten budynek. Droga, która przecina pierścień, dostaje odcinek
+## umocnienia mimo drogi (BuildGrid.place_on_any_ground), więc pierścień z bramą jest szczelny (w zamku 1
+## droga zostawiała lukę, przez którą wchodzili Chłopi). Bez drugiej bramy, żeby gwiazdka „Brama
+## zdobyta” nie przychodziła łatwiej z boku (review #200).
 ## `gate_x` < 0: brama na środku boku. Zwraca lewą kolumnę bramy.
 static func _place_ring(grid: BuildGrid, ring: Rect2i, level: int, spawn: Vector2i, kind: int = K.PALISADE,
 		gate: bool = true, gate_x: int = -1) -> int:
 	var gate_y := ring.position.y if spawn.y < ring.get_center().y else ring.end.y - 1
 	@warning_ignore("integer_division")
 	var gx := ring.position.x + ring.size.x / 2 - 1 if gate_x < 0 else gate_x
+	var holes: Array[Vector2i] = []
 	for y in range(ring.position.y, ring.end.y):
 		for x in range(ring.position.x, ring.end.x):
 			var edge := y == ring.position.y or y == ring.end.y - 1 or x == ring.position.x or x == ring.end.x - 1
-			if not edge or (y == gate_y and x >= gx and x < gx + 3):
-				continue
 			var c := Vector2i(x, y)
-			if not grid.terrain.in_bounds(c) or grid.terrain.get_tile(c) == TerrainMap.Tile.WATER or grid.building_at(c) != 0:
+			var in_gate := y == gate_y and x >= gx and x < gx + 3
+			if not edge or (in_gate and gate):
 				continue
-			grid.place(Rect2i(c, Vector2i.ONE), kind, level)
+			if in_gate or not grid.terrain.in_bounds(c) or grid.terrain.get_tile(c) == TerrainMap.Tile.WATER \
+					or grid.building_at(c) != 0:
+				continue  # przejście bez bramy (zewnętrzny wał), woda, krawędź mapy albo inny budynek
+			if grid.place(Rect2i(c, Vector2i.ONE), kind, level) == 0:
+				holes.append(c)
 	if gate:
-		grid.place(Rect2i(gx, gate_y, 3, 1), K.GATE, level)
+		if grid.place(Rect2i(gx, gate_y, 3, 1), K.GATE, level) == 0:
+			for i in 3:
+				holes.append(Vector2i(gx + i, gate_y))
+	for c in holes:
+		grid.place_on_any_ground(Rect2i(c, Vector2i.ONE), kind, level)
 	return gx
