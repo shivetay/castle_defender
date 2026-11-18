@@ -5,6 +5,16 @@ extends Node2D
 ## i pod nią pasek zdrowia oddziału. Pod odznakami efekty (#101): pociski, pył, ogień i dym.
 ## Symulacja liczy się w _physics_process w stałym kroku (BattleConfig.TICK_HZ), a rysowanie
 ## tylko czyta jej stan, więc widok nie wpływa na przebieg.
+## Po teście na telefonie (jednostki „przechodziły przez cały mur”):
+## - mapa pod bitwą rysuje stan zniszczeń budynków (states_changed → CastleView.draw_buildings);
+## - odznaka oddziału stoi na jednej z jego jednostek (Battle.squads_view: najbliższej środka), a nie w średniej,
+##   która przy oddziale rozdzielonym murem wypadała na murze;
+## - każda jednostka ma kropkę w kolorze strony, więc widać, gdzie naprawdę stoją;
+## - odznaka, która musiała zejść niżej, żeby nie zasłonić innej, trzyma swój wiersz, dopóki nie zwolni
+##   się miejsce na dłużej (SETTLE_FRAMES), zamiast skakać co klatkę.
+
+## Stan zniszczeń budynków zmienił się (id → BuildingTypes.State); mapa ma się przerysować.
+signal states_changed(states: Dictionary)
 
 ## Ramka oddziału: ikona 5×5 z obwódką 1 px.
 const BADGE := PixelIcons.SIZE + 2
@@ -12,6 +22,10 @@ const BAR_H := 1
 ## Wysokość wiersza przy rozsuwaniu odznak: odznaka, pasek i 1 px odstępu.
 ## Odznaka od góry: pasek morale, ikona, pasek zdrowia.
 const ROW := BAR_H + BADGE + BAR_H + 1
+## Ile klatek z rzędu miejsce bliżej jednostki musi być wolne, zanim odznaka wróci na nie.
+const SETTLE_FRAMES := 20
+## Kropka jednostki: 2×2 px w kolorze strony.
+const DOT := 2
 
 var battle: Battle
 var running := true
@@ -22,6 +36,11 @@ var effects := BattleEffects.new()
 ## doleciały, a pył opadł, zamiast zastygnąć na ostatniej klatce.
 var fx_tick := 0
 var _acc_us := 0
+## Ostatni wysłany stan zniszczeń (id → BuildingTypes.State).
+var states: Dictionary = {}
+## Wiersz odznaki (klucz oddziału → przesunięcie w wierszach) i ile klatek miejsce niżej jest wolne.
+var _rows: Dictionary = {}
+var _free: Dictionary = {}
 
 
 func _ready() -> void:
@@ -43,44 +62,97 @@ func _physics_process(delta: float) -> void:
 			fx_tick += 1
 	effects.add_events(battle.take_fx())
 	effects.prune(fx_tick)
+	var now := states_of(battle)
+	if now != states:
+		states = now
+		states_changed.emit(states)
 	queue_redraw()
+
+
+## Stan zniszczeń każdego budynku bitwy, który nie jest już cały (id → BuildingTypes.State).
+static func states_of(b: Battle) -> Dictionary:
+	var out := {}
+	for id: int in b.structures:
+		var s: Battle.Structure = b.structures[id]
+		var st := BuildingTypes.state_for_hp(s.hp, s.max_hp)
+		if st != BuildingTypes.State.INTACT:
+			out[id] = st
+	return out
 
 
 func _draw() -> void:
 	if battle == null:
 		return
 	effects.draw(self, battle, fx_tick)
+	for f in battle.fighters:
+		if f.alive():
+			var p := dot_origin(f.x, f.y)
+			draw_rect(Rect2(p.x, p.y, DOT, DOT), side_color(f.side))
 	var squads: Array[Dictionary] = []
 	var sides: Array[int] = []
 	for side: int in [Battle.Side.DEFENDER, Battle.Side.ATTACKER]:
 		for sq in battle.squads_view(side):
 			squads.append(sq)
 			sides.append(side)
-	var origins := layout(squads)
+	var origins := layout(squads, _rows, _free)
 	for i in squads.size():
 		draw_squad(self, squads[i], sides[i], origins[i])
 
 
+## Lewy górny róg kropki jednostki w pozycji (`x`, `y`) w podjednostkach (całe piksele).
+static func dot_origin(x: int, y: int) -> Vector2i:
+	@warning_ignore("integer_division")
+	return Vector2i(x * TerrainMap.CELL / BattleConfig.SUB - DOT / 2, y * TerrainMap.CELL / BattleConfig.SUB - DOT / 2)
+
+
 ## Miejsca odznak bez nakładania: odznaka, która zachodzi na wcześniejszą, schodzi niżej o jeden
 ## wiersz (kolejność stała, więc układ też). Tylko wygląd, symulacja tego nie widzi.
-static func layout(squads: Array[Dictionary]) -> Array[Vector2i]:
+## Z pamięcią `rows`/`free` (słowniki widoku, klucz oddziału z Battle.squads_view) odznaka trzyma wiersz
+## z poprzedniej klatki, póki jest wolny, a wraca wyżej dopiero, gdy miejsce bliżej jednostki jest
+## wolne przez SETTLE_FRAMES klatek z rzędu. Bez tego dwie mijające się odznaki przeskakiwały nad
+## sobą co klatkę (po teście na telefonie).
+static func layout(squads: Array[Dictionary], rows: Dictionary = {}, free: Dictionary = {}) -> Array[Vector2i]:
 	var placed: Array[Rect2i] = []
 	var out: Array[Vector2i] = []
 	for sq in squads:
-		var at := badge_origin(sq)
-		var r := Rect2i(at, badge_size(sq))
-		for attempt in squads.size():
-			var hit := false
-			for p in placed:
-				if p.intersects(r):
-					hit = true
-					break
-			if not hit:
+		var key: int = int(sq.get("key", -1))
+		var base := Rect2i(badge_origin(sq), badge_size(sq))
+		var prev: int = int(rows.get(key, 0))
+		var order: Array[int] = [prev]
+		for k in squads.size() + 1:
+			if k != prev:
+				order.append(k)
+		var row := order[-1]
+		for k in order:
+			if _row_free(base, k, placed):
+				row = k
 				break
-			r.position.y += ROW
+		if row == prev and prev > 0:
+			var lowest := -1
+			for k in prev:
+				if _row_free(base, k, placed):
+					lowest = k
+					break
+			if lowest >= 0:
+				free[key] = int(free.get(key, 0)) + 1
+				if int(free[key]) >= SETTLE_FRAMES:
+					row = lowest
+					free[key] = 0
+			else:
+				free[key] = 0
+		rows[key] = row
+		var r := Rect2i(base.position + Vector2i(0, row * ROW), base.size)
 		placed.append(r)
 		out.append(r.position)
 	return out
+
+
+static func _row_free(base: Rect2i, row: int, placed: Array[Rect2i]) -> bool:
+	var r := Rect2i(base.position + Vector2i(0, row * ROW), base.size)
+	for p in placed:
+		if p.intersects(r):
+			return false
+	return true
 
 
 ## Odznaka z liczbą i paskiem zdrowia, w pikselach.
