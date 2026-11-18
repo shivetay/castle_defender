@@ -24,6 +24,10 @@ func _ready() -> void:
 func open(new_title: String, new_lines: PackedStringArray) -> void:
 	title = new_title
 	lines = wrapped(new_lines)
+	# bezpiecznik: nadmiar linii nie wypycha okienka poza paski (treść z InfoText mieści się dużo niżej)
+	var room := max_lines(get_viewport_rect().size if is_inside_tree() else Vector2(320, 180))
+	if lines.size() > room:
+		lines = lines.slice(0, room)
 	visible = true
 	queue_redraw()
 
@@ -44,9 +48,19 @@ static func wrapped(src: PackedStringArray) -> PackedStringArray:
 	return out
 
 
-## Prostokąt okienka z `count` liniami, wyśrodkowany na ekranie `view`.
+## Najwięcej linii treści, przy których okienko mieści się między górnym a dolnym paskiem HUD.
+static func max_lines(view: Vector2) -> int:
+	@warning_ignore("integer_division")
+	return maxi(1, (int(view.y) - 2 * Hud.BAR_H - _frame_h()) / PixelFont.LINE)
+
+
+static func _frame_h() -> int:
+	return PAD + 10 + 3 + PixelFont.LINE + PAD
+
+
+## Prostokąt okienka z `count` liniami (najwyżej max_lines), wyśrodkowany na ekranie `view`.
 static func box_rect(view: Vector2, count: int) -> Rect2:
-	var h := PAD + 10 + count * PixelFont.LINE + 3 + PixelFont.LINE + PAD
+	var h := _frame_h() + mini(count, max_lines(view)) * PixelFont.LINE
 	return Rect2(floorf((view.x - WIDTH) / 2.0), floorf((view.y - h) / 2.0), WIDTH, h)
 
 

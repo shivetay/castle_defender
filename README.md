@@ -361,7 +361,7 @@ obrony z #19 (posterunki załogi wokół donżonu).
   Ulepsz, Rozbierz lub Anuluj, Zamknij). Dotknięcie surowca na górnym pasku otwiera okienko z informacją
   (`InfoPopup`, treść z `InfoText`): zapas i magazyn, produkcja na godzinę z rozbiciem na gród, budynki
   i badania, kiedy magazyn się zapełni i jak zdobyć więcej. Na ekranie Wojsko dotknięcie licznika
-  „Wojsko: 12/12 (?)” mówi, skąd jest limit armii (Dwór i każde Koszary) i jak go podnieść; pełny licznik
+  „Wojsko: 12/12 (?)” mówi, skąd jest limit armii (Dwór i każde Koszary) i jak go podnieść (Koszary zliczone w jednej linii); pełny licznik
   jest czerwony. Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
 - `scripts/ui/settings_panel.gd` (`SettingsPanel`, #177): gra startuje od razu w zamku (to gra PvP,

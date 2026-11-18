@@ -41,7 +41,7 @@ func test_army_info_explains_limit() -> bool:
 	assert_true(text.contains("- Dwór poz. 1: +10") and text.contains("- Koszary: brak"), "bez Koszar: %s" % text)
 	grid.place_kind(_spot(grid, K.BARRACKS), K.BARRACKS, 1)
 	text = " | ".join(InfoText.army(grid, rec))
-	assert_true(text.contains("limit 12") and text.contains("- Koszary poz. 1: +2"), "Dwór i Koszary: %s" % text)
+	assert_true(text.contains("limit 12") and text.contains("- Koszary ×1 (poziomy razem 1): +2"), "Dwór i Koszary: %s" % text)
 	assert_true(text.contains("ulepsz Dwór") and text.contains("Koszary"), "jak podnieść")
 	return true
 
@@ -51,8 +51,16 @@ func test_army_info_explains_limit() -> bool:
 func test_popup_and_touch_targets_fit() -> bool:
 	var grid := BuildGrid.new(TerrainMap.generate(1337))
 	grid.place_kind(_spot(grid, K.MANOR), K.MANOR, 1)
-	for i in 3:
+	for i in 12:
 		grid.place_kind(_spot(grid, K.BARRACKS), K.BARRACKS, 5)
+	var army := InfoText.army(grid, Recruitment.new())
+	var barracks_lines := 0
+	for line in army:
+		barracks_lines += int(line.begins_with("- Koszary"))
+	assert_eq(barracks_lines, 1, "12 Koszar w jednej linii")
+	assert_true(Recruitment.MESSAGES[Recruitment.Result.ARMY_FULL].contains("Wojsko"), "komunikat wskazuje licznik Wojsko")
+	var huge := InfoPopup.box_rect(VIEW, 100)
+	assert_true(huge.position.y >= Hud.BAR_H and huge.end.y <= VIEW.y - Hud.BAR_H, "100 linii: okienko dalej między paskami")
 	var amounts: Array[int] = [999, 1000, 50, 99999]
 	var longest: PackedStringArray = InfoText.army(grid, Recruitment.new())
 	for res in EconomyConfig.count():

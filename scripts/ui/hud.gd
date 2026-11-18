@@ -359,12 +359,13 @@ static func resource_layout(amounts: Array[int], left: int) -> Array[int]:
 	return xs
 
 
-## Cele dotyku surowców na górnym pasku: od ikony do następnej ikony, na całą wysokość paska.
+## Cele dotyku surowców na górnym pasku: od ikony do następnej ikony, na całą wysokość paska; ostatni
+## kończy się na swojej liczbie, żeby nie wchodzić na napis kolejki z prawej.
 static func resource_rects(amounts: Array[int], left: int) -> Array[Rect2]:
 	var xs := resource_layout(amounts, left)
 	var out: Array[Rect2] = []
 	for i in xs.size() - 1:
-		var end := xs[i + 1] if i + 1 < xs.size() - 1 else xs[-1] + RESOURCE_GAP
+		var end := xs[i + 1] if i + 1 < xs.size() - 1 else xs[-1] + 2
 		out.append(Rect2(xs[i] - 2, 0, end - xs[i], BAR_H))
 	return out
 
