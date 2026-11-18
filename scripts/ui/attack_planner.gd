@@ -39,17 +39,28 @@ func open(target: BotCastle, attack_plan: AttackPlan, army: Array, current_age: 
 	squads = army
 	age = current_age
 	show_plan = true
-	fit_plan(plan, squads.size())
+	fit_plan(plan, squads.size(), unit_list(squads))
 	selected = clampi(selected, 1, maxi(1, squads.size()))
 	visible = true
 	queue_redraw()
 
 
-## Dopasowuje plan do liczby oddziałów: każdy ma rozkaz, nadmiarowe rozkazy znikają.
-static func fit_plan(p: AttackPlan, count: int) -> void:
+## Rodzaj jednostek każdego oddziału armii [rodzaj, liczba].
+static func unit_list(army: Array) -> Array[int]:
+	var out: Array[int] = []
+	for sq: Array in army:
+		out.append(int(sq[0]))
+	return out
+
+
+## Dopasowuje plan do liczby oddziałów: każdy ma rozkaz, nadmiarowe rozkazy znikają. Z `units`
+## rozkaz, którego jednostka oddziału nie umie wykonać (np. inny skład armii), wraca do Szturmu.
+static func fit_plan(p: AttackPlan, count: int, units: Array[int] = []) -> void:
 	var keep: Array[AttackPlan.Order] = []
 	for o in p.orders:
 		if o.squad >= 1 and o.squad <= count:
+			if o.squad <= units.size() and not AttackPlan.unit_can(o.manoeuvre, units[o.squad - 1]):
+				o.manoeuvre = AttackPlan.Manoeuvre.FRONTAL
 			keep.append(o)
 	p.orders = keep
 	for i in range(1, count + 1):
@@ -63,16 +74,20 @@ func order() -> AttackPlan.Order:
 
 # --- Edycja planu (statyczne, testowane bez ekranu) ------------------------------------------------
 
-## Następny manewr dostępny w epoce `age` i (z `research`) odblokowany badaniami, po ostatnim znów
-## pierwszy (#12).
-static func next_manoeuvre(m: int, current_age: int, research: Research = null) -> int:
+## Następny manewr dostępny w epoce `age`, (z `research`) odblokowany badaniami i (z `unit` ≥ 0)
+## wykonalny dla jednostek oddziału, po ostatnim znów pierwszy (#12).
+static func next_manoeuvre(m: int, current_age: int, research: Research = null, unit: int = -1) -> int:
 	var n := AttackPlan.MANOEUVRE_NAMES.size()
 	for step in range(1, n + 1):
 		var cand := (m + step) % n
-		if AttackPlan.MANOEUVRE_AGE[cand] <= current_age \
-				and (research == null or AttackPlan.manoeuvre_unlocked(cand, research)):
+		if AttackPlan.missing(cand, unit, current_age, research).is_empty():
 			return cand
 	return m
+
+
+## Jednostka oddziału `squad` (od 1) albo -1.
+func unit_of(squad: int) -> int:
+	return int((squads[squad - 1] as Array)[0]) if squad >= 1 and squad <= squads.size() else -1
 
 
 ## Następny start: od razu → po 10, 20, 30 s → po zadaniu oddziału 1, 2, … (bez siebie) → od razu.

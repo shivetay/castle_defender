@@ -20,6 +20,14 @@ const MANOEUVRE_NAMES: Array[String] = ["Szturm frontalny", "Ostrzał z dystansu
 const MANOEUVRE_AGE: Array[int] = [0, 0, 0, 0, 1, 1]
 ## Technologia, która odblokowuje manewr (#12, notatka Drzewko technologiczne); pusty napis: bez badań.
 const MANOEUVRE_TECH: Array[String] = ["", "", "A3", "A4", "A5", "A6"]
+## Krótki opis manewru na liście wyboru (ekran planu).
+const MANOEUVRE_DESC: Array[String] = ["Idzie na cel i burzy, co stoi na drodze", "Strzelcy biją cel z zasięgu",
+		"Podpala drewniane budynki", "Obchodzi obronę bokiem", "Wchodzi na mur po drabinach",
+		"Taran bije bramę, piechota go osłania"]
+## Komunikat, gdy jednostka oddziału nie umie wykonać manewru (po teście na telefonie Chłopi mieli
+## Ostrzał z dystansu).
+const UNIT_HINTS: Array[String] = ["", "tylko strzelcy", "tylko Podpalacze", "nie Taran",
+		"tylko piechota", "Taran lub piechota"]
 const MAX_WAYPOINTS := 3
 ## Ile oddziałów mieści plan w epokach I–VI (Otwarte pytania, decyzja właściciela: 3 w epoce I,
 ## do 8 w epoce VI). Technologia U12 i generałowie dodadzą po +1 później.
@@ -69,10 +77,48 @@ func order_for(squad: int) -> Order:
 	return null
 
 
+## Czy jednostka `unit` umie wykonać manewr `m`: Ostrzał tylko z zasięgiem co najmniej
+## BattleConfig.RANGED_MIN_RANGE, Podpalenie tylko Podpalacz (tylko on rozpala ogień), Drabiny piechota
+## lekka i ciężka, Taranowanie Taran i piechota w osłonie, Oskrzydlenie każdy poza Taranem.
+static func unit_can(m: int, unit: int) -> bool:
+	var cls := UnitTypes.unit_class(unit)
+	var infantry := cls == RecruitmentConfig.UnitClass.LIGHT or cls == RecruitmentConfig.UnitClass.HEAVY
+	match m:
+		Manoeuvre.RANGED:
+			return UnitTypes.attack_range(unit) >= BattleConfig.RANGED_MIN_RANGE
+		Manoeuvre.FIRE:
+			return unit == UnitTypes.Unit.FIRE_RAISER
+		Manoeuvre.FLANK:
+			return unit != UnitTypes.Unit.RAM
+		Manoeuvre.LADDERS:
+			return infantry
+		Manoeuvre.RAM_GATE:
+			return infantry or unit == UnitTypes.Unit.RAM
+	return true
+
+
+## Czego brakuje, żeby oddział z jednostkami `unit` wykonał manewr `m` w epoce `age` przy badaniach
+## `research` (bez badań technologii nie sprawdza), a pusty napis, gdy manewr jest dostępny. Jednostka,
+## która manewru nie umie, daje sam ten powód (np. „tylko piechota”), bo epoka ani badanie nic nie
+## zmienią; inaczej epoka i badanie po przecinku, np. „epoka II, A5 Drabiny oblężnicze”. Jednostka -1:
+## bez sprawdzania jednostki.
+static func missing(m: int, unit: int, age: int, research: Research = null) -> String:
+	if unit >= 0 and not unit_can(m, unit):
+		return UNIT_HINTS[m]  # epoka ani badanie tego nie zmienią
+	var parts: PackedStringArray = []
+	if MANOEUVRE_AGE[m] > age:
+		parts.append("epoka %s" % ["I", "II", "III", "IV", "V", "VI"][clampi(MANOEUVRE_AGE[m], 0, 5)])
+	if research != null and not manoeuvre_unlocked(m, research):
+		parts.append("%s %s" % [MANOEUVRE_TECH[m], TechTree.tech_name(MANOEUVRE_TECH[m])])
+	return ", ".join(parts)
+
+
 ## Pusty napis, gdy plan jest poprawny dla armii z `squad_count` oddziałów w epoce `age`;
 ## inaczej powód po polsku (dla ekranu planu, #17).
 ## Z `research` (badania atakującego) sprawdza też technologie manewrów (#12); bez badań je pomija.
-func problem(squad_count: int, age: int, research: Research = null) -> String:
+## Z `units` (rodzaj jednostek każdego oddziału, od oddziału 1) sprawdza też, czy oddział umie
+## wykonać swój manewr.
+func problem(squad_count: int, age: int, research: Research = null, units: Array[int] = []) -> String:
 	if squad_count > max_squads(age):
 		return "Za dużo oddziałów: najwyżej %d" % max_squads(age)
 	for o in orders:
@@ -84,6 +130,8 @@ func problem(squad_count: int, age: int, research: Research = null) -> String:
 			return "%s: wymaga późniejszej epoki" % MANOEUVRE_NAMES[o.manoeuvre]
 		if research != null and not manoeuvre_unlocked(o.manoeuvre, research):
 			return tech_hint(o.manoeuvre)
+		if o.squad <= units.size() and not unit_can(o.manoeuvre, units[o.squad - 1]):
+			return "Oddział %d, %s: %s" % [o.squad, MANOEUVRE_NAMES[o.manoeuvre], UNIT_HINTS[o.manoeuvre]]
 		if o.waypoints.size() > MAX_WAYPOINTS:
 			return "Najwyżej %d punkty trasy" % MAX_WAYPOINTS
 		if o.retreat_percent < 0 or o.retreat_percent > 100:

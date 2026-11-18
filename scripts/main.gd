@@ -678,7 +678,7 @@ func _close_attack() -> void:
 ## Atakuj: bitwa na zamku-celu według planu. Ekran planu chowa się, a mapa celu zostaje.
 func _on_attack_launched() -> void:
 	var army := _attack_army()
-	var problem := attack_plan.problem(army.size(), CURRENT_AGE, research)
+	var problem := attack_plan.problem(army.size(), CURRENT_AGE, research, AttackPlanner.unit_list(army))
 	if army.is_empty():
 		problem = "Najpierw wyszkol wojsko: Koszary i Wojsko"
 	if not problem.is_empty():
