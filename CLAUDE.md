@@ -113,15 +113,48 @@ Czego nie da się sprawdzić bez telefonu (dotyk, FPS, APK), zostaje do ręczneg
 
 ## Bezpieczeństwo
 
+Od etapu 9 gra trzyma dane graczy w Supabase, więc bezpieczeństwo ma pierwszeństwo przed
+wygodą i tempem. Szczegóły są w skillach `supabase-security`, `pvp-anti-cheat`,
+`user-data-privacy` i `security-review`; wczytaj je przy każdej pracy, której dotyczą.
+
 - Nigdy nie commituj keystore'ów, haseł, kluczy Supabase ani `.env` (są w `.gitignore`;
-  nie obchodź tego).
-- PvP od etapu 8: klient nie jest zaufany. Wynik ataku liczy albo weryfikuje serwer
-  (deterministyczna powtórka symulacji). W Supabase wszystkie tabele mają RLS, a w kliencie jest
-  tylko klucz `anon`/publishable, nigdy `service_role`.
+  nie obchodź tego). Sekretów nie wklejaj też do PR, issue ani komentarzy.
+- Klient nie jest zaufany. Wynik ataku, łup, ranking, tarcze i nagrody liczy albo weryfikuje serwer
+  (deterministyczna powtórka symulacji). W kliencie jest tylko klucz publishable/`anon`, nigdy
+  `service_role`.
+- Każda tabela w Supabase ma RLS, jawne i minimalne uprawnienia (także na kolumnach) oraz testy
+  pgTAP w `supabase/tests/database`: właściciel tak, obcy gracz nie. Zmiana schematu bez zielonych
+  testów RLS nie jest gotowa.
+- Migracje i inne zmiany na projekcie Supabase w chmurze robisz wyłącznie za zgodą właścicielki,
+  za każdym razem, z nazwą projektu. Po wgraniu uruchom doradców (`get_advisors`) i testy RLS na
+  projekcie w transakcji, która się cofa.
+- Dane graczy: zbieraj tylko to, czego gra potrzebuje, każde nowe pole opisz w PR i kasuj je razem
+  z kontem. Bez danych osobowych, tokenów i całych odpowiedzi API w logach (`print`, `push_warning`).
+- Nowe usługi zewnętrzne (reklamy, push, logowanie Google) i zmiany uprawnień Androida
+  w `export_presets.cfg` wymagają zgody właścicielki i opisu, jakie dane wysyłają.
+
+## Review
+
+Każde review (Twojego PR przed zgłoszeniem i cudzego) zaczyna się od bezpieczeństwa, według
+skilla `security-review`, a dopiero potem sprawdza poprawność, testy i styl. Review robi Claude
+Code albo Cursor: Cursor dostaje te same zasady przez `.cursor/rules/castle-defender.mdc`
+(agent) i `.cursor/BUGBOT.md` (Bugbot), które odsyłają do tego pliku i do skilli
+w `.claude/skills/`. Zmieniając zasady review, zmieniasz je tutaj i w skillach; pliki w `.cursor/`
+tylko do nich odsyłają, więc aktualizujesz je, gdy zmienia się lista skilli albo wagi uwag.
+
+- Uwagi oznaczaj wagą: 🔴 krytyczne (blokuje merge), 🟠 ważne (poprawić przed merge),
+  🟡 drobne. Wyciek sekretu, tabela bez RLS lub z polityką bez warunku na właściciela, zmiana
+  cudzych danych i wynik/łup ustawiany przez klienta to zawsze 🔴.
+- Każdą uwagę 🔴/🟠 opisz konkretnie: plik i linia, scenariusz nadużycia i propozycja poprawki.
+- PR, który dotyka `supabase/`, kodu sieciowego, zapisu gry, logowania, CI albo
+  `export_presets.cfg`, ma w opisie sekcję „Bezpieczeństwo” (szablon PR): co klient może, a czego
+  nie, i jak to sprawdzono. Przy takim diffie uruchom też `/security-review`.
+- Uwagi z review bezpieczeństwa poprawiasz zawsze, także oznaczone jako drobne; nie odkładasz
+  ich bez zgody właścicielki.
 
 ## Skille AI
 
-W `.claude/skills/` jest 15 skilli skopiowanych z
+W `.claude/skills/` są 4 własne skille bezpieczeństwa i 15 skilli skopiowanych z
 [gamedev-skills/awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills)
 (Apache-2.0, commit `c6ca6c4`, licencja i NOTICE obok). Claude Code wczytuje je sam, gdy pasują
 do zadania. Są pisane pod Godot 4.7, czyli pod naszą wersję.
@@ -138,10 +171,15 @@ do zadania. Są pisane pod Godot 4.7, czyli pod naszą wersję.
 | `camera-systems`, `input-systems` | kamera z przeciąganiem i zoomem, gesty dotykowe |
 | `tower-defense` | fale, wieże, krzywe HP i ekonomii (obrona zamku) |
 | `save-systems`, `performance-optimization`, `game-ui-ux` | zapis stanu, FPS na telefonie, UX mobilny |
+| `supabase-security` (własny) | RLS, uprawnienia, klucze, migracje i testy pgTAP w Supabase |
+| `pvp-anti-cheat` (własny) | klient niezaufany: wynik, łup, ranking i tarcze z serwera, limity |
+| `user-data-privacy` (własny) | dane graczy, RODO, usuwanie konta, logi bez danych osobowych, sekrety |
+| `security-review` (własny) | lista kontrolna review z wagą uwag (🔴/🟠/🟡) |
 
 Zasady:
 
 - Gdy skill jest sprzeczny z tym plikiem, wygrywa `CLAUDE.md` (np. grafika tylko w kodzie).
+- Własne skille (bez upstreamu) zmieniasz jak zwykły kod: osobny PR i opis zmiany.
 - Nie dodajemy `create-game-assets`, bo grafika powstaje w kodzie (zasada 1).
 - Skrypty pomocnicze skilli (`*.py`, `*.gd`) to kod z zewnątrz. Uruchamiaj je dopiero, gdy
   właściciel na to pozwoli. Do tego czasu sprawdzaj kompilację własnym, krótkim runnerem.

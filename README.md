@@ -481,7 +481,8 @@ scripts/ui/      HUD
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
 tools/           narzędzia (version.py, changelog.py i ich testy)
 .github/         workflowy CI/CD i skrypty instalacji Godota
-.claude/skills/  skille dla agenta AI (zob. CLAUDE.md)
+.claude/skills/  skille dla agenta AI, także bezpieczeństwa i review (zob. CLAUDE.md)
+.cursor/         reguły dla Cursora i Bugbota (odsyłają do CLAUDE.md i skilli)
 docs/castle-defender-vault/  vault Obsidiana z notatkami projektowymi (Godot go pomija)
 build/           eksportowane APK i logi (ignorowane przez git)
 ```
