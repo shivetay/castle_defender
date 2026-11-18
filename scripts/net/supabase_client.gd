@@ -6,6 +6,7 @@ extends Node
 ## mieć w kliencie) stoi w stanie DISABLED i nie wysyła niczego.
 ## Klient nie jest zaufany (skill `pvp-anti-cheat`): to konto służy tylko do zapisu własnych danych
 ## przez RLS, a wynik ataku, łup i ranking liczy serwer. Tokenów i odpowiedzi API nie logujemy.
+## Po wejściu w ONLINE może wysłać zamek z `map_seed` (#166 / część #23).
 
 signal state_changed(state: int)
 
@@ -13,6 +14,8 @@ enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
 enum Outcome { OK, REJECTED, NETWORK }
 enum Call { NONE, SIGNUP, REFRESH }
+## Kroki zapisu zamku z seedem (#166).
+enum CastleCall { NONE, GET, INSERT, UPDATE }
 
 ## Przerwy między kolejnymi próbami połączenia (s); ostatnia się powtarza.
 const RETRY_S: Array[int] = [5, 15, 30, 60, 120, 300]
@@ -29,6 +32,13 @@ var _failures := 0
 var _retry_left := 0.0
 var _pending: int = Call.NONE
 var _http: HTTPRequest
+var _rest: HTTPRequest
+var _castle_call: int = CastleCall.NONE
+var _castle_map_seed := 0
+var _castle_save_version := 0
+var _castle_data: Dictionary = {}
+## Gdy sync w toku, kolejny zapis tylko podmienia payload i czeka na dokończenie (#23).
+var _castle_dirty := false
 
 
 ## Konfiguracja przed dodaniem do drzewa (w testach inna ścieżka sesji); bez niej `_ready` czyta plik.
@@ -47,6 +57,10 @@ func _ready() -> void:
 	_http.timeout = TIMEOUT_S
 	add_child(_http)
 	_http.request_completed.connect(_on_request_completed)
+	_rest = HTTPRequest.new()
+	_rest.timeout = TIMEOUT_S
+	add_child(_rest)
+	_rest.request_completed.connect(_on_rest_completed)
 	session = SupabaseSession.load_from(session_path)
 	connect_now()
 
@@ -91,6 +105,22 @@ func connect_now() -> void:
 ## Nagłówki zapytań do REST API w imieniu gracza (#23): klucz publishable i token konta.
 func rest_headers() -> PackedStringArray:
 	return headers_for(config.key, session.access_token if session != null else "")
+
+
+## Wysyła zamek z `map_seed` (#166). Bez sieci — no-op. W trakcie innego zapisu zapamiętuje
+## najnowszy `data` i powtórzy sync po zakończeniu (żeby częsty `_save` nic nie gubił).
+func sync_castle(map_seed: int, save_version: int, data: Dictionary) -> void:
+	if not is_online() or _rest == null:
+		return
+	if not CastleSync.is_valid_map_seed(map_seed) or user_id().is_empty():
+		return
+	_castle_map_seed = map_seed
+	_castle_save_version = save_version
+	_castle_data = data
+	if _castle_call != CastleCall.NONE:
+		_castle_dirty = true
+		return
+	_castle_begin_get()
 
 
 # --- Logika bez sieci (testy) ------------------------------------------------------------------
@@ -158,6 +188,66 @@ func _send(call: int, path: String, body: Dictionary) -> void:
 
 func _on_request_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	handle_auth(_pending, result, code, body.get_string_from_utf8())
+
+
+func _on_rest_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_castle_rest(_castle_call, result, code, body.get_string_from_utf8())
+
+
+## Obsługa REST zamku bez sieci (testy). GET → INSERT albo UPDATE z seedem tylko przy INSERT.
+func handle_castle_rest(call: int, result: int, code: int, body: String) -> void:
+	var pending := call
+	_castle_call = CastleCall.NONE
+	if pending == CastleCall.NONE:
+		return
+	if outcome_of(result, code) != Outcome.OK:
+		_castle_retry_if_dirty()
+		return
+	if pending == CastleCall.GET:
+		var rows: Variant = SupabaseConfig.parse_json(body)
+		var remote := CastleSync.map_seed_from_rows(rows)
+		var action := CastleSync.next_action(_castle_map_seed, remote)
+		if action == CastleSync.Action.INSERT:
+			_castle_send(CastleCall.INSERT, HTTPClient.METHOD_POST, CastleSync.CASTLES_PATH,
+					CastleSync.insert_body(user_id(), _castle_map_seed, _castle_save_version, _castle_data))
+		elif action == CastleSync.Action.UPDATE:
+			_castle_send(CastleCall.UPDATE, HTTPClient.METHOD_PATCH, CastleSync.own_path(user_id()),
+					CastleSync.update_body(_castle_save_version, _castle_data))
+		else:
+			_castle_retry_if_dirty()
+		return
+	# INSERT / UPDATE: seed w bazie zostaje z INSERT; ewentualny nowszy zapis z dirty
+	_castle_retry_if_dirty()
+
+
+func _castle_begin_get() -> void:
+	_castle_call = CastleCall.GET
+	var err := _rest.request(config.url + CastleSync.own_path(user_id()) + "&select=" + CastleSync.SELECT_OWN,
+			rest_headers(), HTTPClient.METHOD_GET)
+	if err != OK:
+		_castle_call = CastleCall.NONE
+
+
+func _castle_retry_if_dirty() -> void:
+	if not _castle_dirty:
+		return
+	_castle_dirty = false
+	if is_online() and _rest != null and CastleSync.is_valid_map_seed(_castle_map_seed) \
+			and not user_id().is_empty():
+		_castle_begin_get()
+
+
+func _castle_send(call: int, method: int, path: String, body: Dictionary) -> void:
+	if _rest == null:
+		return
+	_castle_call = call
+	var headers := rest_headers()
+	if method == HTTPClient.METHOD_POST:
+		headers.append("Prefer: return=minimal")
+	var err := _rest.request(config.url + path, headers, method, JSON.stringify(body))
+	if err != OK:
+		_castle_call = CastleCall.NONE
+		_castle_retry_if_dirty()
 
 
 func _set_state(s: int) -> void:
