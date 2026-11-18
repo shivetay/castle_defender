@@ -1,0 +1,2 @@
+-- Dane startowe dla lokalnego `supabase db reset`. Celowo puste: lista zamków-botów (#26) jest
+-- w migracji, a danych graczy nie seedujemy (testy RLS same zakładają konta w transakcji).

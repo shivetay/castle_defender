@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(31);
+select plan(50);
 
 -- Trzech graczy: A, B, C (konta Auth tworzą wiersze w players przez wyzwalacz).
 insert into auth.users (id) values
@@ -25,8 +25,9 @@ insert into public.castles (player_id, map_seed, save_version, data)
   values ('00000000-0000-0000-0000-00000000000b', 4242, 8, '{"grid": "b"}');
 insert into public.defense_layouts (player_id, save_version, data)
   values ('00000000-0000-0000-0000-00000000000b', 8, '{"traps": []}');
-insert into public.attacks (attacker_id, defender_id, battle_seed)
-  values ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b', 7);
+insert into public.attacks (attacker_id, defender_id, battle_seed, defense_snapshot, castle_snapshot)
+  values ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b', 7,
+    '{"traps": ["wilczy_dol"]}', '{"grid": "b"}');
 insert into public.attacks (attacker_id, bot_idx, battle_seed)
   values ('00000000-0000-0000-0000-00000000000a', 3, 8);
 insert into public.shields (player_id, until) values ('00000000-0000-0000-0000-00000000000b', now() + interval '8 hours');
@@ -85,6 +86,9 @@ select lives_ok(
 select throws_ok(
   $$update public.players set rating = 9999 where id = '00000000-0000-0000-0000-00000000000a'$$,
   '42501', null, 'A nie podbije sobie rankingu');
+select throws_ok(
+  $$update public.players set age = 5 where id = '00000000-0000-0000-0000-00000000000a'$$,
+  '42501', null, 'A nie zmieni sobie epoki');
 select is_empty(
   $$update public.players set nickname = 'Zdrajca' where id = '00000000-0000-0000-0000-00000000000b' returning id$$,
   'A nie zmieni nicku B');
@@ -106,6 +110,18 @@ select throws_ok(
   $$insert into public.ad_rewards (player_id, reward) values ('00000000-0000-0000-0000-00000000000a', 'zloto')$$,
   '42501', null, 'A nie da sobie nagrody za reklamę');
 
+-- kopie z chwili startu ataku czyta tylko serwer (pułapki obrońcy, jego pełny zamek)
+select throws_ok($$select defense_snapshot from public.attacks$$, '42501', null,
+  'A nie podejrzy obrony B (z pułapkami) z kopii ataku');
+select throws_ok($$select castle_snapshot from public.attacks$$, '42501', null,
+  'A nie podejrzy zamku B z kopii ataku');
+
+-- lista zamków-botów tylko do odczytu
+select throws_ok($$insert into public.bot_castles (idx, name, map_seed, age) values (0, 'x', 1, 0)$$,
+  '42501', null, 'A nie doda zamku-bota');
+select throws_ok($$update public.bot_castles set map_seed = 1$$, '42501', null, 'A nie zmieni seedu zamku-bota');
+select throws_ok($$delete from public.bot_castles$$, '42501', null, 'A nie usunie zamków-botów');
+
 -- ---- gracz B: widzi atak na siebie, nie widzi ataku A na bota ----
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000000b", "role": "authenticated"}', true);
 select is((select count(*)::int from public.attacks), 1, 'B widzi tylko atak na siebie');
@@ -121,6 +137,38 @@ reset role;
 set local role anon;
 select is((select count(*)::int from public.bot_castles), 20, 'lista 20 zamków-botów jest publiczna');
 select throws_ok($$select 1 from public.castles$$, '42501', null, 'anon nie czyta zamków');
+select throws_ok($$select 1 from public.players$$, '42501', null, 'anon nie czyta graczy');
+select throws_ok($$select 1 from public.defense_layouts$$, '42501', null, 'anon nie czyta obron');
+select throws_ok($$select 1 from public.attacks$$, '42501', null, 'anon nie czyta ataków');
+select throws_ok($$select 1 from public.shields$$, '42501', null, 'anon nie czyta tarcz');
+select throws_ok($$select 1 from public.ad_rewards$$, '42501', null, 'anon nie czyta nagród');
+select throws_ok(
+  $$insert into public.castles (player_id, map_seed, save_version, data)
+    values ('00000000-0000-0000-0000-00000000000c', 1, 8, '{}')$$,
+  '42501', null, 'anon nie założy zamku');
+select throws_ok($$insert into public.players (id) values ('00000000-0000-0000-0000-00000000000c')$$,
+  '42501', null, 'anon nie założy gracza');
+select throws_ok($$update public.bot_castles set name = 'x'$$, '42501', null, 'anon nie zmieni zamków-botów');
+select throws_ok($$delete from public.bot_castles$$, '42501', null, 'anon nie usunie zamków-botów');
+
+-- ---- serwer (Edge Functions, service_role): zapisuje ataki, tarcze i nagrody ----
+reset role;
+set local role service_role;
+select lives_ok(
+  $$insert into public.attacks (attacker_id, defender_id, battle_seed, defense_snapshot, castle_snapshot, attacker_army)
+    values ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000b', 9,
+      '{"traps": []}', '{"grid": "b"}', '[["topornik", 5]]')$$,
+  'serwer zapisuje atak z kopią obrony i zamku');
+select throws_ok(
+  $$insert into public.attacks (attacker_id, defender_id, battle_seed)
+    values ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000b', 10)$$,
+  '23514', null, 'atak na gracza bez kopii obrony jest odrzucony');
+select lives_ok(
+  $$insert into public.shields (player_id, until) values ('00000000-0000-0000-0000-00000000000c', now() + interval '8 hours')$$,
+  'serwer daje tarczę');
+select lives_ok(
+  $$insert into public.ad_rewards (player_id, reward) values ('00000000-0000-0000-0000-00000000000c', 'zloto')$$,
+  'serwer zapisuje nagrodę za reklamę');
 
 reset role;
 select * from finish();

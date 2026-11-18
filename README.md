@@ -304,12 +304,15 @@ obrony z #19 (posterunki załogi wokół donżonu).
 - Baza PvP (#21, `supabase/migrations`): Supabase (Postgres) z RLS na każdej tabeli i jawnymi uprawnieniami.
   - **Tabele:** `players` (konto, także anonimowe; ranking i epoka), `castles` (stan gry w JSON z wersją formatu,
     licznikiem zmian i stałym `map_seed`), `defense_layouts`, `bot_castles` (20 zamków-botów z seedem z
-    `BotRoster`, #26), `attacks` (seed bitwy, rozkazy, wynik, łup), `shields`, `ad_rewards`.
+    `BotRoster`, #26), `attacks` (seed bitwy, rozkazy, wynik, łup oraz kopie obrony i zamku obrońcy
+    i armii atakującego z chwili startu; z nich liczy się bitwa), `shields`, `ad_rewards`.
   - **Dostęp gracza:** czyta i zapisuje tylko swój zamek, obronę i nick. Nie zmieni seedu terenu, licznika
     zmian, rankingu ani epoki i nie usunie zamku. Ataki, tarcze i nagrody tylko czyta (swoje); zapisuje je
-    serwer (Edge Functions, #25, #33). Listę zamków-botów czyta każdy, także bez logowania.
+    serwer (Edge Functions, #25, #33). Kopii obrony i zamku z ataku klient nie czyta (pułapki obrońcy
+    są ukryte do zwiadu, #28). Listę zamków-botów czyta każdy, także bez logowania.
   - **Wyzwalacze:** konto Auth zakłada wiersz gracza; zapis zamku albo obrony podbija `revision`.
-  - **Testy:** `supabase/tests/database/rls_test.sql` (31 testów pgTAP), np. obcy gracz nie zmieni cudzego zamku.
+  - **Testy:** `supabase/tests/database/rls_test.sql` (50 testów pgTAP), np. obcy gracz nie zmieni cudzego zamku,
+    `anon` nie czyta danych graczy, a serwer zapisuje ataki, tarcze i nagrody.
 - Wynik ataku (#99, `scripts/battle/battle_result.gd`, okno `scripts/ui/result_panel.gd`): liczony tylko ze
   stanu skończonej bitwy, w liczbach całkowitych (ten sam u atakującego, w powtórce i na serwerze).
   - **Procent zniszczeń:** zburzone budynki bez odcinków wału i palisady.
