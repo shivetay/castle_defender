@@ -918,25 +918,41 @@ func _refresh_card() -> void:
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
+	hud.card_needs = upgrade_needs(kind, level, grid.manor_level(), pending)
+	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending)
 	hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, BuildingTypes.MAX_LEVEL) \
 			else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
 
 
-## Linia karty z kosztem ulepszenia, np. „Ulepsz: 180 Dr 60 Ka 60 Ży, 3:00”.
-static func upgrade_info(kind: int, level: int, manor_level: int, pending: bool) -> String:
+## Opis karty z kosztem ulepszenia, np. „Ulepsz: 180 Dr 60 Ka 60 Ży, 3:00”. Wymagania są osobno
+## (upgrade_needs).
+static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool) -> String:
 	if pending:
 		return "Trwa budowa"
 	if not BuildingTypes.has_levels(kind):
 		return WATCHTOWER_INFO
 	if level >= BuildingTypes.MAX_LEVEL:
 		return "Najwyższy poziom"
-	var text := "Ulepsz: %s, %s" % [Hud.cost_text(BuildConfig.cost(kind, level + 1)),
+	return "Ulepsz: %s, %s" % [Hud.cost_text(BuildConfig.cost(kind, level + 1)),
 			Hud.format_time(BuildConfig.time_ms(kind, level + 1))]
-	if level >= BuildConfig.max_level(kind, manor_level):
-		text += ", najpierw Dwór"
-	return text
+
+
+## Linia karty z wymaganiami następnego poziomu (po teście na telefonie), np. „Wymaga: Dwór poz. 3
+## (masz 2)”; pusta, gdy budynek nie ma następnego poziomu albo jest w budowie. Dwór wymaga tylko
+## surowców, a inne budynki Dworu co najmniej na poziomie, do którego rosną.
+static func upgrade_needs(kind: int, level: int, manor_level: int, pending: bool) -> String:
+	if pending or not BuildingTypes.has_levels(kind) or level >= BuildingTypes.MAX_LEVEL:
+		return ""
+	if kind == BuildingTypes.Kind.MANOR:
+		return "Wymaga: tylko surowców"
+	return "Wymaga: Dwór poz. %d (masz %d)" % [level + 1, manor_level]
+
+
+## Czy wymagania następnego poziomu są spełnione (kolor linii „Wymaga:”: zielony albo czerwony).
+static func upgrade_needs_ok(kind: int, level: int, manor_level: int, pending: bool) -> bool:
+	return pending or level < BuildConfig.max_level(kind, manor_level)
 
 
 func _on_upgrade() -> void:
