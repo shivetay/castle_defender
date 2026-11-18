@@ -82,9 +82,12 @@ func test_civilian_texts_include_fisher_and_hunter() -> bool:
 func test_production_mode_label_and_lines_fit() -> bool:
 	assert_eq(RecruitPanel.mode_button_label(RecruitPanel.DetailMode.COST), RecruitPanel.INFO_LABEL, "z kosztu → Opis")
 	assert_eq(RecruitPanel.mode_button_label(RecruitPanel.DetailMode.INFO), RecruitPanel.PROD_LABEL, "z opisu → Prod.")
-	assert_eq(RecruitPanel.mode_button_label(RecruitPanel.DetailMode.PRODUCTION), RecruitPanel.COST_LABEL,
-			"z produkcji → Koszt")
+	assert_eq(RecruitPanel.mode_button_label(RecruitPanel.DetailMode.PRODUCTION), RecruitPanel.STOCK_LABEL,
+			"z produkcji → Zapas")
+	assert_eq(RecruitPanel.mode_button_label(RecruitPanel.DetailMode.STOCK), RecruitPanel.COST_LABEL,
+			"z zapasu → Koszt")
 	assert_true(PixelFont.text_width(RecruitPanel.PROD_LABEL) <= int(Hud.BUTTON_SIZE.x) - 4, "Prod. na przycisku")
+	assert_true(PixelFont.text_width(RecruitPanel.STOCK_LABEL) <= int(Hud.BUTTON_SIZE.x) - 4, "Zapas na przycisku")
 	var grid := BuildGrid.new(TerrainMap.generate(7))
 	grid.place_kind(_free_cell(grid, K.MANOR), K.MANOR, 1)
 	grid.place_kind(_free_cell(grid, K.LUMBER_HUT), K.LUMBER_HUT, 1)

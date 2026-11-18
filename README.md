@@ -183,9 +183,10 @@ w sekcji „Następny etap”.
   (`PixelFont.wrap`) w 4 liniach szczegółów; braki towarów, pogrupowane według budynku, który je robi,
   mają do 2 linii. Przycisk Opis przełącza szczegóły: koszt → opis jednostki (rola, przewagi) →
   produkcja cywilna postawionych wytwórców (np. Chata drwala +Dr/h, Drzewcarz z tempem towarów z
-  `EconomyConfig` / `GoodsConfig`) → z powrotem koszt. Pod nimi rząd wyboru oddziału na całej
-  szerokości treści: Nowy albo oddziały tego rodzaju („2: 7/10”), pełne przygaszone; domyślnie
-  pierwszy oddział z wolnym miejscem.
+  `EconomyConfig` / `GoodsConfig`) → zapas zbrojowni (towary używane przez jednostki, ilości z
+  `goods.amounts`) → z powrotem koszt. Pod nimi rząd wyboru oddziału na całej szerokości treści:
+  Nowy albo oddziały tego rodzaju („2: 7/10”), pełne przygaszone; domyślnie pierwszy oddział
+  z wolnym miejscem.
 - `scripts/battle/battle.gd` (`Battle`): deterministyczna symulacja bitwy (#14). Stały krok 30 Hz, pozycje
   w podjednostkach kratki (256 na kratkę), tylko liczby całkowite, własny RNG (`BattleRng`, xorshift32)
   i ścieżki z AStarGrid2D, w którym budynki są drogie, ale przechodnie: atakujący burzą najsłabsze miejsce

@@ -10,7 +10,7 @@ extends Node2D
 ## z budynkiem, który je robi, szkolenie, a w ostatnim rzędzie wybór oddziału: Nowy albo istniejący
 ## oddział tego rodzaju z zajętymi miejscami (pełne są przygaszone).
 ## Przycisk Opis przełącza szczegóły: koszt → opis jednostki → produkcja cywilna (postawieni
-## wytwórcy: chata drwala, drzewcarz i inni) → z powrotem koszt.
+## wytwórcy: chata drwala, drzewcarz i inni) → zapas zbrojowni (towary do jednostek) → koszt.
 
 signal train_requested(unit: int, squad_id: int)
 signal closed
@@ -18,8 +18,8 @@ signal closed
 signal limit_pressed
 
 enum Target { NONE = -1, CLOSE = 1, TRAIN = 2, INFO = 3, LIMIT = 4, TILE = 200, SQUAD = 300 }
-## Tryb szczegółów pod kafelkami: koszt szkolenia, opis bojowy albo produkcja cywilnych wytwórców.
-enum DetailMode { COST, INFO, PRODUCTION }
+## Tryb szczegółów pod kafelkami: koszt, opis, produkcja cywilna albo zapas zbrojowni.
+enum DetailMode { COST, INFO, PRODUCTION, STOCK }
 
 const TITLE_Y := Hud.BAR_H + 3
 const GRID_Y := TITLE_Y + 11
@@ -48,6 +48,10 @@ const PROD_LABEL := "Prod."
 const PROD_TITLE := "Produkcja cywilna"
 const PROD_STATE := "wytwórcy"
 const PROD_EMPTY := "Brak wytwórców. Postaw Chatę drwala lub Drzewcarza (Buduj)."
+const STOCK_LABEL := "Zapas"
+const STOCK_TITLE := "Zbrojownia"
+const STOCK_STATE := "zapas"
+const STOCK_EMPTY := "Pusto. Wyprodukuj broń i zbroję u wytwórców (Buduj)."
 const CLOSE_LABEL := "Zamknij"
 
 var recruitment: Recruitment
@@ -64,7 +68,7 @@ var building_id := 0
 var selected := 0
 ## Oddział, do którego trafi następna jednostka (Recruitment.NEW_SQUAD = nowy).
 var target_squad := Recruitment.NEW_SQUAD
-## Co pokazują szczegóły: koszt, opis jednostki albo produkcję cywilnych wytwórców.
+## Co pokazują szczegóły: koszt, opis, produkcję cywilną albo zapas zbrojowni.
 var detail_mode := DetailMode.COST
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
@@ -203,19 +207,21 @@ static func close_rect(view: Vector2, right: float) -> Rect2:
 	return Hud.right_corner_rect(view, right)
 
 
-## Przycisk Opis/Prod./Koszt w dolnym rzędzie przy lewej granicy treści: przełącza szczegóły
-## między kosztem, opisem jednostki i produkcją cywilnych wytwórców.
+## Przycisk Opis/Prod./Zapas/Koszt w dolnym rzędzie przy lewej granicy treści: przełącza
+## szczegóły między kosztem, opisem, produkcją cywilną i zapasem zbrojowni.
 static func info_rect(view: Vector2, left: float) -> Rect2:
 	return Rect2(Vector2(left, Hud.row_y(view)), Hud.BUTTON_SIZE)
 
 
-## Napis na przycisku trybu szczegółów: następny tryb po obecnym (Koszt → Opis → Prod. → Koszt).
+## Napis na przycisku trybu szczegółów: następny tryb (Koszt → Opis → Prod. → Zapas → Koszt).
 static func mode_button_label(mode: int) -> String:
 	match mode:
 		DetailMode.COST:
 			return INFO_LABEL
 		DetailMode.INFO:
 			return PROD_LABEL
+		DetailMode.PRODUCTION:
+			return STOCK_LABEL
 		_:
 			return COST_LABEL
 
@@ -311,6 +317,44 @@ static func civilian_lines(g: BuildGrid, width: int, room: int) -> Array:
 			out.append([l, Palette.INK, ""])
 			if out.size() >= room:
 				break
+	return out
+
+
+## Towary używane przy szkoleniu jednostek (broń, zbroja, koń…), w kolejności GoodsConfig.
+static func unit_goods() -> Array[int]:
+	var needed := {}
+	for unit in UnitTypes.count():
+		for good: int in UnitTypes.goods_cost(unit):
+			needed[good] = true
+	var out: Array[int] = []
+	for good in GoodsConfig.count():
+		if needed.has(good):
+			out.append(good)
+	return out
+
+
+## Zapisy zapasu towarów jednostkowych ze zbrojowni (`goods.amounts`), np. „1 Łuk”, „40 Strzały”.
+## Puste, gdy nic nie leży w magazynie.
+static func stock_texts(g: Goods) -> PackedStringArray:
+	var out: PackedStringArray = []
+	if g == null:
+		return out
+	for good in unit_goods():
+		if good < g.amounts.size() and g.amounts[good] > 0:
+			out.append("%d %s" % [g.amounts[good], GoodsConfig.NAMES[good]])
+	return out
+
+
+## Linie zapasu zbrojowni [tekst, kolor, ""] pod tytułem trybu; podpowiedź, gdy pusto.
+static func stock_lines(g: Goods, width: int, room: int) -> Array:
+	var out: Array = []
+	var texts := stock_texts(g)
+	if texts.is_empty():
+		for l in PixelFont.wrap(STOCK_EMPTY, width, room):
+			out.append([l, Palette.THATCH[2], ""])
+		return out
+	for l in PixelFont.wrap(", ".join(texts), width, room):
+		out.append([l, Palette.INK, ""])
 	return out
 
 
@@ -493,6 +537,9 @@ func _draw_details() -> void:
 	elif detail_mode == DetailMode.PRODUCTION:
 		lines = detail_lines(PROD_TITLE, PROD_STATE, "", "", Palette.INK, width).slice(0, 1)
 		lines.append_array(civilian_lines(grid, width, DETAIL_LINES - 1))
+	elif detail_mode == DetailMode.STOCK:
+		lines = detail_lines(STOCK_TITLE, STOCK_STATE, "", "", Palette.INK, width).slice(0, 1)
+		lines.append_array(stock_lines(goods, width, DETAIL_LINES - 1))
 	var y := float(DETAIL_Y)
 	var res_cost: Array[int] = []
 	res_cost.resize(EconomyConfig.count())
