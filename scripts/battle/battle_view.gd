@@ -7,7 +7,7 @@ extends Node2D
 ## tylko czyta jej stan, więc widok nie wpływa na przebieg.
 ## Po teście na telefonie (jednostki „przechodziły przez cały mur”):
 ## - mapa pod bitwą rysuje stan zniszczeń budynków (states_changed → CastleView.draw_buildings);
-## - odznaka oddziału stoi na jednej z jego jednostek (anchor_of), a nie w średniej pozycji oddziału,
+## - odznaka oddziału stoi na jednej z jego jednostek (Battle.squads_view: najbliższej środka), a nie w średniej,
 ##   która przy oddziale rozdzielonym murem wypadała na murze;
 ## - każda jednostka ma kropkę w kolorze strony, więc widać, gdzie naprawdę stoją;
 ## - odznaka, która musiała zejść niżej, żeby nie zasłonić innej, trzyma swój wiersz, dopóki nie zwolni
