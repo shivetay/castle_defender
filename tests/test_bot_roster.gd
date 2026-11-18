@@ -26,7 +26,8 @@ func test_every_castle_is_complete() -> bool:
 		assert_true(bot.objective != 0 and bot.grid.kinds[bot.objective] == K.KEEP, "%d: donżon jako cel" % i)
 		assert_eq(int(kinds.get(K.MANOR, 0)), 1, "%d: Dwór" % i)
 		assert_true(int(kinds.get(K.GATE, 0)) >= 1, "%d: brama" % i)
-		assert_true(int(kinds.get(K.PALISADE, 0)) > 8, "%d: pierścień palisady" % i)
+		var inner := BotRoster.inner_wall_of(i)
+		assert_true(int(kinds.get(inner, 0)) > 8, "%d: pierścień %s" % [i, BuildingTypes.NAMES[inner]])
 		assert_true(bot.grid.terrain.get_tile(bot.spawn) == TerrainMap.Tile.PATH, "%d: wejście na drodze" % i)
 		assert_true(BotRoster.defender_count(i) > 0, "%d: załoga" % i)
 		seeds[BotRoster.seed_of(i)] = true
@@ -66,7 +67,7 @@ func test_difficulty_grows() -> bool:
 
 
 ## Epoki: zamki 1–15 bronią tylko jednostki epoki I, 16–20 mają też jednostki epoki II.
-## Od zamku 4 budynki rekrutacji, od zamku 11 zewnętrzny wał.
+## Od zamku 4 budynki rekrutacji, zamki 2, 4, …, 10 na wale zamiast palisady, od zamku 11 zewnętrzny wał.
 func test_ages_recruit_buildings_and_outer_wall() -> bool:
 	for i in BotRoster.COUNT:
 		var max_age := 0
@@ -77,7 +78,12 @@ func test_ages_recruit_buildings_and_outer_wall() -> bool:
 		var kinds := _kinds(bot)
 		for kind in BotRoster.recruit_buildings(i):
 			assert_true(kinds.has(kind), "%d: stoi %s" % [i, BuildingTypes.NAMES[kind]])
-		assert_eq(kinds.has(K.RAMPART), i >= BotRoster.OUTER_WALL_FROM, "%d: zewnętrzny wał" % i)
+		assert_eq(kinds.has(K.RAMPART), i >= BotRoster.OUTER_WALL_FROM or BotRoster.inner_wall_of(i) == K.RAMPART,
+				"%d: wał (pierścień albo zewnętrzny)" % i)
+		assert_eq(kinds.has(K.PALISADE), BotRoster.inner_wall_of(i) == K.PALISADE, "%d: palisada" % i)
+	assert_eq(BotRoster.inner_wall_of(0), K.PALISADE, "zamek 1: palisada")
+	assert_eq(BotRoster.inner_wall_of(1), K.RAMPART, "zamek 2: wał")
+	assert_eq(BotRoster.inner_wall_of(BotRoster.OUTER_WALL_FROM + 1), K.PALISADE, "z zewnętrznym wałem: palisada")
 	assert_true(BotRoster.recruit_buildings(2).is_empty() and BotRoster.recruit_buildings(3).has(K.BARRACKS),
 			"Koszary od zamku 4")
 	return true
@@ -146,3 +152,32 @@ func test_target_survives_save() -> bool:
 	s = SaveGame.from_dict(JSON.parse_string(JSON.stringify(d)) as Dictionary, 0)
 	assert_eq(s.attack_target, 5, "stary zapis: najwyższy dostępny zamek")
 	return true
+
+
+## Pierścień wokół donżonu jest szczelny: od wejścia nie da się dojść do donżonu bez burzenia
+## budynku (w zamku 1 droga przecinała palisadę i zostawała luka, przez którą wchodzili Chłopi).
+func test_inner_ring_is_sealed() -> bool:
+	for i in BotRoster.COUNT:
+		var bot := BotRoster.generate(i)
+		assert_true(not _reaches_keep(bot), "%d: do donżonu bez wyłomu" % i)
+	return true
+
+
+## Czy pieszy dojdzie od wejścia do kratki przy donżonie po trawie i drodze (bez budynków i wody).
+func _reaches_keep(bot: BotCastle) -> bool:
+	var g := bot.grid
+	var near := g.buildings[bot.objective].grow(1)
+	var seen := {bot.spawn: true}
+	var todo: Array[Vector2i] = [bot.spawn]
+	while not todo.is_empty():
+		var c: Vector2i = todo.pop_back()
+		if near.has_point(c) and g.building_at(c) == 0:
+			return true
+		for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+			var n := c + d
+			if seen.has(n) or not g.terrain.in_bounds(n) or g.building_at(n) != 0 \
+					or g.terrain.get_tile(n) == TerrainMap.Tile.WATER:
+				continue
+			seen[n] = true
+			todo.append(n)
+	return false

@@ -46,6 +46,7 @@ func test_percent_and_stars_rules() -> bool:
 	var buildings: Array[Battle.Structure] = []
 	var walls := 0
 	var gate: Battle.Structure = null
+	var gates: Array[Battle.Structure] = []
 	for id: int in b.structures:
 		var s: Battle.Structure = b.structures[id]
 		if BuildingTypes.is_wall(s.kind):
@@ -54,6 +55,7 @@ func test_percent_and_stars_rules() -> bool:
 			buildings.append(s)
 		if s.kind == K.GATE:
 			gate = s
+			gates.append(s)
 	assert_true(walls > 0 and gate != null, "zamek ma mury i bramę")
 	var r := BattleResult.of(b)
 	assert_eq(r.total, buildings.size(), "procent bez odcinków muru")
@@ -68,7 +70,8 @@ func test_percent_and_stars_rules() -> bool:
 	r = BattleResult.of(b)
 	assert_eq(r.percent, half * 100 / buildings.size(), "procent zburzonych budynków")
 	assert_true(r.stars[BattleResult.Star.HALF], "połowa zamku")
-	gate.hp = gate.max_hp
+	for g in gates:
+		g.hp = g.max_hp  # pierścień może mieć drugą bramę na drodze
 	for f in b.fighters:
 		f.climbed = false
 	assert_true(not BattleResult.of(b).stars[BattleResult.Star.GATE], "brama cała: bez gwiazdki")

@@ -19,7 +19,8 @@ func test_bot_castle_is_deterministic_and_complete() -> bool:
 	for id: int in a.grid.kinds:
 		kinds[a.grid.kinds[id]] = int(kinds.get(a.grid.kinds[id], 0)) + 1
 	assert_true(int(kinds.get(K.PALISADE, 0)) > 8, "pierścień palisady")
-	assert_eq(int(kinds.get(K.GATE, 0)), 1, "brama")
+	# druga brama staje tam, gdzie droga przecina pierścień
+	assert_true(int(kinds.get(K.GATE, 0)) >= 1, "brama")
 	assert_true(kinds.has(K.LUMBER_HUT), "drewno do podpalenia poza pierścieniem")
 	assert_true(BotCastle.seed_for(1337, 0) != BotCastle.seed_for(1337, 1), "kolejny zamek jest inny")
 	var strong := BotCastle.generate(BotCastle.seed_for(1337, 3), 3)
