@@ -48,6 +48,23 @@ func warm_up() -> void:
 					shadow(kind, level, BuildingTypes.State.INTACT, 0, false, lean)
 
 
+## Rysuje stany uszkodzeń budynków z `grid` (pęknięcia, wyłom, gruz) z ich maskami / wpustami,
+## żeby pierwszy wyłom w bitwie nie przycinał gry na telefonie (całe warianty są w warm_up).
+func warm_up_damage(grid: BuildGrid) -> void:
+	for id in grid.draw_order():
+		var kind := grid.kinds[id]
+		var level := grid.levels[id]
+		var mask := grid.wall_mask(id)
+		var vertical := grid.is_vertical(id)
+		var lean := CastleView.lean_of(grid, id)
+		for state in range(BuildingTypes.State.CRACKED, BuildingTypes.State.RUBBLE + 1):
+			shadow(kind, level, state, mask, vertical, lean)
+		for stub in grid.wall_stubs(id):
+			var wall := grid.building_at(Vector2i(stub.x, stub.y) + CastleView.dir_of(stub.z))
+			for state in range(BuildingTypes.State.CRACKED, BuildingTypes.State.RUBBLE + 1):
+				draw_building(grid.kinds[wall], grid.levels[wall], state, stub.z)
+
+
 func cached_count() -> int:
 	return _cache.size()
 

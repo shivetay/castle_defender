@@ -542,6 +542,7 @@ func _on_siege_pressed() -> void:
 			defense.tower_priority)
 	b.arm_traps(defense.traps)  # pułapki działają raz na bitwę, a w układzie zostają (odnawiają się, #100)
 	b.apply_research(Battle.Side.DEFENDER, research)  # A2 łuki i O2 palisady obrońcy (#12)
+	textures.warm_up_damage(grid)  # stany uszkodzeń przed pierwszym wyłomem (telefon)
 	battle_view = BattleView.new()
 	battle_view.battle = b
 	battle_view.states_changed.connect(_on_battle_states)
@@ -716,6 +717,7 @@ func _on_attack_launched() -> void:
 			PixelCanvas.hash2(bot.seed_value, attack_target, 0xa77) & 0x7fffffff)
 	b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
 	b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
+	textures.warm_up_damage(bot.grid)  # stany uszkodzeń przed pierwszym wyłomem (telefon)
 	_attacking = true
 	attack_panel.visible = false
 	planner.show_plan = false

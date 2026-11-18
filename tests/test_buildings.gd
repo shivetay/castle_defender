@@ -192,6 +192,32 @@ func test_texture_cache_reuses_textures() -> bool:
 	return true
 
 
+func test_warm_up_damage_caches_states() -> bool:
+	var map := TerrainMap.generate(1337)
+	var grid := BuildGrid.new(map)
+	var origin := Vector2i(-1, -1)
+	for y in range(2, map.size - 4):
+		for x in range(2, map.size - 4):
+			if grid.can_place(Rect2i(x, y, 1, 1)):
+				origin = Vector2i(x, y)
+				break
+		if origin.x >= 0:
+			break
+	assert_true(origin.x >= 0, "znaleziono wolną kratkę")
+	var wall := grid.place_kind(origin, BuildingTypes.Kind.PALISADE, 2)
+	assert_true(wall != 0, "postawiono palisadę")
+	var tx := BuildingTextures.new()
+	var before := tx.cached_count()
+	tx.warm_up_damage(grid)
+	assert_true(tx.cached_count() > before, "warm_up_damage dorysowuje stany uszkodzeń")
+	var cracked := tx.draw_building(BuildingTypes.Kind.PALISADE, 2, BuildingTypes.State.CRACKED,
+			grid.wall_mask(wall))
+	var again := tx.draw_building(BuildingTypes.Kind.PALISADE, 2, BuildingTypes.State.CRACKED,
+			grid.wall_mask(wall))
+	assert_true(cracked == again, "uszkodzona tekstura zostaje w cache")
+	return true
+
+
 func test_grid_upgrade_and_wall_masks() -> bool:
 	var map := TerrainMap.generate(1337)
 	var grid := BuildGrid.new(map)

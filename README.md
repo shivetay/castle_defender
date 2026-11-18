@@ -64,7 +64,8 @@ w sekcji „Następny etap”.
   z murem), a pod nimi półprzezroczysty cień na trawie (`BuildingTextures.shadow`).
 - `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska,
   pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 222 całe warianty i place budowy
-  (ok. 19 ms na komputerze, headless).
+  (ok. 19 ms na komputerze, headless). Przed bitwą `warm_up_damage(grid)` doładowuje pęknięcia, wyłomy i gruz
+  budynków z mapy, żeby pierwszy wyłom nie przycinał gry na telefonie.
 - `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (3×1),
   Wieża drewniana, Chata drwala i Dwór (2×2). Wał i palisada łączą się ze sobą nawzajem
   oraz z bramą i wieżą, więc mieszana linia nie ma szpar. Przy wybranym wale lub palisadzie dotknięcie
