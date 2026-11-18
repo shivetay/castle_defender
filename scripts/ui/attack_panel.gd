@@ -3,28 +3,43 @@ extends Control
 ## Przyciski planowania ataku (#17) nad mapą celu (AttackPlanner): kolumna przy prawej krawędzi
 ## (Manewr, Start, Odwrót, Wyczyść, Atakuj, Wróć), pasek oddziałów na dole i opis rozkazu
 ## wybranego oddziału. Dotknięcia poza przyciskami idą do mapy (cel i trasa).
+## Manewr otwiera listę wszystkich manewrów: dostępne z krótkim opisem, niedostępne wyszarzone
+## z tym, czego brakuje (jednostka, epoka, badanie). Lista łapie wszystkie dotknięcia, a dotknięcie
+## poza nią ją zamyka.
 
 signal attack_requested
 signal back_requested
 ## Plan albo wybór zmienił się (mapa ma się przerysować, a gra zapisać).
 signal changed(message: String)
 
-enum Target { NONE = -1, MANOEUVRE, START, RETREAT, CLEAR, ATTACK, BACK, SQUAD = 100 }
+enum Target { NONE = -1, MANOEUVRE, START, RETREAT, CLEAR, ATTACK, BACK, SQUAD = 100, PICK = 200 }
 const COLUMN: Array[int] = [Target.MANOEUVRE, Target.START, Target.RETREAT, Target.CLEAR, Target.ATTACK, Target.BACK]
 const LABELS: Array[String] = ["Manewr", "Start", "Odwrót", "Wyczyść", "Atakuj", "Wróć"]
 const SQUAD_TILE := Vector2(44, 16)
 ## Pasek opisu rozkazu nad oddziałami.
 const INFO_H := 10
+## Wiersz listy manewrów: nazwa i pod nią opis albo powód, dlaczego niedostępny.
+const PICK_H := 18
+const PICK_GAP := 2
 
 var planner: AttackPlanner
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
 var _pressed := Target.NONE
+## Otwarta lista wyboru manewru.
+var picking := false
+## Dotknięcie zamknęło listę: jego puszczenie nie trafia już do mapy.
+var _swallow_release := false
 
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_VISIBILITY_CHANGED:
+		picking = false
 
 
 func _process(_delta: float) -> void:
@@ -44,6 +59,26 @@ static func info_rect(view: Vector2, left: float, right: float) -> Rect2:
 	return Rect2(left, Hud.row_y(view) - INFO_H - 2, right - left, INFO_H)
 
 
+## Wiersz `i` listy manewrów: od lewej granicy treści do kolumny przycisków, od górnego paska.
+static func pick_rect(right: float, left: float, i: int) -> Rect2:
+	var w := right - Hud.BUTTON_SIZE.x - Hud.BUTTON_GAP - left
+	return Rect2(left, Hud.BAR_H + 2 + i * (PICK_H + PICK_GAP), w, PICK_H)
+
+
+## Cała lista manewrów (wiersze z lukami między nimi): dotknięcie w niej nie zamyka listy.
+static func list_rect(left: float, right: float) -> Rect2:
+	var first := pick_rect(right, left, 0)
+	return first.merge(pick_rect(right, left, AttackPlan.MANOEUVRE_NAMES.size() - 1))
+
+
+## Manewr pod punktem na otwartej liście albo -1.
+static func pick_at(p: Vector2, left: float, right: float) -> int:
+	for i in AttackPlan.MANOEUVRE_NAMES.size():
+		if pick_rect(right, left, i).has_point(p):
+			return i
+	return -1
+
+
 ## Cel pod punktem: przycisk kolumny, oddział (SQUAD + numer od 0) albo NONE.
 static func target_at(p: Vector2, view: Vector2, left: float, right: float, squad_count: int) -> int:
 	for i in COLUMN.size():
@@ -61,6 +96,34 @@ func _input(event: InputEvent) -> void:
 	var touch := event as InputEventScreenTouch
 	if touch == null:
 		return
+	if picking and list_rect(content_left, content_right).has_point(touch.position):
+		# w obrębie listy (z lukami między wierszami): wiersz wybiera manewr, luka nic nie robi
+		get_viewport().set_input_as_handled()
+		var row := pick_at(touch.position, content_left, content_right)
+		var hit := Target.PICK + row if row >= 0 else Target.NONE
+		if touch.pressed:
+			_pressed = hit
+			return
+		var was_row := _pressed
+		_pressed = Target.NONE
+		if hit != Target.NONE and hit == was_row:
+			choose(row)
+		return
+	if _swallow_release and not touch.pressed:
+		_swallow_release = false
+		get_viewport().set_input_as_handled()
+		return
+	if picking and touch.pressed:
+		# poza listą: zamyka ją, a przycisk albo oddział pod palcem działa od razu; mapa i sam Manewr
+		# tylko zamykają listę (puszczenie palca nie stawia punktu trasy ani nie otwiera listy znowu)
+		picking = false
+		var under := target_at(touch.position, get_viewport_rect().size, content_left, content_right, planner.squads.size())
+		if under == Target.NONE or under == Target.MANOEUVRE:
+			get_viewport().set_input_as_handled()
+			_pressed = Target.NONE
+			_swallow_release = true
+			changed.emit(AttackPlanner.HINT)
+			return
 	var t := target_at(touch.position, get_viewport_rect().size, content_left, content_right, planner.squads.size())
 	if touch.pressed:
 		_pressed = t
@@ -80,6 +143,7 @@ func _input(event: InputEvent) -> void:
 func activate(t: int) -> void:
 	var o := planner.order()
 	if t >= Target.SQUAD:
+		picking = false
 		planner.selected = t - Target.SQUAD + 1
 		changed.emit("Oddział %d: %s" % [planner.selected, AttackPlanner.HINT])
 		return
@@ -94,8 +158,8 @@ func activate(t: int) -> void:
 		return
 	match t:
 		Target.MANOEUVRE:
-			o.manoeuvre = AttackPlanner.next_manoeuvre(o.manoeuvre, planner.age, planner.research)
-			changed.emit(AttackPlan.MANOEUVRE_NAMES[o.manoeuvre])
+			picking = not picking
+			changed.emit("Oddział %d: wybierz manewr" % o.squad if picking else AttackPlanner.HINT)
 		Target.START:
 			AttackPlanner.next_start(o, planner.squads.size())
 			changed.emit("Start: %s" % AttackPlanner.start_text(o))
@@ -105,6 +169,29 @@ func activate(t: int) -> void:
 		Target.CLEAR:
 			AttackPlanner.clear(o)
 			changed.emit("Cel i trasa wyczyszczone")
+
+
+## Czego brakuje oddziałowi wybranemu w planie do manewru `m` (pusty napis: dostępny).
+func missing_for(m: int) -> String:
+	var o := planner.order()
+	if o == null:
+		return ""
+	return AttackPlan.missing(m, planner.unit_of(o.squad), planner.age, planner.research)
+
+
+## Wybór manewru `m` z listy (też z testów): dostępny staje się rozkazem i zamyka listę, niedostępny
+## zostawia listę otwartą i mówi na pasku, czego brakuje.
+func choose(m: int) -> void:
+	var o := planner.order()
+	if o == null or m < 0 or m >= AttackPlan.MANOEUVRE_NAMES.size():
+		return
+	var why := missing_for(m)
+	if not why.is_empty():
+		changed.emit("%s: %s" % [AttackPlan.MANOEUVRE_NAMES[m], why])
+		return
+	o.manoeuvre = m
+	picking = false
+	changed.emit(AttackPlan.MANOEUVRE_NAMES[m])
 
 
 func _draw() -> void:
@@ -134,3 +221,30 @@ func _draw() -> void:
 		else:
 			PixelFont.draw_text(self, at - Vector2(0, 2), UnitTypes.SHORT_NAMES[unit].left(1), Palette.INK)
 		PixelFont.draw_text(self, r.position + Vector2(10, 3), "%d×%d" % [i + 1, int(sq[1])], Palette.INK)
+	if picking:
+		_draw_picker()
+
+
+## Druga linia wiersza niedostępnego manewru: „Niedostępne: …”, gdy jednostka oddziału go nie umie
+## (stała niezdolność), inaczej „Wymaga: …” (epoka, badanie).
+static func reason_line(m: int, unit: int, why: String) -> String:
+	var unit_ok := unit < 0 or AttackPlan.unit_can(m, unit)
+	return ("Wymaga: " if unit_ok else "Niedostępne: ") + why
+
+
+func _draw_picker() -> void:
+	var o := planner.order()
+	if o == null:
+		return
+	for m in AttackPlan.MANOEUVRE_NAMES.size():
+		var r := pick_rect(content_right, content_left, m)
+		var why := missing_for(m)
+		var chosen := o.manoeuvre == m
+		var col: Color = Palette.WOOD[2] if chosen or _pressed == Target.PICK + m else Palette.WOOD[1]
+		draw_rect(r, col if why.is_empty() else Color(Palette.SHADOW, 0.9))
+		if chosen:
+			CastleView.draw_frame(self, Rect2i(r), Palette.INK)
+		var name_col: Color = Palette.INK if why.is_empty() else Palette.WOOD[2]
+		PixelFont.draw_text(self, r.position + Vector2(3, 1), AttackPlan.MANOEUVRE_NAMES[m], name_col)
+		var line := AttackPlan.MANOEUVRE_DESC[m] if why.is_empty() else reason_line(m, planner.unit_of(o.squad), why)
+		PixelFont.draw_text(self, r.position + Vector2(3, 9), line, Palette.THATCH[2] if why.is_empty() else Palette.ACCENT)
