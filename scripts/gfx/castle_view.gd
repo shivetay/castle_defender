@@ -59,8 +59,9 @@ static func lean_of(grid: BuildGrid, id: int) -> int:
 	return BuildingArt.lean_from((grid.wall_side(id)[0]) as Vector2i)
 
 
-static func texture_origin(cell: Vector2i, kind: int) -> Vector2i:
-	return cell * TerrainMap.CELL - Vector2i(0, BuildingArt.EXTRA[kind])
+## Lewy górny róg tekstury budynku w pikselach mapy. Rzut z góry: obraz leży dokładnie na kratkach.
+static func texture_origin(cell: Vector2i, _kind: int) -> Vector2i:
+	return cell * TerrainMap.CELL
 
 
 ## Wpusty: na kratce budynku przy sąsiedniej palisadzie rysuje się jej krótki odcinek (od krawędzi

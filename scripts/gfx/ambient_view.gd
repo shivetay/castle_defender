@@ -91,10 +91,10 @@ static func smokes(kind: int, cell: Vector2i) -> bool:
 	return BuildingArt.can_lean(kind) and PixelCanvas.hash2(cell.x, cell.y, 31) % 2 == 0
 
 
-## Wylot komina w pikselach mapy: nad dachem, w prawej trzeciej części sylwetki.
+## Wylot komina w pikselach mapy: w prawej trzeciej części dachu, tuż za kalenicą (BuildingArt.chimney_at).
 func chimney(id: int) -> Vector2i:
 	var kind := grid.kinds[id]
 	var lean := CastleView.lean_of(grid, id)
 	var used := textures.used_rect(kind, grid.levels[id], BuildingTypes.State.INTACT, 0, false, lean)
 	var origin := CastleView.texture_origin(grid.buildings[id].position, kind) + CastleView.attach_offset(grid, textures, id)
-	return origin + Vector2i(used.position.x + used.size.x * 2 / 3, used.position.y)
+	return origin + BuildingArt.chimney_at(used)
