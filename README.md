@@ -323,8 +323,8 @@ w sekcji „Następny etap”.
 - Baza PvP (#21, `supabase/migrations`): Supabase (Postgres) z RLS na każdej tabeli i jawnymi uprawnieniami.
   - **Tabele:** `players` (konto, także anonimowe; ranking i epoka), `castles` (stan gry w JSON z wersją formatu,
     licznikiem zmian i stałym `map_seed`), `defense_layouts`, `bot_castles` (20 zamków-botów z seedem z
-    `BotRoster`, #26), `attacks` (seed bitwy, rozkazy, wynik, łup oraz kopie obrony i zamku obrońcy
-    i armii atakującego z chwili startu; z nich liczy się bitwa), `shields`, `ad_rewards`.
+    `BotRoster`, #26), `attacks` (seed terenu obrońcy `map_seed`, seed bitwy, rozkazy, wynik, łup oraz kopie
+    obrony i zamku obrońcy i armii atakującego z chwili startu; z nich liczy się bitwa), `shields`, `ad_rewards`.
   - **Dostęp gracza:** czyta i zapisuje tylko swój zamek, obronę i nick. Nie zmieni seedu terenu, licznika
     zmian, rankingu ani epoki i nie usunie zamku. Ataki, tarcze i nagrody tylko czyta (swoje); zapisuje je
     serwer (Edge Functions, #25, #33). Kopii obrony i zamku z ataku klient nie czyta (pułapki obrońcy
@@ -336,7 +336,10 @@ w sekcji „Następny etap”.
   (`/auth/v1/signup`), trzyma sesję w `user://session.json` i odświeża token przed wygaśnięciem.
   - **Offline:** bez sieci gra działa jak dotąd, a klient ponawia próby co 5 s, 15 s, 30 s… do 5 min.
     Odrzucony token odświeżania oznacza nowe konto (anonimowego nie da się odzyskać).
-    „Zacznij od nowa” zostawia konto (ten sam gracz); los zamku na serwerze ustali #23.
+    „Zacznij od nowa” zostawia konto (ten sam gracz); pełna synchronizacja zamku to #23.
+  - **Seed mapy (#166):** po ONLINE klient zapisuje `castles.map_seed` (INSERT przy pierwszym
+    zamku; kolejne zapisy zmieniają tylko `data`). Edge Function `start_attack` zwraca `map_seed`
+    obrońcy osobno od `battle_seed`; atakujący buduje teren z `AttackStart.terrain_map`.
   - **Konfiguracja:** adres i klucz publishable w `config/supabase.json` (poza repo, wzór w
     `config/supabase.example.json`). Działa tylko nowy klucz `sb_publishable_…` (w grze i w CI);
     z kluczem serwera albo dawnym kluczem JWT klient się nie łączy. APK z CI dostaje plik ze zmiennych
@@ -552,7 +555,7 @@ build/           eksportowane APK i logi (ignorowane przez git)
 Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#20) i pułapki (#100).
 Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
 (#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
-backend Supabase i PvP. Jest schemat bazy z RLS (#21) i klient z anonimowym kontem (#22, opis niżej);
-następna jest synchronizacja zamku z serwerem (#23). Z wcześniejszych etapów zostają: Dwór z epokami
-i garnizonem (#81), seed mapy na serwerze (#97, #166), część efektów badań (#12), ogólny wygląd (#150)
-i sprawdzanie szczelności obrony (#199).
+backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym kontem (#22) oraz zapis
+`map_seed` i `start_attack` z seedem terenu (#166); następna jest pełna synchronizacja zamku (#23)
+i domknięcie ataku (#25). Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
+część efektów badań (#12), ogólny wygląd (#150) i sprawdzanie szczelności obrony (#199).

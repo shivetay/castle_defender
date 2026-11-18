@@ -242,7 +242,7 @@ func _ready() -> void:
 	hud.resource_pressed.connect(_on_resource_info)
 	recruit_panel.limit_pressed.connect(_on_army_limit_info)
 	net = SupabaseClient.new()
-	net.state_changed.connect(func(st: int) -> void: settings_panel.net_state = st)
+	net.state_changed.connect(_on_net_state)
 	add_child(net)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
@@ -344,10 +344,27 @@ func _catch_up(prefix: String) -> void:
 func _save() -> void:
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
-	var err := SaveGame.write(SaveGame.PATH, SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten, defense, attack_target))
+	var save := SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
+			pve_cleared, attack_plan, bots_beaten, defense, attack_target)
+	var err := SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
+	_sync_castle(save)
+
+
+## Stan sieci w Ustawieniach; po ONLINE wysyłamy seed terenu na serwer (#166).
+func _on_net_state(st: int) -> void:
+	settings_panel.net_state = st
+	if st == SupabaseClient.State.ONLINE:
+		_sync_castle(SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
+				pve_cleared, attack_plan, bots_beaten, defense, attack_target))
+
+
+## Zapis `castles.map_seed` + stanu zamku, gdy jest sesja (#166 / część #23).
+func _sync_castle(save: Dictionary) -> void:
+	if net == null or not net.is_online():
+		return
+	net.sync_castle(world_seed, SaveGame.FORMAT_VERSION, CastleSync.castle_data(save))
 
 
 static func _now_ms() -> int:

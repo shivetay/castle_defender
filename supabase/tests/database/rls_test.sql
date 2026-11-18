@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(50);
+select plan(52);
 
 -- Trzech graczy: A, B, C (konta Auth tworzą wiersze w players przez wyzwalacz).
 insert into auth.users (id) values
@@ -25,11 +25,11 @@ insert into public.castles (player_id, map_seed, save_version, data)
   values ('00000000-0000-0000-0000-00000000000b', 4242, 8, '{"grid": "b"}');
 insert into public.defense_layouts (player_id, save_version, data)
   values ('00000000-0000-0000-0000-00000000000b', 8, '{"traps": []}');
-insert into public.attacks (attacker_id, defender_id, battle_seed, defense_snapshot, castle_snapshot)
-  values ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b', 7,
+insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed, defense_snapshot, castle_snapshot)
+  values ('00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b', 4242, 7,
     '{"traps": ["wilczy_dol"]}', '{"grid": "b"}');
-insert into public.attacks (attacker_id, bot_idx, battle_seed)
-  values ('00000000-0000-0000-0000-00000000000a', 3, 8);
+insert into public.attacks (attacker_id, bot_idx, map_seed, battle_seed)
+  values ('00000000-0000-0000-0000-00000000000a', 3, 786423411, 8);
 insert into public.shields (player_id, until) values ('00000000-0000-0000-0000-00000000000b', now() + interval '8 hours');
 
 -- ---- gracz A ----
@@ -95,6 +95,10 @@ select is_empty(
 
 -- ataki, tarcze, nagrody: tylko odczyt własnych
 select is((select count(*)::int from public.attacks), 2, 'A widzi swoje ataki (na B i na bota)');
+select is((select map_seed from public.attacks where defender_id is not null), 4242::bigint,
+  'A czyta map_seed terenu obrońcy (#166)');
+select is((select battle_seed from public.attacks where defender_id is not null), 7::bigint,
+  'battle_seed osobny od map_seed');
 select throws_ok(
   $$insert into public.attacks (attacker_id, bot_idx, battle_seed)
     values ('00000000-0000-0000-0000-00000000000a', 0, 1)$$,
@@ -155,13 +159,13 @@ select throws_ok($$delete from public.bot_castles$$, '42501', null, 'anon nie us
 reset role;
 set local role service_role;
 select lives_ok(
-  $$insert into public.attacks (attacker_id, defender_id, battle_seed, defense_snapshot, castle_snapshot, attacker_army)
-    values ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000b', 9,
+  $$insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed, defense_snapshot, castle_snapshot, attacker_army)
+    values ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000b', 4242, 9,
       '{"traps": []}', '{"grid": "b"}', '[["topornik", 5]]')$$,
   'serwer zapisuje atak z kopią obrony i zamku');
 select throws_ok(
-  $$insert into public.attacks (attacker_id, defender_id, battle_seed)
-    values ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000b', 10)$$,
+  $$insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed)
+    values ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000b', 4242, 10)$$,
   '23514', null, 'atak na gracza bez kopii obrony jest odrzucony');
 select lives_ok(
   $$insert into public.shields (player_id, until) values ('00000000-0000-0000-0000-00000000000c', now() + interval '8 hours')$$,

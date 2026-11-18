@@ -32,7 +32,8 @@ static func generate(seed_value: int, strength: int = 0) -> BotCastle:
 	var bot := BotCastle.new()
 	bot.seed_value = seed_value
 	bot.strength = maxi(0, strength)
-	var terrain := TerrainMap.generate(WorldSeed.first_playable(seed_value))
+	# ten sam tor co atak z start_attack (#166): map_seed → first_playable → TerrainMap
+	var terrain := AttackStart.terrain_map(seed_value)
 	var grid := BuildGrid.new(terrain)
 	bot.grid = grid
 	var level := BotRoster.level_of(bot.strength)
