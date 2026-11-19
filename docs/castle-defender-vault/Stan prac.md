@@ -68,7 +68,7 @@ Aktualizacja: 17.11.2026. Kod: repo `shivetay/castle_defender` (Godot 4.7, GDScr
 | 8. Obrona, zadania, pułapki (#130) | w toku: #100 gotowe; #19 i #20 częściowo |
 | 9–14 (#131–#136) | do zrobienia |
 
-Pełna lista etapów: [[Plan MVP]]. Pytania i braki: [[Otwarte pytania]].
+Pełna lista etapów: [[Plan MVP]]. Pytania i braki: [[Otwarte pytania]]. Niedawne bugi UX: [[Bugs]].
 
 ## Decyzje (narosłe)
 
