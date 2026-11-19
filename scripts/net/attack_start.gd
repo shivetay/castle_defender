@@ -2,7 +2,9 @@ class_name AttackStart
 extends RefCounted
 ## Odpowiedź `start_attack` (#166 / #25): seed terenu obrońcy osobno od seeda bitwy.
 ## Atakujący buduje teren z `map_seed` (`terrain_map`), a bitwę losuje z `battle_seed`.
-## Pełna blokada celu, tarcze i `finish_attack` zostają w #25; tu jest kontrakt seedów.
+## Serwer (#25, `public.begin_attack`) blokuje cel na czas ataku, sprawdza tarczę i limit startów,
+## a przy ataku na gracza zwraca kopie jego zamku (`castle`) i obrony (`defense`) z chwili startu.
+## Wynik wysyła `AttackFinish`.
 
 const PATH := "/functions/v1/start_attack"
 
@@ -48,6 +50,10 @@ static func parse_response(data: Variant) -> Dictionary:
 	var defender: Variant = d.get("defender_id")
 	if defender is String and not (defender as String).is_empty():
 		out["defender_id"] = defender as String
+		var castle: Variant = d.get("castle")
+		var defense: Variant = d.get("defense")
+		out["castle"] = castle as Dictionary if castle is Dictionary else {}
+		out["defense"] = defense as Dictionary if defense is Dictionary else {}
 	return out
 
 

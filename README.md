@@ -30,7 +30,7 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) ustawienia obrony
 z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#100). Trwa etap 9 (#131): backend
 Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22), synchronizacja zamku
-z obroną (#23) i dobór przeciwnika z ekranem 3 celów (#24); stan i kolejne kroki są
+z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25); stan i kolejne kroki są
 w sekcji „Następny etap”.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
@@ -616,6 +616,6 @@ backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym konte
 władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i dobór przeciwnika z ekranem
 3 celów (#24, migracja `match_targets` i funkcja `find_targets` są na projekcie). Konto anonimowe przetrwa
 reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
-zapasowa Androida albo logowanie (np. Google). Następne jest domknięcie ataku (#25). Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
+zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Do zrobienia: atak na gracza w kliencie (bitwa z kopii zamku i obrony z `start_attack`) i odjęcie łupu z magazynu obrońcy. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij).

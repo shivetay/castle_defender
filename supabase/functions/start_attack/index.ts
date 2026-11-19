@@ -1,12 +1,35 @@
-// start_attack (#166 / część #25): zapisuje atak po stronie serwera i zwraca seed terenu
-// obrońcy (`map_seed`) osobno od seeda bitwy (`battle_seed`). Atakujący buduje z nich ten sam
-// teren i deterministyczną bitwę. Pełne limity tarcz / doboru przeciwnika / finish_attack: #25.
+// start_attack (#166, #25): start ataku po stronie serwera. Id atakującego idzie wyłącznie z tokenu.
+// Całą walidację i zapis robi `public.begin_attack` w jednej transakcji (migracja *_finish_attack.sql):
+// limit 10 startów na 10 minut, armia nie większa niż w zamku atakującego, cel bez tarczy, w zasięgu
+// epoki i rankingu, nieatakowany przez niego w 24 h i bez innego ataku w toku (blokada celu).
+// Odpowiedź: id ataku, seed terenu obrońcy (`map_seed`) osobno od seeda bitwy (`battle_seed`) i przy
+// ataku na gracza kopie jego zamku i obrony, z których klient liczy bitwę.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const ALLOWED_KEYS = new Set(["defender_id", "bot_idx", "army"]);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// błędy z begin_attack (raise exception ... P0001) → kod HTTP
+const ERRORS: Record<string, number> = {
+  rate_limited: 429,
+  target_busy: 409,
+  target_shielded: 409,
+  target_recent: 409,
+  target_out_of_range: 409,
+  attacker_no_castle: 409,
+  target_not_found: 404,
+  attacker_not_found: 404,
+  army_not_owned: 400,
+  bad_army: 400,
+  bad_target: 400,
+  self_attack: 400,
+  bad_seed: 500,
 };
 
 Deno.serve(async (req) => {
@@ -38,100 +61,89 @@ Deno.serve(async (req) => {
   }
   const attackerId = userData.user.id;
 
-  let body: Record<string, unknown>;
+  let body: unknown;
   try {
     body = await req.json();
   } catch {
     return json({ error: "invalid_json" }, 400);
   }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return json({ error: "invalid_body" }, 400);
+  }
+  const b = body as Record<string, unknown>;
+  if (Object.keys(b).some((k) => !ALLOWED_KEYS.has(k))) {
+    return json({ error: "unknown_field" }, 400);
+  }
 
-  const defenderId = typeof body.defender_id === "string" ? body.defender_id : null;
-  const botIdx = typeof body.bot_idx === "number" && Number.isInteger(body.bot_idx)
-    ? body.bot_idx as number
-    : null;
-  const army = Array.isArray(body.army) ? body.army : [];
-
+  const defenderId = typeof b.defender_id === "string" ? b.defender_id : null;
+  const botIdx = typeof b.bot_idx === "number" && Number.isInteger(b.bot_idx) ? b.bot_idx : null;
   if ((defenderId == null) === (botIdx == null)) {
     return json({ error: "target_required" }, 400);
   }
-  if (defenderId != null && defenderId === attackerId) {
-    return json({ error: "self_attack" }, 400);
+  if (defenderId != null && !UUID.test(defenderId)) {
+    return json({ error: "bad_target" }, 400);
   }
   if (botIdx != null && (botIdx < 0 || botIdx > 19)) {
     return json({ error: "bad_bot" }, 400);
   }
-
-  const admin = createClient(supabaseUrl, serviceKey);
-
-  let mapSeed: number;
-  let defenseSnapshot: Record<string, unknown> | null = null;
-  let castleSnapshot: Record<string, unknown> | null = null;
-
-  if (botIdx != null) {
-    const { data: bot, error } = await admin.from("bot_castles").select("map_seed").eq("idx", botIdx)
-      .maybeSingle();
-    if (error || !bot) {
-      return json({ error: "bot_not_found" }, 404);
-    }
-    mapSeed = Number(bot.map_seed);
-  } else {
-    const { data: castle, error: castleErr } = await admin.from("castles")
-      .select("map_seed, data").eq("player_id", defenderId!).maybeSingle();
-    if (castleErr || !castle) {
-      return json({ error: "defender_not_found" }, 404);
-    }
-    mapSeed = Number(castle.map_seed);
-    castleSnapshot = (castle.data ?? {}) as Record<string, unknown>;
-    const { data: defense } = await admin.from("defense_layouts")
-      .select("data").eq("player_id", defenderId!).maybeSingle();
-    defenseSnapshot = (defense?.data ?? {}) as Record<string, unknown>;
-  }
-
-  if (!Number.isInteger(mapSeed) || mapSeed < 0 || mapSeed > 2147483647) {
-    return json({ error: "bad_map_seed" }, 500);
+  // kształt i zakresy armii sprawdza begin_attack; tu tylko rozmiar żądania
+  if (!Array.isArray(b.army) || b.army.length < 1 || b.army.length > 16) {
+    return json({ error: "bad_army" }, 400);
   }
 
   // seed bitwy z kryptograficznego źródła; osobny od map_seed
   const battleSeed = crypto.getRandomValues(new Uint32Array(1))[0]! & 0x7fffffff;
 
-  const row: Record<string, unknown> = {
-    attacker_id: attackerId,
-    battle_seed: battleSeed,
-    map_seed: mapSeed,
-    attacker_army: army,
-    orders: [],
-    status: "started",
-  };
-  if (botIdx != null) {
-    row.bot_idx = botIdx;
-  } else {
-    row.defender_id = defenderId;
-    row.defense_snapshot = defenseSnapshot;
-    row.castle_snapshot = castleSnapshot;
+  const admin = createClient(supabaseUrl, serviceKey);
+  const { data, error } = await admin.rpc("begin_attack", {
+    p_attacker: attackerId,
+    p_defender: defenderId,
+    p_bot: botIdx,
+    p_army: b.army,
+    p_battle_seed: battleSeed,
+  });
+  if (error) {
+    const code = known(error);
+    if (code) {
+      return json({ error: code }, ERRORS[code]!);
+    }
+    console.error("start_attack rpc", error.code);
+    return json({ error: "start_failed" }, 500);
+  }
+  const row = Array.isArray(data) ? data[0] : null;
+  if (!row) {
+    return json({ error: "start_failed" }, 500);
   }
 
-  const { data: attack, error: insertErr } = await admin.from("attacks").insert(row).select(
-    "id, map_seed, battle_seed, defender_id, bot_idx",
-  ).single();
-  if (insertErr || !attack) {
-    console.error("start_attack insert", insertErr?.message);
-    return json({ error: "insert_failed" }, 500);
-  }
-
-  // bez kluczy null — klient z has()/filtrami typu nie dostaje fałszywego bot_idx: 0
+  // bez kluczy null: klient z has()/filtrami typu nie dostaje fałszywego bot_idx: 0
   const payload: Record<string, unknown> = {
-    id: attack.id,
-    map_seed: attack.map_seed,
-    battle_seed: attack.battle_seed,
+    id: row.attack_id,
+    map_seed: row.map_seed,
+    battle_seed: row.battle_seed,
   };
-  if (attack.defender_id != null) {
-    payload.defender_id = attack.defender_id;
-  }
-  if (attack.bot_idx != null) {
-    payload.bot_idx = attack.bot_idx;
+  if (defenderId != null) {
+    payload.defender_id = defenderId;
+    payload.castle = row.castle ?? {};
+    payload.defense = row.defense ?? {};
+  } else {
+    payload.bot_idx = botIdx;
   }
   return json(payload);
 });
+
+// Kod błędu z `raise exception '<kod>'`; PostgREST może dodać prefiks albo przenieść treść do details.
+function known(error: { code?: string; message?: string; details?: string }): string | null {
+  if (error.code !== "P0001") {
+    return null;
+  }
+  const text = `${error.message ?? ""} ${error.details ?? ""}`;
+  for (const code of Object.keys(ERRORS)) {
+    if (new RegExp(`\\b${code}\\b`).test(text)) {
+      return code;
+    }
+  }
+  return null;
+}
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

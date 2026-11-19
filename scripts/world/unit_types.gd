@@ -54,6 +54,12 @@ const UNITS: Array = [
 	["Zwiadowca", C.SPECIAL, 1, 35, 2, 1, 5, "S3", K.SCOUT_HOUSE, {R.FOOD: 15}, {G.HORSE: 1, G.SADDLE: 1}],
 ]
 
+## Capacity łupu (#25): ile surowców (suma rodzajów) unosi jedna ocalała jednostka. Piechota 5,
+## konnica (Jeździec, Kopijnik, Zwiadowca) 10, taran 0 (decyzja właścicielki, TYMCZASOWE). Tę samą
+## tabelę ma serwer (`private.unit_carry` w migracji `*_finish_attack.sql`), a test pilnuje zgodności.
+## Wóz (#235) dopisze tu swoją wartość.
+const CARRY: Array[int] = [5, 5, 5, 5, 5, 5, 10, 5, 5, 5, 10, 0, 5, 5, 10]
+
 ## Jednostki tylko na epokę I (pospolite ruszenie): od epoki II nie da się ich szkolić.
 const ERA_I_ONLY: Array[int] = [Unit.PEASANT]
 
@@ -141,6 +147,11 @@ const ADVANTAGE: Array = [
 
 static func count() -> int:
 	return UNITS.size()
+
+
+## Ile surowców unosi jedna jednostka rodzaju `unit` (0 dla nieznanego rodzaju).
+static func carry(unit: int) -> int:
+	return CARRY[unit] if unit >= 0 and unit < CARRY.size() else 0
 
 
 static func unit_name(unit: int) -> String:

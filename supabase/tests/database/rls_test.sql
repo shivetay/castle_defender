@@ -159,9 +159,9 @@ select throws_ok($$delete from public.bot_castles$$, '42501', null, 'anon nie us
 reset role;
 set local role service_role;
 select lives_ok(
-  $$insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed, defense_snapshot, castle_snapshot, attacker_army)
+  $$insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed, defense_snapshot, castle_snapshot, attacker_army, status)
     values ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000b', 4242, 9,
-      '{"traps": []}', '{"grid": "b"}', '[["topornik", 5]]')$$,
+      '{"traps": []}', '{"grid": "b"}', '[["topornik", 5]]', 'abandoned')$$,
   'serwer zapisuje atak z kopią obrony i zamku');
 select throws_ok(
   $$insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed)
