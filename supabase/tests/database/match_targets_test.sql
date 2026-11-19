@@ -8,30 +8,35 @@ set search_path = public, extensions;
 
 select plan(25);
 
--- A atakuje. B, G, I: pasują. C: tarcza. D: epoka 2. E: ranking 1200. F: atakowany przez A 2 h temu.
+-- A atakuje. B, G, I: pasują. C: tarcza. D: epoka 2. E: ranking +200. F: atakowany przez A 2 h temu.
 -- H: zamek bez nazwy (bez onboardingu). J: pasuje, ale bez nazwy zamku do drugiej części testu.
--- K: atakował B (cudzy atak nie wyklucza B), sam ma ranking 2000. L: bez zamku.
-insert into auth.users (id) values
+-- K: atakował B (cudzy atak nie wyklucza B), sam ma ranking +1000. L: bez zamku.
+-- Test dotyka tylko swoich kont, a ich ranking leży w paśmie 50 000, w którym nie ma prawdziwych
+-- graczy, więc wynik nie zależy od innych danych w bazie (testy biegną też na projekcie w chmurze,
+-- w transakcji, która się cofa).
+create temp table test_ids (id uuid primary key) on commit drop;
+insert into test_ids values
   ('00000000-0000-0000-0000-0000000000a1'), ('00000000-0000-0000-0000-0000000000b1'),
   ('00000000-0000-0000-0000-0000000000c1'), ('00000000-0000-0000-0000-0000000000d1'),
   ('00000000-0000-0000-0000-0000000000e1'), ('00000000-0000-0000-0000-0000000000f1'),
   ('00000000-0000-0000-0000-0000000000a2'), ('00000000-0000-0000-0000-0000000000a3'),
   ('00000000-0000-0000-0000-0000000000a4'), ('00000000-0000-0000-0000-0000000000a5'),
   ('00000000-0000-0000-0000-0000000000a6'), ('00000000-0000-0000-0000-0000000000a7');
+insert into auth.users (id) select id from test_ids;
 
 -- G = a2, H = a3, I = a4, J = a5, K = a6, L = a7
-update public.players set rating = 1000, age = 0;
+update public.players set rating = 50000, age = 0 where id in (select id from test_ids);
 update public.players set nickname = 'Bolko' where id = '00000000-0000-0000-0000-0000000000b1';
-update public.players set rating = 1100 where id = '00000000-0000-0000-0000-0000000000a2';
-update public.players set rating = 900, age = 1 where id = '00000000-0000-0000-0000-0000000000a4';
+update public.players set rating = 50100 where id = '00000000-0000-0000-0000-0000000000a2';
+update public.players set rating = 49900, age = 1 where id = '00000000-0000-0000-0000-0000000000a4';
 update public.players set age = 2 where id = '00000000-0000-0000-0000-0000000000d1';
-update public.players set rating = 1200 where id = '00000000-0000-0000-0000-0000000000e1';
-update public.players set rating = 2000 where id = '00000000-0000-0000-0000-0000000000a6';
+update public.players set rating = 50200 where id = '00000000-0000-0000-0000-0000000000e1';
+update public.players set rating = 51000 where id = '00000000-0000-0000-0000-0000000000a6';
 
 insert into public.castles (player_id, map_seed, save_version, data)
-select u.id, 4242, 8, jsonb_build_object('profile', jsonb_build_object('castle_name', 'Gród', 'ruler', 'kasztelan'))
-from auth.users u
-where u.id not in ('00000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-0000000000a5',
+select t.id, 4242, 8, jsonb_build_object('profile', jsonb_build_object('castle_name', 'Gród', 'ruler', 'kasztelan'))
+from test_ids t
+where t.id not in ('00000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-0000000000a5',
   '00000000-0000-0000-0000-0000000000a7', '00000000-0000-0000-0000-0000000000b1');
 
 insert into public.castles (player_id, map_seed, save_version, data) values
@@ -111,7 +116,7 @@ select results_eq(
   $$select nickname, castle_name, ruler, age, rating, map_seed
     from public.match_targets('00000000-0000-0000-0000-0000000000a1')
     where player_id = '00000000-0000-0000-0000-0000000000b1'$$,
-  $$values ('Bolko'::text, 'Bardzo Długa Naz'::text, 'kasztelan'::text, 0::smallint, 1000, 777::bigint)$$,
+  $$values ('Bolko'::text, 'Bardzo Długa Naz'::text, 'kasztelan'::text, 0::smallint, 50000, 777::bigint)$$,
   'karta: nick, nazwa zamku przycięta do 16 znaków, władca, epoka, ranking, seed terenu');
 select is(
   (select footprint from public.match_targets('00000000-0000-0000-0000-0000000000a1')

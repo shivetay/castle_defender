@@ -8,7 +8,7 @@ const C := "00000000-0000-0000-0000-0000000000c1"
 const D := "00000000-0000-0000-0000-0000000000d1"
 const SESSION_PATH := "user://test_targets_session.json"
 const SYNC_PATH := "user://test_targets_sync.json"
-const MIGRATION := "res://supabase/migrations/20261119120000_match_targets.sql"
+const MIGRATION := "res://supabase/migrations/20261119140714_match_targets.sql"
 
 
 func _row(id: String, nickname: String = "Bolko", castle: String = "Gród Bolka") -> Dictionary:
