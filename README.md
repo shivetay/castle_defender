@@ -107,7 +107,11 @@ w sekcji „Następny etap”.
   potem seed zapasowy 1337). W wersji debug seed wymusza `godot --path . -- --seed=42`; wymuszony seed omija walidację,
   więc da się nim odtworzyć także mapę niegrywalną.
 - Onboarding (#228, `scripts/ui/onboarding_panel.gd`, `OnboardingPanel`): przy pierwszym uruchomieniu
-  zamek przykrywa ekran z polami Imię i Zamek. Tekst wpisuje się klawiaturą systemową (ukryty `LineEdit`
+  zamek przykrywa najpierw ekran Wybierz władcę: 5 portretów w rzędzie (`Rulers.SLOTS`), z których na razie
+  tylko pierwszy to władca (Kasztelan), a 4 to szare, puste miejsca na postacie z #31 i #32. Dotknięcie
+  portretu pokazuje pod nim nazwę i premie (Kasztelan: Brak premii, puste: Wkrótce), a Wybierz (wyszarzone
+  przed dotknięciem i na pustym miejscu) przechodzi do ekranu z polami Imię i Zamek. Linia „Władca: … · zmień”
+  wraca do wyboru. Tekst wpisuje się klawiaturą systemową (ukryty `LineEdit`
   odbiera klawiaturę ekranową, tekst rysuje `PixelFont`), Enter przechodzi do następnego pola, a Zacznij
   sprawdza nazwy: imię 3–12 znaków, nazwa zamku 3–16, tylko litery z fontu (także polskie), cyfry,
   spacja i łącznik. Tożsamość (imię, nazwa zamku i władca) leży w profilu `user://player.json` (wersja 2)

@@ -268,7 +268,7 @@ func _ready() -> void:
 		onboarding.finished.connect(_on_onboarding_finished)
 		onboarding.open()
 		hud.overlay = true
-		hud.message = "Nazwij siebie i swój zamek"
+		hud.message = "Wybierz władcę i nazwij zamek"
 	hud.resource_pressed.connect(_on_resource_info)
 	recruit_panel.limit_pressed.connect(_on_army_limit_info)
 	net = SupabaseClient.new()

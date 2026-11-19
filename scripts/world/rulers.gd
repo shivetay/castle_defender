@@ -17,6 +17,25 @@ const PERKS := {
 	DEFAULT: [],
 }
 
+## Miejsca na ekranie wyboru władcy w onboardingu: dostępni władcy po kolei, reszta to puste,
+## szare miejsca na postacie, które dojdą z #31 i #32.
+const SLOTS := 5
+const ROSTER: Array[String] = [DEFAULT]
+const NO_PERKS := "Brak premii"
+const LOCKED_NAME := "Wkrótce"
+const LOCKED_INFO := "Nowi władcy dojdą później"
+
+
+## Władca na miejscu `slot` albo pusty tekst, gdy to puste miejsce.
+static func at_slot(slot: int) -> String:
+	return ROSTER[slot] if slot >= 0 and slot < ROSTER.size() else ""
+
+
+## Premie władcy jednym tekstem, np. „Brak premii”.
+static func perk_text(id: String) -> String:
+	var list := perks(id)
+	return NO_PERKS if list.is_empty() else ", ".join(list)
+
 
 static func is_known(id: String) -> bool:
 	return NAMES.has(id)

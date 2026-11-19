@@ -1,22 +1,34 @@
 class_name OnboardingPanel
 extends Node2D
-## Onboarding (#228): przy pierwszym uruchomieniu gracz wpisuje imię i nazwę zamku, a zamek dostaje
-## domyślnego władcę bez premii (Rulers.DEFAULT). Dopóki tożsamości nie ma, panel przykrywa zamek
+## Onboarding (#228): przy pierwszym uruchomieniu gracz najpierw wybiera władcę, a potem wpisuje imię
+## i nazwę zamku. Ekran władcy ma Rulers.SLOTS miejsc: dostępnych władców (na razie tylko domyślny
+## Kasztelan bez premii) i szare puste miejsca na postacie z #31 i #32. Dotknięcie portretu pokazuje
+## jego premie, a Wybierz przechodzi do nazw. Dopóki tożsamości nie ma, panel przykrywa zamek
 ## i łapie każdy dotyk, a zamek nie idzie na serwer (main.gd). Tekst wpisuje się klawiaturą
 ## systemową: dotknięcie pola daje fokus ukrytej kontrolce LineEdit, która odbiera klawiaturę
 ## ekranową Androida, a tekst rysuje PixelFont. Zacznij sprawdza obie nazwy (PlayerProfile).
 
 signal finished(identity: PlayerProfile.Identity)
 
+enum Screen { RULER, NAMES }
 enum Field { NONE = -1, PLAYER, CASTLE }
-enum Target { NONE = -1, PLAYER, CASTLE, START }
+## Miejsca władców to SLOT + numer miejsca.
+enum Target { NONE = -1, PLAYER, CASTLE, START, CHOOSE, CHANGE_RULER, SLOT = 10 }
 
 const TITLE := "Witaj, władco"
 const SUBTITLE := "Nazwij siebie i swój gród"
+const RULER_TITLE := "Wybierz władcę"
+const RULER_SUBTITLE := "Dotknij portretu, by zobaczyć premie"
+const CHOOSE_LABEL := "Wybierz"
+## Miejsca władców: portrety PortraitArt.SIZE w rzędzie, wyśrodkowane.
+const SLOT_GAP := 10
+const SLOT_Y := 44
+const INFO_Y := 72
 const FIELD_LABELS := {Field.PLAYER: "Imię", Field.CASTLE: "Zamek"}
 const PLACEHOLDER := "dotknij, by wpisać"
 const START_LABEL := "Zacznij"
-const RULER_LINE := "Władca: %s, bez premii"
+## Linia z władcą na ekranie nazw; dotknięcie wraca do wyboru władcy.
+const RULER_LINE := "Władca: %s · zmień"
 
 ## Pola: etykieta po lewej, ramka z tekstem po prawej; całość wyśrodkowana (całe piksele).
 const LABEL_W := 32
@@ -27,6 +39,10 @@ const HINT_Y := 94
 const BUTTON_SIZE := Vector2(96, 16)
 const BUTTON_Y := 108
 
+var screen := Screen.RULER
+## Dotknięte miejsce władcy (-1, gdy jeszcze żadne) i wybrany władca.
+var selected_slot := -1
+var ruler := Rulers.DEFAULT
 var player_name := ""
 var castle_name := ""
 ## Pole, do którego idzie klawiatura (Field.NONE, gdy żadne).
@@ -51,6 +67,8 @@ func _ready() -> void:
 
 func open() -> void:
 	visible = true
+	screen = Screen.RULER
+	selected_slot = -1
 	hint = ""
 	_pressed = Target.NONE
 	queue_redraw()
@@ -66,7 +84,28 @@ static func button_rect(view: Vector2) -> Rect2:
 	return Rect2(Vector2(floorf((view.x - BUTTON_SIZE.x) / 2.0), BUTTON_Y), BUTTON_SIZE)
 
 
-static func target_at(p: Vector2, view: Vector2) -> int:
+static func slot_rect(view: Vector2, slot: int) -> Rect2:
+	var span := Rulers.SLOTS * PortraitArt.SIZE + (Rulers.SLOTS - 1) * SLOT_GAP
+	var x := floorf((view.x - span) / 2.0) + slot * (PortraitArt.SIZE + SLOT_GAP)
+	return Rect2(Vector2(x, SLOT_Y), Vector2(PortraitArt.SIZE, PortraitArt.SIZE))
+
+
+## Linia z władcą na ekranie nazw: dotknięcie wraca do wyboru władcy (cel 12 px wysokości).
+static func ruler_line_rect(view: Vector2, ruler_id: String) -> Rect2:
+	var w := PixelFont.text_width(RULER_LINE % Rulers.ruler_name(ruler_id)) + 8
+	return Rect2(Vector2(floorf((view.x - w) / 2.0), RULER_Y - 1), Vector2(w, 12))
+
+
+static func target_at(p: Vector2, view: Vector2, s: int = Screen.NAMES, ruler_id: String = Rulers.DEFAULT) -> int:
+	if s == Screen.RULER:
+		for slot in Rulers.SLOTS:
+			if slot_rect(view, slot).has_point(p):
+				return Target.SLOT + slot
+		if button_rect(view).has_point(p):
+			return Target.CHOOSE
+		return Target.NONE
+	if ruler_line_rect(view, ruler_id).has_point(p):
+		return Target.CHANGE_RULER
 	if field_rect(view, Field.PLAYER).has_point(p):
 		return Target.PLAYER
 	if field_rect(view, Field.CASTLE).has_point(p):
@@ -109,8 +148,40 @@ func identity() -> PlayerProfile.Identity:
 	var id := PlayerProfile.Identity.new()
 	id.player_name = PlayerProfile.clean_name(player_name)
 	id.castle_name = PlayerProfile.clean_name(castle_name)
-	id.ruler = Rulers.DEFAULT
+	id.ruler = ruler
 	return id
+
+
+## Dotknięcie miejsca władcy: zaznacza je i pokazuje premie (puste miejsce też, z zapowiedzią).
+func select_slot(slot: int) -> void:
+	selected_slot = clampi(slot, 0, Rulers.SLOTS - 1)
+	queue_redraw()
+
+
+## Czy Wybierz działa: zaznaczone miejsce ma władcę.
+func can_choose() -> bool:
+	return not Rulers.at_slot(selected_slot).is_empty()
+
+
+## Wybierz: zaznaczony władca przechodzi do ekranu nazw.
+func choose() -> bool:
+	if not can_choose():
+		return false
+	ruler = Rulers.at_slot(selected_slot)
+	screen = Screen.NAMES
+	hint = ""
+	queue_redraw()
+	return true
+
+
+## Nazwa i linie informacji o zaznaczonym miejscu (puste, gdy nic nie zaznaczono).
+func slot_info() -> PackedStringArray:
+	if selected_slot < 0:
+		return PackedStringArray()
+	var id := Rulers.at_slot(selected_slot)
+	if id.is_empty():
+		return PackedStringArray([Rulers.LOCKED_NAME, Rulers.LOCKED_INFO])
+	return PackedStringArray([Rulers.ruler_name(id), Rulers.perk_text(id)])
 
 
 ## Pierwszy błąd walidacji (imię przed zamkiem) albo pusty tekst, gdy obie nazwy są dobre.
@@ -158,7 +229,17 @@ func focus(f: int) -> void:
 
 
 func activate(t: int) -> void:
+	if t >= Target.SLOT:
+		select_slot(t - Target.SLOT)
+		return
 	match t:
+		Target.CHOOSE:
+			choose()
+		Target.CHANGE_RULER:
+			focus(Field.NONE)
+			screen = Screen.RULER
+			hint = ""
+			queue_redraw()
 		Target.PLAYER:
 			focus(Field.PLAYER)
 		Target.CASTLE:
@@ -199,7 +280,7 @@ func _input(event: InputEvent) -> void:
 	if touch == null:
 		return  # klawiatura idzie dalej, do ukrytego LineEdit
 	get_viewport().set_input_as_handled()
-	var t := target_at(touch.position, get_viewport_rect().size)
+	var t := target_at(touch.position, get_viewport_rect().size, screen, ruler)
 	if touch.pressed:
 		_pressed = t
 		queue_redraw()
@@ -216,13 +297,19 @@ func _input(event: InputEvent) -> void:
 func _draw() -> void:
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(Vector2.ZERO, view), Color(Palette.SHADOW, 0.9))
+	if screen == Screen.RULER:
+		_draw_rulers(view)
+		return
 	PixelFont.draw_centered(self, Rect2(0, 14, view.x, 10), TITLE.to_upper(), Palette.THATCH[2])
 	PixelFont.draw_centered(self, Rect2(0, 25, view.x, 10), SUBTITLE, Palette.WOOD[3])
 	draw_rect(Rect2(floorf(view.x / 2.0) - 30, 38, 60, 1), Palette.WOOD[2])
 	for f: int in [Field.PLAYER, Field.CASTLE]:
 		_draw_field(view, f)
+	var line := ruler_line_rect(view, ruler)
+	if _pressed == Target.CHANGE_RULER:
+		draw_rect(line, Palette.WOOD[1])
 	PixelFont.draw_centered(self, Rect2(0, RULER_Y, view.x, 10),
-			RULER_LINE % Rulers.ruler_name(Rulers.DEFAULT), Palette.WOOD[3])
+			RULER_LINE % Rulers.ruler_name(ruler), Palette.WOOD[3])
 	if not hint.is_empty():
 		PixelFont.draw_centered(self, Rect2(0, HINT_Y, view.x, 10), hint, Palette.ACCENT)
 	Hud.paint_button(self, button_rect(view), START_LABEL, _pressed == Target.START, false)
@@ -248,3 +335,28 @@ func _draw_field(view: Vector2, f: int) -> void:
 	if active:
 		var caret_x := at.x + PixelFont.text_width(text) + (1.0 if text.is_empty() else 2.0)
 		draw_rect(Rect2(caret_x, at.y + PixelFont.CAP_TOP, 1, 5), Palette.THATCH[2])
+
+
+## Ekran wyboru władcy: rząd portretów (puste miejsca szare), ramka na dotkniętym, pod spodem jego
+## premie i Wybierz (wyszarzone na pustym miejscu albo przed dotknięciem).
+func _draw_rulers(view: Vector2) -> void:
+	PixelFont.draw_centered(self, Rect2(0, 14, view.x, 10), RULER_TITLE.to_upper(), Palette.THATCH[2])
+	PixelFont.draw_centered(self, Rect2(0, 25, view.x, 10), RULER_SUBTITLE, Palette.WOOD[3])
+	draw_rect(Rect2(floorf(view.x / 2.0) - 30, 38, 60, 1), Palette.WOOD[2])
+	for slot in Rulers.SLOTS:
+		var r := slot_rect(view, slot)
+		var id := Rulers.at_slot(slot)
+		var tex := PortraitArt.locked_texture() if id.is_empty() else PortraitArt.ruler_texture(id)
+		draw_texture(tex, r.position)
+		if slot == selected_slot:
+			var f := r.grow(2)
+			for edge: Rect2 in [Rect2(f.position, Vector2(f.size.x, 1)),
+					Rect2(f.position + Vector2(0, f.size.y - 1), Vector2(f.size.x, 1)),
+					Rect2(f.position, Vector2(1, f.size.y)),
+					Rect2(f.position + Vector2(f.size.x - 1, 0), Vector2(1, f.size.y))]:
+				draw_rect(edge, Palette.THATCH[2])
+	var info := slot_info()
+	for i in info.size():
+		var col: Color = Palette.THATCH[2] if i == 0 else Palette.INK
+		PixelFont.draw_centered(self, Rect2(0, INFO_Y + i * 10, view.x, 10), info[i], col)
+	Hud.paint_button(self, button_rect(view), CHOOSE_LABEL, _pressed == Target.CHOOSE, not can_choose())

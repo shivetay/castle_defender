@@ -106,6 +106,59 @@ func test_panel_layout() -> bool:
 	assert_eq(OnboardingPanel.target_at(castle.get_center(), VIEW), T.CASTLE, "pole zamku")
 	assert_eq(OnboardingPanel.target_at(start.get_center(), VIEW), T.START, "Zacznij")
 	assert_eq(OnboardingPanel.target_at(Vector2(4, 4), VIEW), T.NONE, "tło")
+	var line := OnboardingPanel.ruler_line_rect(VIEW, Rulers.DEFAULT)
+	assert_true(line.size.y >= 12 and not line.intersects(castle) and not line.intersects(start), "linia władcy osobno")
+	assert_eq(OnboardingPanel.target_at(line.get_center(), VIEW), T.CHANGE_RULER, "zmiana władcy")
+	return true
+
+
+## Ekran władcy: Rulers.SLOTS miejsc w rzędzie, pierwsze to Kasztelan, reszta puste.
+func test_ruler_screen_layout() -> bool:
+	var S := OnboardingPanel.Screen
+	assert_eq(Rulers.SLOTS, 5, "pięć miejsc")
+	assert_eq(Rulers.at_slot(0), Rulers.DEFAULT, "pierwszy Kasztelan")
+	for slot in range(1, Rulers.SLOTS):
+		assert_eq(Rulers.at_slot(slot), "", "miejsce %d puste" % slot)
+	var prev := Rect2()
+	for slot in Rulers.SLOTS:
+		var r := OnboardingPanel.slot_rect(VIEW, slot)
+		assert_true(r.position.x >= 16 and r.end.x <= VIEW.x - 16, "miejsce %d z dala od krawędzi" % slot)
+		assert_eq(r.position, r.position.floor(), "całe piksele")
+		assert_true(not r.intersects(prev), "miejsca nie zachodzą na siebie")
+		assert_eq(OnboardingPanel.target_at(r.get_center(), VIEW, S.RULER), T.SLOT + slot, "dotyk miejsca %d" % slot)
+		prev = r
+	assert_eq(OnboardingPanel.target_at(OnboardingPanel.button_rect(VIEW).get_center(), VIEW, S.RULER), T.CHOOSE,
+			"Wybierz")
+	assert_eq(OnboardingPanel.target_at(OnboardingPanel.field_rect(VIEW, F.PLAYER).get_center(), VIEW, S.RULER),
+			T.NONE, "pola nazw są dopiero na drugim ekranie")
+	var locked := PortraitArt.locked_image()
+	assert_eq(locked.get_pixel(0, 0).a, 0.0, "puste miejsce też w kole")
+	assert_eq(locked.get_pixel(1, PortraitArt.SIZE / 2), Palette.LOCKED[0], "szare tło")
+	return true
+
+
+## Najpierw wybór władcy: dotknięcie pokazuje premie, puste miejsce nie da się wybrać, Wybierz
+## przechodzi do nazw, a linia władcy wraca do wyboru.
+func test_ruler_choice() -> bool:
+	var S := OnboardingPanel.Screen
+	var p := OnboardingPanel.new()
+	p.open()
+	assert_eq(p.screen, S.RULER, "start od wyboru władcy")
+	assert_true(p.slot_info().is_empty() and not p.can_choose(), "przed dotknięciem bez info i bez Wybierz")
+	assert_true(not p.choose(), "nic nie zaznaczono")
+	p.activate(T.SLOT + 2)
+	assert_eq(p.slot_info(), PackedStringArray([Rulers.LOCKED_NAME, Rulers.LOCKED_INFO]), "puste miejsce: zapowiedź")
+	assert_true(not p.choose() and p.screen == S.RULER, "pustego miejsca nie da się wybrać")
+	p.activate(T.SLOT)
+	assert_eq(p.slot_info(), PackedStringArray(["Kasztelan", Rulers.NO_PERKS]), "Kasztelan bez premii")
+	p.activate(T.CHOOSE)
+	assert_eq(p.screen, S.NAMES, "Wybierz przechodzi do nazw")
+	assert_eq(p.ruler, Rulers.DEFAULT, "wybrany Kasztelan")
+	p.activate(T.CHANGE_RULER)
+	assert_eq(p.screen, S.RULER, "powrót do wyboru władcy")
+	for line: String in [OnboardingPanel.RULER_SUBTITLE, Rulers.LOCKED_INFO, Rulers.NO_PERKS]:
+		assert_true(PixelFont.text_width(line) <= int(VIEW.x) - 32, "mieści się: %s" % line)
+	p.free()
 	return true
 
 
