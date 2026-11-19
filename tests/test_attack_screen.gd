@@ -82,6 +82,7 @@ func test_map_taps_set_target_and_route() -> bool:
 	assert_eq(arrow[-1], gate_cell, "do celu")
 	AttackPlanner.clear(o)
 	assert_eq(AttackPlanner.arrow_cells(o, bot)[-1], bot.grid.buildings[bot.objective].get_center(), "bez celu: donżon")
+	assert_eq(AttackPlanner.end_cell(o, bot), bot.grid.buildings[bot.objective].get_center(), "koniec = donżon")
 	# Oskrzydlenie bez trasy: strzałka idzie przez ten sam punkt obejścia, który wyznaczy bitwa
 	o.manoeuvre = M.FLANK
 	var flank := AttackPlanner.arrow_cells(o, bot)
@@ -96,6 +97,43 @@ func test_map_taps_set_target_and_route() -> bool:
 	assert_eq(p.orders.size(), 2, "rozkazy spoza armii wypadają")
 	assert_eq(AttackPlanner.line_pixels(Vector2i(0, 0), Vector2i(3, 1)).size(), 4, "kreska w całych pikselach")
 	return true
+
+
+## Koniec strzałki (domyślnie donżon) da się przenieść na inny budynek; trawa nie zmienia celu.
+func test_end_point_can_be_repositioned() -> bool:
+	var bot := BotCastle.generate(BotCastle.seed_for(1337, 0), 0)
+	var p := AttackPlan.new()
+	AttackPlanner.fit_plan(p, 1)
+	var o := p.order_for(1)
+	var keep := AttackPlanner.end_cell(o, bot)
+	assert_eq(keep, bot.grid.buildings[bot.objective].get_center(), "start: donżon")
+	assert_true(AttackPlanner.hit_end(o, bot, Vector2(AttackPlanner.cell_center_px(keep))), "uchwyt na donżonie")
+	assert_true(not AttackPlanner.hit_end(o, bot, Vector2(AttackPlanner.cell_center_px(bot.spawn))), "wejście to nie koniec")
+	var gate_cell := Vector2i(-1, -1)
+	for id: int in bot.grid.kinds:
+		if bot.grid.kinds[id] == K.GATE:
+			gate_cell = bot.grid.buildings[id].position
+	assert_eq(AttackPlanner.set_end(o, bot.grid, gate_cell), "Cel: Brama drewniana", "upuść na bramę")
+	assert_eq(o.target, gate_cell, "cel zmieniony")
+	assert_eq(AttackPlanner.arrow_cells(o, bot)[-1], gate_cell, "strzałka kończy się na bramie")
+	assert_eq(AttackPlanner.set_end(o, bot.grid, grass_near(bot)), "Koniec trasy: wskaż budynek", "trawa odrzucona")
+	assert_eq(o.target, gate_cell, "cel bez zmian po trawie")
+	var preview := AttackPlanner.arrow_cells(o, bot, keep)
+	assert_eq(preview[-1], keep, "podgląd przeciągania nadpisuje koniec")
+	assert_true(PixelFont.text_width(AttackPlanner.HINT) <= Hud.MESSAGE_MAX_WIDTH, "podpowiedź mieści się")
+	assert_true(PixelFont.text_width("Koniec trasy: wskaż budynek") <= Hud.MESSAGE_MAX_WIDTH, "odrzucenie mieści się")
+	assert_true(PixelFont.text_width("Przenieś koniec: upuść na budynek") <= Hud.MESSAGE_MAX_WIDTH, "przenoszenie mieści się")
+	return true
+
+
+## Kratka trawy bez budynku i wody przy wejściu (do testów końca trasy).
+func grass_near(bot: BotCastle) -> Vector2i:
+	for y in range(bot.spawn.y - 8, bot.spawn.y + 1):
+		var c := Vector2i(bot.spawn.x, y)
+		if bot.grid.terrain.in_bounds(c) and bot.grid.building_at(c) == 0 \
+				and bot.grid.terrain.get_tile(c) != TerrainMap.Tile.WATER:
+			return c
+	return bot.spawn
 
 
 func test_layout_fits_and_targets() -> bool:

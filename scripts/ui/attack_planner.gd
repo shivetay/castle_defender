@@ -3,7 +3,8 @@ extends Node2D
 ## Planowanie ataku (#17, notatka Interfejs): mapa zamku-celu (BotCastle) ze strefą rozstawienia
 ## przy krawędzi mapy i strzałkami planu. Na dole pasek oddziałów, w kolumnie przyciski
 ## (AttackPanel). Gracz wybiera oddział, przyciskami ustawia manewr, start i odwrót, a dotykiem mapy
-## cel (budynek) i trasę (do 3 punktów na trawie). Plan zapisuje się w grze (SaveGame, wersja 6).
+## cel (budynek) i trasę (do 3 punktów na trawie); koniec strzałki (domyślnie donżon) przeciąga
+## na inny budynek. Plan zapisuje się w grze (SaveGame, wersja 6).
 ## Ten węzeł rysuje mapę w pikselach świata; logika edycji planu to funkcje statyczne.
 
 ## Strefa rozstawienia: tyle kratek wokół wejścia na mapę.
@@ -13,6 +14,8 @@ const START_SECONDS: Array[int] = [10, 20, 30]
 ## Odwrót: kolejne wartości przycisku Odwrót (procent strat; 0 = nigdy).
 const RETREAT_STEPS: Array[int] = [0, 30, 50, 70]
 const HINT := "Dotknij budynku: cel, trawy: punkt trasy"
+## Połowa celu dotyku końca strzałki (min. 12×12 px logicznych).
+const END_HIT := 6
 
 var bot: BotCastle
 var plan: AttackPlan
@@ -29,6 +32,8 @@ var show_plan := true
 var _terrain_tex: ImageTexture
 ## Stan zniszczeń budynków celu w trwającej bitwie (BattleView.states_of); poza bitwą pusty.
 var states: Dictionary = {}
+## Podgląd przeciąganego końca strzałki (kratka); NO_TARGET = bez przeciągania.
+var drag_end_cell := AttackPlan.NO_TARGET
 
 
 ## Otwiera plan dla zamku `target` i oddziałów `army`. Rozkazy dla brakujących oddziałów to
@@ -129,6 +134,36 @@ static func tap(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> String:
 	return "Trasa: punkt %d z %d" % [o.waypoints.size(), AttackPlan.MAX_WAYPOINTS]
 
 
+## Kratka końca strzałki: wskazany cel albo środek donżonu (domyślny koniec).
+static func end_cell(o: AttackPlan.Order, b: BotCastle) -> Vector2i:
+	if o.target != AttackPlan.NO_TARGET:
+		return o.target
+	if b != null and b.grid.buildings.has(b.objective):
+		return b.grid.buildings[b.objective].get_center()
+	return AttackPlan.NO_TARGET
+
+
+## Czy `world` (piksele świata) trafia w uchwyt końca strzałki rozkazu (cel dotyku 12×12).
+static func hit_end(o: AttackPlan.Order, b: BotCastle, world: Vector2) -> bool:
+	var end := end_cell(o, b)
+	if end == AttackPlan.NO_TARGET:
+		return false
+	var c := cell_center_px(end)
+	return absi(int(world.x) - c.x) <= END_HIT and absi(int(world.y) - c.y) <= END_HIT
+
+
+## Ustawia koniec trasy na budynek w kratce `cell` (przeciągnięcie uchwytu). Trawa i woda
+## nie zmieniają celu. Zwraca komunikat dla paska.
+static func set_end(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> String:
+	if not grid.terrain.in_bounds(cell):
+		return HINT
+	var id := grid.building_at(cell)
+	if id == 0:
+		return "Koniec trasy: wskaż budynek"
+	o.target = cell
+	return "Cel: %s" % BuildingTypes.NAMES[grid.kinds[id]]
+
+
 static func clear(o: AttackPlan.Order) -> void:
 	o.target = AttackPlan.NO_TARGET
 	o.waypoints.clear()
@@ -153,12 +188,10 @@ static func describe(o: AttackPlan.Order) -> Array[String]:
 
 
 ## Punkty strzałki rozkazu w kratkach: wejście, trasa (z punktem obejścia dla Oskrzydlenia
-## bez trasy) i cel (wskazany budynek albo donżon).
-static func arrow_cells(o: AttackPlan.Order, b: BotCastle) -> Array[Vector2i]:
+## bez trasy) i cel (wskazany budynek albo donżon). Z `end_override` zamiast celu (podgląd przeciągania).
+static func arrow_cells(o: AttackPlan.Order, b: BotCastle, end_override: Vector2i = AttackPlan.NO_TARGET) -> Array[Vector2i]:
 	var out: Array[Vector2i] = [b.spawn]
-	var goal := o.target
-	if goal == AttackPlan.NO_TARGET and b.grid.buildings.has(b.objective):
-		goal = b.grid.buildings[b.objective].get_center()
+	var goal := end_override if end_override != AttackPlan.NO_TARGET else end_cell(o, b)
 	if o.manoeuvre == AttackPlan.Manoeuvre.FLANK and o.waypoints.is_empty() and goal != AttackPlan.NO_TARGET:
 		# ten sam punkt obejścia, który wyznaczy bitwa (Battle.set_plan)
 		out.append(Battle.flank_point_between(b.spawn, goal, o.flank_left, b.grid.terrain.size))
@@ -218,15 +251,17 @@ func _draw() -> void:
 	var sel := order()
 	if sel != null:
 		_draw_arrow(sel, Palette.INK)
-		if sel.target != AttackPlan.NO_TARGET:
-			var id := bot.grid.building_at(sel.target)
+		var mark := drag_end_cell if drag_end_cell != AttackPlan.NO_TARGET else sel.target
+		if mark != AttackPlan.NO_TARGET:
+			var id := bot.grid.building_at(mark)
 			if id != 0:
 				var r := bot.grid.buildings[id]
 				CastleView.draw_frame(self, Rect2i(r.position * TerrainMap.CELL, r.size * TerrainMap.CELL), Palette.ACCENT)
 
 
 func _draw_arrow(o: AttackPlan.Order, col: Color) -> void:
-	var cells := arrow_cells(o, bot)
+	var preview := drag_end_cell if o.squad == selected else AttackPlan.NO_TARGET
+	var cells := arrow_cells(o, bot, preview)
 	for i in range(1, cells.size()):
 		# kreska 2 px, żeby nie rwała się przy oddaleniu 0,5×
 		for p in line_pixels(cell_center_px(cells[i - 1]), cell_center_px(cells[i])):

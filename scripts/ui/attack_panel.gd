@@ -2,7 +2,8 @@ class_name AttackPanel
 extends Control
 ## Przyciski planowania ataku (#17) nad mapą celu (AttackPlanner): kolumna przy prawej krawędzi
 ## (Manewr, Start, Odwrót, Wyczyść, Atakuj, Wróć), pasek oddziałów na dole i opis rozkazu
-## wybranego oddziału. Dotknięcia poza przyciskami idą do mapy (cel i trasa).
+## wybranego oddziału. Dotknięcia poza przyciskami idą do mapy (cel i trasa); uchwyt końca
+## strzałki (domyślnie donżon) przeciąga się na inny budynek bez ruszania kamery.
 ## Manewr otwiera listę wszystkich manewrów: dostępne z krótkim opisem, niedostępne wyszarzone
 ## z tym, czego brakuje (jednostka, epoka, badanie). Lista łapie wszystkie dotknięcia, a dotknięcie
 ## poza nią ją zamyka.
@@ -30,6 +31,8 @@ var _pressed := Target.NONE
 var picking := false
 ## Dotknięcie zamknęło listę: jego puszczenie nie trafia już do mapy.
 var _swallow_release := false
+## Przeciąganie uchwytu końca strzałki wybranego oddziału (nie rusza kamery).
+var _drag_end := false
 
 
 func _ready() -> void:
@@ -40,6 +43,9 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
 		picking = false
+		_drag_end = false
+		if planner != null:
+			planner.drag_end_cell = AttackPlan.NO_TARGET
 
 
 func _process(_delta: float) -> void:
@@ -93,8 +99,17 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, squa
 func _input(event: InputEvent) -> void:
 	if not visible or planner == null:
 		return
+	if _drag_end and event is InputEventScreenDrag:
+		get_viewport().set_input_as_handled()
+		_move_end_preview((event as InputEventScreenDrag).position)
+		return
 	var touch := event as InputEventScreenTouch
 	if touch == null:
+		return
+	if _drag_end:
+		get_viewport().set_input_as_handled()
+		if not touch.pressed:
+			_finish_end_drag(touch.position)
 		return
 	if picking and list_rect(content_left, content_right).has_point(touch.position):
 		# w obrębie listy (z lukami między wierszami): wiersz wybiera manewr, luka nic nie robi
@@ -129,6 +144,15 @@ func _input(event: InputEvent) -> void:
 		_pressed = t
 		if t != Target.NONE:
 			get_viewport().set_input_as_handled()
+			return
+		# mapa: uchwyt końca strzałki zamiast kamery / punktu trasy
+		var o := planner.order()
+		if o != null and AttackPlanner.hit_end(o, planner.bot, _world_of(touch.position)):
+			get_viewport().set_input_as_handled()
+			_drag_end = true
+			planner.drag_end_cell = AttackPlanner.end_cell(o, planner.bot)
+			planner.queue_redraw()
+			changed.emit("Przenieś koniec: upuść na budynek")
 		return
 	var was := _pressed
 	_pressed = Target.NONE
@@ -137,6 +161,30 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 	if t == was:
 		activate(was)
+
+
+## Piksel świata pod punktem ekranu (kamera planu; bez kamery: sam punkt).
+func _world_of(screen: Vector2) -> Vector2:
+	var cam := get_viewport().get_camera_2d() as PanZoomCamera
+	return cam.screen_to_world(screen) if cam != null else screen
+
+
+func _move_end_preview(screen: Vector2) -> void:
+	var world := _world_of(screen)
+	planner.drag_end_cell = Vector2i((world / TerrainMap.CELL).floor())
+	planner.queue_redraw()
+
+
+func _finish_end_drag(screen: Vector2) -> void:
+	_drag_end = false
+	planner.drag_end_cell = AttackPlan.NO_TARGET
+	var o := planner.order()
+	if o == null or planner.bot == null:
+		planner.queue_redraw()
+		return
+	var cell := Vector2i((_world_of(screen) / TerrainMap.CELL).floor())
+	changed.emit(AttackPlanner.set_end(o, planner.bot.grid, cell))
+	planner.queue_redraw()
 
 
 ## Działanie przycisku (też z testów).
