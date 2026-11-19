@@ -6,27 +6,42 @@ extends Node
 ## mieć w kliencie) stoi w stanie DISABLED i nie wysyła niczego.
 ## Klient nie jest zaufany (skill `pvp-anti-cheat`): to konto służy tylko do zapisu własnych danych
 ## przez RLS, a wynik ataku, łup i ranking liczy serwer. Tokenów i odpowiedzi API nie logujemy.
-## Po wejściu w ONLINE może wysłać zamek z `map_seed` (#166 / część #23).
+## W ONLINE synchronizuje zamek i obronę z serwerem (#23, logika w `CastleSync`): przy połączeniu czyta
+## własny zamek, potem zapisuje zmiany najwyżej co `PUSH_INTERVAL_S` z kontrolą rewizji, a po reinstalacji
+## przywraca zamek z serwera (`castle_restored`).
 
 signal state_changed(state: int)
+## Serwer ma zamek, który trzeba przywrócić na telefon (#23): zapis w kształcie `SaveGame.to_dict`
+## i tożsamość z onboardingu (`Identity.to_dict`, pusty słownik, gdy jej nie ma).
+signal castle_restored(save: Dictionary, profile: Dictionary)
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
 enum Outcome { OK, REJECTED, NETWORK }
 enum Call { NONE, SIGNUP, REFRESH }
-## Kroki zapisu zamku z seedem (#166).
-enum CastleCall { NONE, GET, INSERT, UPDATE }
+## Kroki synchronizacji zamku (#23): odczyt, założenie, zapis z rewizją, obrona i nick.
+enum CastleCall { NONE, GET, INSERT, PUSH, DEFENSE_PATCH, DEFENSE_INSERT, NICKNAME }
 
 ## Przerwy między kolejnymi próbami połączenia (s); ostatnia się powtarza.
 const RETRY_S: Array[int] = [5, 15, 30, 60, 120, 300]
 const TIMEOUT_S := 15.0
 const SIGNUP_PATH := "/auth/v1/signup"
 const REFRESH_PATH := "/auth/v1/token?grant_type=refresh_token"
+## Zamek idzie na serwer najwyżej raz na tyle sekund (zapis lokalny jest dużo częstszy);
+## przy wyjściu z gry `flush()` wysyła od razu.
+const PUSH_INTERVAL_S := 15.0
+## Ile razy z rzędu zapis może trafić na konflikt rewizji, zanim klient poczeka na nowy zapis.
+const MAX_CONFLICTS := 3
 
 var state: int = State.DISABLED
 var config: SupabaseConfig
 var session: SupabaseSession
 var session_path := SupabaseSession.PATH
+var sync_path := CastleSync.SyncState.PATH
+## Rewizja zamku na serwerze, od której zaczyna się stan na telefonie (#23).
+var sync_state := CastleSync.SyncState.new()
+## Gra wystartowała bez zapisu na telefonie (ustawia main przed dodaniem do drzewa).
+var local_fresh := false
 
 var _failures := 0
 var _retry_left := 0.0
@@ -37,19 +52,43 @@ var _castle_call: int = CastleCall.NONE
 var _castle_map_seed := 0
 var _castle_save_version := 0
 var _castle_data: Dictionary = {}
-## Gdy sync w toku, kolejny zapis tylko podmienia payload i czeka na dokończenie (#23).
+var _defense_data: Dictionary = {}
+var _nickname := ""
+## Czy gracz ma tożsamość z onboardingu (bez niej zamek nie idzie na serwer, ale może z niego wrócić).
+var _can_push := false
+## Najnowszy stan nie jest jeszcze na serwerze. Gdy żądanie trwa, nowy zapis tylko podmienia dane.
 var _castle_dirty := false
+## Konto, dla którego w tej sesji odczytano zamek z serwera (pusty: trzeba odczytać).
+var _checked_user := ""
+## Rewizja na serwerze, od której idzie następny zapis.
+var _base_revision := -1
+## Odliczanie do następnego zapisu (s).
+var _push_wait := 0.0
+var _conflicts := 0
+## Na serwerze jest zamek z nowszej wersji gry albo zamek właśnie wraca na telefon: nic nie wysyłamy.
+var _castle_hold := false
+var _failures_castle := 0
+## Testy: żądania synchronizacji trafiają tu zamiast do sieci (call, method, path, body).
+var fake_transport := false
+var sent_requests: Array[Dictionary] = []
+var _sent_save_version := 0
+var _sent_data: Dictionary = {}
+var _sent_defense: Dictionary = {}
+var _sent_nickname := ""
 
 
 ## Konfiguracja przed dodaniem do drzewa (w testach inna ścieżka sesji); bez niej `_ready` czyta plik.
-func setup(c: SupabaseConfig, path: String = SupabaseSession.PATH) -> void:
+func setup(c: SupabaseConfig, path: String = SupabaseSession.PATH,
+		sync_file: String = CastleSync.SyncState.PATH) -> void:
 	config = c
 	session_path = path
+	sync_path = sync_file
 
 
 func _ready() -> void:
 	if config == null:
 		config = SupabaseConfig.load_from()
+	sync_state = CastleSync.SyncState.load_from(sync_path)
 	if not config.is_ready():
 		_set_state(State.DISABLED)
 		return
@@ -66,6 +105,10 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if _push_wait > 0.0:
+		_push_wait -= delta
+		if _push_wait <= 0.0:
+			_castle_pump()
 	if _pending != Call.NONE:
 		return
 	if state == State.OFFLINE:
@@ -107,20 +150,37 @@ func rest_headers() -> PackedStringArray:
 	return headers_for(config.key, session.access_token if session != null else "")
 
 
-## Wysyła zamek z `map_seed` (#166). Bez sieci — no-op. W trakcie innego zapisu zapamiętuje
-## najnowszy `data` i powtórzy sync po zakończeniu (żeby częsty `_save` nic nie gubił).
-func sync_castle(map_seed: int, save_version: int, data: Dictionary) -> void:
-	if not is_online() or _rest == null:
-		return
-	if not CastleSync.is_valid_map_seed(map_seed) or user_id().is_empty():
+## Nowy stan zamku do wysłania (#23). Bez sieci zostaje w pamięci i pójdzie po połączeniu (main
+## woła to też po wejściu w ONLINE). Zapis idzie najwyżej co `PUSH_INTERVAL_S`; w trakcie żądania
+## nowy stan tylko podmienia poprzedni, więc częsty zapis lokalny niczego nie gubi.
+## `nickname` pusty i `can_push` false: gracz bez tożsamości, zamek może tylko wrócić z serwera.
+func sync_castle(map_seed: int, save_version: int, data: Dictionary, defense: Dictionary = {},
+		nickname: String = "", can_push: bool = true) -> void:
+	if not CastleSync.is_valid_map_seed(map_seed):
 		return
 	_castle_map_seed = map_seed
 	_castle_save_version = save_version
 	_castle_data = data
-	if _castle_call != CastleCall.NONE:
-		_castle_dirty = true
-		return
-	_castle_begin_get()
+	_defense_data = defense
+	_nickname = nickname
+	_can_push = can_push
+	_castle_dirty = true
+	_conflicts = 0
+	_castle_pump()
+
+
+## Wysyła zaległy zapis od razu (przy wyjściu z gry), bez czekania na `PUSH_INTERVAL_S`.
+func flush() -> void:
+	_push_wait = 0.0
+	_castle_pump()
+
+
+## „Zacznij od nowa” (#23): następny zapis nadpisuje zamek na serwerze, a nie przywraca starego.
+func mark_new_game() -> void:
+	if sync_state == null:
+		sync_state = CastleSync.SyncState.load_from(sync_path)
+	sync_state.force_push = true
+	sync_state.save(sync_path)
 
 
 # --- Logika bez sieci (testy) ------------------------------------------------------------------
@@ -194,60 +254,167 @@ func _on_rest_completed(result: int, code: int, _headers: PackedStringArray, bod
 	handle_castle_rest(_castle_call, result, code, body.get_string_from_utf8())
 
 
-## Obsługa REST zamku bez sieci (testy). GET → INSERT albo UPDATE z seedem tylko przy INSERT.
+## Obsługa odpowiedzi REST synchronizacji zamku (bez sieci, wołana też z testów).
 func handle_castle_rest(call: int, result: int, code: int, body: String) -> void:
-	var pending := call
 	_castle_call = CastleCall.NONE
-	if pending == CastleCall.NONE:
+	if call == CastleCall.NONE:
 		return
-	if outcome_of(result, code) != Outcome.OK:
-		_castle_retry_if_dirty()
+	var outcome := outcome_of(result, code)
+	if outcome != Outcome.OK:
+		_castle_failed(call, code)
 		return
-	if pending == CastleCall.GET:
-		var rows: Variant = SupabaseConfig.parse_json(body)
-		var remote := CastleSync.map_seed_from_rows(rows)
-		var action := CastleSync.next_action(_castle_map_seed, remote)
-		if action == CastleSync.Action.INSERT:
-			_castle_send(CastleCall.INSERT, HTTPClient.METHOD_POST, CastleSync.CASTLES_PATH,
-					CastleSync.insert_body(user_id(), _castle_map_seed, _castle_save_version, _castle_data))
-		elif action == CastleSync.Action.UPDATE:
-			_castle_send(CastleCall.UPDATE, HTTPClient.METHOD_PATCH, CastleSync.own_path(user_id()),
-					CastleSync.update_body(_castle_save_version, _castle_data))
-		else:
-			_castle_retry_if_dirty()
-		return
-	# INSERT / UPDATE: seed w bazie zostaje z INSERT; ewentualny nowszy zapis z dirty
-	_castle_retry_if_dirty()
+	var rows: Variant = SupabaseConfig.parse_json(body)
+	match call:
+		CastleCall.GET:
+			_castle_on_get(CastleSync.first_row(rows))
+		CastleCall.INSERT, CastleCall.PUSH:
+			var revision := CastleSync.revision_from_rows(rows)
+			if revision < 0:
+				# zapis nie trafił w wiersz: ktoś zapisał zamek w międzyczasie, czytamy od nowa
+				_castle_conflict()
+				return
+			_failures_castle = 0
+			_conflicts = 0
+			_castle_saved(revision)
+			_castle_send(CastleCall.DEFENSE_PATCH, HTTPClient.METHOD_PATCH, CastleSync.defense_path(user_id()),
+					CastleSync.update_body(_sent_save_version, _sent_defense), true)
+		CastleCall.DEFENSE_PATCH:
+			if CastleSync.first_row(rows).is_empty():
+				_castle_send(CastleCall.DEFENSE_INSERT, HTTPClient.METHOD_POST, CastleSync.DEFENSE_PATH,
+						CastleSync.defense_insert_body(user_id(), _sent_save_version, _sent_defense), false)
+			else:
+				_castle_send_nickname()
+		CastleCall.DEFENSE_INSERT:
+			_castle_send_nickname()
+		CastleCall.NICKNAME:
+			sync_state.nickname = _sent_nickname
+			sync_state.save(sync_path)
+			_castle_pump()
 
 
-func _castle_begin_get() -> void:
-	_castle_call = CastleCall.GET
-	var err := _rest.request(config.url + CastleSync.own_path(user_id()) + "&select=" + CastleSync.SELECT_OWN,
-			rest_headers(), HTTPClient.METHOD_GET)
-	if err != OK:
-		_castle_call = CastleCall.NONE
-
-
-func _castle_retry_if_dirty() -> void:
-	if not _castle_dirty:
+## Kolejny krok synchronizacji, gdy nic nie trwa: odczyt zamku (raz na sesję konta i po konflikcie)
+## albo zapis, gdy minęła przerwa.
+func _castle_pump() -> void:
+	if _castle_call != CastleCall.NONE or _castle_hold or not _castle_dirty:
 		return
+	if not is_online() or (_rest == null and not fake_transport) or user_id().is_empty():
+		return
+	if _checked_user != user_id():
+		_castle_send(CastleCall.GET, HTTPClient.METHOD_GET, CastleSync.read_path(user_id()), {}, false)
+		return
+	if _push_wait > 0.0 or not _can_push:
+		return
+	_castle_push()
+
+
+func _castle_on_get(row: Dictionary) -> void:
+	var uid := user_id()
+	_checked_user = uid
+	if not row.is_empty() and int(row.get("save_version", 0)) > SaveGame.FORMAT_VERSION:
+		# zamek zapisała nowsza wersja gry: nie nadpisujemy go do końca sesji
+		_castle_hold = true
+		return
+	var action := CastleSync.decide(_castle_map_seed, sync_state.revision_for(uid), local_fresh,
+			sync_state.force_push, _can_push, row)
+	match action:
+		CastleSync.Action.INSERT:
+			_castle_dirty = false
+			_capture_sent()
+			_castle_send(CastleCall.INSERT, HTTPClient.METHOD_POST, CastleSync.CASTLES_PATH + "?select=revision",
+					CastleSync.insert_body(uid, _castle_map_seed, _sent_save_version, _sent_data), true)
+		CastleSync.Action.PUSH:
+			_base_revision = int(row.get("revision", 0))
+			_push_wait = 0.0
+			_castle_push()
+		CastleSync.Action.PULL:
+			_castle_hold = true
+			_castle_dirty = false
+			_castle_saved(int(row.get("revision", 0)))
+			var id := CastleSync.identity_from_row(row)
+			castle_restored.emit(CastleSync.save_from_row(row), id.to_dict() if id != null else {})
+		_:
+			# bez tożsamości: zamek zostaje na telefonie; odczytamy go znowu przy następnym zapisie
+			_checked_user = ""
+			_castle_dirty = false
+
+
+func _castle_push() -> void:
+	if _base_revision < 0:
+		_base_revision = sync_state.revision_for(user_id())
 	_castle_dirty = false
-	if is_online() and _rest != null and CastleSync.is_valid_map_seed(_castle_map_seed) \
-			and not user_id().is_empty():
-		_castle_begin_get()
+	_capture_sent()
+	_push_wait = PUSH_INTERVAL_S
+	_castle_send(CastleCall.PUSH, HTTPClient.METHOD_PATCH, CastleSync.push_path(user_id(), _base_revision),
+			CastleSync.update_body(_sent_save_version, _sent_data), true)
 
 
-func _castle_send(call: int, method: int, path: String, body: Dictionary) -> void:
+## Zamek na serwerze ma rewizję `revision` i jest zgodny z telefonem.
+func _castle_saved(revision: int) -> void:
+	_base_revision = revision
+	sync_state.player_id = user_id()
+	sync_state.revision = revision
+	sync_state.force_push = false
+	sync_state.save(sync_path)
+
+
+func _castle_conflict() -> void:
+	_castle_dirty = true
+	_checked_user = ""
+	_base_revision = -1
+	_conflicts += 1
+	if _conflicts > MAX_CONFLICTS:
+		# ktoś stale zapisuje ten zamek: czekamy na kolejny zapis z gry
+		_castle_dirty = false
+		return
+	_push_wait = 0.0
+	_castle_pump()
+
+
+## Błąd sieci albo odrzucone żądanie: zaległy zamek pójdzie po przerwie (jak próby połączenia).
+func _castle_failed(call: int, code: int) -> void:
+	if call == CastleCall.INSERT and code == 409:
+		# zamek już jest (np. założony z innego telefonu): czytamy go i decydujemy od nowa
+		_castle_conflict()
+		return
+	if call == CastleCall.GET or call == CastleCall.INSERT or call == CastleCall.PUSH:
+		_castle_dirty = true
+	if call == CastleCall.GET or call == CastleCall.INSERT:
+		_checked_user = ""
+	_failures_castle += 1
+	_push_wait = float(retry_delay(_failures_castle))
+
+
+func _castle_send_nickname() -> void:
+	if _sent_nickname.is_empty() or _sent_nickname == sync_state.nickname:
+		_castle_pump()
+		return
+	_castle_send(CastleCall.NICKNAME, HTTPClient.METHOD_PATCH, CastleSync.nickname_path(user_id()),
+			{"nickname": _sent_nickname}, false)
+
+
+## Zapamiętuje, co dokładnie idzie na serwer (gra może w tym czasie podmienić najnowszy stan).
+func _capture_sent() -> void:
+	_sent_save_version = _castle_save_version
+	_sent_data = _castle_data
+	_sent_defense = _defense_data
+	_sent_nickname = _nickname
+
+
+func _castle_send(call: int, method: int, path: String, body: Dictionary, representation: bool) -> void:
+	if fake_transport:
+		_castle_call = call
+		sent_requests.append({"call": call, "method": method, "path": path, "body": body})
+		return
 	if _rest == null:
 		return
 	_castle_call = call
 	var headers := rest_headers()
-	if method == HTTPClient.METHOD_POST:
-		headers.append("Prefer: return=minimal")
-	var err := _rest.request(config.url + path, headers, method, JSON.stringify(body))
+	if method != HTTPClient.METHOD_GET:
+		headers.append("Prefer: return=representation" if representation else "Prefer: return=minimal")
+	var payload := "" if method == HTTPClient.METHOD_GET else JSON.stringify(body)
+	var err := _rest.request(config.url + path, headers, method, payload)
 	if err != OK:
-		_castle_call = CastleCall.NONE
-		_castle_retry_if_dirty()
+		handle_castle_rest(call, HTTPRequest.RESULT_CANT_CONNECT, 0, "")
 
 
 func _set_state(s: int) -> void:

@@ -60,6 +60,10 @@ var research_panel: ResearchPanel
 var settings_panel: SettingsPanel
 ## Konto gracza w Supabase (#22); bez konfiguracji albo sieci gra działa offline.
 var net: SupabaseClient
+## Zamek właśnie wrócił z serwera (#23); zmienna statyczna przetrwa przeładowanie sceny.
+static var _restored_from_server := false
+## Zamek z serwera leży już w zapisie i scena czeka na przeładowanie: lokalny zapis by go nadpisał.
+var _restoring := false
 ## Tożsamość gracza z onboardingu (#228): imię, nazwa zamku i władca. Null, dopóki gracz jej nie poda;
 ## wtedy panel onboardingu przykrywa zamek, a zamek nie idzie na serwer.
 var identity: PlayerProfile.Identity
@@ -273,10 +277,16 @@ func _ready() -> void:
 	hud.resource_pressed.connect(_on_resource_info)
 	recruit_panel.limit_pressed.connect(_on_army_limit_info)
 	net = SupabaseClient.new()
+	# start bez zapisu (reinstalacja): zamek z serwera ma pierwszeństwo przed nowym (#23)
+	net.local_fresh = saved == null
 	net.state_changed.connect(_on_net_state)
+	net.castle_restored.connect(_on_castle_restored)
 	add_child(net)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
+	if _restored_from_server:
+		_restored_from_server = false
+		hud.message = "Zamek wrócił z serwera"
 	_save()
 	if OS.is_debug_build() and OS.get_cmdline_user_args().has(BATTLE_PREVIEW_ARG):
 		_start_battle_preview()
@@ -355,6 +365,8 @@ func _notification(what: int) -> void:
 			# Android potrafi zabić aplikację w tle bez ostrzeżenia, więc zapis idzie przy wyjściu
 			_tick()
 			_save()
+			if net != null:
+				net.flush()
 
 
 ## Nadrabia czas nieobecności i podaje w komunikacie, ile surowców przybyło.
@@ -373,6 +385,8 @@ func _catch_up(prefix: String) -> void:
 
 ## Zapisuje grę. Błąd zapisu nie przerywa gry, tylko trafia do logu.
 func _save() -> void:
+	if _restoring:
+		return
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
 	var save := SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
@@ -383,20 +397,40 @@ func _save() -> void:
 	_sync_castle(save)
 
 
-## Stan sieci w Ustawieniach; po ONLINE wysyłamy seed terenu na serwer (#166).
+## Stan sieci w Ustawieniach; po ONLINE zaległy zamek idzie na serwer od razu (#23).
 func _on_net_state(st: int) -> void:
 	settings_panel.net_state = st
 	if st == SupabaseClient.State.ONLINE:
-		_sync_castle(SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-				pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check))
+		net.flush()
 
 
-## Zapis `castles.map_seed` + stanu zamku, gdy jest sesja (#166 / część #23). Bez tożsamości
-## z onboardingu (#228) zamek zostaje na telefonie, żeby serwer nie dostał anonimowego zamku.
+## Synchronizacja zamku i obrony z serwerem (#23): klient trzyma najnowszy stan i wysyła go, gdy
+## jest sieć. Bez tożsamości z onboardingu (#228) zamek nie idzie na serwer (żeby serwer nie dostał
+## anonimowego zamku), ale może z niego wrócić po reinstalacji.
 func _sync_castle(save: Dictionary) -> void:
-	if net == null or not net.is_online() or identity == null:
+	if net == null or net.state == SupabaseClient.State.DISABLED:
 		return
-	net.sync_castle(world_seed, SaveGame.FORMAT_VERSION, CastleSync.castle_data(save))
+	net.sync_castle(world_seed, SaveGame.FORMAT_VERSION, CastleSync.castle_data(save, identity),
+			CastleSync.defense_data(save), identity.player_name if identity != null else "", identity != null)
+
+
+## Serwer ma nowszy zamek niż telefon albo telefon nie ma zapisu (reinstalacja, #23): zamek, seed
+## terenu i tożsamość wracają na telefon, a scena wczytuje się od nowa z tego zapisu.
+func _on_castle_restored(save: Dictionary, profile: Dictionary) -> void:
+	if SaveGame.from_dict(save, _now_ms()) == null:
+		push_warning("Zamek z serwera jest nieczytelny, zostaje zamek z telefonu")
+		return
+	var err := SaveGame.write(SaveGame.PATH, save)
+	if err != OK:
+		push_warning("Nie udało się zapisać zamku z serwera: %s" % error_string(err))
+		return
+	# seed zamku jest grywalny, więc jako seed gracza daje ten sam teren (first_playable)
+	PlayerProfile.write_seed(PlayerProfile.PATH, int(save["world_seed"]))
+	if not profile.is_empty():
+		PlayerProfile.write_identity(PlayerProfile.PATH, PlayerProfile.Identity.from_dict(profile))
+	_restored_from_server = true
+	_restoring = true
+	get_tree().reload_current_scene()
 
 
 static func _now_ms() -> int:
@@ -984,6 +1018,9 @@ func _on_settings_opened() -> void:
 ## Zacznij od nowa (potwierdzone w ustawieniach): usuwa zapis i przeładowuje scenę. Mapa zostaje
 ## ta sama, bo seed należy do gracza (PlayerProfile).
 func _on_new_game() -> void:
+	# nowa gra nadpisuje zamek na serwerze, a nie przywraca starego (#23)
+	if net != null:
+		net.mark_new_game()
 	SaveGame.delete(SaveGame.PATH)
 	get_tree().reload_current_scene()
 
