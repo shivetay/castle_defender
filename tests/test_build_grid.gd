@@ -259,3 +259,34 @@ func test_wall_seals_on_queue_completion() -> bool:
 	assert_true(BuildingTypes.is_wall(grid.kinds[grid.building_at(o + Vector2i(1, 0))]), "po ukończeniu luka domknięta")
 	assert_true(BuildingTypes.is_wall(grid.kinds[grid.building_at(o + Vector2i(2, 0))]), "druga kratka też")
 	return true
+
+
+## Wieża 2×2: zakręt ściany przy jej boku nie domyka równoległej kratki (brzydka pętla 1×1).
+## Proste uszczelnienie w linii do wieży nadal działa.
+func test_tower_seal_skips_parallel_loop() -> bool:
+	for wall: int in [BuildingTypes.Kind.PALISADE, BuildingTypes.Kind.RAMPART]:
+		var name := BuildingTypes.NAMES[wall]
+		var grid := BuildGrid.new(TerrainMap.generate(1337))
+		var o := _free_area(grid, Vector2i(8, 5))
+		var t := o + Vector2i(2, 1)
+		assert_true(grid.place(Rect2i(t, Vector2i(2, 2)), BuildingTypes.Kind.TOWER, 1) > 0, "%s: wieża" % name)
+		# linia na górnym rzędzie wieży: W — [TT] — W — W
+		assert_true(grid.place_kind(t + Vector2i(-1, 0), wall) > 0, "%s: odcinek od zachodu" % name)
+		assert_true(grid.place_kind(t + Vector2i(2, 0), wall) > 0, "%s: odcinek przy wschodnim boku" % name)
+		assert_true(grid.place_kind(t + Vector2i(3, 0), wall) > 0, "%s: odcinek dalej na wschód" % name)
+		var parallel := t + Vector2i(2, 1)
+		assert_true(not grid.is_wall_gap(parallel, wall), "%s: równoległa kratka to nie luka" % name)
+		# zakręt w dół obok wieży — kiedyś seal wypełniał `parallel` i robił pętlę
+		assert_true(grid.place_kind(t + Vector2i(3, 1), wall) > 0, "%s: zakręt w dół" % name)
+		assert_eq(grid.building_at(parallel), 0, "%s: bez pętli przy wieży" % name)
+		assert_true(grid.building_at(t + Vector2i(2, 0)) != 0, "%s: zamierzona linia zostaje" % name)
+		# luka 1 kratka w prostej do wieży nadal się domyka
+		var g2 := BuildGrid.new(TerrainMap.generate(1337))
+		var t2 := _free_area(g2, Vector2i(6, 4)) + Vector2i(0, 1)
+		assert_true(g2.place(Rect2i(t2 + Vector2i(2, 0), Vector2i(2, 2)), BuildingTypes.Kind.TOWER, 1) > 0,
+				"%s: wieża do prostej luki" % name)
+		assert_true(g2.place_kind(t2, wall) > 0, "%s: odcinek przed luką" % name)
+		assert_true(BuildingTypes.is_wall(g2.kinds[g2.building_at(t2 + Vector2i(1, 0))]),
+				"%s: prosta luka do wieży zapełniona" % name)
+		assert_eq(g2.building_at(t2 + Vector2i(1, 1)), 0, "%s: bez równoległego fillu pod luką" % name)
+	return true
