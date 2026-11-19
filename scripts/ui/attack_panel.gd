@@ -2,7 +2,8 @@ class_name AttackPanel
 extends Control
 ## Przyciski planowania ataku (#17) nad mapą celu (AttackPlanner): kolumna przy prawej krawędzi
 ## (Manewr, Start, Odwrót, Wyczyść, Atakuj, Wróć), pasek oddziałów na dole i opis rozkazu
-## wybranego oddziału. Dotknięcia poza przyciskami idą do mapy (cel i trasa).
+## wybranego oddziału. Dotknięcia poza przyciskami idą do mapy (cel i trasa); uchwyt końca
+## strzałki (domyślnie donżon) przeciąga się na inny budynek bez ruszania kamery.
 ## Manewr otwiera listę wszystkich manewrów: dostępne z krótkim opisem, niedostępne wyszarzone
 ## z tym, czego brakuje (jednostka, epoka, badanie). Lista łapie wszystkie dotknięcia, a dotknięcie
 ## poza nią ją zamyka.
@@ -11,6 +12,8 @@ signal attack_requested
 signal back_requested
 ## Plan albo wybór zmienił się (mapa ma się przerysować, a gra zapisać).
 signal changed(message: String)
+## Sam komunikat dla paska, bez zmiany planu (bez zapisu gry).
+signal hint(message: String)
 
 enum Target { NONE = -1, MANOEUVRE, START, RETREAT, CLEAR, ATTACK, BACK, SQUAD = 100, PICK = 200 }
 const COLUMN: Array[int] = [Target.MANOEUVRE, Target.START, Target.RETREAT, Target.CLEAR, Target.ATTACK, Target.BACK]
@@ -30,6 +33,10 @@ var _pressed := Target.NONE
 var picking := false
 ## Dotknięcie zamknęło listę: jego puszczenie nie trafia już do mapy.
 var _swallow_release := false
+## Przeciąganie uchwytu końca strzałki wybranego oddziału (nie rusza kamery).
+var _drag_end := false
+## Palec, który trzyma uchwyt; dotknięcia innych palców w trakcie są połykane.
+var _drag_index := -1
 
 
 func _ready() -> void:
@@ -40,6 +47,10 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
 		picking = false
+		_drag_end = false
+		_drag_index = -1
+		if planner != null:
+			planner.drag_end_cell = AttackPlan.NO_TARGET
 
 
 func _process(_delta: float) -> void:
@@ -93,8 +104,20 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, squa
 func _input(event: InputEvent) -> void:
 	if not visible or planner == null:
 		return
+	if _drag_end and event is InputEventScreenDrag:
+		# drugi palec nie rusza kamery ani podglądu, dopóki uchwyt jest trzymany
+		get_viewport().set_input_as_handled()
+		var drag := event as InputEventScreenDrag
+		if drag.index == _drag_index:
+			_move_end_preview(drag.position)
+		return
 	var touch := event as InputEventScreenTouch
 	if touch == null:
+		return
+	if _drag_end:
+		get_viewport().set_input_as_handled()
+		if not touch.pressed and touch.index == _drag_index:
+			_finish_end_drag(touch.position)
 		return
 	if picking and list_rect(content_left, content_right).has_point(touch.position):
 		# w obrębie listy (z lukami między wierszami): wiersz wybiera manewr, luka nic nie robi
@@ -122,13 +145,23 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			_pressed = Target.NONE
 			_swallow_release = true
-			changed.emit(AttackPlanner.HINT)
+			hint.emit(AttackPlanner.HINT)
 			return
 	var t := target_at(touch.position, get_viewport_rect().size, content_left, content_right, planner.squads.size())
 	if touch.pressed:
 		_pressed = t
 		if t != Target.NONE:
 			get_viewport().set_input_as_handled()
+			return
+		# mapa: uchwyt końca strzałki zamiast kamery / punktu trasy
+		var o := planner.order()
+		if o != null and AttackPlanner.hit_end(o, planner.bot, _world_of(touch.position), _end_hit_world()):
+			get_viewport().set_input_as_handled()
+			_drag_end = true
+			_drag_index = touch.index
+			planner.drag_end_cell = AttackPlanner.end_cell(o, planner.bot)
+			planner.queue_redraw()
+			hint.emit("Przenieś koniec: upuść na budynek")
 		return
 	var was := _pressed
 	_pressed = Target.NONE
@@ -137,6 +170,38 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 	if t == was:
 		activate(was)
+
+
+## Połowa celu dotyku uchwytu w pikselach świata: na ekranie zawsze co najmniej 12×12 px
+## logicznych, także przy oddaleniu 0,5×.
+func _end_hit_world() -> float:
+	var cam := get_viewport().get_camera_2d() as PanZoomCamera
+	return AttackPlanner.END_HIT / PanZoomCamera.scale_of(cam.zoom_level) if cam != null else float(AttackPlanner.END_HIT)
+
+
+## Piksel świata pod punktem ekranu (kamera planu; bez kamery: sam punkt).
+func _world_of(screen: Vector2) -> Vector2:
+	var cam := get_viewport().get_camera_2d() as PanZoomCamera
+	return cam.screen_to_world(screen) if cam != null else screen
+
+
+func _move_end_preview(screen: Vector2) -> void:
+	var world := _world_of(screen)
+	planner.drag_end_cell = Vector2i((world / TerrainMap.CELL).floor())
+	planner.queue_redraw()
+
+
+func _finish_end_drag(screen: Vector2) -> void:
+	_drag_end = false
+	_drag_index = -1
+	planner.drag_end_cell = AttackPlan.NO_TARGET
+	var o := planner.order()
+	if o == null or planner.bot == null:
+		planner.queue_redraw()
+		return
+	var cell := Vector2i((_world_of(screen) / TerrainMap.CELL).floor())
+	changed.emit(AttackPlanner.set_end(o, planner.bot.grid, cell))
+	planner.queue_redraw()
 
 
 ## Działanie przycisku (też z testów).
@@ -159,7 +224,7 @@ func activate(t: int) -> void:
 	match t:
 		Target.MANOEUVRE:
 			picking = not picking
-			changed.emit("Oddział %d: wybierz manewr" % o.squad if picking else AttackPlanner.HINT)
+			hint.emit("Oddział %d: wybierz manewr" % o.squad if picking else AttackPlanner.HINT)
 		Target.START:
 			AttackPlanner.next_start(o, planner.squads.size())
 			changed.emit("Start: %s" % AttackPlanner.start_text(o))
@@ -187,7 +252,7 @@ func choose(m: int) -> void:
 		return
 	var why := missing_for(m)
 	if not why.is_empty():
-		changed.emit("%s: %s" % [AttackPlan.MANOEUVRE_NAMES[m], why])
+		hint.emit("%s: %s" % [AttackPlan.MANOEUVRE_NAMES[m], why])
 		return
 	o.manoeuvre = m
 	picking = false

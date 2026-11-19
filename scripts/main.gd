@@ -179,6 +179,7 @@ func _ready() -> void:
 	attack_panel.visible = false
 	layer.add_child(attack_panel)
 	attack_panel.changed.connect(_on_plan_changed)
+	attack_panel.hint.connect(func(message: String) -> void: hud.message = message)
 	attack_panel.back_requested.connect(_close_attack)
 	attack_panel.attack_requested.connect(_on_attack_launched)
 	bot_picker = BotPicker.new()
