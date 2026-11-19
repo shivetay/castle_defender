@@ -442,10 +442,11 @@ func gap_near(pos: Vector2, kind: int, tolerance: int) -> Vector2i:
 
 ## Czy wolna kratka `c` to luka do wypełnienia odcinkiem `kind`: łączy co najmniej dwa budynki
 ## albo leży na krótkiej prostej między wałem/palisadą a bramą/wieżą (do SEAL_MAX pustych).
+## Przy wieży 2×2 nie uznaje „równoległej” kratki obok już podłączonego odcinka (pętla 1×1).
 func is_wall_gap(c: Vector2i, kind: int) -> bool:
 	if not can_place(Rect2i(c, Vector2i.ONE), kind):
 		return false
-	if wall_links(c, kind) >= 2:
+	if wall_links(c, kind) >= 2 and not _tower_parallel_spur(c):
 		return true
 	for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
 		var forward := _gap_end(c, axis, kind)
@@ -457,9 +458,11 @@ func is_wall_gap(c: Vector2i, kind: int) -> bool:
 		var empty_count: int = int(forward["empties"]) + 1 + int(back["empties"])
 		if empty_count > SEAL_MAX:
 			continue
-		if BuildingTypes.is_wall(kinds[a]) and is_fort_anchor(kinds[b]) and _anchor_dir_ok(b, axis):
+		if BuildingTypes.is_wall(kinds[a]) and is_fort_anchor(kinds[b]) and _anchor_dir_ok(b, axis) \
+				and not _parallel_tower_seal(c, axis, b):
 			return true
-		if BuildingTypes.is_wall(kinds[b]) and is_fort_anchor(kinds[a]) and _anchor_dir_ok(a, -axis):
+		if BuildingTypes.is_wall(kinds[b]) and is_fort_anchor(kinds[a]) and _anchor_dir_ok(a, -axis) \
+				and not _parallel_tower_seal(c, -axis, a):
 			return true
 	return false
 
@@ -491,6 +494,7 @@ func seal_after_place(id: int) -> Array[int]:
 
 ## Domknij krótkie luki od kratki odcinka `from` w stronę bramy i wieży: stawia ten sam rodzaj
 ## umocnienia na pustych kratkach (1..SEAL_MAX). Nie wypełnia luk między samymi odcinkami.
+## Do wieży tylko wzdłuż zamierzonego odcinka — bez domykania równoległej kratki przy jej boku.
 func seal_toward_anchors(from: Vector2i, kind: int, level: int) -> Array[int]:
 	var placed: Array[int] = []
 	if not BuildingTypes.is_wall(kind):
@@ -507,6 +511,8 @@ func seal_toward_anchors(from: Vector2i, kind: int, level: int) -> Array[int]:
 			continue
 		var end := building_at(p)
 		if end == 0 or not is_fort_anchor(kinds[end]) or not _connects_dir(kind, end, d):
+			continue
+		if _seal_hits_parallel_tower(empties, d, end):
 			continue
 		for cell in empties:
 			var id := place(Rect2i(cell, Vector2i.ONE), kind, level)
@@ -555,6 +561,46 @@ func _anchor_dir_ok(other_id: int, d: Vector2i) -> bool:
 	if kinds[other_id] != BuildingTypes.Kind.GATE:
 		return true
 	return (d.x == 0) == is_vertical(other_id)
+
+
+## Czy uszczelnianie pustych kratek w kierunku `toward` do kotwicy domknęłoby równoległą
+## kratkę przy boku wieży (pętla 1×1 obok już podłączonego odcinka).
+func _seal_hits_parallel_tower(empties: Array[Vector2i], toward: Vector2i, anchor_id: int) -> bool:
+	if kinds[anchor_id] != BuildingTypes.Kind.TOWER:
+		return false
+	for cell in empties:
+		if _parallel_tower_seal(cell, toward, anchor_id):
+			return true
+	return false
+
+
+## Kratka `c` na prostej do wieży `tower_id` (kierunek `toward_tower`) leży równolegle do
+## odcinka, który już styka się z tą wieżą — auto-fill zrobiłby małą pętlę przy wieży.
+func _parallel_tower_seal(c: Vector2i, toward_tower: Vector2i, tower_id: int) -> bool:
+	if not buildings.has(tower_id) or kinds[tower_id] != BuildingTypes.Kind.TOWER:
+		return false
+	var side := Vector2i(toward_tower.y, -toward_tower.x)
+	for s: Vector2i in [side, -side]:
+		var n := c + s
+		var wid := building_at(n)
+		if wid == 0 or not BuildingTypes.is_wall(kinds[wid]):
+			continue
+		for td: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+			if building_at(n + td) == tower_id:
+				return true
+	return false
+
+
+## Wolna kratka przy wieży i przy odcinku, który już łączy się z tą wieżą (kształt L) —
+## to nie luka w linii, tylko równoległa kratka domykająca pętlę.
+func _tower_parallel_spur(c: Vector2i) -> bool:
+	for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+		var other := building_at(c + d)
+		if other == 0 or kinds[other] != BuildingTypes.Kind.TOWER:
+			continue
+		if _parallel_tower_seal(c, d, other):
+			return true
+	return false
 
 
 ## Czy budynek stoi pionowo (dłuższy w osi y), np. brama w pionowej linii palisady.
