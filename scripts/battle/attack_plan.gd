@@ -21,7 +21,8 @@ const MANOEUVRE_AGE: Array[int] = [0, 0, 0, 0, 1, 1]
 ## Technologia, która odblokowuje manewr (#12, notatka Drzewko technologiczne); pusty napis: bez badań.
 const MANOEUVRE_TECH: Array[String] = ["", "", "A3", "A4", "A5", "A6"]
 ## Krótki opis manewru na liście wyboru (ekran planu).
-const MANOEUVRE_DESC: Array[String] = ["Idzie na cel i burzy, co stoi na drodze", "Strzelcy biją cel z zasięgu",
+const MANOEUVRE_DESC: Array[String] = ["Idzie na cel i burzy, co stoi na drodze",
+		"Punkt ostrzału; marsz tylko bez wroga w zasięgu",
 		"Podpala drewniane budynki", "Obchodzi obronę bokiem", "Wchodzi na mur po drabinach",
 		"Taran bije bramę, piechota go osłania"]
 ## Komunikat, gdy jednostka oddziału nie umie wykonać manewru (po teście na telefonie Chłopi mieli

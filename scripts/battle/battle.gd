@@ -137,13 +137,15 @@ var record_fx := false
 ## Plan ataku (#18) albo null: wtedy każdy oddział atakującego idzie jak w Szturmie frontalnym na cel.
 var plan: AttackPlan
 ## Stan rozkazów oddziałów (klucz _squad_key): wystartował, wykonał zadanie (sygnał dla Start.AFTER_SQUAD),
-## wycofuje się z rozkazu, polegli, trasa (punkty) i budynek-cel manewru.
+## wycofuje się z rozkazu, polegli, trasa (punkty), budynek-cel manewru i punkt ostrzału (Ostrzał).
 var _sq_started: Dictionary[int, bool] = {}
 var _sq_done: Dictionary[int, bool] = {}
 var _sq_retreat: Dictionary[int, bool] = {}
 var _sq_dead: Dictionary[int, int] = {}
 var _sq_route: Dictionary[int, Array] = {}
 var _sq_goal: Dictionary[int, int] = {}
+## Ostrzał: jedna kratka postoju na oddział (ustalana raz); stąd oddział strzela, bez dalszego marszu.
+var _sq_fire: Dictionary[int, Vector2i] = {}
 var _spawn := Vector2i.ZERO
 ## Zdarzenie: [tick, Fx, jednostka albo FX_TOWER, x0, y0, x1, y1]. SHOT i HIT w podjednostkach
 ## (HIT: x1, y1 to punkt trafienia), COLLAPSE w kratkach (pozycja i rozmiar budynku).
@@ -1158,8 +1160,10 @@ func _order_assault(f: Fighter, o: AttackPlan.Order, key: int) -> void:
 	_walk_to(f, t, true)
 
 
-## Ostrzał z dystansu: strzelcy zatrzymują się w zasięgu celu i ostrzeliwują go; wrogów biją tylko
-## w zasięgu, bez pościgu. Jednostki bez dystansu idą jak w szturmie.
+## Ostrzał z dystansu: oddział ma jeden punkt postoju w zasięgu celu. Wróg w zasięgu strzału —
+## stój i strzelaj (bez podejścia). Marsz tylko gdy nikt nie jest w zasięgu, i tylko do tego
+## punktu; stamtąd ostrzał budynku, bez dalszego chodzenia naprzód. Jednostki bez dystansu:
+## jak w szturmie.
 func _order_ranged(f: Fighter, o: AttackPlan.Order, key: int) -> void:
 	var r := range_of(f)
 	if r < BattleConfig.RANGED_MIN_RANGE:
@@ -1169,11 +1173,66 @@ func _order_ranged(f: Fighter, o: AttackPlan.Order, key: int) -> void:
 	if t == null:
 		_default_act(f)
 		return
+	# Wróg w zasięgu strzału: stój i bij; nie idź naprzód.
+	if _hold(f):
+		return
+	# Cel w zasięgu: ostrzał z miejsca, bez dalszego marszu pod mur.
 	if _rect_in_range(f, t.rect, r):
 		_strike_structure(f, t)
 		return
-	if not _hold(f):
-		_walk_to(f, t, true)
+	var hold := _fire_hold_cell(key, t, r)
+	# Na wyznaczonym punkcie: stój (punkt jest w zasięgu); inaczej tylko dojście do niego.
+	if f.cell() == hold:
+		return
+	_walk(f, hold, hold.x * BattleConfig.SUB + BattleConfig.SUB / 2,
+			hold.y * BattleConfig.SUB + BattleConfig.SUB / 2, false)
+
+
+## Jedna kratka postoju oddziału na Ostrzał: od strony wejścia, w zasięgu `cells` od budynku-celu.
+## Ustalana raz na klucz oddziału; potem wszyscy stoją i strzelają stąd.
+func _fire_hold_cell(key: int, t: Structure, cells: int) -> Vector2i:
+	if _sq_fire.has(key):
+		return _sq_fire[key]
+	var reach := maxi(BattleConfig.RANGED_MIN_RANGE, cells)
+	var hold := Vector2i.ZERO
+	var found := false
+	# Od pełnego zasięgu w dół: wolna kratka, z której cel jest w zasięgu euklidesowym.
+	for dist in range(reach, 0, -1):
+		var raw := fire_hold_point(_spawn, t.rect, dist, _terrain.size)
+		var cand := _walkable_near(raw)
+		if _cell_rect_in_range(cand, t.rect, reach):
+			hold = cand
+			found = true
+			break
+	if not found:
+		hold = _walkable_near(fire_hold_point(_spawn, t.rect, reach, _terrain.size))
+	_sq_fire[key] = hold
+	return hold
+
+
+## Punkt ostrzału między wejściem `spawn` a prostokątem celu `rect`: o `cells` kratek od krawędzi
+## budynku w stronę wejścia (wspólny dla bitwy i testów).
+static func fire_hold_point(spawn: Vector2i, rect: Rect2i, cells: int, size: int) -> Vector2i:
+	var edge := Vector2i(
+			clampi(spawn.x, rect.position.x, rect.end.x - 1),
+			clampi(spawn.y, rect.position.y, rect.end.y - 1))
+	var d := spawn - edge
+	var m := maxi(1, maxi(absi(d.x), absi(d.y)))
+	var reach := maxi(1, cells)
+	@warning_ignore("integer_division")
+	var p := edge + Vector2i(d.x * reach / m, d.y * reach / m)
+	var last := size - 1
+	return Vector2i(clampi(p.x, 0, last), clampi(p.y, 0, last))
+
+
+## Czy środek kratki `c` sięga prostokąta `r` w zasięgu `cells` (jak _rect_in_range dla jednostki).
+func _cell_rect_in_range(c: Vector2i, r: Rect2i, cells: int) -> bool:
+	var fx := c.x * BattleConfig.SUB + BattleConfig.SUB / 2
+	var fy := c.y * BattleConfig.SUB + BattleConfig.SUB / 2
+	var nx := clampi(fx, r.position.x * BattleConfig.SUB, r.end.x * BattleConfig.SUB - 1)
+	var ny := clampi(fy, r.position.y * BattleConfig.SUB, r.end.y * BattleConfig.SUB - 1)
+	var reach := maxi(1, cells) * BattleConfig.SUB
+	return _dist2(fx, fy, nx, ny) <= reach * reach
 
 
 ## Podpalenie: oddział bierze na cel drewniane budynki, które jeszcze nie płoną (wskazany, potem
