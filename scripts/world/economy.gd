@@ -3,18 +3,22 @@ extends RefCounted
 ## Surowce zamku i ich produkcja w czasie. Cały rachunek jest w liczbach całkowitych:
 ## ułamki jednostek czekają w `_remainder` (jednostka × milisekunda), więc wynik nie zależy
 ## od tego, czy czas płynie co klatkę, co sekundę czy jednym skokiem po powrocie do gry.
-## Liczby balansu są w EconomyConfig.
+## Liczby balansu są w EconomyConfig. Pojemność to zapas z Dworu plus Magazyny (`capacities`),
+## liczona z siatki przez refresh_capacity(); sama nie trafia do zapisu.
 
 const MS_PER_HOUR := 3600 * 1000
 
 var amounts: Array[int] = []
 ## Czas ostatniego naliczenia (unix, ms). Na jego podstawie liczy się nieobecność.
 var last_update_ms := 0
+## Pojemność każdego surowca (0 = bez limitu). Na start tyle, ile daje sam Dwór.
+var capacities: Array[int] = []
 var _remainder: Array[int] = []
 
 
 func _init(now_ms: int = 0) -> void:
 	amounts.assign(EconomyConfig.START)
+	capacities.assign(EconomyConfig.CAPACITY)
 	for res in EconomyConfig.count():
 		_remainder.append(0)
 	last_update_ms = now_ms
@@ -44,8 +48,36 @@ static func _add_buildings(grid: BuildGrid, out: Array[int]) -> void:
 		out[res] += per_level[clampi(grid.levels[id], 1, per_level.size()) - 1] as int
 
 
-static func capacity(res: int) -> int:
-	return EconomyConfig.CAPACITY[res]
+## Pojemność dla zamku z siatki `grid`: zapas Dworu plus każdy ukończony Magazyn według poziomu.
+## Plac budowy (poziom 0) jeszcze nic nie mieści. Surowce bez limitu (złoto) zostają bez limitu.
+static func capacities_for(grid: BuildGrid) -> Array[int]:
+	var out: Array[int] = []
+	out.assign(EconomyConfig.CAPACITY)
+	if grid == null:
+		return out
+	var extra := 0
+	for id: int in grid.buildings:
+		if grid.kinds[id] == BuildingTypes.Kind.WAREHOUSE and grid.levels[id] >= 1:
+			extra += EconomyConfig.WAREHOUSE_CAPACITY[clampi(grid.levels[id], 1,
+					EconomyConfig.WAREHOUSE_CAPACITY.size()) - 1]
+	for res in out.size():
+		if EconomyConfig.is_capped(res):
+			out[res] += extra
+	return out
+
+
+## Przelicza pojemność z siatki (po ukończeniu, rozbiórce albo odczycie zamku). Gdy pojemność
+## spadła (rozebrany Magazyn), nadmiar przepada, żeby zapas nigdy nie przekraczał magazynów.
+func refresh_capacity(grid: BuildGrid) -> void:
+	capacities = capacities_for(grid)
+	for res in EconomyConfig.count():
+		if EconomyConfig.is_capped(res) and amounts[res] > capacities[res]:
+			amounts[res] = capacities[res]
+			_remainder[res] = 0
+
+
+func capacity(res: int) -> int:
+	return capacities[res]
 
 
 func is_full(res: int) -> bool:

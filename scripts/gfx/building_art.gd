@@ -613,6 +613,15 @@ static func _draw_prop(img: Image, kind: int, at: Vector2i, big: bool) -> void:
 			if big:
 				PixelCanvas.rect(img, Rect2i(x + 1, y + 6, 3, 1), Palette.WOOD[0])  # linijka
 				PixelCanvas.px(img, x + 4, y + 7, Palette.ACCENT)
+		BuildingTypes.Kind.WAREHOUSE:
+			# skrzynia z okuciem i worek zboża (na wyższych poziomach druga skrzynia i beczka)
+			PixelCanvas.rect(img, Rect2i(x, y, 5, 4), Palette.WOOD[1])
+			PixelCanvas.rect(img, Rect2i(x, y + 1, 5, 1), Palette.WOOD[0])  # okucie
+			PixelCanvas.rect(img, Rect2i(x + 1, y + 5, 3, 2), Palette.THATCH[2])  # worek
+			PixelCanvas.px(img, x + 2, y + 5, Palette.THATCH[0])  # związany wylot
+			if big:
+				PixelCanvas.rect(img, Rect2i(x, y + 8, 3, 3), Palette.WOOD[2])
+				_ring(img, Rect2i(x + 3, y + 8, 2, 3), Palette.WOOD[0], Palette.WOOD[1])
 		BuildingTypes.Kind.TAR_KILN:
 			# mielerz z dymnikiem i beczka smoły
 			_ring(img, Rect2i(x, y, 5, 5), Palette.EARTH[1], Palette.EARTH[2])

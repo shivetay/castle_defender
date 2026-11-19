@@ -108,7 +108,7 @@ func test_loot() -> bool:
 	r.compute_loot(5, false)
 	assert_eq(r.loot, [0, 0, 0, 0] as Array[int], "przegrana: bez łupu, nawet przy dużych zniszczeniach")
 	var e := Economy.new(0)
-	e.amounts[0] = Economy.capacity(0) - 10
+	e.amounts[0] = e.capacity(0) - 10
 	r.loot = [100, 0, 0, 0] as Array[int]
 	assert_eq(r.apply_loot(e)[0], 10, "pełny magazyn przyjmuje tylko resztę")
 	return true

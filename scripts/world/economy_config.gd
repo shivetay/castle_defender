@@ -10,8 +10,12 @@ const NAMES: Array[String] = ["Drewno", "Kamień", "Żywność", "Złoto"]
 const SHORT_NAMES: Array[String] = ["Dr", "Ka", "Ży", "Zł"]
 
 const START: Array[int] = [500, 300, 300, 50]
-## Pojemność magazynu. 0 oznacza brak limitu: złoto to docelowo waluta premium.
+## Pojemność na start, którą daje Dwór (niezależnie od poziomu). 0 oznacza brak limitu: złoto
+## to docelowo waluta premium. Więcej mieści się dopiero po postawieniu Magazynów.
 const CAPACITY: Array[int] = [1000, 1000, 1000, 0]
+## Ile pojemności dodaje każdy Magazyn na poziomach 1–5 (drewnu, kamieniowi i żywności po równo).
+## Magazyny się sumują. Liczby tymczasowe, do decyzji balansowej właścicielki.
+const WAREHOUSE_CAPACITY: Array[int] = [500, 750, 1000, 1500, 2000]
 ## Produkcja samego grodu, niezależna od budynków. Złoto nie rośnie samo, przybywa z łupu i PvE.
 const BASE_PER_HOUR: Array[int] = [20, 20, 20, 0]
 
@@ -33,3 +37,11 @@ static func count() -> int:
 
 static func is_capped(res: int) -> bool:
 	return CAPACITY[res] > 0
+
+
+## O ile Magazyn mieści więcej po dojściu do poziomu `level` (z poziomu niższego o 1); poziom 1
+## to postawienie. Poza zakresem poziomów 0.
+static func warehouse_gain(level: int) -> int:
+	if level < 1 or level > WAREHOUSE_CAPACITY.size():
+		return 0
+	return WAREHOUSE_CAPACITY[level - 1] - (WAREHOUSE_CAPACITY[level - 2] if level >= 2 else 0)
