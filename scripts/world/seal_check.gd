@@ -51,8 +51,7 @@ func prune(grid: BuildGrid) -> void:
 		return
 	var kept: Array[Vector2i] = []
 	for c in gaps:
-		if grid.building_at(c) == 0 and (grid.is_wall_gap(c, BuildingTypes.Kind.RAMPART) \
-				or grid.is_wall_gap(c, BuildingTypes.Kind.PALISADE)):
+		if grid.building_at(c) == 0 and grid.is_fort_gap_any(c):
 			kept.append(c)
 	gaps = kept
 

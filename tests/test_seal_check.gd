@@ -22,6 +22,25 @@ func _free_cell(grid: BuildGrid, kind: int) -> Vector2i:
 	return Vector2i(-1, -1)
 
 
+## Lewy górny róg wolnego prostokąta `size` (stały teren z seedu 1337).
+func _open_spot(grid: BuildGrid, size: Vector2i) -> Vector2i:
+	for y in range(2, grid.terrain.size - size.y - 2):
+		for x in range(2, grid.terrain.size - size.x - 2):
+			var c := Vector2i(x, y)
+			if grid.can_place(Rect2i(c, size)):
+				return c
+	return Vector2i(-1, -1)
+
+
+## Pierścień palisady `side`×`side` od `o`; bez kratek z `skip`.
+func _ring(grid: BuildGrid, o: Vector2i, side: int, skip: Array[Vector2i] = []) -> void:
+	for i in side:
+		for p: Vector2i in [o + Vector2i(i, 0), o + Vector2i(i, side - 1), o + Vector2i(0, i),
+				o + Vector2i(side - 1, i)]:
+			if grid.building_at(p) == 0 and not skip.has(p):
+				grid.place(Rect2i(p, Vector2i.ONE), K.PALISADE, 1)
+
+
 func test_seal_house_is_buildable_defense() -> bool:
 	assert_eq(BuildingTypes.NAMES[K.SEAL_HOUSE], "Komenda umocnień", "nazwa")
 	assert_eq(BuildingTypes.SHORT_NAMES[K.SEAL_HOUSE], "Komenda", "krótka")
@@ -45,16 +64,8 @@ func test_seal_house_is_buildable_defense() -> bool:
 func test_seal_check_countdown_and_gaps() -> bool:
 	var check := SealCheck.new()
 	var grid := BuildGrid.new(TerrainMap.generate(1337))
-	var o := Vector2i(-1, -1)
-	for y in range(2, grid.terrain.size - 6):
-		for x in range(2, grid.terrain.size - 8):
-			var c := Vector2i(x, y)
-			if grid.can_place(Rect2i(c, Vector2i(8, 3))):
-				o = c + Vector2i(0, 1)
-				break
-		if o.x >= 0:
-			break
-	assert_true(o.x >= 0, "pas pod linię")
+	var o := _open_spot(grid, Vector2i(8, 3)) + Vector2i(0, 1)
+	assert_true(o.x >= 1, "pas pod linię")
 	grid.place(Rect2i(o, Vector2i.ONE), K.PALISADE, 1)
 	grid.place(Rect2i(o + Vector2i(3, 0), Vector2i(3, 1)), K.GATE, 1)
 	var gap := o + Vector2i(1, 0)
@@ -102,20 +113,51 @@ func test_seal_orders_gap_via_queue() -> bool:
 	var grid := BuildGrid.new(TerrainMap.generate(1337))
 	var e := _rich_economy()
 	var q := BuildQueue.new()
-	var o := Vector2i(-1, -1)
-	for y in range(2, grid.terrain.size - 6):
-		for x in range(2, grid.terrain.size - 8):
-			var c := Vector2i(x, y)
-			if grid.can_place(Rect2i(c, Vector2i(8, 3))):
-				o = c + Vector2i(0, 1)
-				break
-		if o.x >= 0:
-			break
+	var o := _open_spot(grid, Vector2i(8, 3)) + Vector2i(0, 1)
 	grid.place(Rect2i(o, Vector2i.ONE), K.PALISADE, 1)
 	grid.place(Rect2i(o + Vector2i(3, 0), Vector2i(3, 1)), K.GATE, 1)
+	assert_true(o.x >= 1, "pas pod linię")
 	var gap := o + Vector2i(1, 0)
 	var kind := grid.wall_kind_for_gap(gap)
 	assert_eq(q.order_build(grid, e, gap, kind, 0), BuildQueue.Result.OK, "Domknij = zlecenie odcinka")
 	assert_eq(grid.buildings[q.placed_id].position, gap, "plac w luce")
 	assert_eq(grid.levels[q.placed_id], 0, "jeszcze budowa")
+	return true
+
+
+func test_closed_ring_has_no_gaps() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var o := _open_spot(grid, Vector2i(8, 8)) + Vector2i.ONE
+	assert_true(o.x >= 1, "miejsce na pierścień")
+	_ring(grid, o, 6)
+	assert_eq(grid.fort_gaps(), [] as Array[Vector2i], "szczelny pierścień: wewnętrzne narożniki to nie luki")
+	var check := SealCheck.new()
+	check.start(0)
+	assert_true(check.update(SealCheck.DURATION_MS, grid), "koniec Sprawdź")
+	assert_true(check.revealed and check.gaps.is_empty(), "obrona szczelna")
+	assert_eq(MAIN.seal_card_info(check, SealCheck.DURATION_MS), "Obrona szczelna", "komunikat na karcie")
+	return true
+
+
+func test_ring_gaps_found_on_side_and_corner() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(1337))
+	var o := _open_spot(grid, Vector2i(8, 8)) + Vector2i.ONE
+	assert_true(o.x >= 1, "miejsce na pierścień")
+	var side_gap := o + Vector2i(3, 0)
+	var corner_gap := o + Vector2i(5, 5)
+	_ring(grid, o, 6, [side_gap, corner_gap] as Array[Vector2i])
+	assert_eq(grid.fort_gaps(), [side_gap, corner_gap] as Array[Vector2i], "luka w boku i brakujący narożnik")
+	assert_eq(grid.wall_kind_for_gap(corner_gap), K.PALISADE, "narożnik domyka palisada")
+	grid.place(Rect2i(corner_gap, Vector2i.ONE), K.PALISADE, 1)
+	assert_eq(grid.fort_gaps(), [side_gap] as Array[Vector2i], "po domknięciu narożnika zostaje bok")
+	return true
+
+
+func test_fort_gaps_deterministic() -> bool:
+	var a := BuildGrid.new(TerrainMap.generate(1337))
+	var b := BuildGrid.new(TerrainMap.generate(1337))
+	for grid: BuildGrid in [a, b]:
+		var o := _open_spot(grid, Vector2i(8, 8)) + Vector2i.ONE
+		_ring(grid, o, 6, [o + Vector2i(2, 5)] as Array[Vector2i])
+	assert_eq(a.fort_gaps(), b.fort_gaps(), "ten sam seed i układ: te same luki")
 	return true

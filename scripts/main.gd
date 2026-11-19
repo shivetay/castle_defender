@@ -410,7 +410,7 @@ func _tick() -> void:
 			if seal_check.gaps.is_empty():
 				hud.message = "Obrona szczelna"
 			else:
-				hud.message = "Wykryto luk: %d" % seal_check.gaps.size()
+				hud.message = "Wykryte luki: %d" % seal_check.gaps.size()
 		elif seal_check.revealed:
 			seal_check.prune(grid)
 	elif seal_check.revealed or seal_check.is_busy():
@@ -424,12 +424,16 @@ func _tick() -> void:
 		hud.queue_text = Hud.format_time(queue.remaining_ms(queue.orders[0].building_id, now))
 		if queue.orders.size() > 1:
 			hud.queue_text += " +%d" % (queue.orders.size() - 1)
-	if not done.is_empty() or checked or seal_check.is_busy():
+	if not done.is_empty() or checked:
 		if not done.is_empty():
 			_save()
 		if _selected_id != 0:
 			_refresh_card()
 		queue_redraw()
+	elif seal_check.is_busy() and _selected_id != 0 \
+			and int(grid.kinds.get(_selected_id, -1)) == BuildingTypes.Kind.SEAL_HOUSE:
+		# odliczanie Sprawdź na karcie Komendy; mapa się nie zmienia
+		_refresh_card()
 
 
 ## Dotknięcie mapy. W trybie oglądania zaznacza budynek (albo zamyka kartę), w trybie budowy

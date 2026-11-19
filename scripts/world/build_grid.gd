@@ -447,6 +447,44 @@ func is_wall_gap(c: Vector2i, kind: int) -> bool:
 		return false
 	if wall_links(c, kind) >= 2:
 		return true
+	return _anchor_line_gap(c, kind)
+
+
+## Czy wolna kratka `c` to prawdziwa luka w pierścieniu umocnień (Sprawdź z Komendy, #199).
+## Jak is_wall_gap, ale dwa odcinki pod kątem prostym liczą się tylko wtedy, gdy nie łączy ich już
+## kratka narożna: wewnętrzny narożnik szczelnego pierścienia nie jest luką.
+func is_fort_gap(c: Vector2i, kind: int) -> bool:
+	if not can_place(Rect2i(c, Vector2i.ONE), kind):
+		return false
+	var links: Array[Vector2i] = []
+	for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+		var other := building_at(c + d)
+		if other != 0 and _connects_dir(kind, other, d):
+			links.append(d)
+	for i in links.size():
+		for j in range(i + 1, links.size()):
+			var a := links[i]
+			var b := links[j]
+			if a == -b:
+				return true
+			var corner := c + a + b
+			if _joins_fort(building_at(corner)):
+				continue
+			# brakujący narożnik da się domknąć z obu stron przekątnej: luką jest kratka,
+			# do której dochodzi prosta linia odcinków (zewnętrzny narożnik pierścienia)
+			if not can_place(Rect2i(corner, Vector2i.ONE), kind) \
+					or _joins_fort(building_at(c + a * 2)) or _joins_fort(building_at(c + b * 2)):
+				return true
+	return _anchor_line_gap(c, kind)
+
+
+## Czy budynek `id` spina umocnienia (odcinek, brama albo wieża).
+func _joins_fort(id: int) -> bool:
+	return id != 0 and (BuildingTypes.is_wall(kinds[id]) or is_fort_anchor(kinds[id]))
+
+
+## Krótka prosta (do SEAL_MAX pustych) między wałem/palisadą a bramą/wieżą przez kratkę `c`.
+func _anchor_line_gap(c: Vector2i, kind: int) -> bool:
 	for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
 		var forward := _gap_end(c, axis, kind)
 		var back := _gap_end(c, -axis, kind)
@@ -515,23 +553,30 @@ func seal_toward_anchors(from: Vector2i, kind: int, level: int) -> Array[int]:
 	return placed
 
 
-## Puste kratki będące lukami w umocnieniach (#199): `is_wall_gap` dla wału albo palisady.
+## Puste kratki będące lukami w umocnieniach (#199): `is_fort_gap` dla wału albo palisady,
+## w stałej kolejności (wiersz po wierszu).
 func fort_gaps() -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
-	var seen := {}
 	for y in terrain.size:
 		for x in terrain.size:
 			var c := Vector2i(x, y)
-			if building_at(c) != 0 or seen.has(c):
-				continue
-			if is_wall_gap(c, BuildingTypes.Kind.RAMPART) or is_wall_gap(c, BuildingTypes.Kind.PALISADE):
-				seen[c] = true
+			if building_at(c) == 0 and is_fort_gap_any(c):
 				out.append(c)
 	return out
 
 
-## Rodzaj odcinka do uszczelnienia luki `c`: sąsiedni wał/palisada, inaczej palisada.
+## Czy kratka `c` to luka dla wału albo palisady.
+func is_fort_gap_any(c: Vector2i) -> bool:
+	return is_fort_gap(c, BuildingTypes.Kind.RAMPART) or is_fort_gap(c, BuildingTypes.Kind.PALISADE)
+
+
+## Rodzaj odcinka do uszczelnienia luki `c`: ten, który da się tam postawić; gdy oba, rodzaj
+## sąsiednich odcinków (albo odcinka po drugiej stronie pustek do bramy/wieży), inaczej palisada.
 func wall_kind_for_gap(c: Vector2i) -> int:
+	var rampart_ok := is_fort_gap(c, BuildingTypes.Kind.RAMPART)
+	var palisade_ok := is_fort_gap(c, BuildingTypes.Kind.PALISADE)
+	if rampart_ok != palisade_ok:
+		return BuildingTypes.Kind.RAMPART if rampart_ok else BuildingTypes.Kind.PALISADE
 	var rampart := false
 	var palisade := false
 	for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
@@ -543,10 +588,15 @@ func wall_kind_for_gap(c: Vector2i) -> int:
 				rampart = true
 			BuildingTypes.Kind.PALISADE:
 				palisade = true
-	if rampart and not palisade:
-		return BuildingTypes.Kind.RAMPART
-	if palisade and not rampart:
-		return BuildingTypes.Kind.PALISADE
+	if rampart != palisade:
+		return BuildingTypes.Kind.RAMPART if rampart else BuildingTypes.Kind.PALISADE
+	# luka do kotwicy: ten sam rodzaj co odcinek po drugiej stronie pustek
+	for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
+		for dir: Vector2i in [axis, -axis]:
+			var end := _gap_end(c, dir, BuildingTypes.Kind.PALISADE)
+			if not end.is_empty() and BuildingTypes.is_wall(kinds[int(end["id"])]):
+				return kinds[int(end["id"])]
+	return BuildingTypes.Kind.PALISADE
 	# luka do kotwicy: ten sam rodzaj co odcinek po drugiej stronie pustek
 	for axis: Vector2i in [Vector2i.RIGHT, Vector2i.DOWN]:
 		for dir: Vector2i in [axis, -axis]:
