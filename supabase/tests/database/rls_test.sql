@@ -13,7 +13,10 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-00000000000b'),
   ('00000000-0000-0000-0000-00000000000c');
 
-select is((select count(*)::int from public.players), 3, 'konto Auth tworzy wiersz gracza');
+-- liczy tylko konta testu: testy biegną też na projekcie w chmurze, gdzie są prawdziwi gracze
+select is((select count(*)::int from public.players where id in ('00000000-0000-0000-0000-00000000000a',
+  '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000c')), 3,
+  'konto Auth tworzy wiersz gracza');
 
 select ok(
   (select bool_and(c.relrowsecurity) from pg_class c join pg_namespace n on n.oid = c.relnamespace
