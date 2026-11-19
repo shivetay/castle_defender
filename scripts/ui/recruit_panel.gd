@@ -11,13 +11,15 @@ extends Node2D
 ## oddział tego rodzaju z zajętymi miejscami (pełne są przygaszone).
 ## Przycisk Opis przełącza szczegóły: koszt → opis jednostki → produkcja cywilna (postawieni
 ## wytwórcy: chata drwala, drzewcarz i inni) → zapas zbrojowni (towary do jednostek) → koszt.
+## Dolne przyciski są mniejsze niż w reszcie HUD-u, a między nimi stoi pasek zapasu zbrojowni:
+## ikona towaru i liczba sztuk (dotknięcie pokazuje zapas z nazwami w szczegółach).
 
 signal train_requested(unit: int, squad_id: int)
 signal closed
 ## Dotknięto licznika armii w tytule (okienko z limitem, InfoText.army).
 signal limit_pressed
 
-enum Target { NONE = -1, CLOSE = 1, TRAIN = 2, INFO = 3, LIMIT = 4, TILE = 200, SQUAD = 300 }
+enum Target { NONE = -1, CLOSE = 1, TRAIN = 2, INFO = 3, LIMIT = 4, STOCK = 5, TILE = 200, SQUAD = 300 }
 ## Tryb szczegółów pod kafelkami: koszt, opis, produkcja cywilna albo zapas zbrojowni.
 enum DetailMode { COST, INFO, PRODUCTION, STOCK }
 
@@ -41,6 +43,14 @@ const SQUAD_Y := DETAIL_Y + DETAIL_LINES * LINE_STEP
 const SQUAD_W := 40
 const SQUAD_H := 12
 const NEW_SQUAD_LABEL := "Nowy"
+## Dolne przyciski (Koszt/Opis, Szkol, Zamknij): mniejsze niż Hud.BUTTON_SIZE, żeby między nimi
+## zmieścił się pasek zapasu; wciąż ponad minimum 12×12 px z CLAUDE.md.
+const BUTTON_SIZE := Vector2(40, 12)
+const BUTTON_GAP := 3
+## Pasek zapasu zbrojowni: 2 rzędy po linii fontu, komórka to ikona 5 px, 1 px odstępu,
+## liczba do 3 cyfr (11 px) i 3 px przerwy.
+const STOCK_ROWS := 2
+const STOCK_CELL_W := 20
 const TRAIN_LABEL := "Szkol"
 const INFO_LABEL := "Opis"
 const COST_LABEL := "Koszt"
@@ -199,18 +209,72 @@ static func squad_label(r: Recruitment, unit: int, squad_id: int) -> String:
 	return "?"
 
 
+## Górna krawędź dolnych przycisków: dolny brzeg w tym samym miejscu co przyciski HUD-u.
+static func button_y(view: Vector2) -> float:
+	return view.y - Hud.BAR_H - BUTTON_SIZE.y - 4
+
+
 static func train_rect(view: Vector2, right: float) -> Rect2:
-	return Hud.research_rect(view, right)
+	return Rect2(Vector2(right - 2 * BUTTON_SIZE.x - BUTTON_GAP, button_y(view)), BUTTON_SIZE)
 
 
 static func close_rect(view: Vector2, right: float) -> Rect2:
-	return Hud.right_corner_rect(view, right)
+	return Rect2(Vector2(right - BUTTON_SIZE.x, button_y(view)), BUTTON_SIZE)
 
 
 ## Przycisk Opis/Prod./Zapas/Koszt w dolnym rzędzie przy lewej granicy treści: przełącza
 ## szczegóły między kosztem, opisem, produkcją cywilną i zapasem zbrojowni.
 static func info_rect(view: Vector2, left: float) -> Rect2:
-	return Rect2(Vector2(left, Hud.row_y(view)), Hud.BUTTON_SIZE)
+	return Rect2(Vector2(left, button_y(view)), BUTTON_SIZE)
+
+
+## Pasek zapasu zbrojowni między przyciskiem trybu a Szkol: dwa rzędy po linii fontu, dolny
+## kończy się z przyciskami. Pusty (bez pola), gdy na wąskim ekranie nie ma miejsca.
+static func stock_rect(view: Vector2, left: float, right: float) -> Rect2:
+	var x := info_rect(view, left).end.x + BUTTON_GAP
+	var w := train_rect(view, right).position.x - BUTTON_GAP - x
+	var h := STOCK_ROWS * PixelFont.LINE
+	if w < STOCK_CELL_W:
+		return Rect2()
+	return Rect2(x, button_y(view) + BUTTON_SIZE.y - h, w, h)
+
+
+## Liczba sztuk na pasku: do 3 cyfr, od tysiąca w tysiącach („1k”; zbrojownia mieści 1000).
+static func stock_count_text(amount: int) -> String:
+	if amount >= 1000:
+		@warning_ignore("integer_division")
+		return "%dk" % (amount / 1000)
+	return "%d" % amount
+
+
+## Towary na pasku zapasu, który mieści `cells` komórek: wszystkie towary jednostek w stałej
+## kolejności, a gdy się nie mieszczą, tylko te, których coś leży w zbrojowni.
+static func stock_strip(g: Goods, cells: int) -> Array[int]:
+	var all := unit_goods()
+	if all.size() <= cells:
+		return all
+	var out: Array[int] = []
+	for good in all:
+		if out.size() < cells and g != null and good < g.amounts.size() and g.amounts[good] > 0:
+			out.append(good)
+	return out
+
+
+## Pozycje komórek paska zapasu (lewy górny róg linii), wierszami od lewej; zajęte kolumny stoją
+## na środku paska (w całych pikselach).
+static func stock_cells(r: Rect2, count: int) -> Array[Vector2]:
+	var cols := int((r.size.x + 3) / STOCK_CELL_W) if r.has_area() else 0
+	var out: Array[Vector2] = []
+	var n := mini(count, cols * STOCK_ROWS)
+	if n == 0:
+		return out
+	@warning_ignore("integer_division")
+	var used := mini(cols, (n + STOCK_ROWS - 1) / STOCK_ROWS)
+	var x0 := r.position.x + floorf((r.size.x - (used * STOCK_CELL_W - 3)) / 2.0)
+	for i in n:
+		@warning_ignore("integer_division")
+		out.append(Vector2(x0 + (i % used) * STOCK_CELL_W, r.position.y + (i / used) * PixelFont.LINE))
+	return out
 
 
 ## Napis na przycisku trybu szczegółów: następny tryb (Koszt → Opis → Prod. → Zapas → Koszt).
@@ -367,6 +431,8 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, coun
 		return Target.INFO
 	if train_rect(view, right).has_point(p):
 		return Target.TRAIN
+	if stock_rect(view, left, right).has_point(p):
+		return Target.STOCK
 	var sq := Hud.hit(squad_rects(left, right, squad_count), p)
 	if sq >= 0:
 		return Target.SQUAD + sq
@@ -459,6 +525,8 @@ func _activate(t: int) -> void:
 		train_requested.emit(selected, target_squad)
 	elif t == Target.INFO:
 		detail_mode = (detail_mode + 1) % DetailMode.size()
+	elif t == Target.STOCK:
+		detail_mode = DetailMode.STOCK
 	elif t == Target.LIMIT:
 		limit_pressed.emit()
 	elif t == Target.CLOSE:
@@ -495,6 +563,31 @@ func _draw() -> void:
 	Hud.paint_button(self, info_rect(view, content_left), mode_button_label(detail_mode),
 			_pressed == Target.INFO or detail_mode != DetailMode.COST, false)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
+	_draw_stock(view)
+
+
+## Pasek zapasu: ikona towaru i liczba sztuk. Pusty towar jest przygaszony, a towar, którego
+## brakuje wybranej jednostce, świeci kolorem braku.
+func _draw_stock(view: Vector2) -> void:
+	var r := stock_rect(view, content_left, content_right)
+	if not r.has_area() or goods == null:
+		return
+	if _pressed == Target.STOCK:
+		draw_rect(r, Palette.WOOD[1])
+	var cols := int((r.size.x + 3) / STOCK_CELL_W)
+	var strip := stock_strip(goods, cols * STOCK_ROWS)
+	var cells := stock_cells(r, strip.size())
+	var missing := Recruitment.missing_goods(selected, goods)
+	for i in cells.size():
+		var good := strip[i]
+		var amount: int = goods.amounts[good] if good < goods.amounts.size() else 0
+		var col: Color = Palette.INK
+		if missing.has(good):
+			col = Palette.ACCENT
+		elif amount <= 0:
+			col = Palette.WOOD[2]
+		PixelIcons.draw_good(self, cells[i] + Vector2(0, PixelFont.CAP_TOP), good)
+		PixelFont.draw_text(self, cells[i] + Vector2(PixelIcons.SIZE + 1, 0), stock_count_text(amount), col)
 
 
 func _draw_tile(r: Rect2, unit: int, active: bool) -> void:

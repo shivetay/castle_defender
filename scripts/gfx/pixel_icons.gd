@@ -1,6 +1,6 @@
 class_name PixelIcons
 extends RefCounted
-## Ikony surowców i klas jednostek 5×5 zapisane w kodzie jako wzory znaków (bez plików graficznych).
+## Ikony surowców, towarów i klas jednostek 5×5 zapisane w kodzie jako wzory znaków (bez plików graficznych).
 ## Surowce w kolejności EconomyConfig.Res: drewno (dwa bale), kamień, żywność (jabłko), złoto (moneta).
 ## Klasy (#87) w kolejności RecruitmentConfig.UnitClass: lekka (topór), ciężka (tarcza z umbem),
 ## strzelecka (łuk ze strzałą), szybka (podkowa), specjalna (płomień).
@@ -31,6 +31,35 @@ const CLASSES: Array = [
 	["..a..", ".aa..", ".aTa.", "aaTaa", ".aaa."],
 ]
 
+## Towary 5×5 w kolejności GoodsConfig.Good (pasek zapasu zbrojowni w Wojsku): surowe skóry,
+## wyprawiona skóra, kość, ścięgna, pióra, len, zbroja skórzana, przeszywanica, tarcza, mokre skóry,
+## włócznia, oszczep, kopia, topór kamienny, cięciwa, łuk, łuk refleksyjny, strzały, siodło,
+## uprząż, smoła, koń.
+const GOODS: Array = [
+	["l...l", "lllll", ".lwl.", "lllll", "l...l"],
+	["wwww.", "wllww", "wlllw", "wwllw", ".wwww"],
+	["ii...", "iii..", "..i..", "..iii", "...ii"],
+	["tt...", "..t..", ".t...", "..t..", "...tt"],
+	["...ii", "..iii", ".iii.", ".ii..", "w...."],
+	["T.T.T", ".g.g.", ".ggg.", "..g..", "..g.."],
+	["ww.ww", "wwwww", ".wkw.", ".www.", ".www."],
+	["TT.TT", "TTTTT", ".TtT.", ".tTt.", ".TtT."],
+	[".www.", "wwwww", "wwLww", "wwwww", ".www."],
+	["S...S", "SSSSS", ".SLS.", "SSSSS", "S...S"],
+	["...LL", "...LL", "..w..", ".w...", "w...."],
+	["..L.L", ".w.w.", "w.w..", ".t...", "t...."],
+	["..L..", "..waa", "..wa.", "..w..", "..w.."],
+	[".LLw.", "LLLw.", ".LLw.", "...w.", "...w."],
+	[".TTT.", "T...T", "T.T.T", "T...T", ".TTT."],
+	["..wi.", ".w.i.", "w..i.", ".w.i.", "..wi."],
+	[".TTi.", "T..i.", "T..i.", "T..i.", ".TTi."],
+	["L.L.L", "w.w.w", "w.w.w", "w.w.w", "a.a.a"],
+	["l...l", "lllll", ".lll.", ".k.k.", ".k.k."],
+	["l...l", ".l.l.", "..L..", ".l.l.", "l...l"],
+	["..a..", "m.a.m", "mkkkm", "mmmmm", ".mmm."],
+	[".lll.", "lilll", "ll.ll", "l..ll", "...ll"],
+]
+
 ## Ikony 7×7 głównej kolumny HUD-u (#150), w kolejności Hud.column_targets(false): Buduj (młotek),
 ## Badania (księga), Wojsko (hełm z nosalem), Obrona (tarcza), Kolejka (klepsydra), Ustawienia
 ## (zębatka, #177). Oblężenie i Atak są na karcie Strażnicy.
@@ -47,6 +76,7 @@ const MENU: Array = [
 static var _atlas: ImageTexture
 static var _class_atlas: ImageTexture
 static var _menu_atlas: ImageTexture
+static var _goods_atlas: ImageTexture
 
 
 ## Obraz atlasu: ikony obok siebie, każda w kratce SIZE×SIZE (domyślnie surowce).
@@ -110,3 +140,13 @@ static func draw_menu(ci: CanvasItem, pos: Vector2, i: int) -> void:
 		_menu_atlas = ImageTexture.create_from_image(make_atlas(MENU, MENU_SIZE))
 	ci.draw_texture_rect_region(_menu_atlas, Rect2(pos.floor(), Vector2(MENU_SIZE, MENU_SIZE)),
 			Rect2(i * MENU_SIZE, 0, MENU_SIZE, MENU_SIZE))
+
+
+## Rysuje ikonę towaru `good` (GoodsConfig.Good) lewym górnym rogiem w `pos`.
+static func draw_good(ci: CanvasItem, pos: Vector2, good: int) -> void:
+	if good < 0 or good >= GOODS.size():
+		return
+	if _goods_atlas == null:
+		_goods_atlas = ImageTexture.create_from_image(make_atlas(GOODS))
+	ci.draw_texture_rect_region(_goods_atlas, Rect2(pos.floor(), Vector2(SIZE, SIZE)),
+			Rect2(good * SIZE, 0, SIZE, SIZE))

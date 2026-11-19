@@ -35,3 +35,24 @@ func test_atlas_uses_palette_and_icons_differ() -> bool:
 		assert_true(filled >= 12, "ikona %d jest czytelna (≥12 pikseli)" % i)
 	assert_eq(seen.size(), EconomyConfig.count(), "każda ikona jest inna")
 	return true
+
+
+## Ikony towarów: jedna na towar, wzory 5×5 z legendy, każda inna i czytelna.
+func test_one_icon_per_good() -> bool:
+	assert_eq(PixelIcons.GOODS.size(), GoodsConfig.count(), "ikona dla każdego towaru")
+	var a := PixelIcons.make_atlas(PixelIcons.GOODS)
+	var seen := {}
+	for i in PixelIcons.GOODS.size():
+		var rows: Array = PixelIcons.GOODS[i]
+		assert_eq(rows.size(), PixelIcons.SIZE, "towar %d ma 5 wierszy" % i)
+		var filled := 0
+		for row: String in rows:
+			assert_eq(row.length(), PixelIcons.SIZE, "towar %d: wiersz „%s” ma 5 znaków" % [i, row])
+			for ch in row:
+				assert_true(ch == "." or PixelIcons.LEGEND.has(ch), "towar %d: znak „%s” w legendzie" % [i, ch])
+				if ch != ".":
+					filled += 1
+		assert_true(filled >= 7, "towar %d jest czytelny (≥7 pikseli)" % i)
+		seen[a.get_region(Rect2i(i * PixelIcons.SIZE, 0, PixelIcons.SIZE, PixelIcons.SIZE)).get_data()] = true
+	assert_eq(seen.size(), GoodsConfig.count(), "każda ikona towaru jest inna")
+	return true

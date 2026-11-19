@@ -429,3 +429,47 @@ func test_info_button_layout() -> bool:
 	var narrow_info := RecruitPanel.info_rect(VIEW, 60)
 	assert_true(narrow_info.end.x <= RecruitPanel.train_rect(VIEW, 260).position.x, "200 px treści: bez nakładania")
 	return true
+
+
+## Pasek zapasu zbrojowni (ikony towarów) między małymi przyciskami na dole ekranu Wojsko.
+func test_stock_strip_layout() -> bool:
+	var b := Hud.content_bounds(VIEW, Rect2())
+	var info := RecruitPanel.info_rect(VIEW, b.x)
+	var train := RecruitPanel.train_rect(VIEW, b.y)
+	var close := RecruitPanel.close_rect(VIEW, b.y)
+	var strip := RecruitPanel.stock_rect(VIEW, b.x, b.y)
+	assert_true(RecruitPanel.BUTTON_SIZE.x >= 12 and RecruitPanel.BUTTON_SIZE.y >= 12, "przyciski co najmniej 12×12")
+	assert_true(RecruitPanel.BUTTON_SIZE.x < Hud.BUTTON_SIZE.x and RecruitPanel.BUTTON_SIZE.y < Hud.BUTTON_SIZE.y,
+			"przyciski mniejsze niż w HUD-zie")
+	assert_eq(close.end.y, Hud.right_corner_rect(VIEW, b.y).end.y, "dolny brzeg jak w HUD-zie")
+	assert_true(strip.size.y >= 12, "pasek jest celem dotyku")
+	for r: Rect2 in [info, train, close]:
+		assert_true(not strip.intersects(r), "pasek nie na przyciskach")
+	for r in RecruitPanel.squad_rects(b.x, b.y, 5):
+		assert_true(not strip.intersects(r), "pasek pod rzędem oddziałów")
+	assert_true(strip.end.y <= VIEW.y - Hud.BAR_H, "pasek nad dolnym paskiem")
+	var cells := RecruitPanel.stock_cells(strip, RecruitPanel.unit_goods().size())
+	assert_eq(cells.size(), RecruitPanel.unit_goods().size(), "320 px: wszystkie towary jednostek na pasku")
+	for c in cells:
+		assert_true(strip.has_point(c) and c.x + RecruitPanel.STOCK_CELL_W - 3 <= strip.end.x, "komórka w pasku")
+	assert_true(PixelIcons.SIZE + 1 + PixelFont.text_width("999") + 3 <= RecruitPanel.STOCK_CELL_W, "liczba mieści się w komórce")
+	var n := UnitTypes.count()
+	assert_eq(RecruitPanel.target_at(strip.get_center(), VIEW, b.x, b.y, n), RecruitPanel.Target.STOCK, "dotknięcie paska")
+	assert_true(not RecruitPanel.stock_rect(VIEW, 60, 160).has_area(), "100 px treści: bez paska")
+	return true
+
+
+## Pasek zapasu: liczby i wybór towarów, gdy wszystkie się nie mieszczą.
+func test_stock_strip_contents() -> bool:
+	assert_eq(RecruitPanel.stock_count_text(0), "0", "zero")
+	assert_eq(RecruitPanel.stock_count_text(999), "999", "trzy cyfry")
+	assert_eq(RecruitPanel.stock_count_text(1000), "1k", "tysiąc skrótem")
+	var g := Goods.new(T0)
+	var all := RecruitPanel.unit_goods()
+	assert_eq(RecruitPanel.stock_strip(g, 99), all, "miejsce na wszystkie: stała kolejność")
+	assert_true(all.has(G.BOW) and all.has(G.SPEAR) and all.has(G.ARROW), "łuki, włócznie i strzały na pasku")
+	assert_eq(RecruitPanel.stock_strip(g, 4).size(), 0, "mało miejsca i pusta zbrojownia: nic")
+	g.amounts[G.ARROW] = 40
+	g.amounts[G.SPEAR] = 3
+	assert_eq(RecruitPanel.stock_strip(g, 4), [G.SPEAR, G.ARROW] as Array[int], "mało miejsca: tylko towary w zapasie")
+	return true
