@@ -18,6 +18,12 @@ signal castle_restored(save: Dictionary, profile: Dictionary)
 ## serwera; gra zostaje wtedy przy samych zamkach-botach.
 ## `limited`: serwer odrzucił szukanie z limitu (20 na 10 minut).
 signal targets_found(targets: Array[TargetSearch.Target], ok: bool, limited: bool)
+## Odpowiedź `start_attack` (#240): `start` z AttackStart.parse_response albo pusty słownik, gdy
+## serwer odmówił; `error` to wtedy kod błędu (`edge_error`), przy sukcesie pusty tekst.
+signal attack_started(start: Dictionary, error: String)
+## Odpowiedź `finish_attack` (#240): łup przyjęty przez serwer (EconomyConfig.Res) albo pusta lista
+## i kod błędu. Błąd `NETWORK_ERROR` można ponowić tym samym żądaniem (serwer jest idempotentny).
+signal attack_finished(loot: Array[int], error: String)
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -25,6 +31,13 @@ enum Outcome { OK, REJECTED, NETWORK }
 enum Call { NONE, SIGNUP, REFRESH }
 ## Kroki synchronizacji zamku (#23): odczyt, założenie, zapis z rewizją, obrona i nick.
 enum CastleCall { NONE, GET, INSERT, PUSH, DEFENSE_PATCH, DEFENSE_INSERT, NICKNAME }
+## Żądanie ataku na gracza w toku (#240).
+enum AttackCall { NONE, START, FINISH }
+
+## Kod błędu bez odpowiedzi serwera (brak sieci, przekroczony czas, 408, 5xx): żądanie można ponowić.
+const NETWORK_ERROR := "network"
+## Serwer odrzucił żądanie, ale nie podał znanego kodu.
+const REJECTED_ERROR := "rejected"
 
 ## Przerwy między kolejnymi próbami połączenia (s); ostatnia się powtarza.
 const RETRY_S: Array[int] = [5, 15, 30, 60, 120, 300]
@@ -55,6 +68,9 @@ var _rest: HTTPRequest
 ## Dobór przeciwnika (#24) idzie osobnym połączeniem, żeby nie czekać na synchronizację zamku.
 var _rpc: HTTPRequest
 var _targets_pending := false
+## Start i koniec ataku na gracza (#240) idą osobnym połączeniem, po jednym naraz.
+var _attack: HTTPRequest
+var _attack_call: int = AttackCall.NONE
 var _castle_call: int = CastleCall.NONE
 var _castle_map_seed := 0
 var _castle_save_version := 0
@@ -115,6 +131,10 @@ func _ready() -> void:
 	_rpc.timeout = TIMEOUT_S
 	add_child(_rpc)
 	_rpc.request_completed.connect(_on_rpc_completed)
+	_attack = HTTPRequest.new()
+	_attack.timeout = TIMEOUT_S
+	add_child(_attack)
+	_attack.request_completed.connect(_on_attack_completed)
 	session = SupabaseSession.load_from(session_path)
 	connect_now()
 
@@ -214,6 +234,42 @@ func handle_targets(result: int, code: int, body: String) -> void:
 	targets_found.emit(TargetSearch.parse_response(SupabaseConfig.parse_json(body)), true, false)
 
 
+## Start ataku na gracza `defender_id` armią `army` (oddziały [rodzaj, liczba]); odpowiedź przychodzi
+## w `attack_started`. False: brak sieci albo inne żądanie ataku jeszcze trwa (wtedy nic nie idzie).
+func start_attack(defender_id: String, army: Array) -> bool:
+	return _attack_send(AttackCall.START, AttackStart.PATH, AttackStart.request_player(defender_id, army))
+
+
+## Wynik ataku (`AttackFinish.request` / `PlayerCastle.finish_request`); odpowiedź w `attack_finished`.
+## Ponowienie tej samej treści po błędzie sieci jest bezpieczne: serwer zwraca zapisany wynik.
+func finish_attack(body: Dictionary) -> bool:
+	return _attack_send(AttackCall.FINISH, AttackFinish.PATH, body)
+
+
+func is_attack_pending() -> bool:
+	return _attack_call != AttackCall.NONE
+
+
+## Obsługa odpowiedzi `start_attack` / `finish_attack` (bez sieci, wołana też z testów).
+func handle_attack(call: int, result: int, code: int, body: String) -> void:
+	_attack_call = AttackCall.NONE
+	var error := edge_error(result, code, body)
+	match call:
+		AttackCall.START:
+			var start := AttackStart.parse_response(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
+			if error.is_empty() and start.is_empty():
+				error = REJECTED_ERROR  # niepełna odpowiedź: nie ma czego atakować
+			attack_started.emit(start, error)
+		AttackCall.FINISH:
+			var finish := AttackFinish.parse_response(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
+			if error.is_empty() and finish.is_empty():
+				error = NETWORK_ERROR  # niepełna odpowiedź: ponowienie zwróci zapisany wynik
+			var loot: Array[int] = []
+			if error.is_empty():
+				loot = finish["loot"] as Array[int]
+			attack_finished.emit(loot, error)
+
+
 ## Wysyła zaległy zapis od razu (przy wyjściu z gry), bez czekania na `PUSH_INTERVAL_S`.
 func flush() -> void:
 	_push_wait = 0.0
@@ -269,6 +325,26 @@ static func outcome_of(result: int, code: int) -> int:
 	return Outcome.NETWORK
 
 
+## Kod błędu odpowiedzi Edge Function: pusty tekst dla 2xx, NETWORK_ERROR, gdy odpowiedzi nie ma albo
+## można ją ponowić (outcome_of), a przy odrzuceniu kod z `{"error": "<kod>"}` (tylko litery i `_`)
+## albo REJECTED_ERROR. Treści odpowiedzi nie logujemy.
+static func edge_error(result: int, code: int, body: String) -> String:
+	var outcome := outcome_of(result, code)
+	if outcome == Outcome.OK:
+		return ""
+	var data: Variant = SupabaseConfig.parse_json(body)
+	var raw: Variant = (data as Dictionary).get("error") if data is Dictionary else null
+	var text := raw as String if raw is String else ""
+	var safe := not text.is_empty() and text.length() <= 32
+	for ch in text:
+		if not (ch == "_" or (ch >= "a" and ch <= "z")):
+			safe = false
+	if outcome == Outcome.NETWORK:
+		# 429 (limit startów) też jest „spróbuj później”, ale gracz ma dostać o nim komunikat
+		return text if safe and code == 429 else NETWORK_ERROR
+	return text if safe else REJECTED_ERROR
+
+
 ## Obsługa odpowiedzi Auth (bez sieci, wołana też z testów).
 func handle_auth(call: int, result: int, code: int, body: String) -> void:
 	_pending = Call.NONE
@@ -313,6 +389,26 @@ func _on_request_completed(result: int, code: int, _headers: PackedStringArray, 
 
 func _on_rpc_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	handle_targets(result, code, body.get_string_from_utf8())
+
+
+func _on_attack_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_attack(_attack_call, result, code, body.get_string_from_utf8())
+
+
+func _attack_send(call: int, path: String, body: Dictionary) -> bool:
+	if _attack_call != AttackCall.NONE or not is_online() or user_id().is_empty():
+		return false
+	_attack_call = call
+	if fake_transport:
+		sent_requests.append({"call": call, "path": path, "body": body})
+		return true
+	if _attack == null:
+		_attack_call = AttackCall.NONE
+		return false
+	var err := _attack.request(config.url + path, rest_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		handle_attack(call, HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	return true
 
 
 func _on_rest_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:

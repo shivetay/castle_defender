@@ -38,3 +38,18 @@ static func parse_response(data: Variant) -> Dictionary:
 			return {}
 		loot.append(maxi(0, int(v)))
 	return {"status": "finished", "loot": loot}
+
+
+## Ile razy klient wysyła wynik po błędzie sieci, zanim się podda (#240), i przerwa między próbami (s).
+const RETRIES := 4
+const RETRY_S := 3.0
+
+
+## Dopisek w oknie wyniku, gdy serwer nie przyjął wyniku (#240): wtedy łupu nie ma.
+static func error_note(code: String) -> String:
+	match code:
+		"attack_expired":
+			return "Atak trwał za długo: bez łupu"
+		SupabaseClient.NETWORK_ERROR:
+			return "Brak połączenia: bez łupu"
+	return "Serwer odrzucił wynik: bez łupu"

@@ -99,8 +99,20 @@ var defense := DefensePlan.new()
 var defense_panel: DefensePanel
 ## Sprawdzanie szczelności z Komendy umocnień (#199).
 var seal_check := SealCheck.new()
+## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
+const ABANDONED_MESSAGE := "Atak porzucony: ten zamek znowu po dobie"
 ## Czy trwająca bitwa to atak (inaczej fala PvE).
 var _attacking := false
+## Atak na gracza (#240): cel z kopii z serwera (null przy zamku-bocie), czekanie na `start_attack`
+## i wynik czekający na przyjęcie przez `finish_attack` (treść żądania, wynik, polegli, próby).
+var _player: PlayerCastle
+var _starting := false
+## Armia wysłana w ostatnim `start_attack` (do kopii celu, gdy serwer odpowie).
+var _player_army: Array = []
+var _finish_body: Dictionary = {}
+var _finish_result: BattleResult
+var _finish_fallen := 0
+var _finish_tries := 0
 
 var _terrain_tex: ImageTexture
 ## Dym z kominów i błyski na wodzie (#150), nad budynkami.
@@ -192,7 +204,7 @@ func _ready() -> void:
 	layer.add_child(attack_panel)
 	attack_panel.changed.connect(_on_plan_changed)
 	attack_panel.hint.connect(func(message: String) -> void: hud.message = message)
-	attack_panel.back_requested.connect(_close_attack)
+	attack_panel.back_requested.connect(_on_attack_back)
 	attack_panel.attack_requested.connect(_on_attack_launched)
 	bot_picker = BotPicker.new()
 	bot_picker.visible = false
@@ -293,6 +305,8 @@ func _ready() -> void:
 	net.state_changed.connect(_on_net_state)
 	net.castle_restored.connect(_on_castle_restored)
 	net.targets_found.connect(target_picker.set_players)
+	net.attack_started.connect(_on_player_attack_started)
+	net.attack_finished.connect(_on_player_attack_finished)
 	add_child(net)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
@@ -448,6 +462,10 @@ func _on_castle_restored(save: Dictionary, profile: Dictionary) -> void:
 	_restored_from_server = true
 	_restoring = true
 	get_tree().reload_current_scene()
+
+
+static func _now_s() -> int:
+	return int(Time.get_unix_time_from_system())
 
 
 static func _now_ms() -> int:
@@ -796,21 +814,67 @@ func _on_bot_list_closed() -> void:
 	queue_redraw()
 
 
-## Karta gracza: atak na gracza (zamek z kopii na serwerze) dojdzie z #25.
-func _on_player_target(_target: TargetSearch.Target) -> void:
-	hud.message = TargetPicker.PLAYER_LATER
-
-
-## Planuj: ekran planu na wybranym zamku. Zmiana celu czyści cele i trasy oddziałów z planu.
-func _open_attack(index: int) -> void:
+## Karta gracza (#240): serwer zaczyna atak (`start_attack`) i oddaje kopię zamku i obrony gracza,
+## a plan otwiera się dopiero z tą kopią. Do odpowiedzi ekran celów zostaje, a armia jest nietknięta.
+func _on_player_target(target: TargetSearch.Target) -> void:
+	if _starting:
+		return
 	var army := _attack_army()
-	if index != attack_target:
-		attack_target = index
+	if army.is_empty():
+		hud.message = "Najpierw wyszkol wojsko: Koszary i Wojsko"
+		return
+	if net == null or not net.is_online():
+		hud.message = AttackStart.error_message(SupabaseClient.NETWORK_ERROR)
+		return
+	# serwer sprawdza armię z kopii zamku na serwerze: najpierw zaległy zapis (#23)
+	net.flush()
+	if not net.start_attack(target.player_id, army):
+		hud.message = "Poczekaj chwilę na serwer"
+		return
+	_starting = true
+	_player_army = army
+	hud.message = "Łączę z zamkiem: %s" % target.castle_name
+
+
+func _on_player_attack_started(start: Dictionary, error: String) -> void:
+	_starting = false
+	if not target_picker.visible:
+		# gracz wyszedł z Wyprawy przed odpowiedzią: atak na serwerze wygaśnie sam, ale cel i tak
+		# wróci dopiero po dobie, więc gracz ma o tym wiedzieć
+		if error.is_empty() and not _attacking and battle_view == null:
+			hud.message = ABANDONED_MESSAGE
+		return
+	if not error.is_empty():
+		hud.message = AttackStart.error_message(error)
+		return
+	var pc := PlayerCastle.from_start(start, _player_army, _now_s(), CURRENT_AGE)
+	if pc == null:
+		hud.message = "Zamek gracza jest nieczytelny. Wybierz inny cel"
+		return
+	_open_target(pc.target, pc)
+	hud.message = "Zamek gracza: zaplanuj atak w %d min" % PlayerCastle.PLAN_LIMIT_MIN
+
+
+## Planuj: ekran planu na wybranym zamku-bocie.
+func _open_attack(index: int) -> void:
+	var changed := index != attack_target or _player != null
+	attack_target = index
+	if changed:
 		for o in attack_plan.orders:
 			AttackPlanner.clear(o)
+	_open_target(_bot(), null)
+
+
+## Ekran planu na zamku `bot` (zamek-bot albo kopia zamku gracza `player`). Zmiana celu czyści cele
+## i trasy oddziałów z planu. Przy graczu plan dotyczy armii wysłanej w `start_attack`.
+func _open_target(bot: BotCastle, player: PlayerCastle) -> void:
+	if player != null:
+		for o in attack_plan.orders:
+			AttackPlanner.clear(o)  # cele i trasy z innego zamku nie pasują do tej mapy
+	_player = player
+	var army := player.army if player != null else _attack_army()
 	bot_picker.visible = false
 	target_picker.visible = false
-	var bot := _bot()
 	planner.open(bot, attack_plan, army, CURRENT_AGE)
 	attack_panel.visible = true
 	hud.overlay = true
@@ -825,6 +889,17 @@ func _on_plan_changed(message: String) -> void:
 	hud.message = message
 	planner.queue_redraw()
 	_save()
+
+
+## Wróć z ekranu planu. Przy graczu (#240) atak na serwerze jest już zaczęty: klient go porzuca
+## (nowy start albo 10 minut zwalnia cel), a gracz dowiaduje się, że ten cel wróci dopiero po dobie
+## (serwer liczy start jako atak na ten zamek, `target_recent`).
+func _on_attack_back() -> void:
+	var abandoned := _player != null
+	_player = null
+	_close_attack()
+	if abandoned:
+		hud.message = ABANDONED_MESSAGE
 
 
 ## Wróć: koniec planowania, widok własnego zamku. Plan zostaje zapisany.
@@ -855,16 +930,22 @@ func _on_attack_launched() -> void:
 	var problem := attack_plan.problem(army.size(), CURRENT_AGE, research, AttackPlanner.unit_list(army))
 	if army.is_empty():
 		problem = "Najpierw wyszkol wojsko: Koszary i Wojsko"
+	if problem.is_empty() and _player != null:
+		problem = player_attack_problem(_player, army, _now_s())
 	if not problem.is_empty():
 		hud.message = problem
 		return
 	var bot := planner.bot
 	_battle_ids = recruitment.battle_ids().slice(0, army.size())
 	_battle_army = army
-	var b := Battle.create_squads(bot.grid, bot.objective, army, bot.defenders, bot.spawn,
-			PixelCanvas.hash2(bot.seed_value, attack_target, 0xa77) & 0x7fffffff)
-	b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
-	b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
+	var b: Battle
+	if _player != null:
+		b = _player.create_battle(attack_plan, research)  # seed bitwy i obrona z serwera (#240)
+	else:
+		b = Battle.create_squads(bot.grid, bot.objective, army, bot.defenders, bot.spawn,
+				PixelCanvas.hash2(bot.seed_value, attack_target, 0xa77) & 0x7fffffff)
+		b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
+		b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
 	_attacking = true
 	attack_panel.visible = false
 	planner.show_plan = false
@@ -880,11 +961,24 @@ func _on_attack_launched() -> void:
 	_save()
 
 
+## Czemu atak na gracza nie może ruszyć, albo pusty tekst: armia musi być ta sama co w `start_attack`
+## (serwer liczy ocalałych względem niej), a plan nie może trwać dłużej niż PlayerCastle.PLAN_LIMIT_S.
+static func player_attack_problem(player: PlayerCastle, army: Array, now_s: int) -> String:
+	if army != player.army:
+		return "Armia się zmieniła: wybierz cel jeszcze raz"
+	if not player.can_launch(now_s):
+		return "Plan trwał za długo: wybierz cel jeszcze raz"
+	return ""
+
+
 ## Koniec ataku: polegli znikają z armii, a pierwsze zdobycie zamku odblokowuje kolejny, mocniejszy
 ## (#26). Zamek wraca do pełnego stanu, więc można go atakować znowu.
 ## Wynik (#99): gwiazdki, procent zniszczeń i łup trafiają do okna wyniku; łup do magazynu.
 ## Łupu jest najwyżej tyle, ile uniosą ocaleli (capacity, #25).
 func _finish_attack(b: Battle) -> void:
+	if _player != null:
+		_finish_player_attack(b)
+		return
 	var army := _battle_army  # skład z chwili startu bitwy, przed stratami
 	var alive := b.survivors(Battle.Side.ATTACKER)
 	var fallen := recruitment.apply_losses(_battle_ids, alive)
@@ -914,6 +1008,62 @@ func _finish_attack(b: Battle) -> void:
 	hud.message = ""
 	hud.overlay = true
 	result_panel.show_result(result, got, fallen, unlock)
+	_save()
+
+
+## Koniec ataku na gracza (#240): straty jak zwykle, a łup trafia do magazynu dopiero z odpowiedzi
+## `finish_attack` (serwer sprawdza limity). Do tego czasu okno wyniku czeka na serwer.
+func _finish_player_attack(b: Battle) -> void:
+	var alive := b.survivors(Battle.Side.ATTACKER)
+	_finish_result = _player.result_of(b)
+	_finish_body = _player.finish_request(b, _finish_result)
+	_finish_fallen = recruitment.apply_losses(_battle_ids, alive)
+	_finish_tries = 0
+	battle_view.queue_free()
+	battle_view = null
+	_on_battle_states({})
+	hud.battle = false
+	_attacking = false
+	_close_attack()
+	_player = null
+	hud.overlay = true
+	_save()
+	_send_finish()
+
+
+func _send_finish() -> void:
+	_finish_tries += 1
+	if net != null and net.finish_attack(_finish_body):
+		hud.message = "Wysyłam wynik ataku..."
+		return
+	_on_player_attack_finished([] as Array[int], SupabaseClient.NETWORK_ERROR)
+
+
+## Odpowiedź `finish_attack`: łup z serwera do magazynu i okno wyniku. Błąd sieci ponawia to samo
+## żądanie (serwer zwraca zapisany wynik), a po RETRIES próbach albo odrzuceniu wynik jest bez łupu.
+func _on_player_attack_finished(loot: Array[int], error: String) -> void:
+	if _finish_result == null:
+		return
+	if error == SupabaseClient.NETWORK_ERROR and _finish_tries < AttackFinish.RETRIES:
+		hud.message = "Brak połączenia, ponawiam wynik..."
+		get_tree().create_timer(AttackFinish.RETRY_S).timeout.connect(_send_finish)
+		return
+	var r := _finish_result
+	_finish_result = null
+	_finish_body = {}
+	var got: Array[int] = []
+	var note := ""
+	if error.is_empty():
+		r.loot = loot
+		got = r.apply_loot(economy)
+	else:
+		r.loot.fill(0)
+		got.resize(EconomyConfig.count())
+		got.fill(0)
+		note = AttackFinish.error_note(error)
+	hud.message = ""
+	hud.overlay = true
+	result_panel.show_result(r, got, _finish_fallen, note)
 	_save()
 
 
