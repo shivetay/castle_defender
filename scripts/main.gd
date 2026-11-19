@@ -60,6 +60,10 @@ var research_panel: ResearchPanel
 var settings_panel: SettingsPanel
 ## Konto gracza w Supabase (#22); bez konfiguracji albo sieci gra działa offline.
 var net: SupabaseClient
+## Tożsamość gracza z onboardingu (#228): imię, nazwa zamku i władca. Null, dopóki gracz jej nie poda;
+## wtedy panel onboardingu przykrywa zamek, a zamek nie idzie na serwer.
+var identity: PlayerProfile.Identity
+var onboarding: OnboardingPanel
 var build_panel: BuildPanel
 var queue_panel: QueuePanel
 ## Ile fal samouczka PvE (#16) gracz obronił; trwająca bitwa (null poza bitwą).
@@ -252,7 +256,16 @@ func _ready() -> void:
 	settings_panel.new_game_requested.connect(_on_new_game)
 	hud.settings_pressed.connect(_on_settings_opened)
 	info_popup = InfoPopup.new()
-	layer.add_child(info_popup)  # ostatnie dziecko: dostaje dotyk przed panelami
+	layer.add_child(info_popup)  # dostaje dotyk przed panelami
+	identity = PlayerProfile.read_identity(PlayerProfile.PATH)
+	if identity == null:
+		# pierwsze uruchomienie: najpierw imię i nazwa zamku, nad wszystkim innym (ostatnie dziecko)
+		onboarding = OnboardingPanel.new()
+		layer.add_child(onboarding)
+		onboarding.finished.connect(_on_onboarding_finished)
+		onboarding.open()
+		hud.overlay = true
+		hud.message = "Nazwij siebie i swój zamek"
 	hud.resource_pressed.connect(_on_resource_info)
 	recruit_panel.limit_pressed.connect(_on_army_limit_info)
 	net = SupabaseClient.new()
@@ -374,9 +387,10 @@ func _on_net_state(st: int) -> void:
 				pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check))
 
 
-## Zapis `castles.map_seed` + stanu zamku, gdy jest sesja (#166 / część #23).
+## Zapis `castles.map_seed` + stanu zamku, gdy jest sesja (#166 / część #23). Bez tożsamości
+## z onboardingu (#228) zamek zostaje na telefonie, żeby serwer nie dostał anonimowego zamku.
 func _sync_castle(save: Dictionary) -> void:
-	if net == null or not net.is_online():
+	if net == null or not net.is_online() or identity == null:
 		return
 	net.sync_castle(world_seed, SaveGame.FORMAT_VERSION, CastleSync.castle_data(save))
 
@@ -968,6 +982,19 @@ func _on_settings_opened() -> void:
 func _on_new_game() -> void:
 	SaveGame.delete(SaveGame.PATH)
 	get_tree().reload_current_scene()
+
+
+## Onboarding (#228) skończony: tożsamość trafia do profilu, a zamek może iść na serwer.
+func _on_onboarding_finished(id: PlayerProfile.Identity) -> void:
+	var err := PlayerProfile.write_identity(PlayerProfile.PATH, id)
+	if err != OK:
+		push_warning("Nie udało się zapisać profilu gracza: %s" % error_string(err))
+	identity = id
+	onboarding.queue_free()
+	onboarding = null
+	hud.overlay = false
+	hud.message = "Witaj, %s!" % id.player_name
+	_save()
 
 
 func _on_overlay_closed() -> void:

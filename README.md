@@ -106,6 +106,15 @@ w sekcji „Następny etap”.
   z miejscem na bramę. Gdy nie, kolejne seedy wynikają deterministycznie z pierwszego (do 32 prób,
   potem seed zapasowy 1337). W wersji debug seed wymusza `godot --path . -- --seed=42`; wymuszony seed omija walidację,
   więc da się nim odtworzyć także mapę niegrywalną.
+- Onboarding (#228, `scripts/ui/onboarding_panel.gd`, `OnboardingPanel`): przy pierwszym uruchomieniu
+  zamek przykrywa ekran z polami Imię i Zamek. Tekst wpisuje się klawiaturą systemową (ukryty `LineEdit`
+  odbiera klawiaturę ekranową, tekst rysuje `PixelFont`), Enter przechodzi do następnego pola, a Zacznij
+  sprawdza nazwy: imię 3–12 znaków, nazwa zamku 3–16, tylko litery z fontu (także polskie), cyfry,
+  spacja i łącznik. Tożsamość (imię, nazwa zamku i władca) leży w profilu `user://player.json` (wersja 2)
+  obok seeda gracza; Zacznij od nowa jej nie kasuje. Władca to na razie tylko domyślny Kasztelan bez
+  premii (`scripts/world/rulers.gd`, `Rulers`); generałowie (#31) i perki (#32) dojdą jako kolejne wpisy.
+  Bez tożsamości zamek nie idzie na serwer, a `PlayerProfile.sync_fields` przygotowuje pola do wysyłki
+  przy synchronizacji (#23). Powrót tożsamości po reinstalacji zależy od odtworzenia konta i zamku z #23.
 - `scripts/world/tech_tree.gd` (`TechTree`): 34 technologie MVP z notatki Drzewko technologiczne
   (`docs/castle-defender-vault/`) w gałęziach Atak (19), Obrona (3), Gospodarka (9), Użyteczne (1)
   i Specjalne (2). Każda ma epokę, efekt, znacznik technologii kluczowej ★ (O1 dla I → II, G6 dla II → III)
@@ -404,7 +413,7 @@ w sekcji „Następny etap”.
   jest czerwony. Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
 - `scripts/ui/settings_panel.gd` (`SettingsPanel`, #177): gra startuje od razu w zamku (to gra PvP,
-  bez ekranu startowego). Ustawienia pod zębatką na dole kolumny HUD-u: Język polski/English
+  bez ekranu startowego; tylko pierwsze uruchomienie zaczyna się od onboardingu z #228). Ustawienia pod zębatką na dole kolumny HUD-u: Język polski/English
   (angielski jako zapowiedź #64), Dźwięk: wkrótce, Zacznij od nowa (z potwierdzeniem; usuwa zapis
   i przeładowuje scenę, mapa zostaje ta sama, bo seed należy do gracza) i Zamknij. Stopka: gra offline
   z zapisem na telefonie i wersja z `project.godot`. Gra nie łączy się z siecią przy starcie.
@@ -570,6 +579,7 @@ Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a 
 (#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
 backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym kontem (#22) oraz zapis
 `map_seed` i `start_attack` z seedem terenu (#166); następna jest pełna synchronizacja zamku (#23)
-i domknięcie ataku (#25). Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
+i domknięcie ataku (#25). Przed #23 jest onboarding z imieniem gracza, nazwą zamku i domyślnym
+władcą (#228, w kodzie). Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij).
