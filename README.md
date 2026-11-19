@@ -247,7 +247,8 @@ w sekcji „Następny etap”.
     na donżon. Plan to liczby całkowite z zapisem do słownika, więc przebieg jest powtarzalny.
   - Czas wspinaczki po drabinie, odsunięcie obejścia i promień osłony taranu są tymczasowe.
 - Ekran planowania ataku (#17, `scripts/ui/attack_planner.gd` i `attack_panel.gd`): Wyprawa na karcie
-  Strażnicy otwiera wybór zamku-bota, a Planuj mapę zamku-celu.
+  Strażnicy otwiera wybór zamku-bota (najpierw zwarta lista, Planuj rozwija, kolejne Planuj
+  otwiera mapę zamku-celu).
   - **20 zamków-botów (#26, `scripts/battle/bot_roster.gd`):** lista wspólna dla wszystkich graczy
     (seed z numeru zamku; w etapie 9 przejdzie do bazy), z nazwami. Trudność rośnie: poziom budynków
     1–5 (co 4 zamki), do 4 wież, budynki rekrutacji (Koszary od 4., Strzelnica od 7., Dom drużyny
@@ -255,10 +256,11 @@ w sekcji „Następny etap”.
     i załoga z coraz większej liczby klas (od 4 Chłopów
     do 77 obrońców). Zamki 16–20 to epoka II: bronią ich też Włócznicy, Drużynnicy, Strzelcy z łukiem
     refleksyjnym i Kopijnicy. Liczby tymczasowe.
-  - **Wybór celu (`scripts/ui/bot_picker.gd`):** siatka 5×4 z numerami (zdobyte na zielono, epoka II
-    z czerwonym znacznikiem), pod nią nazwa, trudność, epoka i załoga. Zamek odblokowuje się po zdobyciu
-    poprzedniego. Zdobyte można atakować znowu, bo po ataku zamek wraca do pełnego stanu, więc gracz
-    zawsze ma cel. Wybrany cel jest w zapisie (`attack.target`).
+  - **Wybór celu (`scripts/ui/bot_picker.gd`):** najpierw zwarta lista odblokowanych zamków (mniej
+    ekranu); Planuj rozwija siatkę 5×4 z numerami (zdobyte na zielono, epoka II z czerwonym znacznikiem)
+    i opisem, kolejne Planuj otwiera plan ataku. Zamek odblokowuje się po zdobyciu poprzedniego.
+    Zdobyte można atakować znowu, bo po ataku zamek wraca do pełnego stanu, więc gracz zawsze ma cel.
+    Wybrany cel jest w zapisie (`attack.target`).
   - **Zamek-cel:** `BotCastle` buduje zamek z listy: Dwór i donżon w palisadzie (albo wale) z bramą
     od strony drogi, chaty, wieże i budynki rekrutacji poza pierścieniem oraz załogę. Pierścień jest
     szczelny: tam, gdzie przecina go droga, stoi odcinek muru (bez drugiej bramy).
