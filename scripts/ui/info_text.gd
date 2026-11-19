@@ -8,12 +8,13 @@ const LOOT_LINE := "Też: łup z Wypraw i nagrody za fale Oblężenia"
 
 
 ## Okienko surowca `res`: zapas i magazyn, produkcja na godzinę z rozbiciem (gród, budynki, badania),
-## kiedy magazyn się zapełni i jak zdobyć więcej.
+## kiedy magazyn się zapełni, skąd jest pojemność (Dwór i Magazyny) i jak zdobyć więcej.
 static func resource(res: int, grid: BuildGrid, research: Research, amounts: Array[int]) -> PackedStringArray:
 	var out: PackedStringArray = []
 	var have := amounts[res] if res < amounts.size() else 0
+	var cap := Economy.capacities_for(grid)[res]
 	if EconomyConfig.is_capped(res):
-		out.append("Zapas: %d z %d (magazyn)" % [have, Economy.capacity(res)])
+		out.append("Zapas: %d z %d (magazyn)" % [have, cap])
 	else:
 		out.append("Zapas: %d, bez limitu magazynu" % have)
 	var rate := Economy.rates(grid, research)[res]
@@ -34,12 +35,13 @@ static func resource(res: int, grid: BuildGrid, research: Research, amounts: Arr
 	if percent != 100:
 		out.append("- badania: %+d%%" % (percent - 100))
 	if EconomyConfig.is_capped(res):
-		var room := Economy.capacity(res) - have
+		var room := cap - have
 		if room <= 0:
 			out.append("Magazyn pełny: produkcja czeka, aż wydasz")
 		elif rate > 0:
 			@warning_ignore("integer_division")
 			out.append("Magazyn pełny za %s" % Hud.format_time(room * Economy.MS_PER_HOUR / rate))
+		out.append(storage_line(grid))
 	var makers: PackedStringArray = []
 	for kind: int in producers(res):
 		makers.append(BuildingTypes.NAMES[kind])
@@ -47,6 +49,19 @@ static func resource(res: int, grid: BuildGrid, research: Research, amounts: Arr
 		out.append("Więcej daje: %s (postaw albo ulepsz)" % ", ".join(makers))
 	out.append(LOOT_LINE)
 	return out
+
+
+## Skąd jest pojemność: zapas Dworu i Magazyny razem (np. „Pojemność: Dwór 1000, Magazyn ×2: +1250”).
+static func storage_line(grid: BuildGrid) -> String:
+	var base := EconomyConfig.CAPACITY[EconomyConfig.Res.WOOD]
+	var n := 0
+	for id: int in grid.buildings:
+		if grid.kinds[id] == BuildingTypes.Kind.WAREHOUSE and grid.levels[id] >= 1:
+			n += 1
+	if n == 0:
+		return "Pojemność: Dwór %d; więcej mieści Magazyn" % base
+	var extra := Economy.capacities_for(grid)[EconomyConfig.Res.WOOD] - base
+	return "Pojemność: Dwór %d, Magazyn ×%d: +%d" % [base, n, extra]
 
 
 ## Budynki, które produkują surowiec `res` (EconomyConfig.BUILDING_PRODUCTION), w stałej kolejności.

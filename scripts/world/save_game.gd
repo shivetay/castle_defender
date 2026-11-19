@@ -78,6 +78,8 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	s.grid = BuildGrid.new(TerrainMap.generate(s.world_seed))
 	s.skipped += s.grid.load_data(d.get("grid", {}) as Dictionary)
 	s.economy = Economy.new(now_ms)
+	# pojemność z Magazynów przed odczytem zapasów, bo odczyt przycina je do pojemności
+	s.economy.refresh_capacity(s.grid)
 	s.economy.load_data(d.get("economy", {}) as Dictionary)
 	s.queue = BuildQueue.new()
 	s.skipped += s.queue.load_data(d.get("queue", {}) as Dictionary, s.grid, now_ms)

@@ -10,8 +10,12 @@ const NAMES: Array[String] = ["Drewno", "Kamień", "Żywność", "Złoto"]
 const SHORT_NAMES: Array[String] = ["Dr", "Ka", "Ży", "Zł"]
 
 const START: Array[int] = [500, 300, 300, 50]
-## Pojemność magazynu. 0 oznacza brak limitu: złoto to docelowo waluta premium.
+## Pojemność na start, którą daje Dwór (niezależnie od poziomu). 0 oznacza brak limitu: złoto
+## to docelowo waluta premium. Więcej mieści się dopiero po postawieniu Magazynów.
 const CAPACITY: Array[int] = [1000, 1000, 1000, 0]
+## Ile pojemności dodaje każdy Magazyn na poziomach 1–5 (drewnu, kamieniowi i żywności po równo).
+## Magazyny się sumują. Liczby tymczasowe, do decyzji balansowej właścicielki.
+const WAREHOUSE_CAPACITY: Array[int] = [500, 750, 1000, 1500, 2000]
 ## Produkcja samego grodu, niezależna od budynków. Złoto nie rośnie samo, przybywa z łupu i PvE.
 const BASE_PER_HOUR: Array[int] = [20, 20, 20, 0]
 

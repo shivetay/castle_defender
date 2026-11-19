@@ -423,11 +423,14 @@ w sekcji „Następny etap”.
   głównym, więc na dysku zawsze leży co najmniej jeden pełny zapis. Nieczytelny plik główny jest
   odkładany obok (`.broken`) i nie trafia do kopii; zapis z nowszej wersji gry też nie jest nadpisywany.
 - `scripts/world/economy_config.gd` (`EconomyConfig`): wszystkie liczby ekonomii w jednym pliku.
-  Drewno, kamień, żywność i złoto. Start 500/300/300/50, magazyn 1000 każdego surowca, złoto bez
+  Drewno, kamień, żywność i złoto. Start 500/300/300/50, Dwór mieści 1000 każdego surowca, a każdy
+  ukończony Magazyn (Gospodarka, bez technologii) dodaje +500/750/1000/1500/2000 na poziomach 1–5;
+  Magazyny się sumują, a rozbiórka zmniejsza limit (nadmiar przepada). Złoto jest bez
   limitu (docelowo waluta premium, przybywa tylko z łupu i PvE). Gród daje 20/h drewna, kamienia
   i żywności, a Chata drwala +60/90/120/160/200 drewna/h na poziomach 1–5.
 - `scripts/world/economy.gd` (`Economy`): naliczanie produkcji w liczbach całkowitych (ten sam wynik
-  co klatkę i jednym skokiem), limity magazynów, łup (`add`) i wydawanie (`spend`). Produkcja liczy
+  co klatkę i jednym skokiem), limity magazynów (`capacities_for` z siatki: Dwór plus Magazyny,
+  przeliczane w kolejce budowy, po rozbiórce i przed odczytem zapisu), łup (`add`) i wydawanie (`spend`). Produkcja liczy
   się z zegara systemowego, więc rośnie też, gdy gra jest w tle. Po powrocie komunikat podaje przyrost.
 - `scripts/gfx/pixel_icons.gd` (`PixelIcons`): ikony surowców 5×5 zapisane w kodzie jako wzory znaków
   (dwa bale, kamień, jabłko, moneta), kolory z palety, atlas w cache. Ikony 7×7 głównej kolumny HUD-u (#150):
@@ -618,4 +621,4 @@ władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i do
 reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
 zapasowa Androida albo logowanie (np. Google). Następne jest domknięcie ataku (#25). Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
-(Komenda umocnień + Sprawdź / Domknij).
+(Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu.

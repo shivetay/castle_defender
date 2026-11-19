@@ -7,6 +7,7 @@
 | Chata myśliwego (myśliwy) | I | skóry, kość, ścięgna, pióra, trochę żywności |
 | Pole lnu | I | len na cięciwy i przeszywanice |
 | Rybak | I | żywność, stawiany przy rzece |
+| Magazyn | I | +pojemność drewna, kamienia i żywności (Dwór mieści 1000, Magazyny się sumują) |
 | Garbarnia | I | wyprawiona skóra |
 | Wytwórca zbroi skórzanych | I | zbroje skórzane, przeszywanice, tarcze; ciężkie jednostki I–II |
 | Drzewcarz | I | włócznie, oszczepy, kopie, topory z kamiennymi głowicami |

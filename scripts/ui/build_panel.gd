@@ -29,6 +29,7 @@ const DESCRIPTIONS := {
 	BuildingTypes.Kind.GATE: "Przejście w linii umocnień",
 	BuildingTypes.Kind.TOWER: "Strzela do atakujących (strzały ze zbrojowni)",
 	BuildingTypes.Kind.FISHER: "Stawiany tylko tuż przy rzece",
+	BuildingTypes.Kind.WAREHOUSE: "Większy limit drewna, kamienia i żywności",
 }
 
 var research: Research
@@ -118,6 +119,8 @@ static func describe(kind: int) -> String:
 	if EconomyConfig.BUILDING_PRODUCTION.has(kind):
 		var prod: Array = EconomyConfig.BUILDING_PRODUCTION[kind]
 		parts.append("+%d %s/h" % [int((prod[1] as Array)[0]), EconomyConfig.SHORT_NAMES[int(prod[0])]])
+	if kind == BuildingTypes.Kind.WAREHOUSE:
+		parts.append("+%d pojemności" % EconomyConfig.WAREHOUSE_CAPACITY[0])
 	var producer: String = GoodsConfig.PRODUCER_KINDS.get(kind, "")
 	if not producer.is_empty():
 		var goods: PackedStringArray = []

@@ -103,7 +103,8 @@ func test_bar_slots_map_to_kinds() -> bool:
 	assert_eq(BuildingTypes.bar_kind(0), K.RAMPART, "pierwsze miejsce: wał")
 	assert_eq(BuildingTypes.bar_kind(4), K.SEAL_HOUSE, "Komenda umocnień w Umocnieniach (#199)")
 	assert_eq(BuildingTypes.bar_kind(6), K.FISHER, "za chatą drwala budynki gospodarcze (#122)")
-	assert_eq(BuildingTypes.bar_kind(8), K.HUNTER, "potem pierwszy wytwórca")
+	assert_eq(BuildingTypes.bar_kind(8), K.WAREHOUSE, "Magazyn na końcu gospodarki")
+	assert_eq(BuildingTypes.bar_kind(9), K.HUNTER, "potem pierwszy wytwórca")
 	assert_eq(BuildingTypes.bar_kind(BuildingTypes.buildable_count() - 1), K.SCOUT_HOUSE, "ostatni: Dom zwiadowców")
 	var seen := {}
 	for kind in BuildingTypes.BUILD_BAR:

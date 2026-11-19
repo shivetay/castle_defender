@@ -140,6 +140,8 @@ func cancel(grid: BuildGrid, economy: Economy, building_id: int, now_ms: int) ->
 func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research = null,
 		goods: Goods = null) -> Array[Order]:
 	var done: Array[Order] = []
+	# pojemność z Magazynów (także po rozbiórce albo odczycie), zanim cokolwiek się naliczy
+	economy.refresh_capacity(grid)
 	while true:
 		var build_at := orders[0].finish_ms() if not orders.is_empty() else -1
 		var research_at := research.finish_ms() if research != null else -1
@@ -163,6 +165,8 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 			# ukończony wał/palisada/brama/wieża domyka krótkie luki do bramy i wieży
 			if o.level >= 1:
 				grid.seal_after_place(o.building_id)
+			# ukończony Magazyn mieści więcej od chwili ukończenia
+			economy.refresh_capacity(grid)
 		if not orders.is_empty():
 			orders[0].start_ms = at
 		done.append(o)

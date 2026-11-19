@@ -1277,6 +1277,8 @@ func _on_middle_button() -> void:
 	_cursor_ok = true
 	recruitment.drop_building(_selected_id)
 	grid.remove(_selected_id)
+	# rozebrany Magazyn od razu zmniejsza pojemność (nadmiar przepada)
+	economy.refresh_capacity(grid)
 	_deselect()
 	hud.message = "Rozebrano: %s" % title
 	_save()
