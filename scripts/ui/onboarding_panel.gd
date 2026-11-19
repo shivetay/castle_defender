@@ -20,6 +20,8 @@ const SUBTITLE := "Nazwij siebie i swój gród"
 const RULER_TITLE := "Wybierz władcę"
 const RULER_SUBTITLE := "Dotknij portretu, by zobaczyć premie"
 const CHOOSE_LABEL := "Wybierz"
+## Zapis profilu się nie udał (np. brak miejsca): gracz zostaje na panelu i może spróbować znowu.
+const SAVE_ERROR := "Nie udało się zapisać, spróbuj znowu"
 ## Miejsca władców: portrety PortraitArt.SIZE w rzędzie, wyśrodkowane.
 const SLOT_GAP := 10
 const SLOT_Y := 44
@@ -65,11 +67,28 @@ func _ready() -> void:
 	add_child(_input_box)
 
 
+## Otwiera panel od początku: wybór władcy, puste pola. Powrót po błędzie zapisu idzie przez
+## show_error(), które zachowuje wpisane nazwy.
 func open() -> void:
 	visible = true
 	screen = Screen.RULER
 	selected_slot = -1
+	ruler = Rulers.DEFAULT
+	player_name = ""
+	castle_name = ""
+	focused = Field.NONE
 	hint = ""
+	_pressed = Target.NONE
+	queue_redraw()
+
+
+## Panel wraca na ekran nazw z komunikatem `text`, z tym samym władcą i nazwami (np. po błędzie
+## zapisu profilu).
+func show_error(text: String) -> void:
+	visible = true
+	screen = Screen.NAMES
+	focused = Field.NONE
+	hint = text
 	_pressed = Target.NONE
 	queue_redraw()
 

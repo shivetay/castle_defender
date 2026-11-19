@@ -262,7 +262,8 @@ func _ready() -> void:
 	if identity != null:
 		hud.ruler_id = identity.ruler
 	else:
-		# pierwsze uruchomienie: najpierw imię i nazwa zamku, nad wszystkim innym (ostatnie dziecko)
+		# pierwsze uruchomienie: najpierw wybór władcy, potem imię i nazwa zamku, nad wszystkim innym
+		# (ostatnie dziecko)
 		onboarding = OnboardingPanel.new()
 		layer.add_child(onboarding)
 		onboarding.finished.connect(_on_onboarding_finished)
@@ -987,11 +988,15 @@ func _on_new_game() -> void:
 	get_tree().reload_current_scene()
 
 
-## Onboarding (#228) skończony: tożsamość trafia do profilu, a zamek może iść na serwer.
+## Onboarding (#228) skończony: tożsamość trafia do profilu, a zamek może iść na serwer. Gdy zapis
+## profilu się nie uda, gracz zostaje na panelu z komunikatem, a tożsamość nie istnieje w pamięci,
+## więc zamek nie idzie na serwer bez trwałego profilu.
 func _on_onboarding_finished(id: PlayerProfile.Identity) -> void:
 	var err := PlayerProfile.write_identity(PlayerProfile.PATH, id)
 	if err != OK:
 		push_warning("Nie udało się zapisać profilu gracza: %s" % error_string(err))
+		onboarding.show_error(OnboardingPanel.SAVE_ERROR)
+		return
 	identity = id
 	hud.ruler_id = id.ruler
 	onboarding.queue_free()

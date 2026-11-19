@@ -184,6 +184,16 @@ func test_panel_submit() -> bool:
 		assert_eq(got[0].castle_name, "Gród Bolka", "nazwa przycięta")
 		assert_eq(got[0].ruler, Rulers.DEFAULT, "domyślny władca")
 		assert_true(got[0].is_complete(), "kompletna tożsamość")
+	# błąd zapisu profilu: panel wraca z komunikatem i wpisanymi nazwami
+	p.show_error(OnboardingPanel.SAVE_ERROR)
+	assert_true(p.visible and p.screen == OnboardingPanel.Screen.NAMES, "panel wraca na ekran nazw")
+	assert_eq(p.hint, OnboardingPanel.SAVE_ERROR, "komunikat o błędzie zapisu")
+	assert_eq(p.player_name, "Bolko", "imię zostaje")
+	assert_true(PixelFont.text_width(OnboardingPanel.SAVE_ERROR) <= int(VIEW.x) - 32, "komunikat mieści się")
+	# ponowne otwarcie zaczyna od nowa
+	p.open()
+	assert_true(p.player_name.is_empty() and p.castle_name.is_empty(), "open() czyści pola")
+	assert_eq(p.screen, OnboardingPanel.Screen.RULER, "open() od wyboru władcy")
 	p.free()
 	return true
 
