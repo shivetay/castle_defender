@@ -132,16 +132,119 @@ func test_ranged_fire_stops_in_range() -> bool:
 	var wall := b._structure_at(wall_cell)
 	assert_true(wall != null, "odcinek palisady")
 	var closest := 1 << 30
+	var key := Battle._squad_key(Battle.Side.ATTACKER, 1)
+	var hold_after := Vector2i(-1, -1)
 	for i in 1800:
 		b.step()
 		for f in b.fighters:
 			var d := maxi(absi(f.cell().x - wall_cell.x), absi(f.cell().y - wall_cell.y))
 			closest = mini(closest, d)
+		if b._sq_fire.has(key) and hold_after.x < 0:
+			hold_after = b._sq_fire[key]
 		if wall.hp <= 0:
 			break
 	assert_true(wall.hp <= 0, "łucznicy zburzyli odcinek z dystansu")
 	assert_true(closest >= 2, "żaden łucznik nie podszedł pod mur (najbliżej %d kratki)" % closest)
+	assert_true(b._sq_fire.has(key), "oddział ma punkt ostrzału")
+	assert_eq(b._sq_fire[key], hold_after, "punkt ostrzału ustalony raz")
 	assert_eq(grid.kinds[c[1]], K.KEEP, "donżon na miejscu")
+	return true
+
+
+## Ostrzał: jeden punkt postoju; po wejściu w zasięg nikt nie idzie bliżej muru.
+func test_ranged_holds_one_fire_point() -> bool:
+	var c := _castle()
+	var ring: Rect2i = c[4]
+	var wall_cell := Vector2i(ring.position.x, ring.end.y - 1)
+	var p := AttackPlan.new()
+	p.add(1, M.RANGED, wall_cell)
+	var b := _battle(c, [[U.ARCHER, 3]], [], p)
+	var wall := b._structure_at(wall_cell)
+	var key := Battle._squad_key(Battle.Side.ATTACKER, 1)
+	var min_after_shot := 1 << 30
+	var engaged := false
+	var hold_once := Vector2i(-1, -1)
+	for i in 1800:
+		b.step()
+		if b._sq_fire.has(key):
+			if hold_once.x < 0:
+				hold_once = b._sq_fire[key]
+			assert_eq(b._sq_fire[key], hold_once, "jeden punkt ostrzału na oddział")
+		var anyone_in_range := false
+		for f in b.fighters:
+			if f.alive() and b._rect_in_range(f, wall.rect, b.range_of(f)):
+				anyone_in_range = true
+				break
+		if anyone_in_range:
+			engaged = true
+			for f in b.fighters:
+				if not f.alive():
+					continue
+				var d := maxi(absi(f.cell().x - wall_cell.x), absi(f.cell().y - wall_cell.y))
+				min_after_shot = mini(min_after_shot, d)
+		if wall.hp <= 0:
+			break
+	assert_true(engaged, "oddział wszedł w zasięg ostrzału")
+	assert_true(hold_once.x >= 0, "punkt ostrzału wyznaczony")
+	assert_true(min_after_shot >= 2, "po ostrzale nikt nie poszedł bliżej muru (min %d)" % min_after_shot)
+	assert_true(wall.hp < wall.max_hp, "strzelali w cel z dystansu")
+	return true
+
+
+## Ostrzał: wróg w zasięgu strzału — stój i bij, bez marszu naprzód.
+func test_ranged_stays_when_enemy_in_range() -> bool:
+	var c := _castle()
+	var ring: Rect2i = c[4]
+	var wall_cell := Vector2i(ring.position.x, ring.end.y - 1)
+	var p := AttackPlan.new()
+	p.add(1, M.RANGED, wall_cell)
+	var def_cell := Vector2i(SPAWN.x, SPAWN.y - 8)
+	var b := _battle(c, [[U.ARCHER, 2]], [[U.PEASANT, 1]], p)
+	for f in b.fighters:
+		if f.side == Battle.Side.DEFENDER:
+			f.x = def_cell.x * BattleConfig.SUB + BattleConfig.SUB / 2
+			f.y = def_cell.y * BattleConfig.SUB + BattleConfig.SUB / 2
+			f.post = def_cell
+	var prev: Dictionary = {}
+	var held_ticks := 0
+	for i in 900:
+		b.step()
+		var defenders: Array[Battle.Fighter] = []
+		for g in b.fighters:
+			if g.side == Battle.Side.DEFENDER and g.alive():
+				defenders.append(g)
+		if defenders.is_empty():
+			break
+		for f in b.fighters:
+			if f.side != Battle.Side.ATTACKER or not f.alive():
+				continue
+			var in_shot := false
+			for enemy in defenders:
+				if b._in_range(f, enemy.x, enemy.y, b.range_of(f)):
+					in_shot = true
+					break
+			if not in_shot:
+				prev.erase(f.id)
+				continue
+			if prev.has(f.id):
+				assert_eq(f.cell(), prev[f.id] as Vector2i, "przy wrogu w zasięgu bez marszu")
+				held_ticks += 1
+			prev[f.id] = f.cell()
+		if held_ticks >= 20:
+			break
+	assert_true(held_ticks >= 10, "stali i strzelali przy wrogu w zasięgu (%d ticków)" % held_ticks)
+	assert_true(b._structure_at(wall_cell) != null, "cel budynku wciąż na mapie")
+	return true
+
+
+func test_fire_hold_point_is_in_range() -> bool:
+	var rect := Rect2i(10, 10, 2, 2)
+	var spawn := Vector2i(10, 30)
+	var p := Battle.fire_hold_point(spawn, rect, 6, 64)
+	assert_eq(p.x, 10, "na osi podejścia")
+	assert_eq(p.y, 17, "6 kratek od krawędzi w stronę wejścia")
+	var edge := Vector2i(10, 11)
+	assert_eq(maxi(absi(p.x - edge.x), absi(p.y - edge.y)), 6, "dystans Chebysheva od krawędzi")
 	return true
 
 
