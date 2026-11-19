@@ -114,7 +114,7 @@ func test_unlocking() -> bool:
 
 
 ## Ekran wyboru: siatka 5×4 mieści się między paskami, dotknięcia trafiają w kafelki i przyciski,
-## a opis każdego zamku mieści się na 320 px.
+## a opis każdego zamku mieści się na 320 px. Zwięzła lista zajmuje mniej ekranu niż pełny panel.
 func test_picker_layout() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
 	var tiles := BotPicker.tile_rects(b.x, b.y)
@@ -123,18 +123,65 @@ func test_picker_layout() -> bool:
 		assert_true(r.size.x >= 12 and r.size.y >= 12, "cel ≥ 12×12")
 		assert_true(r.position.x >= b.x and r.end.x <= b.y, "w poziomie")
 	assert_true(tiles[-1].end.y < BotPicker.DETAIL_Y, "siatka nad opisem")
-	assert_eq(BotPicker.target_at(tiles[7].get_center(), VIEW, b.x, b.y), BotPicker.Target.TILE + 7, "kafelek 8")
-	assert_eq(BotPicker.target_at(BotPicker.plan_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y), BotPicker.Target.PLAN, "Planuj")
-	assert_eq(BotPicker.target_at(BotPicker.close_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y), BotPicker.Target.CLOSE, "Wróć")
+	assert_eq(BotPicker.target_at(tiles[7].get_center(), VIEW, b.x, b.y, true, 3),
+			BotPicker.Target.TILE + 7, "kafelek 8")
+	assert_eq(BotPicker.target_at(BotPicker.plan_rect(VIEW, b.y, true, 3).get_center(), VIEW, b.x, b.y, true, 3),
+			BotPicker.Target.PLAN, "Planuj (rozwinięty)")
+	assert_eq(BotPicker.target_at(BotPicker.close_rect(VIEW, b.y, true, 3).get_center(), VIEW, b.x, b.y, true, 3),
+			BotPicker.Target.CLOSE, "Wróć (rozwinięty)")
 	var width := int(b.y - b.x)
 	for i in BotRoster.COUNT:
 		var lines := BotPicker.detail_lines(i, 3, width)
 		assert_true(lines.size() <= 4, "%d: najwyżej 4 linie" % i)
 		var bottom := BotPicker.DETAIL_Y + lines.size() * (PixelFont.LINE + 1)
-		assert_true(bottom <= BotPicker.plan_rect(VIEW, b.y).position.y, "%d: opis nad przyciskami" % i)
+		assert_true(bottom <= BotPicker.plan_rect(VIEW, b.y, true, 3).position.y, "%d: opis nad przyciskami" % i)
 		for line: Array in lines:
 			assert_true(PixelFont.text_width(line[0] as String) <= width, "„%s” mieści się" % line[0])
 	assert_eq((BotPicker.detail_lines(9, 3, width)[-1] as Array)[0], BotPicker.LOCKED_TEXT, "zablokowany ma podpowiedź")
+	# zwięzła lista: tylko odblokowane (max COMPACT_ROWS), panel niższy niż pełny ekran
+	assert_eq(BotPicker.unlocked_count(0), 1, "nowy gracz: jeden wiersz")
+	assert_eq(BotPicker.unlocked_count(3), 4, "po 3 zdobytych: 4 wiersze")
+	assert_eq(BotPicker.visible_rows(3), 4, "mało zamków: wszystkie widać")
+	assert_eq(BotPicker.visible_rows(19), BotPicker.COMPACT_ROWS, "dużo: limit wierszy")
+	var row := BotPicker.list_row_rect(b.x, b.y, 0)
+	assert_true(row.size.y >= 12, "wiersz ≥ 12 px")
+	assert_eq(BotPicker.target_at(row.get_center(), VIEW, b.x, b.y, false, 3, 0), BotPicker.Target.TILE,
+			"wiersz 1 na liście")
+	assert_eq(BotPicker.target_at(BotPicker.plan_rect(VIEW, b.y, false, 3).get_center(), VIEW, b.x, b.y, false, 3, 0),
+			BotPicker.Target.PLAN, "Planuj (zwarty)")
+	assert_eq(BotPicker.target_at(BotPicker.more_rect(VIEW, b.y, 19).get_center(), VIEW, b.x, b.y, false, 19, 0),
+			BotPicker.Target.MORE, "Dalej przy przepełnieniu")
+	assert_eq(BotPicker.next_first(20, 5, 0), 5, "Dalej: następna strona")
+	assert_eq(BotPicker.next_first(20, 5, 15), 0, "Dalej: po ostatniej znów pierwsza")
+	var full_h := VIEW.y - 2 * Hud.BAR_H
+	assert_true(BotPicker.compact_panel_h(3) < full_h, "zwarty panel zajmuje mniej ekranu")
+	assert_true(BotPicker.compact_panel_h(19) < full_h, "także przy wszystkich odblokowanych")
+	assert_true(BotPicker.compact_panel_h(0) < BotPicker.compact_panel_h(3), "więcej wierszy → wyższy panel")
+	assert_eq(BotPicker.compact_panel_h(10), BotPicker.compact_panel_h(19), "limit wierszy: ta sama wysokość")
+	return true
+
+
+## Dwukrokowe Planuj: otwarcie jest zwarte, pierwsze Planuj rozwija, drugie emituje cel.
+func test_picker_two_step_plan() -> bool:
+	var picker := BotPicker.new()
+	var chosen := [-1]
+	picker.target_chosen.connect(func(i: int) -> void: chosen[0] = i)
+	picker.open(2, 1)
+	assert_true(not picker.expanded, "start: zwarta lista")
+	assert_eq(picker.selected, 1, "wybrany cel z zapisu")
+	picker._activate(BotPicker.Target.PLAN)
+	assert_true(picker.expanded, "pierwsze Planuj: rozwinięcie")
+	assert_eq(chosen[0], -1, "jeszcze bez startu wyprawy")
+	picker._activate(BotPicker.Target.PLAN)
+	assert_eq(chosen[0], 1, "drugie Planuj: start wyprawy")
+	picker.open(0, 0)
+	assert_true(not picker.expanded, "ponowne otwarcie znów zwarte")
+	picker.open(12, 10)
+	assert_eq(picker.first, BotPicker.first_for(10, 13, BotPicker.COMPACT_ROWS), "lista zaczyna przy wybranym")
+	var before := picker.first
+	picker._activate(BotPicker.Target.MORE)
+	assert_eq(picker.first, BotPicker.next_first(13, BotPicker.COMPACT_ROWS, before), "Dalej przewija")
+	picker.free()
 	return true
 
 
