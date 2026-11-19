@@ -54,8 +54,8 @@ static func target_from_row(row: Dictionary) -> Target:
 	var map_seed := int(row.get("map_seed", 0)) if _is_number(row.get("map_seed")) else 0
 	if map_seed < 1 or map_seed > WorldSeed.MAX_SEED:
 		return null
-	var name := _safe_name(str(row.get("nickname", "")), PlayerProfile.NAME_MAX)
-	var castle := _safe_name(str(row.get("castle_name", "")), PlayerProfile.CASTLE_MAX)
+	var name := safe_name(str(row.get("nickname", "")), PlayerProfile.NAME_MAX)
+	var castle := safe_name(str(row.get("castle_name", "")), PlayerProfile.CASTLE_MAX)
 	if castle.is_empty():
 		return null
 	var t := Target.new()
@@ -169,7 +169,7 @@ static func age_label(age: int) -> String:
 
 ## Nazwa po czyszczeniu; pusta, gdy ma znaki spoza fontu albo jest za długa (po przycięciu do
 ## `max_len` znaków też musi przejść walidację).
-static func _safe_name(text: String, max_len: int) -> String:
+static func safe_name(text: String, max_len: int) -> String:
 	var cleaned := PlayerProfile.clean_name(text).substr(0, max_len).strip_edges()
 	if PlayerProfile.check_name(cleaned, 1, max_len) != PlayerProfile.NameError.OK:
 		return ""
