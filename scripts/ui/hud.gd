@@ -7,8 +7,8 @@ extends Node2D
 ## - oglądanie: Buduj, Badania, Wojsko, Obrona, Kolejka (z liczbą zleceń, #163), Ustawienia (#177);
 ##   Oblężenie i Wyprawa (PvE) są na karcie Strażnicy,
 ##   dotknięcie budynku otwiera kartę, a dotknięcie czasu budowy na górnym pasku otwiera Kolejkę,
-## - budowa: Gotowe i Zmień (wraca do panelu budowy); dotknięcia mapy tylko stawiają wybrany
-##   budynek, niczego nie zaznaczają,
+## - budowa: Gotowe, Zmień (wraca do panelu budowy) i Anuluj (kończy stawianie bez zmiany
+##   wyboru); dotknięcia mapy tylko stawiają wybrany budynek, niczego nie zaznaczają,
 ## - karta budynku: stan, koszt ulepszenia oraz Ulepsz, Rozbierz (Anuluj dla zlecenia), przy budynku
 ##   rekrutacji Szkol, przy Strażnicy Oblężenie i Wyprawa, i Zamknij, wyśrodkowane nad paskiem komunikatu.
 ## Dotknięcia przycisków nie trafiają do kamery. Gdy otwarty jest ekran
@@ -34,7 +34,7 @@ signal resource_pressed(res: int)
 
 enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, RESOURCE = 50, CARD = 100 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, CANCEL = 12, RESOURCE = 50, CARD = 100 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -80,7 +80,7 @@ const RESOURCE_GAP := 7
 
 var economy: Economy
 var message := ""
-## Tryb budowy: w kolumnie Gotowe i Zmień zamiast przycisków trybów.
+## Tryb budowy: w kolumnie Gotowe, Zmień i Anuluj zamiast przycisków trybów.
 var building := false
 ## Wybrany rodzaj budynku (BuildingTypes.Kind), ustawia go panel budowy.
 var selected_kind := 0
@@ -190,7 +190,7 @@ static func column_targets(is_building: bool, in_battle: bool = false) -> Array[
 	if in_battle:
 		return [Target.SPEED] as Array[int]
 	if is_building:
-		return [Target.DONE, Target.CHANGE] as Array[int]
+		return [Target.DONE, Target.CHANGE, Target.CANCEL] as Array[int]
 	# Oblężenie i Atak (PvE) są na karcie Strażnicy (#177), PvP dostanie osobny budynek
 	return [Target.BUILD, Target.RESEARCH, Target.ARMY, Target.DEFENCE, Target.QUEUE, Target.SETTINGS] as Array[int]
 
@@ -509,7 +509,7 @@ func _activate(t: int) -> void:
 		speed_pressed.emit()
 	elif t == Target.CHANGE:
 		change_pressed.emit()
-	elif t == Target.DONE:
+	elif t == Target.DONE or t == Target.CANCEL:
 		set_building(false)
 	elif t == Target.SIEGE:
 		siege_pressed.emit()
@@ -587,6 +587,8 @@ static func column_label(t: int) -> String:
 			return DONE_LABEL
 		Target.CHANGE:
 			return CHANGE_LABEL
+		Target.CANCEL:
+			return CANCEL_LABEL
 	return ""
 
 
