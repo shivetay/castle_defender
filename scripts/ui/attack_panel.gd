@@ -217,7 +217,7 @@ func _draw() -> void:
 		var cls := UnitTypes.unit_class(unit)
 		var at := r.position + Vector2(3, 5)
 		if PixelIcons.class_region(cls).has_area():
-			PixelIcons.draw_class(self, at, cls)
+			PixelIcons.draw_class_badge(self, at, cls)
 		else:
 			PixelFont.draw_text(self, at - Vector2(0, 2), UnitTypes.SHORT_NAMES[unit].left(1), Palette.INK)
 		PixelFont.draw_text(self, r.position + Vector2(10, 3), "%d×%d" % [i + 1, int(sq[1])], Palette.INK)
