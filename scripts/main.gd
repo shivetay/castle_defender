@@ -99,6 +99,8 @@ var defense := DefensePlan.new()
 var defense_panel: DefensePanel
 ## Sprawdzanie szczelności z Komendy umocnień (#199).
 var seal_check := SealCheck.new()
+## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
+const ABANDONED_MESSAGE := "Atak porzucony: ten zamek znowu po dobie"
 ## Czy trwająca bitwa to atak (inaczej fala PvE).
 var _attacking := false
 ## Atak na gracza (#240): cel z kopii z serwera (null przy zamku-bocie), czekanie na `start_attack`
@@ -202,7 +204,7 @@ func _ready() -> void:
 	layer.add_child(attack_panel)
 	attack_panel.changed.connect(_on_plan_changed)
 	attack_panel.hint.connect(func(message: String) -> void: hud.message = message)
-	attack_panel.back_requested.connect(_close_attack)
+	attack_panel.back_requested.connect(_on_attack_back)
 	attack_panel.attack_requested.connect(_on_attack_launched)
 	bot_picker = BotPicker.new()
 	bot_picker.visible = false
@@ -837,7 +839,11 @@ func _on_player_target(target: TargetSearch.Target) -> void:
 func _on_player_attack_started(start: Dictionary, error: String) -> void:
 	_starting = false
 	if not target_picker.visible:
-		return  # gracz wyszedł z Wyprawy; atak na serwerze wygaśnie sam
+		# gracz wyszedł z Wyprawy przed odpowiedzią: atak na serwerze wygaśnie sam, ale cel i tak
+		# wróci dopiero po dobie, więc gracz ma o tym wiedzieć
+		if error.is_empty() and not _attacking and battle_view == null:
+			hud.message = ABANDONED_MESSAGE
+		return
 	if not error.is_empty():
 		hud.message = AttackStart.error_message(error)
 		return
@@ -883,6 +889,17 @@ func _on_plan_changed(message: String) -> void:
 	hud.message = message
 	planner.queue_redraw()
 	_save()
+
+
+## Wróć z ekranu planu. Przy graczu (#240) atak na serwerze jest już zaczęty: klient go porzuca
+## (nowy start albo 10 minut zwalnia cel), a gracz dowiaduje się, że ten cel wróci dopiero po dobie
+## (serwer liczy start jako atak na ten zamek, `target_recent`).
+func _on_attack_back() -> void:
+	var abandoned := _player != null
+	_player = null
+	_close_attack()
+	if abandoned:
+		hud.message = ABANDONED_MESSAGE
 
 
 ## Wróć: koniec planowania, widok własnego zamku. Plan zostaje zapisany.

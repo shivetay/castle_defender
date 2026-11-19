@@ -213,6 +213,8 @@ func test_edge_error() -> bool:
 			SupabaseClient.REJECTED_ERROR, "obcy tekst nie przechodzi")
 	assert_eq(SupabaseClient.edge_error(HTTPRequest.RESULT_SUCCESS, 404, "nie json"),
 			SupabaseClient.REJECTED_ERROR, "bez kodu")
-	for code: String in ["target_busy", "target_shielded", "rate_limited", "network", "cokolwiek"]:
+	assert_true(AttackStart.error_message("bad_army") != AttackStart.error_message("cokolwiek"),
+			"zła armia ma własny komunikat")
+	for code: String in ["target_busy", "target_shielded", "rate_limited", "bad_army", "network", "cokolwiek"]:
 		assert_true(AttackStart.error_message(code).length() <= 50, "komunikat mieści się w pasku")
 	return true

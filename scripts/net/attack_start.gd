@@ -79,6 +79,8 @@ static func error_message(code: String) -> String:
 			return "Za dużo ataków naraz. Poczekaj chwilę"
 		"army_not_owned", "attacker_no_castle", "attacker_not_found":
 			return "Serwer nie zna jeszcze Twojej armii. Spróbuj za chwilę"
+		"bad_army":
+			return "Serwer nie przyjął tej armii. Sprawdź oddziały"
 		SupabaseClient.NETWORK_ERROR:
 			return "Brak połączenia z serwerem. Spróbuj później"
 	return "Serwer nie przyjął ataku. Spróbuj później"
