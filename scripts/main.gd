@@ -673,7 +673,10 @@ func _update_battle() -> void:
 	# polegli znikają z armii, ocalali (także wycofani) wracają do swoich oddziałów (#164)
 	var fallen := recruitment.apply_losses(_battle_ids, b.survivors(Battle.Side.DEFENDER))
 	var won := b.winner == Battle.Winner.DEFENDER
-	var reward: Array[int] = PveWaves.reward(_battle_wave) if won else []
+	# literał `[]` w trójargumentowym `if` jest nietypowany i nie da się go przypisać do Array[int]
+	var reward: Array[int] = []
+	if won:
+		reward = PveWaves.reward(_battle_wave)
 	if won:
 		for res in reward.size():
 			economy.add(res, reward[res])
