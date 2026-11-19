@@ -1,0 +1,16 @@
+# scripts/net/
+
+Klient sieciowy PvP (Supabase). W kliencie **tylko** klucz publishable/`anon` — nigdy `service_role`.
+
+## Kluczowe pliki
+
+| Plik | Rola |
+|---|---|
+| `supabase_config.gd` | Odczyt `config/supabase.json` (wzór: `config/supabase.example.json`) |
+| `supabase_client.gd` | HTTP / REST do API |
+| `supabase_session.gd` | Sesja anonimowa, tryb offline |
+| `castle_sync.gd` | Synchronizacja stanu zamku |
+| `attack_start.gd` | Start ataku (seed mapy itd.) |
+
+Backend: `supabase/` (migracje, RLS, Edge Functions). Skille: `supabase-security`, `pvp-anti-cheat`, `user-data-privacy`.
+Testy: `tests/test_supabase_client.gd`, `test_castle_sync.gd`, `test_attack_start.gd`.
