@@ -34,6 +34,10 @@ const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 const WATCHTOWER_INFO := "Fale i wyprawy na boty"
 ## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
 const SEAL_HOUSE_INFO := "Sprawdź szczelność umocnień"
+## Karta Komendy, gdy gracz wskazał lukę (#199).
+const SEAL_SELECTED_INFO := "Wybrana luka: Domknij ją"
+## Zapas w px przy dotknięciu czerwonej luki (kratka ma 8 px, cel dotyku co najmniej 12 px).
+const SEAL_TAP_TOLERANCE := 3.0
 ## Podgląd bitwy w wersji debug (#15): godot --path . -- --battle-preview. Bitwę z gry uruchomi #16.
 const BATTLE_PREVIEW_ARG := "--battle-preview"
 
@@ -111,6 +115,7 @@ func _ready() -> void:
 		bots_beaten = saved.bots_beaten
 		attack_target = saved.attack_target
 		defense = saved.defense
+		seal_check = saved.seal
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -353,7 +358,7 @@ func _save() -> void:
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
 	var save := SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten, defense, attack_target)
+			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check)
 	var err := SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
@@ -365,7 +370,7 @@ func _on_net_state(st: int) -> void:
 	settings_panel.net_state = st
 	if st == SupabaseClient.State.ONLINE:
 		_sync_castle(SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-				pve_cleared, attack_plan, bots_beaten, defense, attack_target))
+				pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check))
 
 
 ## Zapis `castles.map_seed` + stanu zamku, gdy jest sesja (#166 / część #23).
@@ -410,7 +415,8 @@ func _tick() -> void:
 			if seal_check.gaps.is_empty():
 				hud.message = "Obrona szczelna"
 			else:
-				hud.message = "Wykryte luki: %d" % seal_check.gaps.size()
+				hud.message = "Wykryte luki: %d, dotknij luki" % seal_check.gaps.size()
+			_save()
 		elif seal_check.revealed:
 			seal_check.prune(grid)
 	elif seal_check.revealed or seal_check.is_busy():
@@ -451,6 +457,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 	var cell := Vector2i((world_pos / TerrainMap.CELL).floor())
 	var id := grid.building_at(cell)
 	if not hud.building:
+		if _try_select_gap(world_pos):
+			return
 		if id != 0:
 			_select(id)
 		elif _selected_id != 0:
@@ -994,7 +1002,7 @@ func _refresh_card() -> void:
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
 	hud.card_check_disabled = seal_check.is_busy()
-	hud.card_seal_disabled = not seal_check.revealed or seal_check.gaps.is_empty()
+	hud.card_seal_disabled = not seal_check.has_selection()
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
 	if hud.card_seal and not pending:
 		hud.card_info = seal_card_info(seal_check, _now_ms())
@@ -1015,7 +1023,9 @@ static func seal_card_info(check: SealCheck, now_ms: int) -> String:
 	if check.revealed:
 		if check.gaps.is_empty():
 			return "Obrona szczelna"
-		return "Luki: %d — Domknij wypełnia lukę" % check.gaps.size()
+		if check.has_selection():
+			return SEAL_SELECTED_INFO
+		return "Luki: %d, dotknij luki na mapie" % check.gaps.size()
 	return SEAL_HOUSE_INFO
 
 
@@ -1074,11 +1084,12 @@ func _on_check_pressed() -> void:
 		_refresh_card()
 		return
 	hud.message = "Sprawdzanie szczelności, %s" % Hud.format_time(SealCheck.DURATION_MS)
+	_save()
 	_refresh_card()
 	queue_redraw()
 
 
-## Domknij pierwszą wykrytą lukę: zleca odcinek wału/palisady jak zwykła budowa (#199).
+## Domknij lukę wskazaną przez gracza: zleca odcinek wału/palisady jak zwykła budowa (#199).
 func _on_seal_pressed() -> void:
 	_tick()
 	if not grid.buildings.has(_selected_id) or grid.kinds[_selected_id] != BuildingTypes.Kind.SEAL_HOUSE \
@@ -1094,7 +1105,11 @@ func _on_seal_pressed() -> void:
 		hud.message = "Obrona szczelna"
 		_refresh_card()
 		return
-	var cell := seal_check.gaps[0]
+	if not seal_check.has_selection():
+		hud.message = "Dotknij czerwonej luki na mapie"
+		_refresh_card()
+		return
+	var cell := seal_check.selected
 	var kind := grid.wall_kind_for_gap(cell)
 	var result := queue.order_build(grid, economy, cell, kind, _now_ms(), research)
 	if result == BuildQueue.Result.OK:
@@ -1147,14 +1162,30 @@ func _draw() -> void:
 		_draw_defence()
 
 
-## Czerwone podświetlenie luk po Sprawdź z Komendy umocnień (#199).
+## Czerwone podświetlenie luk po Sprawdź z Komendy umocnień (#199); wybrana luka w ramce tuszu.
 func _draw_seal_gaps() -> void:
 	if not seal_check.revealed or not _has_ready_seal_house():
 		return
 	for c in seal_check.gaps:
 		var at := c * TerrainMap.CELL
 		draw_rect(Rect2(at.x, at.y, TerrainMap.CELL, TerrainMap.CELL), Color(Palette.ACCENT, 0.45))
-		CastleView.draw_frame(self, Rect2i(at, Vector2i.ONE * TerrainMap.CELL), Palette.ACCENT)
+		var frame := Palette.INK if c == seal_check.selected else Palette.ACCENT
+		CastleView.draw_frame(self, Rect2i(at, Vector2i.ONE * TerrainMap.CELL), frame)
+
+
+## Przy otwartej karcie Komendy umocnień dotknięcie czerwonej luki ją wskazuje (#199): Domknij
+## uszczelni właśnie tę lukę. `true`, gdy dotknięcie trafiło w lukę.
+func _try_select_gap(world_pos: Vector2) -> bool:
+	if _selected_id == 0 or int(grid.kinds.get(_selected_id, -1)) != BuildingTypes.Kind.SEAL_HOUSE:
+		return false
+	var gap := seal_check.gap_near(world_pos, SEAL_TAP_TOLERANCE)
+	if gap == SealCheck.NO_GAP or not seal_check.select(gap):
+		return false
+	hud.message = "Wybrano lukę: Domknij"
+	_save()
+	_refresh_card()
+	queue_redraw()
+	return true
 
 
 ## Czy stoi gotowa Komenda umocnień (poziom ≥ 1) — bez niej nie ma flow Sprawdź / luk (#199).

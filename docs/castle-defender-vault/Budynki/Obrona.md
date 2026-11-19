@@ -8,6 +8,7 @@ Kolumna „Zastępuje” pokazuje ścieżkę przebudowy. Epoki: [[Epoki]].
 | Fosa sucha | I | spowalnia wroga o 50% | — |
 | Palisada | I | prosty mur, płonie od ognia | — |
 | Brama drewniana | I | wejście, słaby punkt | — |
+| Komenda umocnień | I | Sprawdź szczelność pierścienia (~1 min), czerwone luki, Domknij wskazaną lukę; wymaga O2 | — |
 | Pomost strzelecki | I | stanowisko 2 łuczników na wale | — |
 | Kopiec (motte) | II | podwyższa wieżę, +zasięg | — |
 | Wieża drewniana | II | strzały w promieniu | pomost strzelecki |

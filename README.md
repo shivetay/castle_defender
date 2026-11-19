@@ -409,10 +409,12 @@ w sekcji „Następny etap”.
   wczytaniu. Jej karta ma tylko Oblężenie (fale samouczka), Wyprawę (atak na zamek bota) i Zamknij;
   Oblężenie i Atak zniknęły z kolumny HUD-u.
   PvP dostanie osobny budynek w etapie 9.
-- Komenda umocnień (`BuildingTypes.Kind.SEAL_HOUSE`, #199): budynek 2×2 w zakładce Umocnienia.
-  Karta ma Sprawdź (odliczanie ~1 min, jedno naraz) i Domknij (uszczelnia wykrytą lukę odcinkiem
-  wału/palisady przez kolejkę budowy). Po Sprawdź luki świecą na czerwono na mapie; przy pełnej
-  szczelności komunikat „Obrona szczelna”. Bez gotowej Komendy nie ma tego flow (`SealCheck`).
+- Komenda umocnień (`BuildingTypes.Kind.SEAL_HOUSE`, #199): budynek 2×2 w zakładce Umocnienia,
+  odblokowuje go technologia O2 Zaostrzone pale. Karta ma Sprawdź (odliczanie ~1 min, jedno naraz)
+  i Domknij. Po Sprawdź luki świecą na czerwono na mapie; gracz dotyka luki (wybrana ma ramkę tuszu),
+  a Domknij zleca w niej odcinek wału/palisady przez kolejkę budowy. Przy pełnej szczelności komunikat
+  „Obrona szczelna”. Odliczanie, luki i wybór są w zapisie gry (format 9), ale nie idą na serwer.
+  Bez gotowej Komendy nie ma tego flow (`SealCheck`).
 - `scripts/ui/queue_panel.gd` (`QueuePanel`, #163): ekran Kolejka pod przyciskiem Kolejka (z liczbą
   zleceń budowy i szkolenia) albo po dotknięciu czasu budowy na górnym pasku. Zakładka Budynki: zlecenia
   w kolejności wykonania (nazwa, „nowy” albo „poz. N→N+1”, czas; pierwsze z paskiem postępu, kolejne

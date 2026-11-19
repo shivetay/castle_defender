@@ -46,10 +46,12 @@ static func map_seed_from_rows(rows: Variant) -> int:
 
 
 ## Dane zamku wysyłane do `castles.data`: ten sam kształt co lokalny zapis, bez pola world_seed
-## (seed stoi w osobnej kolumnie `map_seed`).
+## (seed stoi w osobnej kolumnie `map_seed`) i bez lokalnego stanu Sprawdź (`seal`).
 static func castle_data(save: Dictionary) -> Dictionary:
 	var out := save.duplicate(true)
 	out.erase("world_seed")
+	# Sprawdź z Komendy umocnień (#199) to stan lokalny gracza, serwer go nie potrzebuje
+	out.erase("seal")
 	return out
 
 

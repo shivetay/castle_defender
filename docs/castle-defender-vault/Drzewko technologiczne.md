@@ -92,7 +92,7 @@ Zmienione zależności: A21 Ściana tarcz wymaga A38, A7 Strzemię wymaga A43, A
 | Kod | Technologia | Epoka | Efekt | Wymaga |
 | --- | --- | --- | --- | --- |
 | O1 | ★ Sypanie kopców | I | budynek Kopiec, warunek przejścia I → II, Wieża grodowa przechodzi w Wieżę na kopcu | — |
-| O2 | Zaostrzone pale | I | palisada +20% wytrzymałości | — |
+| O2 | Zaostrzone pale | I | palisada +20% wytrzymałości, budynek Komenda umocnień (sprawdzanie szczelności) | — |
 | O3 | Fosa z kolcami | I | sucha fosa rani wrogów | O2 |
 | O4 | Częstokół | II | budynek Częstokół | O3 |
 | O5 | Hurdycje | II | drewniane ganki, +1 łucznik na odcinku muru | O1 |
