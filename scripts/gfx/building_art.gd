@@ -95,14 +95,25 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 		BuildingTypes.Kind.WATCHTOWER:
 			_draw_watchtower(img)
 		_:
-			_draw_workshop(img, kind, lv, ln)
+			_draw_workshop(img, kind, lv, ln, mirror)
 	if mirror:
 		img.flip_x()
-		_relight_mirrored(img)
+		if _mono_roof_when_leaning(kind, lv):
+			_relight_mirrored(img)
 	_apply_state(img, kind, state, mask)
 	if has_outline(kind):
 		_outline_and_light(img)
 	return img
+
+
+## Czy przy murze budynek dostaje dach jednospadowy (strzecha), który po odbiciu trzeba przyciemnić
+## na nowo. Dach czterospadowy gospodarki rysuje się od razu z odwróconym światłem, a pomost wojska
+## nie ma jasnej i ciemnej połaci, więc ich nie ruszamy (inaczej stóg wyszedłby płaski).
+static func _mono_roof_when_leaning(kind: int, level: int) -> bool:
+	if level < 2 or BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.LUMBER_HUT:
+		return true
+	var cat := BuildingTypes.category(kind)
+	return cat != BuildingTypes.Category.ECONOMY and cat != BuildingTypes.Category.MILITARY
 
 
 ## Po odbiciu w poziomie jasna połać wypada na wschodzie. Dach jednospadowy przy murze z prawej
@@ -431,8 +442,10 @@ static func _draw_manor(img: Image, level: int) -> void:
 ## wytwórcy — strzecha dwuspadowa, wojsko — płaski pomost z desek, gospodarka — dach namiotowy.
 ## Rozpoznanie rodzaju zostaje w rekwizycie z prawej (_draw_prop, bez zmian).
 ## Poziomy: 1 wiata z rekwizytem, 2 izba pod dachem kategorii, 3 większa z kominem,
-## 4 najszersza z większym rekwizytem, 5 z proporcem na kalenicy i drugim przy wejściu.
-static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.NONE) -> void:
+## 4 najszersza z większym rekwizytem, 5 z proporcem w rogu dachu i drugim przy wejściu.
+## `mirrored`: obraz zostanie odbity w poziomie (przybudówka przy murze z prawej).
+static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.NONE,
+		mirrored: bool = false) -> void:
 	var size := img.get_size()
 	if level == 1:
 		_shed(img, Rect2i(1, 1, 10, 7), lean, size)
@@ -445,7 +458,7 @@ static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.N
 	elif wide:
 		r = Rect2i(0, 1, 11, 11)
 	var body := _body(r, lean, size)
-	_workshop_roof(img, body, lean, kind)
+	_workshop_roof(img, body, lean, kind, mirrored)
 	if level >= 3:
 		PixelCanvas.chimney(img, chimney_at(body))
 	_draw_prop(img, kind, Vector2i(11, 3), wide)
@@ -454,31 +467,32 @@ static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.N
 		PixelCanvas.rect(img, Rect2i(body.position.x + 4, body.end.y, 2, 2), Palette.ACCENT)
 
 
-## Dach warsztatu wg kategorii: strzecha (wytwórcy), pomost (wojsko), namiotowy (gospodarka).
-## Przy murze wytwórcy zostają przy dachu jednospadowym; wojsko i gospodarka trzymają swoją bryłę,
-## a przybudówka wojska ma ciemną listwę od strony muru (poziomy 4–5 mają ten sam obrys co wolnostojące).
-static func _workshop_roof(img: Image, body: Rect2i, lean: int, kind: int) -> void:
+## Dach warsztatu wg kategorii: strzecha dwuspadowa (wytwórcy), pomost z desek w ramie z belek (wojsko),
+## stóg czterospadowy (gospodarka). Przy murze wytwórcy dostają dach jednospadowy; wojsko i gospodarka
+## trzymają swoją bryłę, a korpus i tak dochodzi do muru (_body).
+static func _workshop_roof(img: Image, body: Rect2i, lean: int, kind: int, mirrored: bool) -> void:
 	match BuildingTypes.category(kind):
 		BuildingTypes.Category.MILITARY:
-			# płaska sylwetka koszar: deski w poziomie jak na mocku „pomost z bali”
+			# płaski pomost: deski w poziomie, ciemna rama z belek odróżnia go od wiaty z poziomu 1
 			PixelCanvas.deck(img, body, true, Palette.WOOD, 17 + kind)
-			if lean != Lean.NONE:
-				_deck_wall_rail(img, body, lean)
+			_deck_frame(img, body, lean)
 		BuildingTypes.Category.ECONOMY:
-			PixelCanvas.roof_hip(img, body, Palette.THATCH, Palette.WOOD[0])
+			PixelCanvas.roof_hipped(img, body, Palette.THATCH, Palette.WOOD[0], 17 + kind, mirrored)
 		_:
 			_roof(img, body, lean, 17 + kind)
 
 
-## Ciemna krawędź pomostu od strony muru — przybudówka wojska czytelna także gdy korpus już dochodzi do krawędzi.
-static func _deck_wall_rail(img: Image, body: Rect2i, lean: int) -> void:
-	match lean:
-		Lean.WEST:
-			PixelCanvas.rect(img, Rect2i(body.position.x, body.position.y, 1, body.size.y), Palette.WOOD[0])
-		Lean.NORTH:
-			PixelCanvas.rect(img, Rect2i(body.position.x, body.position.y, body.size.x, 1), Palette.WOOD[0])
-		Lean.SOUTH:
-			PixelCanvas.rect(img, Rect2i(body.position.x, body.end.y - 1, body.size.x, 1), Palette.WOOD[0])
+## Rama z belek wokół pomostu wojska. Przy murze bok od muru zostaje bez belki: deski przechodzą
+## w koronę muru, więc przybudówka różni się od wolnostojącej także wtedy, gdy ma ten sam obrys.
+static func _deck_frame(img: Image, body: Rect2i, lean: int) -> void:
+	var col: Color = Palette.WOOD[0]
+	if lean != Lean.NORTH:
+		PixelCanvas.rect(img, Rect2i(body.position, Vector2i(body.size.x, 1)), col)
+	if lean != Lean.SOUTH:
+		PixelCanvas.rect(img, Rect2i(body.position.x, body.end.y - 1, body.size.x, 1), col)
+	if lean != Lean.WEST:
+		PixelCanvas.rect(img, Rect2i(body.position, Vector2i(1, body.size.y)), col)
+	PixelCanvas.rect(img, Rect2i(body.end.x - 1, body.position.y, 1, body.size.y), col)
 
 
 ## Rekwizyt wytwórcy z góry, 5 px szerokości, od lewego górnego rogu `at`.
