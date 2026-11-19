@@ -86,8 +86,9 @@ func test_production_mode_label_and_lines_fit() -> bool:
 			"z produkcji → Zapas")
 	assert_eq(RecruitPanel.mode_button_label(RecruitPanel.DetailMode.STOCK), RecruitPanel.COST_LABEL,
 			"z zapasu → Koszt")
-	assert_true(PixelFont.text_width(RecruitPanel.PROD_LABEL) <= int(Hud.BUTTON_SIZE.x) - 4, "Prod. na przycisku")
-	assert_true(PixelFont.text_width(RecruitPanel.STOCK_LABEL) <= int(Hud.BUTTON_SIZE.x) - 4, "Zapas na przycisku")
+	for label: String in [RecruitPanel.INFO_LABEL, RecruitPanel.PROD_LABEL, RecruitPanel.STOCK_LABEL,
+			RecruitPanel.COST_LABEL, RecruitPanel.TRAIN_LABEL, RecruitPanel.CLOSE_LABEL]:
+		assert_true(PixelFont.text_width(label) <= int(RecruitPanel.BUTTON_SIZE.x) - 4, "%s na małym przycisku" % label)
 	var grid := BuildGrid.new(TerrainMap.generate(7))
 	grid.place_kind(_free_cell(grid, K.MANOR), K.MANOR, 1)
 	grid.place_kind(_free_cell(grid, K.LUMBER_HUT), K.LUMBER_HUT, 1)
