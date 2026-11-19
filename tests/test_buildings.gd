@@ -387,6 +387,71 @@ func test_construction_site() -> bool:
 	return true
 
 
+## Warsztaty od poziomu 2: dach wg kategorii (strzecha / pomost / namiot). Rekwizyty bez zmian;
+## chata drwala i umocnienia nie idą tą ścieżką.
+func test_workshop_roofs_by_category() -> bool:
+	var level := 2
+	var producer := BuildingArt.make_image(BuildingTypes.Kind.TANNERY, level, BuildingTypes.State.INTACT)
+	var military := BuildingArt.make_image(BuildingTypes.Kind.BARRACKS, level, BuildingTypes.State.INTACT)
+	var economy := BuildingArt.make_image(BuildingTypes.Kind.FISHER, level, BuildingTypes.State.INTACT)
+	# połać korpusu (nie kalenica y=6), z dala od propsu (x=11)
+	assert_true(Palette.THATCH.has(producer.get_pixel(5, 4)), "wytwórca: strzecha")
+	assert_true(Palette.WOOD.has(military.get_pixel(5, 4)), "wojsko: pomost z desek")
+	assert_true(not Palette.THATCH.has(military.get_pixel(5, 4)), "wojsko bez strzechy w korpusie")
+	assert_true(Palette.THATCH.has(economy.get_pixel(3, 4)), "gospodarka: dach namiotowy (strzecha)")
+	# stóg (korpus 10×9 od (1, 2)): kalenica tylko w środku, narożniki pod 45° najciemniejsze
+	assert_true(Palette.WOOD.has(economy.get_pixel(5, 6)), "stóg: kalenica z belki w środku")
+	assert_true(Palette.WOOD.has(economy.get_pixel(6, 6)), "stóg: kalenica ma 2 px")
+	assert_true(Palette.THATCH.has(economy.get_pixel(2, 6)), "stóg: kalenica krótsza niż korpus")
+	assert_eq(economy.get_pixel(3, 4), Palette.THATCH[0], "stóg: narożnik z lewej")
+	assert_eq(economy.get_pixel(8, 4), Palette.THATCH[0], "stóg: narożnik z prawej")
+	# pomost wojska w ramie z belek (wiata z poziomu 1 ma tylko dolną krawędź)
+	assert_eq(military.get_pixel(10, 6), Palette.WOOD[0], "pomost: rama z belek")
+	assert_true(producer.get_data() != military.get_data(), "wojsko ≠ wytwórca nawet bez patrzenia na props")
+	assert_true(producer.get_data() != economy.get_data(), "gospodarka ≠ wytwórca")
+	assert_true(military.get_data() != economy.get_data(), "gospodarka ≠ wojsko")
+	# props bez zmian: kadź garbarni (obwódka WOOD, środek EARTH)
+	assert_true(Palette.WOOD.has(producer.get_pixel(11, 5)), "garbarnia: obwódka kadzi")
+	assert_true(Palette.EARTH.has(producer.get_pixel(13, 5)), "garbarnia: środek kadzi")
+	# chata drwala to gospodarka, ale nie warsztat — zostaje przy strzesze dwuspadowej
+	var hut := BuildingArt.make_image(BuildingTypes.Kind.LUMBER_HUT, level, BuildingTypes.State.INTACT)
+	assert_true(Palette.THATCH.has(hut.get_pixel(5, 4)), "chata: strzecha jak wcześniej")
+	assert_true(hut.get_data() != economy.get_data(), "chata ≠ rybak (hip)")
+	return true
+
+
+## Przybudówka przy murze z prawej to odbicie wariantu z lewej, ale stóg gospodarki zachowuje
+## światło z lewej góry (nie robi się płaski), a pomost wojska nie ma belki ramy od strony muru.
+func test_workshop_roofs_keep_light_at_wall() -> bool:
+	var L := BuildingArt.Lean
+	for lean: int in [L.NONE, L.WEST, L.EAST]:
+		var img := BuildingArt.make_image(BuildingTypes.Kind.FISHER, 3, BuildingTypes.State.INTACT, 0, false, lean)
+		var lit_west := 0
+		var lit_east := 0
+		var hips := 0
+		for y in img.get_height():
+			for x in img.get_width():
+				var c := img.get_pixel(x, y)
+				if c == Palette.THATCH[2]:
+					if x < img.get_width() / 2:
+						lit_west += 1
+					else:
+						lit_east += 1
+				elif c == Palette.THATCH[0]:
+					hips += 1
+		assert_true(lit_west > lit_east, "stóg (przy murze %d): jasna połać od zachodu" % lean)
+		assert_true(hips > 0, "stóg (przy murze %d): ciemne narożniki" % lean)
+	# poziom 4: korpus już dochodzi do krawędzi, różnicę daje brak belki ramy od strony muru
+	var plain := BuildingArt.make_image(BuildingTypes.Kind.BARRACKS, 4, BuildingTypes.State.INTACT)
+	var west := BuildingArt.make_image(BuildingTypes.Kind.BARRACKS, 4, BuildingTypes.State.INTACT, 0, false, L.WEST)
+	var east := BuildingArt.make_image(BuildingTypes.Kind.BARRACKS, 4, BuildingTypes.State.INTACT, 0, false, L.EAST)
+	assert_true(plain.get_data() != west.get_data(), "pomost przy murze bez belki od muru")
+	# korpus 11×11 od (0, 1): kolumna x=0 to belka (rozjaśniona światłem z lewej) albo deski
+	assert_true(plain.get_pixel(0, 6) != west.get_pixel(0, 6), "przybudówka z lewej: deski aż do muru")
+	assert_eq(west.get_pixel(0, 6), east.get_pixel(15, 6), "przybudówka z prawej: lustro z lewej")
+	return true
+
+
 func test_manor_is_not_on_toolbar() -> bool:
 	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 3, "pasek bez Dworu, donżonu i Strażnicy")
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.KEEP), "donżonu nie ma na pasku")

@@ -121,6 +121,44 @@ static func roof_hip(img: Image, r: Rect2i, ramp: Array, peak: Color) -> void:
 			px(img, r.position.x + x, r.position.y + y, col)
 
 
+## Dach czterospadowy (stóg) nad prostokątem z góry: kalenica `ridge` wzdłuż dłuższego boku, krótsza
+## o krótszy bok, i narożniki pod 45° (najciemniejsze) schodzące z jej końców do rogów. Na kwadracie
+## wygląda jak dach namiotowy. Połacie od północy i zachodu jasne, od południa i wschodu ciemne;
+## `light_right` odwraca strony wschód–zachód (rysunek, który potem będzie odbity w poziomie).
+## Źdźbła strzechy (smugi z hash2) biegną w dół połaci, jak w roof_gable.
+static func roof_hipped(img: Image, r: Rect2i, ramp: Array, ridge: Color, tex_seed: int = 0,
+		light_right: bool = false) -> void:
+	var w := r.size.x
+	var h := r.size.y
+	var horizontal := w >= h
+	var mid := (h if horizontal else w) / 2
+	for y in range(h):
+		for x in range(w):
+			# d_side: odległość od dłuższego boku, d_end: od krótszego (szczytu połaci końcowej)
+			var d_side := mini(y, h - 1 - y) if horizontal else mini(x, w - 1 - x)
+			var d_end := mini(x, w - 1 - x) if horizontal else mini(y, h - 1 - y)
+			var a := y if horizontal else x
+			var along := x if horizontal else y
+			var col: Color
+			var lit: bool
+			if d_end == d_side:
+				col = ramp[0]
+			else:
+				if d_end < d_side:
+					# połać końcowa: zachodnia albo północna
+					var first := (x < w / 2) if horizontal else (y < h / 2)
+					lit = first != (light_right and horizontal)
+				else:
+					var first := a < mid
+					lit = first != (light_right and not horizontal)
+				col = ramp[2] if lit else ramp[1]
+				if hash2(along if d_end > d_side else a, 0, tex_seed + (0 if lit else 1)) % (5 if lit else 3) == 0:
+					col = ramp[1] if lit else ramp[0]
+			if a == mid and d_end >= d_side:
+				col = ridge
+			px(img, r.position.x + x, r.position.y + y, col)
+
+
 ## Pomost z desek z góry: deski szerokości 2 px wzdłuż osi x (albo y), jasna i ciemna na zmianę,
 ## ze stykami desek z hash2.
 static func deck(img: Image, r: Rect2i, horizontal: bool, ramp: Array, tex_seed: int = 0) -> void:

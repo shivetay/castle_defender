@@ -82,7 +82,8 @@ func test_wall_side_and_lean() -> bool:
 
 ## Przybudówka ma inny dach niż zwykły budynek, sylwetka przy murze z prawej to lustro wariantu z lewej
 ## (światło pada zawsze z lewej góry, więc kolory się różnią),
-## a z góry korpus dochodzi do muru z kalenicą tuż przy nim (dach jednospadowy).
+## a u wytwórcy z góry korpus dochodzi do muru z kalenicą tuż przy nim (dach jednospadowy).
+## Wojsko sprawdza samą zmianę obrysu (dach to pomost, nie strzecha).
 func test_lean_to_art() -> bool:
 	for level in range(1, BuildingTypes.MAX_LEVEL + 1):
 		var plain := BuildingArt.make_image(K.BARRACKS, level, 0)
@@ -93,9 +94,9 @@ func test_lean_to_art() -> bool:
 		assert_eq(_alpha(west), _alpha(east), "poziom %d: z prawej sylwetka to lustro z lewej" % level)
 		var north := BuildingArt.make_image(K.BARRACKS, level, 0, 0, false, L.NORTH)
 		assert_true(plain.get_data() != north.get_data(), "poziom %d: połać od muru z tyłu" % level)
-	# z góry: korpus dochodzi do muru, a kalenica (drewniana listwa) leży przy murze
-	var img := BuildingArt.make_image(K.BARRACKS, 3, 0, 0, false, L.WEST)
-	var plain3 := BuildingArt.make_image(K.BARRACKS, 3, 0)
+	# wytwórca przy murze: strzecha jednospadowa (kalenica WOOD, połać THATCH)
+	var img := BuildingArt.make_image(K.TANNERY, 3, 0, 0, false, L.WEST)
+	var plain3 := BuildingArt.make_image(K.TANNERY, 3, 0)
 	assert_true(not Palette.WOOD.has(plain3.get_pixel(0, 6)), "zwykły budynek z odstępem od krawędzi")
 	assert_true(Palette.WOOD.has(img.get_pixel(0, 6)), "kalenica przy murze z lewej")
 	assert_true(Palette.THATCH.has(img.get_pixel(5, 6)), "połać opada od muru")

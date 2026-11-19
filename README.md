@@ -36,15 +36,17 @@ w sekcji „Następny etap”.
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
 
 - `scripts/gfx/pixel_canvas.gd` (`PixelCanvas`): prymitywy rysowania w rzucie z góry: dach dwuspadowy,
-  jednospadowy i namiotowy, pomost z desek, stos bali, komin, proporzec, obwódka i dithering 2×2.
+  jednospadowy, namiotowy i czterospadowy (stóg), pomost z desek, stos bali, komin, proporzec, obwódka
+  i dithering 2×2.
   Faktura idzie przez `hash2`, a światło pada z lewej góry (połacie od północy i zachodu są jasne).
 - `scripts/gfx/building_art.gd` (`BuildingArt`): budynki w rzucie z góry, każdy z 5 poziomami o różnym
   wyglądzie, i 4 stany zniszczeń: cały, pęknięcia, wyrwa, gruz. Obraz ma dokładnie rozmiar kratek
   budynku, więc nic nie zasłania sąsiadów, a wysokość oddaje cień na południowy wschód (dłuższy
   za wieżą, donżonem i Strażnicą, krótki za murem i polem lnu).
-  - **Dachy:** chaty, warsztaty i Dwór mają strzechę z kalenicą wzdłuż dłuższego boku, wieża i donżon dach
-    namiotowy, wieża niżej pomost z desek. Warsztaty rozpoznaje się po rekwizycie z prawej (kadź, tarcza,
-    rama ze skórą, koń przy żłobie...).
+  - **Dachy:** chaty, Dwór i warsztaty wytwórców mają strzechę z kalenicą wzdłuż dłuższego boku, warsztaty
+    wojska płaski pomost z desek w ramie z belek, a rybak stóg czterospadowy. Wieża i donżon mają dach
+    namiotowy, wieża niżej pomost z desek. Rodzaj warsztatu rozpoznaje się po rekwizycie z prawej (kadź,
+    tarcza, rama ze skórą, koń przy żłobie...).
   - **Umocnienia:** korona wału (z darnią, fosą, palikami albo płotem) i wierzchy pali palisady z jasną
     stroną od północy. Wał i palisada mają autotiling: odcinek 1×1 to środek plus ramię do każdego sąsiada
     z maski N/E/S/W (16 wariantów), a ramiona dochodzą do krawędzi kratki, więc dowolny kształt łączy się
