@@ -3,7 +3,7 @@ extends TestCase
 ## treść żądania `finish_attack` i zgodność liczb gry z migracją serwera (`public.end_attack`).
 
 const U := UnitTypes.Unit
-const MIGRATION := "res://supabase/migrations/20261119190000_finish_attack.sql"
+const MIGRATION := "res://supabase/migrations/20261119183238_finish_attack.sql"
 
 
 ## Piechota 5, konnica 10, taran 0; więcej ocalałych daje więcej capacity.
