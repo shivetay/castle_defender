@@ -12,6 +12,8 @@ signal attack_requested
 signal back_requested
 ## Plan albo wybór zmienił się (mapa ma się przerysować, a gra zapisać).
 signal changed(message: String)
+## Sam komunikat dla paska, bez zmiany planu (bez zapisu gry).
+signal hint(message: String)
 
 enum Target { NONE = -1, MANOEUVRE, START, RETREAT, CLEAR, ATTACK, BACK, SQUAD = 100, PICK = 200 }
 const COLUMN: Array[int] = [Target.MANOEUVRE, Target.START, Target.RETREAT, Target.CLEAR, Target.ATTACK, Target.BACK]
@@ -159,7 +161,7 @@ func _input(event: InputEvent) -> void:
 			_drag_index = touch.index
 			planner.drag_end_cell = AttackPlanner.end_cell(o, planner.bot)
 			planner.queue_redraw()
-			changed.emit("Przenieś koniec: upuść na budynek")
+			hint.emit("Przenieś koniec: upuść na budynek")
 		return
 	var was := _pressed
 	_pressed = Target.NONE
