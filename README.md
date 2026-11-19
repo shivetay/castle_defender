@@ -29,8 +29,8 @@ Etap 6 (#128) zaczyna deterministyczna symulacja bitwy z #14 (logika bez renderu
 ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) ustawienia obrony
 z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#100). Trwa etap 9 (#131): backend
-Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22) i synchronizacja zamku
-z obroną (#23); stan i kolejne kroki są
+Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22), synchronizacja zamku
+z obroną (#23) i dobór przeciwnika z ekranem 3 celów (#24); stan i kolejne kroki są
 w sekcji „Następny etap”.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
@@ -277,7 +277,14 @@ w sekcji „Następny etap”.
     i załoga z coraz większej liczby klas (od 4 Chłopów
     do 77 obrońców). Zamki 16–20 to epoka II: bronią ich też Włócznicy, Drużynnicy, Strzelcy z łukiem
     refleksyjnym i Kopijnicy. Liczby tymczasowe.
-  - **Wybór celu (`scripts/ui/bot_picker.gd`):** najpierw zwarta lista odblokowanych zamków (mniej
+  - **Trzy cele (#24, `scripts/ui/target_picker.gd`):** Wyprawa otwiera najpierw 3 karty celów. Karta ma
+    portret władcy, imię gracza, epokę, nazwę zamku, miniaturę zamku 32×32 (teren z seeda i zarys
+    budynków jednym kolorem, bez rodzajów, wojska i pułapek, które odsłoni zwiad z #28), ranking
+    (u bota trudność) i szacowany łup. Graczy dobiera serwer; brakujące karty, a bez sieci wszystkie,
+    zajmują boty: bieżący cel kampanii, potem zdobyte zamki, a nowy gracz dostaje kolejne z listy.
+    Boty otwiera pełną listę 20 zamków (niżej), Planuj plan ataku na bocie. Atak na gracza dojdzie
+    z #25, do tego czasu Planuj na jego karcie mówi „Atak na graczy: wkrótce”.
+  - **Lista botów (`scripts/ui/bot_picker.gd`):** najpierw zwarta lista odblokowanych zamków (mniej
     ekranu); Planuj rozwija siatkę 5×4 z numerami (zdobyte na zielono, epoka II z czerwonym znacznikiem)
     i opisem, kolejne Planuj otwiera plan ataku. Zamek odblokowuje się po zdobyciu poprzedniego.
     Zdobyte można atakować znowu, bo po ataku zamek wraca do pełnego stanu, więc gracz zawsze ma cel.
@@ -376,6 +383,13 @@ w sekcji „Następny etap”.
     (reinstalacja, to samo konto) przywraca zamek, seed terenu i tożsamość z serwera. Wyjątki: „Zacznij
     od nowa” nadpisuje zamek na serwerze, gra sprzed #23 z postępem wysyła swój zamek, a zamku
     zapisanego nowszą wersją gry (`save_version` wyższa niż nasza) klient nie rusza.
+  - **Dobór przeciwnika (#24, `TargetSearch`):** Edge Function `find_targets` bierze id gracza z tokenu
+    i woła `match_targets`: do 3 graczy bez aktywnej tarczy, z epoką ±1 i rankingiem ±100, z zamkiem
+    po onboardingu, których gracz nie atakował w ostatnich 24 h, w losowej kolejności. Funkcję SQL
+    może wykonać tylko serwer (`service_role`), najwyżej 20 razy na 10 minut na gracza (potem 429
+    i same boty z napisem „Za często”). Odpowiedź ma nick, nazwę zamku, władcę, epokę, ranking,
+    seed terenu, zarys budynków i łup szacowany jako 5% zapasów (w dół do dziesiątek). Klient czyści
+    nazwy jak w onboardingu i przycina liczby oraz zarys, bo to dane od innych graczy.
   - **Konfiguracja:** adres i klucz publishable w `config/supabase.json` (poza repo, wzór w
     `config/supabase.example.json`). Działa tylko nowy klucz `sb_publishable_…` (w grze i w CI);
     z kluczem serwera albo dawnym kluczem JWT klient się nie łączy. APK z CI dostaje plik ze zmiennych
@@ -599,7 +613,8 @@ Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a 
 (#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
 backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym kontem (#22) oraz zapis
 `map_seed` i `start_attack` z seedem terenu (#166), onboarding z imieniem gracza, nazwą zamku i domyślnym
-władcą (#228) i synchronizacja zamku z obroną z rewizjami (#23, w kodzie). Konto anonimowe przetrwa
+władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i dobór przeciwnika z ekranem
+3 celów (#24, migracja `match_targets` i funkcja `find_targets` są na projekcie). Konto anonimowe przetrwa
 reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
 zapasowa Androida albo logowanie (np. Google). Następne jest domknięcie ataku (#25). Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie

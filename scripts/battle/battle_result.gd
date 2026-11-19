@@ -101,6 +101,22 @@ func compute_loot(i: int, repeat: bool) -> void:
 		loot.append(amount)
 
 
+## Szacowany łup na karcie celu (#24): wygrana z najmniejszym procentem łupu (WIN_LOOT_PERCENT),
+## bez zniżki za powtórkę. Dla zamku-bota ze skarbca `stash(i)`.
+static func estimate_bot_loot(i: int) -> Array[int]:
+	var r := BattleResult.new()
+	r.won = true
+	r.compute_loot(i, false)
+	return r.loot
+
+
+## Procent zapasów gracza, który karta celu pokazuje jako szacowany łup (#24): niechroniona część
+## × LOOT_PERCENT × WIN_LOOT_PERCENT, czyli 5. Ten sam procent liczy serwer w `match_targets`
+## (migracja `*_match_targets.sql`, znacznik LOOT_ESTIMATE_PERCENT), test pilnuje zgodności.
+static func loot_estimate_percent() -> int:
+	return (100 - PROTECTED_PERCENT) * LOOT_PERCENT * WIN_LOOT_PERCENT / 10000
+
+
 ## Dodaje łup do magazynu gracza. Zwraca, ile faktycznie weszło (pełny magazyn nie przyjmie nadmiaru).
 func apply_loot(economy: Economy) -> Array[int]:
 	var got: Array[int] = []

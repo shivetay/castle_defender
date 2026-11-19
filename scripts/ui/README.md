@@ -14,7 +14,8 @@ Wejście: dotyk (`InputEventScreenTouch` / `ScreenDrag`); mysz tylko przez emula
 | `recruit_panel.gd` | Ekran Wojsko / rekrutacja |
 | `attack_panel.gd` / `attack_planner.gd` | Atak i plan manewrów |
 | `defense_panel.gd` | Ustawienia obrony |
-| `bot_picker.gd` | Wybór celu / bota |
+| `target_picker.gd` | Wyprawa: 3 karty celów, gracze z serwera i boty (#24) |
+| `bot_picker.gd` | Pełna lista 20 zamków-botów (#26) |
 | `result_panel.gd` | Podsumowanie bitwy |
 | `info_popup.gd` / `info_text.gd` | Karty info i teksty |
 | `settings_panel.gd` | Ustawienia (m.in. tryb offline) |
