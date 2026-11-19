@@ -54,4 +54,4 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 
 Epoki III–VI (#93–#96, #103+), sezony i ligi, kampania PvE, osiągnięcia, i18n, zgodność ze sklepem — [[Roadmapa do 1.0]].
 
-Powiązane: [[Koncept gry]], [[Plan MVP]], [[Stan prac]], [[Model wydania]]
+Powiązane: [[Koncept gry]], [[Plan MVP]], [[Stan prac]], [[Bugs]], [[Model wydania]]

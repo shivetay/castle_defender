@@ -15,6 +15,7 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 - [[Widok zamku]]
 - [[Interfejs]]
 - [[Stan prac]] — co jest zrobione, kiedy weszło i co dalej
+- [[Bugs]] — znalezione vs naprawione niedawno (PR / issues)
 - [[Plan MVP]]
 - [[Roadmapa do 1.0]]
 - [[Otwarte pytania]] — pytania do decyzji oraz braki względem planu
