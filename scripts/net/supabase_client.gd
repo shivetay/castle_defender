@@ -58,6 +58,10 @@ var _nickname := ""
 var _can_push := false
 ## Najnowszy stan nie jest jeszcze na serwerze. Gdy żądanie trwa, nowy zapis tylko podmienia dane.
 var _castle_dirty := false
+## Zamek jest na serwerze, ale obrona albo nick nie doszły (błąd po udanym zapisie zamku): ponowić je.
+var _defense_dirty := false
+## Rewizja zamku, który właśnie wraca na telefon; trafia do `sync.json` dopiero po `confirm_restore`.
+var _pull_revision := -1
 ## Konto, dla którego w tej sesji odczytano zamek z serwera (pusty: trzeba odczytać).
 var _checked_user := ""
 ## Rewizja na serwerze, od której idzie następny zapis.
@@ -173,6 +177,22 @@ func sync_castle(map_seed: int, save_version: int, data: Dictionary, defense: Di
 func flush() -> void:
 	_push_wait = 0.0
 	_castle_pump()
+
+
+## Zamek z `castle_restored` leży już w zapisie na telefonie: od teraz telefon zna rewizję serwera.
+func confirm_restore() -> void:
+	if _pull_revision < 0:
+		return
+	sync_state.restore_pending = false
+	_castle_saved(_pull_revision)
+	_pull_revision = -1
+
+
+## Zapis zamku z serwera na telefonie się nie udał. Do końca sesji nic nie wysyłamy, a `restore_pending`
+## zostaje, więc przy następnym starcie zamek znowu spróbuje wrócić zamiast nadpisać serwer.
+func restore_failed() -> void:
+	_pull_revision = -1
+	_castle_hold = true
 
 
 ## „Zacznij od nowa” (#23): następny zapis nadpisuje zamek na serwerze, a nie przywraca starego.
@@ -295,7 +315,7 @@ func handle_castle_rest(call: int, result: int, code: int, body: String) -> void
 ## Kolejny krok synchronizacji, gdy nic nie trwa: odczyt zamku (raz na sesję konta i po konflikcie)
 ## albo zapis, gdy minęła przerwa.
 func _castle_pump() -> void:
-	if _castle_call != CastleCall.NONE or _castle_hold or not _castle_dirty:
+	if _castle_call != CastleCall.NONE or _castle_hold or not (_castle_dirty or _defense_dirty):
 		return
 	if not is_online() or (_rest == null and not fake_transport) or user_id().is_empty():
 		return
@@ -304,7 +324,10 @@ func _castle_pump() -> void:
 		return
 	if _push_wait > 0.0 or not _can_push:
 		return
-	_castle_push()
+	if _castle_dirty:
+		_castle_push()
+	else:
+		_defense_push()
 
 
 func _castle_on_get(row: Dictionary) -> void:
@@ -314,7 +337,9 @@ func _castle_on_get(row: Dictionary) -> void:
 		# zamek zapisała nowsza wersja gry: nie nadpisujemy go do końca sesji
 		_castle_hold = true
 		return
-	var action := CastleSync.decide(_castle_map_seed, sync_state.revision_for(uid), local_fresh,
+	# nieudane przywrócenie z poprzedniej sesji liczy się jak start bez zapisu
+	var fresh := local_fresh or sync_state.restore_pending_for(uid)
+	var action := CastleSync.decide(_castle_map_seed, sync_state.revision_for(uid), fresh,
 			sync_state.force_push, _can_push, row)
 	match action:
 		CastleSync.Action.INSERT:
@@ -327,9 +352,17 @@ func _castle_on_get(row: Dictionary) -> void:
 			_push_wait = 0.0
 			_castle_push()
 		CastleSync.Action.PULL:
+			# rewizja serwera trafi na telefon dopiero razem z zamkiem (confirm_restore); do tego czasu
+			# znacznik restore_pending nie pozwala nadpisać serwera starym zamkiem z telefonu
 			_castle_hold = true
 			_castle_dirty = false
-			_castle_saved(int(row.get("revision", 0)))
+			_defense_dirty = false
+			_pull_revision = int(row.get("revision", 0))
+			if sync_state.player_id != uid:
+				sync_state.player_id = uid
+				sync_state.revision = -1
+			sync_state.restore_pending = true
+			sync_state.save(sync_path)
 			var id := CastleSync.identity_from_row(row)
 			castle_restored.emit(CastleSync.save_from_row(row), id.to_dict() if id != null else {})
 		_:
@@ -342,10 +375,20 @@ func _castle_push() -> void:
 	if _base_revision < 0:
 		_base_revision = sync_state.revision_for(user_id())
 	_castle_dirty = false
+	_defense_dirty = false
 	_capture_sent()
 	_push_wait = PUSH_INTERVAL_S
 	_castle_send(CastleCall.PUSH, HTTPClient.METHOD_PATCH, CastleSync.push_path(user_id(), _base_revision),
 			CastleSync.update_body(_sent_save_version, _sent_data), true)
+
+
+## Ponawia samą obronę i nick (zamek już jest na serwerze), z najnowszego stanu z gry.
+func _defense_push() -> void:
+	_defense_dirty = false
+	_capture_sent()
+	_push_wait = PUSH_INTERVAL_S
+	_castle_send(CastleCall.DEFENSE_PATCH, HTTPClient.METHOD_PATCH, CastleSync.defense_path(user_id()),
+			CastleSync.update_body(_sent_save_version, _sent_defense), true)
 
 
 ## Zamek na serwerze ma rewizję `revision` i jest zgodny z telefonem.
@@ -380,6 +423,9 @@ func _castle_failed(call: int, code: int) -> void:
 		_castle_dirty = true
 	if call == CastleCall.GET or call == CastleCall.INSERT:
 		_checked_user = ""
+	if call == CastleCall.DEFENSE_PATCH or call == CastleCall.DEFENSE_INSERT or call == CastleCall.NICKNAME:
+		# zamek już jest na serwerze, a start_attack kopiuje obronę z defense_layouts: ponowić obronę
+		_defense_dirty = true
 	_failures_castle += 1
 	_push_wait = float(retry_delay(_failures_castle))
 

@@ -419,15 +419,20 @@ func _sync_castle(save: Dictionary) -> void:
 func _on_castle_restored(save: Dictionary, profile: Dictionary) -> void:
 	if SaveGame.from_dict(save, _now_ms()) == null:
 		push_warning("Zamek z serwera jest nieczytelny, zostaje zamek z telefonu")
+		net.restore_failed()
 		return
-	var err := SaveGame.write(SaveGame.PATH, save)
+	# najpierw profil, na końcu zamek: plik zamku zmienia się tylko, gdy wszystko inne już się udało
+	# (seed zamku jest grywalny, więc jako seed gracza daje ten sam teren, first_playable)
+	var err := PlayerProfile.write_seed(PlayerProfile.PATH, int(save["world_seed"]))
+	if err == OK and not profile.is_empty():
+		err = PlayerProfile.write_identity(PlayerProfile.PATH, PlayerProfile.Identity.from_dict(profile))
+	if err == OK:
+		err = SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać zamku z serwera: %s" % error_string(err))
+		net.restore_failed()
 		return
-	# seed zamku jest grywalny, więc jako seed gracza daje ten sam teren (first_playable)
-	PlayerProfile.write_seed(PlayerProfile.PATH, int(save["world_seed"]))
-	if not profile.is_empty():
-		PlayerProfile.write_identity(PlayerProfile.PATH, PlayerProfile.Identity.from_dict(profile))
+	net.confirm_restore()
 	_restored_from_server = true
 	_restoring = true
 	get_tree().reload_current_scene()

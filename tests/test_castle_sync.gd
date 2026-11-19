@@ -175,11 +175,73 @@ func test_fresh_install_restores_castle() -> bool:
 	assert_eq(got.size(), 1, "zamek wraca")
 	assert_eq(int((got[0][0] as Dictionary)["world_seed"]), 4242, "z seedem terenu z serwera")
 	assert_eq((got[0][1] as Dictionary)["player_name"], "Mieszko", "z tożsamością")
-	assert_eq(CastleSync.SyncState.load_from(SYNC_PATH).revision_for(UID), 5, "telefon zna rewizję")
+	var pending := CastleSync.SyncState.load_from(SYNC_PATH)
+	assert_eq(pending.revision_for(UID), -1, "rewizja dopiero po zapisie zamku na telefonie")
+	assert_true(pending.restore_pending_for(UID), "przywracanie w toku")
+	c.confirm_restore()
+	var done := CastleSync.SyncState.load_from(SYNC_PATH)
+	assert_eq(done.revision_for(UID), 5, "telefon zna rewizję")
+	assert_true(not done.restore_pending_for(UID), "przywracanie skończone")
 	var sent := c.sent_requests.size()
 	_sync(c, 2)
 	c.flush()
 	assert_eq(c.sent_requests.size(), sent, "do przeładowania sceny nic nie idzie na serwer")
+	_done(c)
+	return true
+
+
+## Nieudany zapis zamku z serwera na telefonie: przy następnym starcie (już z zapisem lokalnym i starą
+## rewizją) zamek znowu wraca, a stary zamek z telefonu nie nadpisuje serwera.
+func test_failed_restore_does_not_push_over_server() -> bool:
+	var c := _client(3, true)
+	_sync(c, 1)
+	_reply(c, 200, [_row(5)])
+	c.restore_failed()
+	var sent := c.sent_requests.size()
+	_sync(c, 2)
+	c.flush()
+	assert_eq(c.sent_requests.size(), sent, "do końca sesji nic nie idzie")
+	assert_eq(CastleSync.SyncState.load_from(SYNC_PATH).revision_for(UID), 3, "rewizja serwera nieutrwalona")
+	SupabaseSession.clear(SESSION_PATH)
+	c.free()
+	# następny start: zapis lokalny jest (local_fresh false), sync.json zostaje
+	var next := SupabaseClient.new()
+	next.setup(SupabaseConfig.parse(JSON.stringify({
+		"url": "https://abc.supabase.co", "publishable_key": "sb_publishable_test123",
+	})), SESSION_PATH, SYNC_PATH)
+	next.sync_state = CastleSync.SyncState.load_from(SYNC_PATH)
+	next.fake_transport = true
+	next.handle_auth(SupabaseClient.Call.SIGNUP, HTTPRequest.RESULT_SUCCESS, 200, JSON.stringify({
+		"access_token": "t1", "refresh_token": "r1", "expires_in": 3600,
+		"user": {"id": UID, "is_anonymous": true},
+	}))
+	var got: Array = []
+	next.castle_restored.connect(func(save: Dictionary, _p: Dictionary) -> void: got.append(save))
+	_sync(next, 3)
+	_reply(next, 200, [_row(3)])
+	assert_eq(got.size(), 1, "zamek znowu wraca, mimo zgodnej rewizji")
+	assert_eq(int(_last(next)["call"]), SupabaseClient.CastleCall.GET, "bez zapisu na serwer")
+	_done(next)
+	return true
+
+
+## Błąd obrony po udanym zapisie zamku: po przerwie idzie sama obrona (bez nowej rewizji zamku).
+func test_defense_failure_retries_defense() -> bool:
+	var c := _client(5)
+	c.sync_state.nickname = "Mieszko"
+	_sync(c, 1)
+	_reply(c, 200, [_row(5)])
+	_reply(c, 200, [{"revision": 6}])
+	var defense := _last(c)
+	assert_eq(int(defense["call"]), SupabaseClient.CastleCall.DEFENSE_PATCH, "obrona po zamku")
+	c.handle_castle_rest(int(defense["call"]), HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	assert_true(c._defense_dirty, "obrona czeka na ponowienie")
+	assert_true(not c._castle_dirty, "zamek już na serwerze")
+	c._process(float(SupabaseClient.retry_delay(1)) + 0.1)
+	assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.DEFENSE_PATCH, "ponowiona sama obrona")
+	_reply(c, 200, [{"player_id": UID}])
+	assert_true(not c._defense_dirty, "obrona doszła")
+	assert_eq(c._castle_call, SupabaseClient.CastleCall.NONE, "koniec")
 	_done(c)
 	return true
 
@@ -249,6 +311,8 @@ func test_conflict_rereads_and_server_wins() -> bool:
 	assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.GET, "konflikt: ponowny odczyt")
 	_reply(c, 200, [_row(8)])
 	assert_eq(got.size(), 1, "nowszy zamek z serwera wraca na telefon")
+	assert_eq(c.sync_state.revision, 5, "rewizja czeka na zapis zamku na telefonie")
+	c.confirm_restore()
 	assert_eq(c.sync_state.revision, 8, "od jego rewizji")
 	_done(c)
 	return true

@@ -48,11 +48,19 @@ class SyncState:
 	var revision := -1
 	## „Zacznij od nowa”: najbliższy zapis nadpisuje zamek na serwerze bez względu na rewizję.
 	var force_push := false
+	## Zamek z serwera ma wrócić na telefon, ale jeszcze nie leży w zapisie lokalnym (np. zapis się nie
+	## udał). Dopóki tak jest, telefon tylko przywraca, nigdy nie nadpisuje serwera starym zamkiem.
+	var restore_pending := false
 	## Ostatni nick wysłany do `players.nickname` (żeby nie wysyłać go przy każdym zapisie).
 	var nickname := ""
 
 	func to_dict() -> Dictionary:
-		return {"player_id": player_id, "revision": revision, "force_push": force_push, "nickname": nickname}
+		return {"player_id": player_id, "revision": revision, "force_push": force_push,
+				"restore_pending": restore_pending, "nickname": nickname}
+
+	## Czy na konto `user_id` czeka nieskończone przywrócenie zamku.
+	func restore_pending_for(user_id: String) -> bool:
+		return restore_pending and player_id == user_id
 
 	## Rewizja dla konta `user_id`; stan innego konta liczy się jak brak stanu.
 	func revision_for(user_id: String) -> int:
@@ -63,6 +71,7 @@ class SyncState:
 		s.player_id = str(d.get("player_id", ""))
 		s.revision = maxi(-1, int(d.get("revision", -1)))
 		s.force_push = bool(d.get("force_push", false))
+		s.restore_pending = bool(d.get("restore_pending", false))
 		s.nickname = str(d.get("nickname", ""))
 		return s
 
