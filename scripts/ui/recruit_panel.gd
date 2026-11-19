@@ -248,14 +248,25 @@ static func stock_count_text(amount: int) -> String:
 
 
 ## Towary na pasku zapasu, który mieści `cells` komórek: wszystkie towary jednostek w stałej
-## kolejności, a gdy się nie mieszczą, tylko te, których coś leży w zbrojowni.
-static func stock_strip(g: Goods, cells: int) -> Array[int]:
+## kolejności. Gdy się nie mieszczą, miejsce dostają najpierw towary z `missing` (brakujące
+## wybranej jednostce), potem te, które leżą w zbrojowni, a na końcu reszta; wybrane stoją
+## w stałej kolejności GoodsConfig (review #234).
+static func stock_strip(g: Goods, cells: int, missing: Dictionary = {}) -> Array[int]:
 	var all := unit_goods()
 	if all.size() <= cells:
 		return all
+	var picked := {}
+	for tier in 3:
+		for good in all:
+			if picked.size() >= cells:
+				break
+			var stocked := g != null and good < g.amounts.size() and g.amounts[good] > 0
+			var take := missing.has(good) if tier == 0 else (stocked if tier == 1 else true)
+			if take:
+				picked[good] = true
 	var out: Array[int] = []
 	for good in all:
-		if out.size() < cells and g != null and good < g.amounts.size() and g.amounts[good] > 0:
+		if picked.has(good):
 			out.append(good)
 	return out
 
@@ -575,9 +586,9 @@ func _draw_stock(view: Vector2) -> void:
 	if _pressed == Target.STOCK:
 		draw_rect(r, Palette.WOOD[1])
 	var cols := int((r.size.x + 3) / STOCK_CELL_W)
-	var strip := stock_strip(goods, cols * STOCK_ROWS)
-	var cells := stock_cells(r, strip.size())
 	var missing := Recruitment.missing_goods(selected, goods)
+	var strip := stock_strip(goods, cols * STOCK_ROWS, missing)
+	var cells := stock_cells(r, strip.size())
 	for i in cells.size():
 		var good := strip[i]
 		var amount: int = goods.amounts[good] if good < goods.amounts.size() else 0

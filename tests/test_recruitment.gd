@@ -468,8 +468,15 @@ func test_stock_strip_contents() -> bool:
 	var all := RecruitPanel.unit_goods()
 	assert_eq(RecruitPanel.stock_strip(g, 99), all, "miejsce na wszystkie: stała kolejność")
 	assert_true(all.has(G.BOW) and all.has(G.SPEAR) and all.has(G.ARROW), "łuki, włócznie i strzały na pasku")
-	assert_eq(RecruitPanel.stock_strip(g, 4).size(), 0, "mało miejsca i pusta zbrojownia: nic")
+	assert_eq(RecruitPanel.stock_strip(g, 4).size(), 4, "mało miejsca i pusta zbrojownia: pierwsze towary")
 	g.amounts[G.ARROW] = 40
 	g.amounts[G.SPEAR] = 3
-	assert_eq(RecruitPanel.stock_strip(g, 4), [G.SPEAR, G.ARROW] as Array[int], "mało miejsca: tylko towary w zapasie")
+	assert_eq(RecruitPanel.stock_strip(g, 2), [G.SPEAR, G.ARROW] as Array[int], "mało miejsca: najpierw towary w zapasie")
+	var missing := Recruitment.missing_goods(U.ARCHER, g)
+	assert_true(missing.has(G.BOW), "Łucznikowi brakuje łuku")
+	assert_eq(RecruitPanel.stock_strip(g, 2, missing), [G.SPEAR, G.BOW] as Array[int],
+			"mało miejsca: brakujący łuk przed zapasem, w stałej kolejności")
+	var wide := RecruitPanel.stock_strip(g, 4, missing)
+	assert_true(wide.has(G.BOW) and wide.has(G.SPEAR) and wide.has(G.ARROW), "brak, potem zapas, potem reszta")
+	assert_eq(wide.size(), 4, "pasek wypełniony do końca")
 	return true
