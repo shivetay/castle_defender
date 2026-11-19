@@ -4,9 +4,9 @@ extends Node2D
 ## portret władcy, imię gracza, epokę, nazwę zamku, miniaturę zamku (teren i zarys budynków),
 ## ranking (bot: trudność) i szacowany łup. Graczy dobiera serwer (TargetSearch, `find_targets`);
 ## puste miejsca, a bez sieci wszystkie trzy, zajmują zamki-boty. Boty otwiera dotychczasową listę
-## 20 zamków-botów (BotPicker), Planuj plan ataku na wybranym bocie, a Wróć wraca do mapy.
-## Atak na gracza dojdzie z #25 (start i koniec ataku na serwerze), do tego czasu Planuj na karcie
-## gracza tylko o tym mówi. Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
+## 20 zamków-botów (BotPicker), Planuj plan ataku na wybranym celu, a Wróć wraca do mapy.
+## Planuj na karcie gracza zaczyna atak na serwerze (`start_attack`, #240) i otwiera plan na kopii
+## jego zamku. Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
 @warning_ignore_start("integer_division")
 
 signal bot_chosen(index: int)
@@ -25,7 +25,6 @@ const NO_PLAYERS_TEXT := "Brak graczy: boty"
 const PLAN_LABEL := "Planuj"
 const CLOSE_LABEL := "Wróć"
 const BOTS_LABEL := "Boty"
-const PLAYER_LATER := "Atak na graczy: wkrótce"
 const CARD_Y := Hud.BAR_H + 12
 const CARD_GAP := 4
 const CARD_H := 90

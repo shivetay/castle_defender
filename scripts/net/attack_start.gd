@@ -61,3 +61,24 @@ static func parse_response(data: Variant) -> Dictionary:
 ## seeda gracza i potrzebne dla surowego seeda z `bot_castles` (jak `BotCastle.generate`).
 static func terrain_map(map_seed: int) -> TerrainMap:
 	return TerrainMap.generate(WorldSeed.first_playable(map_seed))
+
+
+## Komunikat dla gracza po odmowie `start_attack` (#240), kod z SupabaseClient.edge_error. Teksty
+## mieszczą się w pasku komunikatu (font 8 px, 320 px).
+static func error_message(code: String) -> String:
+	match code:
+		"target_busy":
+			return "Ten zamek ktoś teraz atakuje. Wybierz inny cel"
+		"target_shielded":
+			return "Zamek jest pod tarczą. Wybierz inny cel"
+		"target_recent":
+			return "Ten zamek zaatakujesz znowu dopiero po dobie"
+		"target_out_of_range", "target_not_found":
+			return "Ten cel jest już niedostępny. Szukaj jeszcze raz"
+		"rate_limited":
+			return "Za dużo ataków naraz. Poczekaj chwilę"
+		"army_not_owned", "attacker_no_castle", "attacker_not_found":
+			return "Serwer nie zna jeszcze Twojej armii. Spróbuj za chwilę"
+		SupabaseClient.NETWORK_ERROR:
+			return "Brak połączenia z serwerem. Spróbuj później"
+	return "Serwer nie przyjął ataku. Spróbuj później"

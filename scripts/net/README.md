@@ -15,4 +15,5 @@ Klient sieciowy PvP (Supabase). W kliencie **tylko** klucz publishable/`anon` �
 | `target_search.gd` | Dobór przeciwnika (#24): odpowiedź `find_targets`, czyszczenie danych, uzupełnianie botami do 3 celów |
 
 Backend: `supabase/` (migracje, RLS, Edge Functions). Skille: `supabase-security`, `pvp-anti-cheat`, `user-data-privacy`.
-Testy: `tests/test_supabase_client.gd`, `test_castle_sync.gd`, `test_attack_start.gd`, `test_attack_finish.gd`, `test_target_search.gd`.
+Atak na gracza (#240): `SupabaseClient.start_attack` / `finish_attack`, cel z kopii w `scripts/battle/player_castle.gd`.
+Testy: `tests/test_supabase_client.gd`, `test_player_castle.gd`, `test_castle_sync.gd`, `test_attack_start.gd`, `test_attack_finish.gd`, `test_target_search.gd`.
