@@ -29,7 +29,8 @@ Etap 6 (#128) zaczyna deterministyczna symulacja bitwy z #14 (logika bez renderu
 ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) ustawienia obrony
 z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#100). Trwa etap 9 (#131): backend
-Supabase i PvP, czyli schemat bazy z RLS (#21) i anonimowe konto gracza (#22); stan i kolejne kroki są
+Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22) i synchronizacja zamku
+z obroną (#23); stan i kolejne kroki są
 w sekcji „Następny etap”.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
@@ -121,8 +122,8 @@ w sekcji „Następny etap”.
   (`scripts/gfx/portrait_art.gd`, `PortraitArt`: wzór w kodzie, złoty pierścień, tekstura w cache).
   Dotknięcie portretu otwiera okienko z graczem, zamkiem i premiami władcy. Skóra portretu to
   `Palette.SKIN` w kolorach UI.
-  Bez tożsamości zamek nie idzie na serwer, a `PlayerProfile.sync_fields` przygotowuje pola do wysyłki
-  przy synchronizacji (#23). Powrót tożsamości po reinstalacji zależy od odtworzenia konta i zamku z #23.
+  Bez tożsamości zamek nie idzie na serwer. Z synchronizacją (#23) imię trafia do `players.nickname`,
+  a cała tożsamość do `castles.data.profile`, więc wraca razem z zamkiem.
 - `scripts/world/tech_tree.gd` (`TechTree`): 34 technologie MVP z notatki Drzewko technologiczne
   (`docs/castle-defender-vault/`) w gałęziach Atak (19), Obrona (3), Gospodarka (9), Użyteczne (1)
   i Specjalne (2). Każda ma epokę, efekt, znacznik technologii kluczowej ★ (O1 dla I → II, G6 dla II → III)
@@ -360,10 +361,21 @@ w sekcji „Następny etap”.
   (`/auth/v1/signup`), trzyma sesję w `user://session.json` i odświeża token przed wygaśnięciem.
   - **Offline:** bez sieci gra działa jak dotąd, a klient ponawia próby co 5 s, 15 s, 30 s… do 5 min.
     Odrzucony token odświeżania oznacza nowe konto (anonimowego nie da się odzyskać).
-    „Zacznij od nowa” zostawia konto (ten sam gracz); pełna synchronizacja zamku to #23.
-  - **Seed mapy (#166):** po ONLINE klient zapisuje `castles.map_seed` (INSERT przy pierwszym
-    zamku; kolejne zapisy zmieniają tylko `data`). Edge Function `start_attack` zwraca `map_seed`
+    „Zacznij od nowa” zostawia konto (ten sam gracz), a nowy zamek nadpisuje stary na serwerze.
+  - **Seed mapy (#166):** pierwszy zapis zakłada `castles` z `map_seed` (INSERT); kolejne zmieniają
+    tylko `save_version` i `data`. Edge Function `start_attack` zwraca `map_seed`
     obrońcy osobno od `battle_seed`; atakujący buduje teren z `AttackStart.terrain_map`.
+  - **Synchronizacja zamku (#23, `CastleSync`):** zamek (budynki, ekonomia, kolejka, badania, towary,
+    armia, plan ataku, tożsamość w `profile`) idzie do `castles.data`, a układ obrony (zadania, pułapki,
+    priorytet wież) także do `defense_layouts`, z którego `start_attack` robi kopię. Przy połączeniu klient
+    raz czyta swój zamek, potem zapisuje najwyżej co 15 s (przy wyjściu z gry od razu) z filtrem
+    `revision=eq.<znana rewizja>`; rewizję zna telefon z `user://sync.json`.
+  - **Konflikty:** zapis, który nie trafił w wiersz (ktoś zapisał w międzyczasie), czyta zamek od nowa.
+    Serwer wygrywa, gdy ma nowszą rewizję niż ta, od której zaczął stan na telefonie (kopia zapasowa,
+    drugi telefon); wtedy zamek wraca na telefon i scena wczytuje się od nowa. Start bez zapisu
+    (reinstalacja, to samo konto) przywraca zamek, seed terenu i tożsamość z serwera. Wyjątki: „Zacznij
+    od nowa” nadpisuje zamek na serwerze, gra sprzed #23 z postępem wysyła swój zamek, a zamku
+    zapisanego nowszą wersją gry (`save_version` wyższa niż nasza) klient nie rusza.
   - **Konfiguracja:** adres i klucz publishable w `config/supabase.json` (poza repo, wzór w
     `config/supabase.example.json`). Działa tylko nowy klucz `sb_publishable_…` (w grze i w CI);
     z kluczem serwera albo dawnym kluczem JWT klient się nie łączy. APK z CI dostaje plik ze zmiennych
@@ -586,8 +598,9 @@ Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#
 Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
 (#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
 backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym kontem (#22) oraz zapis
-`map_seed` i `start_attack` z seedem terenu (#166); następna jest pełna synchronizacja zamku (#23)
-i domknięcie ataku (#25). Przed #23 jest onboarding z imieniem gracza, nazwą zamku i domyślnym
-władcą (#228, w kodzie). Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
+`map_seed` i `start_attack` z seedem terenu (#166), onboarding z imieniem gracza, nazwą zamku i domyślnym
+władcą (#228) i synchronizacja zamku z obroną z rewizjami (#23, w kodzie). Konto anonimowe przetrwa
+reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
+zapasowa Androida albo logowanie (np. Google). Następne jest domknięcie ataku (#25). Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij).

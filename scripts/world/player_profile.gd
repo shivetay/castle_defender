@@ -153,8 +153,9 @@ static func write_identity(path: String, id: Identity) -> Error:
 	return _write(path, {"identity": clean.to_dict()})
 
 
-## Tożsamość do wysłania przy synchronizacji (#23): `nickname` to kolumna `players.nickname`,
-## reszta trafi tam, gdzie ustali schemat #23. Żadnych innych danych o graczu.
+## Tożsamość na serwerze (#23): `nickname` to kolumna `players.nickname`, a cała tożsamość jedzie też
+## w `castles.data.profile` (`CastleSync.castle_data`), żeby wróciła po reinstalacji. Żadnych innych
+## danych o graczu.
 static func sync_fields(id: Identity) -> Dictionary:
 	return {"nickname": id.player_name, "castle_name": id.castle_name, "ruler": id.ruler}
 

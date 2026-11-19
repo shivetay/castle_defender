@@ -9,7 +9,7 @@ Klient sieciowy PvP (Supabase). W kliencie **tylko** klucz publishable/`anon` �
 | `supabase_config.gd` | Odczyt `config/supabase.json` (wzór: `config/supabase.example.json`) |
 | `supabase_client.gd` | HTTP / REST do API |
 | `supabase_session.gd` | Sesja anonimowa, tryb offline |
-| `castle_sync.gd` | Synchronizacja stanu zamku |
+| `castle_sync.gd` | Synchronizacja zamku i obrony (#23): treści żądań, rewizje, decyzja INSERT/PUSH/PULL |
 | `attack_start.gd` | Start ataku (seed mapy itd.) |
 
 Backend: `supabase/` (migracje, RLS, Edge Functions). Skille: `supabase-security`, `pvp-anti-cheat`, `user-data-privacy`.
