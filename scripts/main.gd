@@ -4,7 +4,7 @@ extends Node2D
 ## Tryb oglądania: dotknięcie budynku otwiera kartę z przyciskami Ulepsz, Rozbierz (albo Anuluj
 ## dla zlecenia w kolejce) i Zamknij, z kosztem ulepszenia. Przycisk Buduj otwiera panel budowy
 ## (BuildPanel), a Postaw włącza tryb budowy wybranego budynku: dotknięcie wolnej trawy zleca budowę (koszt schodzi od razu, na kratkach staje plac budowy,
-## budynek powstaje po czasie z BuildConfig); Zmień wraca do panelu, Gotowe do oglądania. Surowce i budowa
+## budynek powstaje po czasie z BuildConfig); Zmień wraca do panelu, Gotowe i Anuluj do oglądania. Surowce i budowa
 ## idą dalej, gdy gra jest w tle albo zamknięta; po powrocie komunikat podaje, ile przybyło.
 ## Przycisk Wojsko otwiera ekran rekrutacji wszystkich jednostek, a Szkol na karcie budynku rekrutacji
 ## ten sam ekran tylko z jednostkami tego budynku (RecruitPanel).

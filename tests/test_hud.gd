@@ -17,7 +17,7 @@ func test_touch_targets_are_big_enough() -> bool:
 	assert_true(Hud.BUTTON_SIZE.y >= 12 and Hud.BUTTON_SIZE.x >= 12, "cel ≥ 12×12 px")
 	assert_true(Hud.BUTTON_SIZE.y < 22, "mniejszy niż dawne 56×22")
 	for label: String in [Hud.BUILD_LABEL, Hud.RESEARCH_LABEL, Hud.ARMY_LABEL, Hud.SIEGE_LABEL, Hud.ATTACK_LABEL, Hud.DEFENCE_LABEL, Hud.DONE_LABEL,
-			Hud.CHANGE_LABEL, "Zamknij", "Rozbierz", "Ulepsz", "Postaw", "Szkol", "Badaj"]:
+			Hud.CHANGE_LABEL, Hud.CANCEL_LABEL, "Zamknij", "Rozbierz", "Ulepsz", "Postaw", "Szkol", "Badaj"]:
 		assert_true(PixelFont.text_width(label) <= Hud.BUTTON_SIZE.x - 2, "„%s” mieści się na przycisku" % label)
 	return true
 
@@ -37,7 +37,7 @@ func test_column_buttons_stack_on_the_right() -> bool:
 					assert_true(r.position.y > Hud.column_rect(b.y, i - 1, Hud.uses_icons(building)).end.y, "od góry, bez nakładania")
 	assert_eq(Hud.column_targets(false), [T.BUILD, T.RESEARCH, T.ARMY, T.DEFENCE, T.QUEUE, T.SETTINGS] as Array[int],
 			"oglądanie: kolejność")
-	assert_eq(Hud.column_targets(true), [T.DONE, T.CHANGE] as Array[int], "budowa: Gotowe i Zmień")
+	assert_eq(Hud.column_targets(true), [T.DONE, T.CHANGE, T.CANCEL] as Array[int], "budowa: Gotowe, Zmień i Anuluj")
 	return true
 
 
@@ -46,15 +46,17 @@ func test_targets_follow_mode() -> bool:
 	# środki wąskich przycisków z ikonami leżą też na szerokich przyciskach trybu budowy
 	var first := Hud.column_rect(b.y, 0, true).get_center()
 	var second := Hud.column_rect(b.y, 1, true).get_center()
+	var third := Hud.column_rect(b.y, 2, true).get_center()
 	var fourth := Hud.column_rect(b.y, 3, true).get_center()
 	assert_eq(Hud.target_at(first, VIEW, b.y, false, false), T.BUILD, "oglądanie: Buduj na górze")
 	assert_eq(Hud.target_at(second, VIEW, b.y, false, false), T.RESEARCH, "oglądanie: Badania")
-	assert_eq(Hud.target_at(Hud.column_rect(b.y, 2, true).get_center(), VIEW, b.y, false, false), T.ARMY, "oglądanie: Wojsko")
+	assert_eq(Hud.target_at(third, VIEW, b.y, false, false), T.ARMY, "oglądanie: Wojsko")
 	assert_eq(Hud.target_at(fourth, VIEW, b.y, false, false), T.DEFENCE, "oglądanie: Obrona (#19)")
 	assert_eq(Hud.target_at(Hud.column_rect(b.y, 4, true).get_center(), VIEW, b.y, false, false), T.QUEUE, "oglądanie: Kolejka")
 	assert_eq(Hud.target_at(first, VIEW, b.y, true, false), T.DONE, "budowa: w tym samym miejscu Gotowe")
 	assert_eq(Hud.target_at(second, VIEW, b.y, true, false), T.CHANGE, "budowa: Zmień")
-	assert_eq(Hud.target_at(fourth, VIEW, b.y, true, false), T.NONE, "budowa: tylko dwa przyciski")
+	assert_eq(Hud.target_at(third, VIEW, b.y, true, false), T.CANCEL, "budowa: Anuluj")
+	assert_eq(Hud.target_at(fourth, VIEW, b.y, true, false), T.NONE, "budowa: tylko trzy przyciski")
 	assert_eq(Hud.target_at(Vector2(160, 90), VIEW, b.y, true, false), T.NONE, "mapa to nie przycisk")
 	var card := Hud.card_rects(VIEW)
 	assert_eq(Hud.target_at(card[1].get_center(), VIEW, b.y, false, true), T.CARD + 1, "karta: środkowy przycisk")
