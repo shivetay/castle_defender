@@ -30,7 +30,7 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) ustawienia obrony
 z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#100). Trwa etap 9 (#131): backend
 Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22), synchronizacja zamku
-z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25) i atak na gracza w kliencie (#240); stan i kolejne kroki są
+z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25), atak na gracza w kliencie (#240) i ranking PvP ataku i obrony (#27); stan i kolejne kroki są
 w sekcji „Następny etap”.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
@@ -394,6 +394,16 @@ w sekcji „Następny etap”.
     i same boty z napisem „Za często”). Odpowiedź ma nick, nazwę zamku, władcę, epokę, ranking,
     seed terenu, zarys budynków i łup szacowany jako 5% zapasów (w dół do dziesiątek). Klient czyści
     nazwy jak w onboardingu i przycina liczby oraz zarys, bo to dane od innych graczy.
+  - **Ranking PvP (#27, `RankingBoard`, ekran `scripts/ui/ranking_panel.gd`):** dwa osobne rankingi,
+    ataku i obrony, w puli tej samej epoki. Punkty to Elo (start 1000, K = 32): bitwa to pojedynek
+    rankingu ataku atakującego z rankingiem obrony obrońcy, atakujący dostaje +d, obrońca -d. Odparty
+    atak podnosi więc ranking obrony, a porzucony atak (wygasły albo przerwany nowym startem) liczy się
+    jak odparty. Ataki na boty rankingu nie zmieniają. Punkty zmienia tylko wyzwalacz w bazie przy
+    zakończeniu ataku (`attacks` ze `started` do `finished`/`abandoned`), raz na bitwę; klient nie ma
+    prawa do tych kolumn. Edge Function `ranking` (id z tokenu) zwraca 20 najlepszych z epoki gracza
+    i jego własny wiersz: miejsce, nick, nazwę zamku, władcę i punkty, bez id innych graczy. W tabeli
+    są tylko gracze z co najmniej jedną bitwą PvP w danej roli. Ranking otwiera przycisk na karcie
+    Strażnicy: przełącznik Atak / Obrona, wiersz z portretem, przewijanie przeciąganiem o całe wiersze.
   - **Konfiguracja:** adres i klucz publishable w `config/supabase.json` (poza repo, wzór w
     `config/supabase.example.json`). Działa tylko nowy klucz `sb_publishable_…` (w grze i w CI);
     z kluczem serwera albo dawnym kluczem JWT klient się nie łączy. APK z CI dostaje plik ze zmiennych
@@ -410,7 +420,7 @@ w sekcji „Następny etap”.
     zamek daje połowę. Łup wchodzi do magazynu do jego pojemności. Liczby tymczasowe.
   - **Okno wyniku:** tytuł, gwiazdki, procent, spełnione warunki, łup, polegli i odblokowany zamek.
   - **Odbudowa:** bitwa działa na kopii budynków, więc zamek obrońcy po bitwie jest w pełnym stanie.
-    Ranking (#27) i tarcza obrońcy (#25) dojdą z PvP.
+    Ranking PvP (#27) i tarcza obrońcy (#25) są na serwerze.
 - Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
   - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
   - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
@@ -623,6 +633,6 @@ backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym konte
 władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i dobór przeciwnika z ekranem
 3 celów (#24, migracja `match_targets` i funkcja `find_targets` są na projekcie). Konto anonimowe przetrwa
 reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
-zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
+zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Ranking PvP (#27) ma osobne tabele ataku i obrony w epoce gracza (Elo, punkty zmienia tylko serwer po bitwie); migracja `pvp_ranking` i funkcja `ranking` czekają na wgranie na projekt, a dobór przeciwnika nadal używa wspólnego `rating` (przejście na ranking ataku i obrony to decyzja właścicielki). Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu.
