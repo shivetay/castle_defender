@@ -94,6 +94,16 @@ static func draw_class(ci: CanvasItem, pos: Vector2, unit_class: int) -> void:
 	ci.draw_texture_rect_region(_class_atlas, Rect2(pos.floor(), Vector2(SIZE, SIZE)), region)
 
 
+## Ikona klasy na ciemnym tle SIZE+2 (Wojsko, pasek planu ataku/obrony, odznaka bitwy):
+## bez tego brązowa tarcza (WOOD[1]) znika na drewnianym kafelku UI.
+static func draw_class_badge(ci: CanvasItem, pos: Vector2, unit_class: int) -> void:
+	if not class_region(unit_class).has_area():
+		return
+	var at := pos.floor()
+	ci.draw_rect(Rect2(at - Vector2.ONE, Vector2(SIZE + 2, SIZE + 2)), Palette.SHADOW)
+	draw_class(ci, at, unit_class)
+
+
 ## Rysuje ikonę `i` z MENU lewym górnym rogiem w `pos`.
 static func draw_menu(ci: CanvasItem, pos: Vector2, i: int) -> void:
 	if _menu_atlas == null:

@@ -113,6 +113,44 @@ func test_class_icons() -> bool:
 	return true
 
 
+## Pasek planu ataku/obrony to drewniane kafelki (WOOD[1]): bez ciemnego tła tarcza ciężkiej
+## (też WOOD[1]) zostawia prawie samo umbo i „znika”. Badge jak na Wojsku trzyma klasy czytelne.
+func test_class_badges_readable_on_wood_tile() -> bool:
+	var atlas := PixelIcons.make_atlas(PixelIcons.CLASSES)
+	var badged := {}
+	var pad := PixelIcons.SIZE + 2
+	var heavy := RecruitmentConfig.UnitClass.HEAVY
+	var heavy_icon := atlas.get_region(Rect2i(heavy * PixelIcons.SIZE, 0, PixelIcons.SIZE, PixelIcons.SIZE))
+	var heavy_bare := 0
+	for y in PixelIcons.SIZE:
+		for x in PixelIcons.SIZE:
+			var c := heavy_icon.get_pixel(x, y)
+			if c.a > 0.0 and c != Palette.WOOD[1]:
+				heavy_bare += 1
+	assert_true(heavy_bare < 5, "ciężka bez tła: prawie niewidoczna na WOOD[1]")
+	for i in PixelIcons.CLASSES.size():
+		var icon := atlas.get_region(Rect2i(i * PixelIcons.SIZE, 0, PixelIcons.SIZE, PixelIcons.SIZE))
+		var badge := Image.create(pad, pad, false, Image.FORMAT_RGBA8)
+		badge.fill(Palette.WOOD[1])
+		for y in pad:
+			for x in pad:
+				badge.set_pixel(x, y, Palette.SHADOW)
+		for y in PixelIcons.SIZE:
+			for x in PixelIcons.SIZE:
+				var c2 := icon.get_pixel(x, y)
+				if c2.a > 0.0:
+					badge.set_pixel(x + 1, y + 1, c2)
+		badged[badge.get_data()] = true
+		var visible := 0
+		for y2 in pad:
+			for x2 in pad:
+				if badge.get_pixel(x2, y2) != Palette.WOOD[1]:
+					visible += 1
+		assert_true(visible >= 10, "klasa %d widoczna na drewnie z badge" % i)
+	assert_eq(badged.size(), PixelIcons.CLASSES.size(), "z badge każda klasa inna na drewnie")
+	return true
+
+
 ## Review PR 146: inżynieria nie ma ikony klasy, więc draw_class() dla -1 nic nie rysuje
 ## zamiast brać zły fragment atlasu.
 func test_engineering_has_no_class_icon() -> bool:

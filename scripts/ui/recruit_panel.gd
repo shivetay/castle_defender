@@ -504,9 +504,7 @@ func _draw_tile(r: Rect2, unit: int, active: bool) -> void:
 	var icon_y := r.position.y + floorf((r.size.y - PixelIcons.SIZE) / 2.0)
 	var unit_class := UnitTypes.unit_class(unit)
 	if unit_class >= 0:
-		# ciemne tło pod ikoną, żeby brązowa tarcza nie znikała na drewnianym kafelku
-		draw_rect(Rect2(r.position.x + 1, icon_y - 1, PixelIcons.SIZE + 2, PixelIcons.SIZE + 2), Palette.SHADOW)
-		PixelIcons.draw_class(self, Vector2(r.position.x + 2, icon_y), unit_class)
+		PixelIcons.draw_class_badge(self, Vector2(r.position.x + 2, icon_y), unit_class)
 	var text_y := r.position.y + floorf((r.size.y - PixelFont.LINE) / 2.0)
 	PixelFont.draw_text(self, Vector2(r.position.x + 9, text_y), UnitTypes.SHORT_NAMES[unit], col)
 	var count := "%d" % recruitment.army_of(unit)
