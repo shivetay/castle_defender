@@ -143,20 +143,22 @@ static func end_cell(o: AttackPlan.Order, b: BotCastle) -> Vector2i:
 	return AttackPlan.NO_TARGET
 
 
-## Czy `world` (piksele świata) trafia w uchwyt końca strzałki rozkazu (cel dotyku 12×12).
-static func hit_end(o: AttackPlan.Order, b: BotCastle, world: Vector2) -> bool:
+## Czy `world` (piksele świata) trafia w uchwyt końca strzałki rozkazu. `half` to połowa celu
+## dotyku w pikselach świata (przy zoomie innym niż 1× panel przelicza END_HIT, żeby na ekranie
+## było zawsze co najmniej 12×12 px logicznych).
+static func hit_end(o: AttackPlan.Order, b: BotCastle, world: Vector2, half: float = END_HIT) -> bool:
 	var end := end_cell(o, b)
 	if end == AttackPlan.NO_TARGET:
 		return false
-	var c := cell_center_px(end)
-	return absi(int(world.x) - c.x) <= END_HIT and absi(int(world.y) - c.y) <= END_HIT
+	var d := (world - Vector2(cell_center_px(end))).abs()
+	return d.x <= half and d.y <= half
 
 
 ## Ustawia koniec trasy na budynek w kratce `cell` (przeciągnięcie uchwytu). Trawa i woda
 ## nie zmieniają celu. Zwraca komunikat dla paska.
 static func set_end(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> String:
 	if not grid.terrain.in_bounds(cell):
-		return HINT
+		return "Koniec trasy: wskaż budynek"
 	var id := grid.building_at(cell)
 	if id == 0:
 		return "Koniec trasy: wskaż budynek"

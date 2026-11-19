@@ -109,6 +109,10 @@ func test_end_point_can_be_repositioned() -> bool:
 	assert_eq(keep, bot.grid.buildings[bot.objective].get_center(), "start: donżon")
 	assert_true(AttackPlanner.hit_end(o, bot, Vector2(AttackPlanner.cell_center_px(keep))), "uchwyt na donżonie")
 	assert_true(not AttackPlanner.hit_end(o, bot, Vector2(AttackPlanner.cell_center_px(bot.spawn))), "wejście to nie koniec")
+	# przy 0,5× uchwyt ma 24×24 px świata, czyli nadal 12×12 px na ekranie
+	var off := Vector2(AttackPlanner.cell_center_px(keep)) + Vector2(10, -10)
+	assert_true(not AttackPlanner.hit_end(o, bot, off), "1×: poza uchwytem")
+	assert_true(AttackPlanner.hit_end(o, bot, off, AttackPlanner.END_HIT / PanZoomCamera.scale_of(50)), "0,5×: w uchwycie")
 	var gate_cell := Vector2i(-1, -1)
 	for id: int in bot.grid.kinds:
 		if bot.grid.kinds[id] == K.GATE:

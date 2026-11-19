@@ -33,6 +33,8 @@ var picking := false
 var _swallow_release := false
 ## Przeciąganie uchwytu końca strzałki wybranego oddziału (nie rusza kamery).
 var _drag_end := false
+## Palec, który trzyma uchwyt; dotknięcia innych palców w trakcie są połykane.
+var _drag_index := -1
 
 
 func _ready() -> void:
@@ -44,6 +46,7 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_VISIBILITY_CHANGED:
 		picking = false
 		_drag_end = false
+		_drag_index = -1
 		if planner != null:
 			planner.drag_end_cell = AttackPlan.NO_TARGET
 
@@ -100,15 +103,18 @@ func _input(event: InputEvent) -> void:
 	if not visible or planner == null:
 		return
 	if _drag_end and event is InputEventScreenDrag:
+		# drugi palec nie rusza kamery ani podglądu, dopóki uchwyt jest trzymany
 		get_viewport().set_input_as_handled()
-		_move_end_preview((event as InputEventScreenDrag).position)
+		var drag := event as InputEventScreenDrag
+		if drag.index == _drag_index:
+			_move_end_preview(drag.position)
 		return
 	var touch := event as InputEventScreenTouch
 	if touch == null:
 		return
 	if _drag_end:
 		get_viewport().set_input_as_handled()
-		if not touch.pressed:
+		if not touch.pressed and touch.index == _drag_index:
 			_finish_end_drag(touch.position)
 		return
 	if picking and list_rect(content_left, content_right).has_point(touch.position):
@@ -147,9 +153,10 @@ func _input(event: InputEvent) -> void:
 			return
 		# mapa: uchwyt końca strzałki zamiast kamery / punktu trasy
 		var o := planner.order()
-		if o != null and AttackPlanner.hit_end(o, planner.bot, _world_of(touch.position)):
+		if o != null and AttackPlanner.hit_end(o, planner.bot, _world_of(touch.position), _end_hit_world()):
 			get_viewport().set_input_as_handled()
 			_drag_end = true
+			_drag_index = touch.index
 			planner.drag_end_cell = AttackPlanner.end_cell(o, planner.bot)
 			planner.queue_redraw()
 			changed.emit("Przenieś koniec: upuść na budynek")
@@ -161,6 +168,13 @@ func _input(event: InputEvent) -> void:
 	get_viewport().set_input_as_handled()
 	if t == was:
 		activate(was)
+
+
+## Połowa celu dotyku uchwytu w pikselach świata: na ekranie zawsze co najmniej 12×12 px
+## logicznych, także przy oddaleniu 0,5×.
+func _end_hit_world() -> float:
+	var cam := get_viewport().get_camera_2d() as PanZoomCamera
+	return AttackPlanner.END_HIT / PanZoomCamera.scale_of(cam.zoom_level) if cam != null else float(AttackPlanner.END_HIT)
 
 
 ## Piksel świata pod punktem ekranu (kamera planu; bez kamery: sam punkt).
@@ -177,6 +191,7 @@ func _move_end_preview(screen: Vector2) -> void:
 
 func _finish_end_drag(screen: Vector2) -> void:
 	_drag_end = false
+	_drag_index = -1
 	planner.drag_end_cell = AttackPlan.NO_TARGET
 	var o := planner.order()
 	if o == null or planner.bot == null:
