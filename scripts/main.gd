@@ -32,6 +32,12 @@ const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 ## Linia karty Strażnicy (#177): jeden poziom, więc zamiast kosztu ulepszenia krótki opis.
 const WATCHTOWER_INFO := "Fale i wyprawy na boty"
+## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
+const SEAL_HOUSE_INFO := "Sprawdź szczelność umocnień"
+## Karta Komendy, gdy gracz wskazał lukę (#199).
+const SEAL_SELECTED_INFO := "Wybrana luka: Domknij ją"
+## Zapas w px przy dotknięciu czerwonej luki (kratka ma 8 px, cel dotyku co najmniej 12 px).
+const SEAL_TAP_TOLERANCE := 3.0
 ## Podgląd bitwy w wersji debug (#15): godot --path . -- --battle-preview. Bitwę z gry uruchomi #16.
 const BATTLE_PREVIEW_ARG := "--battle-preview"
 
@@ -79,6 +85,8 @@ var info_popup: InfoPopup
 ## Ustawienia obrony (#19): posterunki załogi i panel edycji (widoczny w trybie edycji obrony).
 var defense := DefensePlan.new()
 var defense_panel: DefensePanel
+## Sprawdzanie szczelności z Komendy umocnień (#199).
+var seal_check := SealCheck.new()
 ## Czy trwająca bitwa to atak (inaczej fala PvE).
 var _attacking := false
 
@@ -107,6 +115,7 @@ func _ready() -> void:
 		bots_beaten = saved.bots_beaten
 		attack_target = saved.attack_target
 		defense = saved.defense
+		seal_check = saved.seal
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -162,6 +171,8 @@ func _ready() -> void:
 	hud.attack_pressed.connect(_on_attack_pressed)
 	hud.defence_pressed.connect(_on_defence_pressed)
 	hud.queue_pressed.connect(_on_queue_opened)
+	hud.check_pressed.connect(_on_check_pressed)
+	hud.seal_pressed.connect(_on_seal_pressed)
 
 	attack_panel = AttackPanel.new()
 	attack_panel.planner = planner
@@ -347,7 +358,7 @@ func _save() -> void:
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
 	var save := SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten, defense, attack_target)
+			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check)
 	var err := SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
@@ -359,7 +370,7 @@ func _on_net_state(st: int) -> void:
 	settings_panel.net_state = st
 	if st == SupabaseClient.State.ONLINE:
 		_sync_castle(SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-				pve_cleared, attack_plan, bots_beaten, defense, attack_target))
+				pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check))
 
 
 ## Zapis `castles.map_seed` + stanu zamku, gdy jest sesja (#166 / część #23).
@@ -396,6 +407,20 @@ func _tick() -> void:
 		hud.message = "Wyszkolono: %s" % UnitTypes.unit_name(unit)
 	if not trained.is_empty():
 		_save()
+	var checked := false
+	if _has_ready_seal_house():
+		checked = seal_check.update(now, grid)
+		if checked:
+			seal_check.prune(grid)
+			if seal_check.gaps.is_empty():
+				hud.message = "Obrona szczelna"
+			else:
+				hud.message = "Wykryte luki: %d, dotknij luki" % seal_check.gaps.size()
+			_save()
+		elif seal_check.revealed:
+			seal_check.prune(grid)
+	elif seal_check.revealed or seal_check.is_busy():
+		seal_check.clear()
 	hud.queue_text = ""
 	hud.queue_count = queue.orders.size() + recruitment.orders.size()
 	hud.goal_text = TutorialGoals.text(pve_cleared, grid, research, recruitment)
@@ -405,11 +430,16 @@ func _tick() -> void:
 		hud.queue_text = Hud.format_time(queue.remaining_ms(queue.orders[0].building_id, now))
 		if queue.orders.size() > 1:
 			hud.queue_text += " +%d" % (queue.orders.size() - 1)
-	if not done.is_empty():
-		_save()
+	if not done.is_empty() or checked:
+		if not done.is_empty():
+			_save()
 		if _selected_id != 0:
 			_refresh_card()
 		queue_redraw()
+	elif seal_check.is_busy() and _selected_id != 0 \
+			and int(grid.kinds.get(_selected_id, -1)) == BuildingTypes.Kind.SEAL_HOUSE:
+		# odliczanie Sprawdź na karcie Komendy; mapa się nie zmienia
+		_refresh_card()
 
 
 ## Dotknięcie mapy. W trybie oglądania zaznacza budynek (albo zamyka kartę), w trybie budowy
@@ -427,6 +457,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 	var cell := Vector2i((world_pos / TerrainMap.CELL).floor())
 	var id := grid.building_at(cell)
 	if not hud.building:
+		if _try_select_gap(world_pos):
+			return
 		if id != 0:
 			_select(id)
 		elif _selected_id != 0:
@@ -968,13 +1000,33 @@ func _refresh_card() -> void:
 	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
+	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
+	hud.card_check_disabled = seal_check.is_busy()
+	hud.card_seal_disabled = not seal_check.has_selection()
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
+	if hud.card_seal and not pending:
+		hud.card_info = seal_card_info(seal_check, _now_ms())
+		hud.card_info_missing = PackedStringArray()
+	else:
+		hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, BuildingTypes.MAX_LEVEL) \
+				else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
 	hud.card_needs = upgrade_needs(kind, level, grid.manor_level(), pending)
 	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending)
-	hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, BuildingTypes.MAX_LEVEL) \
-			else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
+
+
+## Linia karty Komendy umocnień (#199): odliczanie Sprawdź, wynik albo zachęta do sprawdzenia.
+static func seal_card_info(check: SealCheck, now_ms: int) -> String:
+	if check.is_busy():
+		return "Sprawdzanie: %s" % Hud.format_time(check.remaining_ms(now_ms))
+	if check.revealed:
+		if check.gaps.is_empty():
+			return "Obrona szczelna"
+		if check.has_selection():
+			return SEAL_SELECTED_INFO
+		return "Luki: %d, dotknij luki na mapie" % check.gaps.size()
+	return SEAL_HOUSE_INFO
 
 
 ## Opis karty z kosztem ulepszenia, np. „Ulepsz: 180 Dr 60 Ka 60 Ży, 3:00”. Wymagania są osobno
@@ -1020,6 +1072,59 @@ func _on_upgrade() -> void:
 	_refresh_card()
 
 
+## Sprawdź szczelność z Komendy umocnień (#199): ~1 min odliczania, potem czerwone luki.
+func _on_check_pressed() -> void:
+	_tick()
+	if not grid.buildings.has(_selected_id) or grid.kinds[_selected_id] != BuildingTypes.Kind.SEAL_HOUSE \
+			or grid.levels[_selected_id] < 1:
+		hud.message = "Najpierw zbuduj Komendę umocnień"
+		return
+	if not seal_check.start(_now_ms()):
+		hud.message = "Trwa sprawdzanie szczelności"
+		_refresh_card()
+		return
+	hud.message = "Sprawdzanie szczelności, %s" % Hud.format_time(SealCheck.DURATION_MS)
+	_save()
+	_refresh_card()
+	queue_redraw()
+
+
+## Domknij lukę wskazaną przez gracza: zleca odcinek wału/palisady jak zwykła budowa (#199).
+func _on_seal_pressed() -> void:
+	_tick()
+	if not grid.buildings.has(_selected_id) or grid.kinds[_selected_id] != BuildingTypes.Kind.SEAL_HOUSE \
+			or grid.levels[_selected_id] < 1:
+		hud.message = "Najpierw zbuduj Komendę umocnień"
+		return
+	seal_check.prune(grid)
+	if not seal_check.revealed:
+		hud.message = "Najpierw Sprawdź szczelność"
+		_refresh_card()
+		return
+	if seal_check.gaps.is_empty():
+		hud.message = "Obrona szczelna"
+		_refresh_card()
+		return
+	if not seal_check.has_selection():
+		hud.message = "Dotknij czerwonej luki na mapie"
+		_refresh_card()
+		return
+	var cell := seal_check.selected
+	var kind := grid.wall_kind_for_gap(cell)
+	var result := queue.order_build(grid, economy, cell, kind, _now_ms(), research)
+	if result == BuildQueue.Result.OK:
+		seal_check.prune(grid)
+		hud.message = "Uszczelnianie: %s, %s" % [BuildingTypes.NAMES[kind],
+				Hud.format_time(BuildConfig.time_ms(kind, 1))]
+		_save()
+	elif result == BuildQueue.Result.NEEDS_TECH:
+		hud.message = _tech_hint(kind)
+	else:
+		hud.message = BuildQueue.MESSAGES[result]
+	_refresh_card()
+	queue_redraw()
+
+
 ## Środkowy przycisk karty: Anuluj dla budynku w kolejce, inaczej Rozbierz (Dworu i donżonu nie można).
 func _on_middle_button() -> void:
 	_tick()
@@ -1047,6 +1152,7 @@ func _draw() -> void:
 	CastleView.draw_buildings(self, grid, textures, battle_states)
 	if not queue.orders.is_empty():
 		_draw_progress(queue.orders[0].building_id)
+	_draw_seal_gaps()
 	var frame := grid.buildings[_selected_id] if _selected_id != 0 else _cursor
 	if frame.has_area():
 		var ok := _selected_id != 0 or _cursor_ok
@@ -1054,6 +1160,40 @@ func _draw() -> void:
 				Palette.VALID if ok else Palette.ACCENT)
 	if defense_panel != null and defense_panel.visible:
 		_draw_defence()
+
+
+## Czerwone podświetlenie luk po Sprawdź z Komendy umocnień (#199); wybrana luka w ramce tuszu.
+func _draw_seal_gaps() -> void:
+	if not seal_check.revealed or not _has_ready_seal_house():
+		return
+	for c in seal_check.gaps:
+		var at := c * TerrainMap.CELL
+		draw_rect(Rect2(at.x, at.y, TerrainMap.CELL, TerrainMap.CELL), Color(Palette.ACCENT, 0.45))
+		var frame := Palette.INK if c == seal_check.selected else Palette.ACCENT
+		CastleView.draw_frame(self, Rect2i(at, Vector2i.ONE * TerrainMap.CELL), frame)
+
+
+## Przy otwartej karcie Komendy umocnień dotknięcie czerwonej luki ją wskazuje (#199): Domknij
+## uszczelni właśnie tę lukę. `true`, gdy dotknięcie trafiło w lukę.
+func _try_select_gap(world_pos: Vector2) -> bool:
+	if _selected_id == 0 or int(grid.kinds.get(_selected_id, -1)) != BuildingTypes.Kind.SEAL_HOUSE:
+		return false
+	var gap := seal_check.gap_near(world_pos, SEAL_TAP_TOLERANCE)
+	if gap == SealCheck.NO_GAP or not seal_check.select(gap):
+		return false
+	hud.message = "Wybrano lukę: Domknij"
+	_save()
+	_refresh_card()
+	queue_redraw()
+	return true
+
+
+## Czy stoi gotowa Komenda umocnień (poziom ≥ 1) — bez niej nie ma flow Sprawdź / luk (#199).
+func _has_ready_seal_house() -> bool:
+	for id: int in grid.kinds:
+		if grid.kinds[id] == BuildingTypes.Kind.SEAL_HOUSE and grid.levels[id] >= 1:
+			return true
+	return false
 
 
 ## Tryb edycji obrony: strefa wokół donżonu, trasy patroli (zamknięta pętla z punktami) i znaczniki

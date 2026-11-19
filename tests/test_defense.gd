@@ -98,7 +98,7 @@ func test_save_keeps_defense_and_migrates() -> bool:
 	p.set_post(id, Vector2i(20, 21))
 	p.set_post(id + 7, Vector2i(2, 2))
 	var d := SaveGame.to_dict(1337, grid, economy, BuildQueue.new(), null, null, r, 0, null, 0, p)
-	assert_eq(int(d["version"]), 8, "wersja 8")
+	assert_eq(int(d["version"]), SaveGame.FORMAT_VERSION, "bieżąca wersja formatu")
 	var s := SaveGame.from_dict(JSON.parse_string(JSON.stringify(d)) as Dictionary, 0)
 	assert_eq(s.defense.post_for(id), Vector2i(20, 21), "posterunek po odczycie")
 	assert_eq(s.defense.post_for(id + 7), NO, "posterunek oddziału spoza armii odrzucony")

@@ -10,7 +10,8 @@ extends Node2D
 ## - budowa: Gotowe, Zmień (wraca do panelu budowy) i Anuluj (kończy stawianie bez zmiany
 ##   wyboru); dotknięcia mapy tylko stawiają wybrany budynek, niczego nie zaznaczają,
 ## - karta budynku: stan, koszt ulepszenia oraz Ulepsz, Rozbierz (Anuluj dla zlecenia), przy budynku
-##   rekrutacji Szkol, przy Strażnicy Oblężenie i Wyprawa, i Zamknij, wyśrodkowane nad paskiem komunikatu.
+##   rekrutacji Szkol, przy Strażnicy Oblężenie i Wyprawa, przy Komendzie umocnień Sprawdź i Domknij
+##   (#199), i Zamknij, wyśrodkowane nad paskiem komunikatu.
 ## Dotknięcia przycisków nie trafiają do kamery. Gdy otwarty jest ekran
 ## na całą mapę (np. drzewko badań, `overlay`), HUD rysuje tylko górny i dolny pasek.
 
@@ -29,10 +30,13 @@ signal attack_pressed
 signal defence_pressed
 signal queue_pressed
 signal settings_pressed
+## Komenda umocnień (#199): Sprawdź szczelność / uszczelnij lukę.
+signal check_pressed
+signal seal_pressed
 ## Dotknięto surowca na górnym pasku (okienko z produkcją, InfoText.resource).
 signal resource_pressed(res: int)
 
-enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK }
+enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK, CHECK, SEAL }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
 enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, CANCEL = 12, RESOURCE = 50, CARD = 100 }
 
@@ -59,6 +63,9 @@ const RECRUIT_CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Szkol", "Zamk
 ## Karta Strażnicy (#177): z niej rusza się na fale samouczka (Oblężenie) i na zamki botów (Wyprawa).
 ## Strażnica ma jeden poziom i nie da się jej rozebrać, więc nie ma Ulepsz ani Rozbierz.
 const PVE_CARD_LABELS: Array[String] = ["Oblężenie", "Wyprawa", "Zamknij"]
+## Karta Komendy umocnień (#199): Sprawdź / Domknij obok Ulepsz i Rozbierz.
+const CHECK_LABEL := "Sprawdź"
+const SEAL_LABEL := "Domknij"
 const EXPEDITION_LABEL := "Wyprawa"
 const ARMY_LABEL := "Wojsko"
 const CANCEL_LABEL := "Anuluj"
@@ -103,6 +110,12 @@ var card_middle_enabled := true
 var card_recruit := false
 ## Karta Strażnicy (z Oblężeniem i Wyprawą, #177).
 var card_pve := false
+## Karta Komendy umocnień (#199): Sprawdź i Domknij.
+var card_seal := false
+## Przycisk Sprawdź niedostępny (trwa odliczanie).
+var card_check_disabled := false
+## Przycisk Domknij niedostępny (brak wykrytych luk).
+var card_seal_disabled := true
 ## Czas budowy w prawym górnym rogu; pusty, gdy kolejka stoi.
 var queue_text := ""
 ## Czas do końca badania w prawym górnym rogu, np. „Bad. 0:42”; pusty, gdy nic się nie bada.
@@ -196,10 +209,12 @@ static func column_targets(is_building: bool, in_battle: bool = false) -> Array[
 
 
 ## Przyciski karty (CardButton) od lewej: Ulepsz, Rozbierz, [Szkol,] Zamknij; Strażnica: Oblężenie,
-## Wyprawa, Zamknij.
-static func card_buttons(recruit: bool = false, pve: bool = false) -> Array[int]:
+## Wyprawa, Zamknij; Komenda umocnień: Ulepsz, Rozbierz, Sprawdź, Domknij, Zamknij (#199).
+static func card_buttons(recruit: bool = false, pve: bool = false, seal: bool = false) -> Array[int]:
 	if pve:
 		return [CardButton.SIEGE, CardButton.ATTACK, CardButton.CLOSE] as Array[int]
+	if seal:
+		return [CardButton.UPGRADE, CardButton.DEMOLISH, CardButton.CHECK, CardButton.SEAL, CardButton.CLOSE] as Array[int]
 	if recruit:
 		return [CardButton.UPGRADE, CardButton.DEMOLISH, CardButton.RECRUIT, CardButton.CLOSE] as Array[int]
 	return [CardButton.UPGRADE, CardButton.DEMOLISH, CardButton.CLOSE] as Array[int]
@@ -217,12 +232,16 @@ static func card_label(button: int) -> String:
 			return SIEGE_LABEL
 		CardButton.ATTACK:
 			return EXPEDITION_LABEL
+		CardButton.CHECK:
+			return CHECK_LABEL
+		CardButton.SEAL:
+			return SEAL_LABEL
 	return CARD_LABELS[2]
 
 
 ## Przyciski karty budynku, wyśrodkowane nad paskiem komunikatu.
-static func card_rects(view: Vector2, recruit: bool = false, pve: bool = false) -> Array[Rect2]:
-	var n := card_buttons(recruit, pve).size()
+static func card_rects(view: Vector2, recruit: bool = false, pve: bool = false, seal: bool = false) -> Array[Rect2]:
+	var n := card_buttons(recruit, pve, seal).size()
 	var total := n * BUTTON_SIZE.x + (n - 1) * BUTTON_GAP
 	var x := floorf((view.x - total) / 2.0)
 	var out: Array[Rect2] = []
@@ -271,8 +290,9 @@ static func card_needs_lines(needs: String, width: int) -> PackedStringArray:
 
 ## Tło karty z `lines` liniami opisu: tytuł, opis, przyciski; co najmniej CARD_MIN_W szerokie,
 ## wyśrodkowane nad przyciskami.
-static func card_panel(view: Vector2, line_count: int, recruit: bool = false, pve: bool = false) -> Rect2:
-	var rects := card_rects(view, recruit, pve)
+static func card_panel(view: Vector2, line_count: int, recruit: bool = false, pve: bool = false,
+		seal: bool = false) -> Rect2:
+	var rects := card_rects(view, recruit, pve, seal)
 	var span := rects[-1].end.x - rects[0].position.x + 8
 	var w := maxf(span, CARD_MIN_W)
 	var top := rects[0].position.y - 13 - PixelFont.LINE * maxi(1, line_count) - 5
@@ -280,16 +300,17 @@ static func card_panel(view: Vector2, line_count: int, recruit: bool = false, pv
 
 
 ## Przycisk karty (CardButton) na miejscu `i`.
-static func card_button(i: int, recruit: bool, pve: bool = false) -> int:
-	return card_buttons(recruit, pve)[i]
+static func card_button(i: int, recruit: bool, pve: bool = false, seal: bool = false) -> int:
+	return card_buttons(recruit, pve, seal)[i]
 
 
 ## Cel pod punktem `p` w danym stanie interfejsu. Przyciski karty to CARD + CardButton.
 static func target_at(p: Vector2, view: Vector2, right: float, is_building: bool, card_open: bool,
-		recruit_card: bool = false, in_battle: bool = false, pve_card: bool = false) -> int:
+		recruit_card: bool = false, in_battle: bool = false, pve_card: bool = false,
+		seal_card: bool = false) -> int:
 	if card_open and not in_battle:
-		var i := hit(card_rects(view, recruit_card, pve_card), p)
-		return Target.CARD + card_button(i, recruit_card, pve_card) if i >= 0 else Target.NONE
+		var i := hit(card_rects(view, recruit_card, pve_card, seal_card), p)
+		return Target.CARD + card_button(i, recruit_card, pve_card, seal_card) if i >= 0 else Target.NONE
 	var targets := column_targets(is_building, in_battle)
 	var icons := uses_icons(is_building, in_battle)
 	for i in targets.size():
@@ -441,7 +462,8 @@ func _target_at(p: Vector2) -> int:
 			return Target.RESOURCE + res
 	if not battle and queue_text_rect(content_right, queue_text, research_text, age_text).has_point(p):
 		return Target.QUEUE
-	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit, battle, card_pve)
+	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit, battle, card_pve,
+			card_seal)
 
 
 ## Napis w prawym górnym rogu jako cel dotyku, który otwiera Kolejkę (#163): od lewego brzegu tekstu
@@ -503,6 +525,12 @@ func _activate(t: int) -> void:
 				siege_pressed.emit()
 			CardButton.ATTACK:
 				attack_pressed.emit()
+			CardButton.CHECK:
+				if not card_check_disabled:
+					check_pressed.emit()
+			CardButton.SEAL:
+				if not card_seal_disabled:
+					seal_pressed.emit()
 	elif t == Target.BUILD:
 		build_pressed.emit()
 	elif t == Target.SPEED:
@@ -593,11 +621,11 @@ static func column_label(t: int) -> String:
 
 
 func _draw_card(view: Vector2) -> void:
-	var rects := card_rects(view, card_recruit, card_pve)
-	var buttons := card_buttons(card_recruit, card_pve)
+	var rects := card_rects(view, card_recruit, card_pve, card_seal)
+	var buttons := card_buttons(card_recruit, card_pve, card_seal)
 	var width := int(maxf(rects[-1].end.x - rects[0].position.x + 8, CARD_MIN_W)) - 8
 	var lines := card_lines(card_info, card_needs, width)
-	var panel := card_panel(view, lines.size(), card_recruit, card_pve)
+	var panel := card_panel(view, lines.size(), card_recruit, card_pve, card_seal)
 	draw_rect(panel, Color(Palette.SHADOW, 0.85))
 	PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
 	PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])
@@ -612,7 +640,9 @@ func _draw_card(view: Vector2) -> void:
 		var button := buttons[i]
 		var label := CANCEL_LABEL if button == CardButton.DEMOLISH and card_cancel else card_label(button)
 		var disabled := (button == CardButton.UPGRADE and not card_can_upgrade) \
-				or (button == CardButton.DEMOLISH and not card_middle_enabled)
+				or (button == CardButton.DEMOLISH and not card_middle_enabled) \
+				or (button == CardButton.CHECK and card_check_disabled) \
+				or (button == CardButton.SEAL and card_seal_disabled)
 		_draw_button(rects[i], label, _pressed == Target.CARD + button, disabled)
 
 

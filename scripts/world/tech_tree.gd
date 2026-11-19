@@ -37,7 +37,7 @@ const TECHS: Array = [
 	["A46", "Przeszywanica", Branch.ATTACK, 1, false, ["A45"], "jednostka Drużynnik w przeszywanicy"],
 	["A47", "Łuk refleksyjny", Branch.ATTACK, 1, false, ["A2"], "jednostka Strzelec z łukiem refleksyjnym"],
 	["O1", "Sypanie kopców", Branch.DEFENSE, 0, true, [], "budynek Kopiec, warunek przejścia I → II"],
-	["O2", "Zaostrzone pale", Branch.DEFENSE, 0, false, [], "palisada +20% wytrzymałości"],
+	["O2", "Zaostrzone pale", Branch.DEFENSE, 0, false, [], "palisada +20% wytrzymałości, budynek Komenda umocnień"],
 	["O3", "Fosa z kolcami", Branch.DEFENSE, 0, false, ["O2"], "sucha fosa rani wrogów"],
 	["G1", "Karczowanie lasu", Branch.ECONOMY, 0, false, [], "+20% drewna"],
 	["G2", "Żarna", Branch.ECONOMY, 0, false, [], "+15% żywności"],

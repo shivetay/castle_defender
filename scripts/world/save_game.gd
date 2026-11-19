@@ -8,18 +8,18 @@ extends RefCounted
 ## obok (.broken), żeby następny zapis nie zrobił z niego kopii. Zapis z nowszej wersji gry
 ## też nie jest nadpisywany, tylko odkładany, a gra zaczyna od nowa.
 ## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, towary, kolejkę, badania, armię,
-## plany ataku i ustawienia obrony.
+## plany ataku, ustawienia obrony i sprawdzanie szczelności z Komendy umocnień.
 
-const FORMAT_VERSION := 8
+const FORMAT_VERSION := 9
 const PATH := "user://castle.json"
 
 ## Migracje: wersja → funkcja przerabiająca słownik tej wersji na wersję o 1 wyższą.
 ## Przy zmianie formatu podnieś FORMAT_VERSION i dopisz tu migrację z poprzedniej wersji.
 ## Wersja 2 dodała badania (#12), wersja 3 towary w zbrojowni (#88), wersja 4 armię i szkolenie (#89),
 ## wersja 5 postęp samouczka PvE (#16), wersja 6 plan ataku i zdobyte zamki (#17), wersja 7 ustawienia
-## obrony (#19), wersja 8 zadania obrony i priorytet wież (#20).
+## obrony (#19), wersja 8 zadania obrony i priorytet wież (#20), wersja 9 sprawdzanie szczelności (#199).
 static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3, 4: _from_v4, 5: _from_v5, 6: _from_v6,
-		7: _from_v7}
+		7: _from_v7, 8: _from_v8}
 
 ## Stan gry odczytany z pliku.
 class State:
@@ -34,6 +34,8 @@ class State:
 	var attack_target := 0
 	## Ustawienia obrony (#19, #20): zadania oddziałów załogi i priorytet wież.
 	var defense := DefensePlan.new()
+	## Sprawdź z Komendy umocnień (#199): odliczanie, wykryte i wskazana luka.
+	var seal := SealCheck.new()
 	var grid: BuildGrid
 	var economy: Economy
 	var queue: BuildQueue
@@ -48,7 +50,7 @@ class State:
 static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: BuildQueue,
 		research: Research = null, goods: Goods = null, recruitment: Recruitment = null, pve_cleared: int = 0,
 		attack_plan: AttackPlan = null, bots_beaten: int = 0, defense: DefensePlan = null,
-		attack_target: int = 0) -> Dictionary:
+		attack_target: int = 0, seal: SealCheck = null) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -62,6 +64,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		"attack": {"plan": attack_plan.to_dict() if attack_plan != null else {}, "beaten": bots_beaten,
 				"target": attack_target},
 		"defense": defense.to_dict() if defense != null else {},
+		"seal": seal.save_data() if seal != null else {},
 	}
 
 
@@ -93,6 +96,7 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	s.attack_target = target if BotRoster.is_unlocked(target, s.bots_beaten) else BotRoster.last_unlocked(s.bots_beaten)
 	s.defense = DefensePlan.from_dict(d.get("defense", {}) as Dictionary)
 	s.defense.prune(s.recruitment)
+	s.skipped += s.seal.load_data(d.get("seal", {}) as Dictionary, s.grid, now_ms)
 	return s
 
 
@@ -135,6 +139,12 @@ static func _from_v6(d: Dictionary) -> Dictionary:
 ## Wersja 7 → 8: posterunki (#19) stają się zadaniami Obrona odcinka, wieże biją najbliższego.
 static func _from_v7(d: Dictionary) -> Dictionary:
 	d["defense"] = DefensePlan.from_v7(d.get("defense", {}) as Dictionary)
+	return d
+
+
+## Wersja 8 → 9: zapis sprzed Komendy umocnień nie ma trwającego ani zakończonego Sprawdź.
+static func _from_v8(d: Dictionary) -> Dictionary:
+	d["seal"] = {}
 	return d
 
 
