@@ -51,20 +51,24 @@ set search_path = ''
 as $$
 #variable_conflict use_column
 declare
+  w timestamptz;
   n integer;
 begin
   if p_attacker is null then
     return;
   end if;
+  -- limit sprawdzany przed zapisem: odrzucone szukanie niczego nie zmienia, więc nie zależy od tego,
+  -- czy wyjątek cofnie transakcję (licznik zostaje na 20 do końca okna)
+  select t.window_start, t.searches into w, n
+  from private.target_searches t where t.player_id = p_attacker for update;
+  if found and w >= now() - interval '10 minutes' and n >= 20 then
+    raise exception 'rate_limited' using errcode = 'P0001';
+  end if;
   insert into private.target_searches as t (player_id, window_start, searches)
   values (p_attacker, now(), 1)
   on conflict (player_id) do update set
     window_start = case when t.window_start < now() - interval '10 minutes' then now() else t.window_start end,
-    searches = case when t.window_start < now() - interval '10 minutes' then 1 else t.searches + 1 end
-  returning t.searches into n;
-  if n > 20 then
-    raise exception 'rate_limited' using errcode = 'P0001';
-  end if;
+    searches = case when t.window_start < now() - interval '10 minutes' then 1 else t.searches + 1 end;
 
   return query
   with me as (

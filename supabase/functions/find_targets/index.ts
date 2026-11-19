@@ -44,7 +44,11 @@ Deno.serve(async (req) => {
 
   const admin = createClient(supabaseUrl, serviceKey);
   const { data, error } = await admin.rpc("match_targets", { p_attacker: userData.user.id });
-  if (error?.message === "rate_limited") {
+  // P0001 to kod `raise exception` w match_targets; treść sprawdzamy z includes, bo PostgREST
+  // może dodać prefiks albo przenieść ją do details
+  const limited = error?.code === "P0001" &&
+    `${error.message ?? ""} ${error.details ?? ""}`.includes("rate_limited");
+  if (limited) {
     // limit z match_targets: 20 szukań na 10 minut
     return json({ error: "rate_limited" }, 429);
   }

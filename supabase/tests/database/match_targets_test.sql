@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(22);
+select plan(25);
 
 -- A atakuje. B, G, I: pasują. C: tarcza. D: epoka 2. E: ranking 1200. F: atakowany przez A 2 h temu.
 -- H: zamek bez nazwy (bez onboardingu). J: pasuje, ale bez nazwy zamku do drugiej części testu.
@@ -166,6 +166,19 @@ select lives_ok(
 select throws_ok(
   $$select * from public.match_targets('00000000-0000-0000-0000-0000000000a1')$$,
   'P0001', 'rate_limited', '21. szukanie w oknie jest odrzucone');
+-- licznik nie zależy od wycofania transakcji: po odrzuceniu zostaje 20, a kolejne szukania też
+-- są odrzucane (każde w osobnej transakcji, jak w PostgREST: tu po zatwierdzeniu savepointu)
+reset role;
+select is(
+  (select searches from private.target_searches where player_id = '00000000-0000-0000-0000-0000000000a1'),
+  20, 'po odrzuceniu licznik zostaje na 20');
+set local role service_role;
+select throws_ok(
+  $$select * from public.match_targets('00000000-0000-0000-0000-0000000000a1')$$,
+  'P0001', 'rate_limited', 'kolejne szukanie w oknie też jest odrzucone');
+select throws_ok(
+  $$select * from public.match_targets('00000000-0000-0000-0000-0000000000a1')$$,
+  'P0001', 'rate_limited', 'i następne także');
 select lives_ok(
   $$select * from public.match_targets('00000000-0000-0000-0000-0000000000b1')$$,
   'limit jest osobny dla każdego gracza');
