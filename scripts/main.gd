@@ -84,6 +84,8 @@ var bots_beaten := 0
 ## Cel Wyprawy: numer zamku-bota na liście BotRoster (#26) i ekran wyboru zamku.
 var attack_target := 0
 var bot_picker: BotPicker
+## Wybór 3 celów Wyprawy (#24): gracze z serwera i zamki-boty.
+var target_picker: TargetPicker
 ## Okno wyniku ataku (#99).
 var result_panel: ResultPanel
 var planner: AttackPlanner
@@ -194,7 +196,14 @@ func _ready() -> void:
 	bot_picker.visible = false
 	layer.add_child(bot_picker)
 	bot_picker.target_chosen.connect(_open_attack)
-	bot_picker.closed.connect(_on_overlay_closed)
+	bot_picker.closed.connect(_on_bot_list_closed)
+	target_picker = TargetPicker.new()
+	target_picker.visible = false
+	layer.add_child(target_picker)
+	target_picker.bot_chosen.connect(_open_attack)
+	target_picker.player_chosen.connect(_on_player_target)
+	target_picker.bots_pressed.connect(_open_bot_list)
+	target_picker.closed.connect(_on_overlay_closed)
 	result_panel = ResultPanel.new()
 	result_panel.visible = false
 	layer.add_child(result_panel)
@@ -281,6 +290,7 @@ func _ready() -> void:
 	net.local_fresh = saved == null
 	net.state_changed.connect(_on_net_state)
 	net.castle_restored.connect(_on_castle_restored)
+	net.targets_found.connect(target_picker.set_players)
 	add_child(net)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
@@ -748,7 +758,8 @@ func _bot() -> BotCastle:
 	return BotRoster.generate(attack_target)
 
 
-## Wyprawa (karta Strażnicy): najpierw wybór zamku-bota (#26). Bez wojska ekran się nie otwiera.
+## Wyprawa (karta Strażnicy): najpierw 3 cele (#24), gracze z serwera i zamki-boty. Bez wojska
+## ekran się nie otwiera.
 func _on_attack_pressed() -> void:
 	_tick()
 	if _attack_army().is_empty():
@@ -758,10 +769,34 @@ func _on_attack_pressed() -> void:
 	hud.hide_card()
 	hud.set_building(false)
 	_cursor = Rect2i()
-	bot_picker.open(bots_beaten, attack_target)
+	# bez tożsamości zamek nie jest na serwerze (#23), więc gracz i tak nie szuka przeciwników
+	var online := net != null and identity != null and net.is_online()
+	target_picker.open(bots_beaten, online)
+	if online and not net.find_targets():
+		target_picker.set_players([] as Array[TargetSearch.Target], false)
 	hud.overlay = true
+	hud.message = "Wybierz cel ataku"
+	queue_redraw()
+
+
+## Boty (ekran 3 celów): pełna lista 20 zamków-botów (#26).
+func _open_bot_list() -> void:
+	target_picker.visible = false
+	bot_picker.open(bots_beaten, attack_target)
 	hud.message = "Zdobyte: %d z %d zamków" % [mini(bots_beaten, BotRoster.COUNT), BotRoster.COUNT]
 	queue_redraw()
+
+
+## Wróć z listy botów: z powrotem do 3 celów.
+func _on_bot_list_closed() -> void:
+	target_picker.visible = true
+	hud.message = "Wybierz cel ataku"
+	queue_redraw()
+
+
+## Karta gracza: atak na gracza (zamek z kopii na serwerze) dojdzie z #25.
+func _on_player_target(_target: TargetSearch.Target) -> void:
+	hud.message = TargetPicker.PLAYER_LATER
 
 
 ## Planuj: ekran planu na wybranym zamku. Zmiana celu czyści cele i trasy oddziałów z planu.
@@ -772,6 +807,7 @@ func _open_attack(index: int) -> void:
 		for o in attack_plan.orders:
 			AttackPlanner.clear(o)
 	bot_picker.visible = false
+	target_picker.visible = false
 	var bot := _bot()
 	planner.open(bot, attack_plan, army, CURRENT_AGE)
 	attack_panel.visible = true

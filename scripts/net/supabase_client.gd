@@ -14,6 +14,10 @@ signal state_changed(state: int)
 ## Serwer ma zamek, który trzeba przywrócić na telefon (#23): zapis w kształcie `SaveGame.to_dict`
 ## i tożsamość z onboardingu (`Identity.to_dict`, pusty słownik, gdy jej nie ma).
 signal castle_restored(save: Dictionary, profile: Dictionary)
+## Odpowiedź doboru przeciwnika (#24): cele-gracze z serwera (0–3). `ok` false: błąd sieci albo
+## serwera; gra zostaje wtedy przy samych zamkach-botach.
+## `limited`: serwer odrzucił szukanie z limitu (20 na 10 minut).
+signal targets_found(targets: Array[TargetSearch.Target], ok: bool, limited: bool)
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -48,6 +52,9 @@ var _retry_left := 0.0
 var _pending: int = Call.NONE
 var _http: HTTPRequest
 var _rest: HTTPRequest
+## Dobór przeciwnika (#24) idzie osobnym połączeniem, żeby nie czekać na synchronizację zamku.
+var _rpc: HTTPRequest
+var _targets_pending := false
 var _castle_call: int = CastleCall.NONE
 var _castle_map_seed := 0
 var _castle_save_version := 0
@@ -104,6 +111,10 @@ func _ready() -> void:
 	_rest.timeout = TIMEOUT_S
 	add_child(_rest)
 	_rest.request_completed.connect(_on_rest_completed)
+	_rpc = HTTPRequest.new()
+	_rpc.timeout = TIMEOUT_S
+	add_child(_rpc)
+	_rpc.request_completed.connect(_on_rpc_completed)
 	session = SupabaseSession.load_from(session_path)
 	connect_now()
 
@@ -171,6 +182,36 @@ func sync_castle(map_seed: int, save_version: int, data: Dictionary, defense: Di
 	_castle_dirty = true
 	_conflicts = 0
 	_castle_pump()
+
+
+## Szuka 3 przeciwników (#24, Edge Function `find_targets`); wynik przychodzi w `targets_found`.
+## False, gdy nie ma sieci; gdy poprzednie szukanie jeszcze trwa, sygnał przyjdzie z tamtego.
+func find_targets() -> bool:
+	if _targets_pending:
+		return true
+	if not is_online() or user_id().is_empty():
+		return false
+	if fake_transport:
+		# testy: odpowiedź podaje handle_targets
+		_targets_pending = true
+		return true
+	if _rpc == null:
+		return false
+	_targets_pending = true
+	var err := _rpc.request(config.url + TargetSearch.PATH, rest_headers(), HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		handle_targets(HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	return true
+
+
+## Obsługa odpowiedzi `find_targets` (bez sieci, wołana też z testów).
+func handle_targets(result: int, code: int, body: String) -> void:
+	_targets_pending = false
+	if outcome_of(result, code) != Outcome.OK:
+		targets_found.emit([] as Array[TargetSearch.Target], false,
+				result == HTTPRequest.RESULT_SUCCESS and code == 429)
+		return
+	targets_found.emit(TargetSearch.parse_response(SupabaseConfig.parse_json(body)), true, false)
 
 
 ## Wysyła zaległy zapis od razu (przy wyjściu z gry), bez czekania na `PUSH_INTERVAL_S`.
@@ -268,6 +309,10 @@ func _send(call: int, path: String, body: Dictionary) -> void:
 
 func _on_request_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	handle_auth(_pending, result, code, body.get_string_from_utf8())
+
+
+func _on_rpc_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_targets(result, code, body.get_string_from_utf8())
 
 
 func _on_rest_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:

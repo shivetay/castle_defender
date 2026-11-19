@@ -13,6 +13,7 @@ Tekstury generuj raz i cache’uj (`ImageTexture`); nie rysuj przez `set_pixel` 
 | `building_textures.gd` | Cache tekstur budynków, `warm_up()` |
 | `terrain_renderer.gd` | Tekstura terenu z mapy |
 | `portrait_art.gd` | Portret władcy w okręgu do HUD-u (#228) |
+| `minimap_art.gd` | Miniatura zamku na karcie celu: teren z seeda i zarys budynków (#24) |
 | `castle_view.gd` | Widok zamku na mapie |
 | `ambient_view.gd` | Dym, błyski wody (niska częstotliwość) |
 | `pixel_font.gd` / `pixel_icons.gd` | Font 8 px i ikony UI |
