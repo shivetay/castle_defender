@@ -30,7 +30,7 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) ustawienia obrony
 z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#100). Trwa etap 9 (#131): backend
 Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22), synchronizacja zamku
-z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25); stan i kolejne kroki są
+z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25) i atak na gracza w kliencie (#240); stan i kolejne kroki są
 w sekcji „Następny etap”.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
@@ -282,8 +282,12 @@ w sekcji „Następny etap”.
     budynków jednym kolorem, bez rodzajów, wojska i pułapek, które odsłoni zwiad z #28), ranking
     (u bota trudność) i szacowany łup. Graczy dobiera serwer; brakujące karty, a bez sieci wszystkie,
     zajmują boty: bieżący cel kampanii, potem zdobyte zamki, a nowy gracz dostaje kolejne z listy.
-    Boty otwiera pełną listę 20 zamków (niżej), Planuj plan ataku na bocie. Atak na gracza dojdzie
-    z #25, do tego czasu Planuj na jego karcie mówi „Atak na graczy: wkrótce”.
+    Boty otwiera pełną listę 20 zamków (niżej), Planuj plan ataku na bocie. Planuj na karcie gracza
+    (#240, `scripts/battle/player_castle.gd`) zaczyna atak na serwerze (`start_attack`) i otwiera plan
+    na kopii jego zamku i obrony z chwili startu; bitwa idzie z seedem z serwera, a łup trafia do magazynu
+    dopiero z odpowiedzi `finish_attack` (przy odrzuceniu albo braku sieci po 4 próbach wynik jest bez łupu).
+    Zajęty cel, tarcza, limit startów i brak sieci kończą się komunikatem, a armia zostaje nietknięta.
+    Plan ma 7 minut od startu (serwer przyjmuje wynik do 10 minut), a armia musi być ta sama co przy starcie.
   - **Lista botów (`scripts/ui/bot_picker.gd`):** najpierw zwarta lista odblokowanych zamków (mniej
     ekranu); Planuj rozwija siatkę 5×4 z numerami (zdobyte na zielono, epoka II z czerwonym znacznikiem)
     i opisem, kolejne Planuj otwiera plan ataku. Zamek odblokowuje się po zdobyciu poprzedniego.
@@ -619,6 +623,6 @@ backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym konte
 władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i dobór przeciwnika z ekranem
 3 celów (#24, migracja `match_targets` i funkcja `find_targets` są na projekcie). Konto anonimowe przetrwa
 reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
-zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Do zrobienia: atak na gracza w kliencie (bitwa z kopii zamku i obrony z `start_attack`) i odjęcie łupu z magazynu obrońcy. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
+zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu.
