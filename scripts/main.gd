@@ -78,6 +78,8 @@ var battle_states: Dictionary = {}
 var _battle_wave := -1
 ## Oddziały armii w kolejności oddziałów bitwy, do rozliczenia strat po fali (#164).
 var _battle_ids: Array[int] = []
+## Skład ataku (oddziały [rodzaj, liczba]) z chwili startu bitwy, do capacity łupu (#25).
+var _battle_army: Array = []
 ## Atak na zamek-cel (#17): zapisany plan, ile zamków gracz już zdobył, ekran planu i zamek-cel.
 var attack_plan := AttackPlan.new()
 var bots_beaten := 0
@@ -858,6 +860,7 @@ func _on_attack_launched() -> void:
 		return
 	var bot := planner.bot
 	_battle_ids = recruitment.battle_ids().slice(0, army.size())
+	_battle_army = army
 	var b := Battle.create_squads(bot.grid, bot.objective, army, bot.defenders, bot.spawn,
 			PixelCanvas.hash2(bot.seed_value, attack_target, 0xa77) & 0x7fffffff)
 	b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
@@ -880,11 +883,15 @@ func _on_attack_launched() -> void:
 ## Koniec ataku: polegli znikają z armii, a pierwsze zdobycie zamku odblokowuje kolejny, mocniejszy
 ## (#26). Zamek wraca do pełnego stanu, więc można go atakować znowu.
 ## Wynik (#99): gwiazdki, procent zniszczeń i łup trafiają do okna wyniku; łup do magazynu.
+## Łupu jest najwyżej tyle, ile uniosą ocaleli (capacity, #25).
 func _finish_attack(b: Battle) -> void:
-	var fallen := recruitment.apply_losses(_battle_ids, b.survivors(Battle.Side.ATTACKER))
+	var army := _battle_army  # skład z chwili startu bitwy, przed stratami
+	var alive := b.survivors(Battle.Side.ATTACKER)
+	var fallen := recruitment.apply_losses(_battle_ids, alive)
 	var won := b.winner == Battle.Winner.ATTACKER
 	var result := BattleResult.of(b)
 	result.compute_loot(attack_target, BotRoster.is_beaten(attack_target, bots_beaten))
+	result.limit_to_capacity(BattleResult.carry_capacity(army, alive))  # łup unoszą ocaleli (#25)
 	var got := result.apply_loot(economy)
 	var first := won and attack_target == bots_beaten and bots_beaten < BotRoster.COUNT
 	var unlock := ""

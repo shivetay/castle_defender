@@ -13,7 +13,10 @@ insert into auth.users (id) values
   ('00000000-0000-0000-0000-00000000000b'),
   ('00000000-0000-0000-0000-00000000000c');
 
-select is((select count(*)::int from public.players), 3, 'konto Auth tworzy wiersz gracza');
+-- liczy tylko konta testu: testy biegną też na projekcie w chmurze, gdzie są prawdziwi gracze
+select is((select count(*)::int from public.players where id in ('00000000-0000-0000-0000-00000000000a',
+  '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000c')), 3,
+  'konto Auth tworzy wiersz gracza');
 
 select ok(
   (select bool_and(c.relrowsecurity) from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -159,9 +162,9 @@ select throws_ok($$delete from public.bot_castles$$, '42501', null, 'anon nie us
 reset role;
 set local role service_role;
 select lives_ok(
-  $$insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed, defense_snapshot, castle_snapshot, attacker_army)
+  $$insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed, defense_snapshot, castle_snapshot, attacker_army, status)
     values ('00000000-0000-0000-0000-00000000000c', '00000000-0000-0000-0000-00000000000b', 4242, 9,
-      '{"traps": []}', '{"grid": "b"}', '[["topornik", 5]]')$$,
+      '{"traps": []}', '{"grid": "b"}', '[["topornik", 5]]', 'abandoned')$$,
   'serwer zapisuje atak z kopią obrony i zamku');
 select throws_ok(
   $$insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed)

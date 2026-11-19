@@ -4,7 +4,8 @@ Edge Functions (Deno / TypeScript) wywoływane z klienta lub crona.
 
 | Funkcja | Rola |
 |---|---|
-| `start_attack/` | Start ataku PvP (m.in. seed mapy / snapshot) — serwerowa ścieżka, klient niezaufany |
+| `start_attack/` | Start ataku (#25): woła `begin_attack` (blokada celu, tarcza, limit startów, armia z zamku); zwraca seedy i kopie zamku i obrony |
+| `finish_attack/` | Koniec ataku (#25): woła `end_attack` (wynik i łup w limitach zapasów i capacity ocalałych, tarcza 8 h od 30%); ponowienie zwraca zapisany wynik |
 | `find_targets/` | Dobór przeciwnika (#24): woła `match_targets` z id gracza z tokenu, zwraca do 3 celów |
 
 Nowe funkcje: bez sekretów w repo; wynik/łup/ranking nie ufaj payloadom z klienta

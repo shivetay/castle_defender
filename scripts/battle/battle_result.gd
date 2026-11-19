@@ -14,7 +14,12 @@ extends RefCounted
 ## Łup z zamku-bota, tylko po wygranej (decyzja właścicielki, review #194): skarbiec rośnie z numerem
 ## zamku, magazyn chroni PROTECTED_PERCENT, a z reszty atakujący bierze do LOOT_PERCENT, w proporcji
 ## do procentu zniszczeń, liczonego co najmniej jak WIN_LOOT_PERCENT (nie więcej niż 50). Ponowny atak na zdobyty już
-## zamek daje REPEAT_PERCENT łupu. Ranking (#27) i tarcza obrońcy (#25) dojdą z PvP. Liczby TYMCZASOWE.
+## zamek daje REPEAT_PERCENT łupu. Ranking (#27) dojdzie z PvP. Liczby TYMCZASOWE.
+##
+## Capacity (#25): łup razem najwyżej tyle, ile uniosą ocalali (UnitTypes.CARRY), więc więcej jednostek
+## wracających z grabieży daje wyższy limit. Łup z zamku gracza liczy się tak samo, z jego zapasów
+## z kopii na serwerze. Te same limity sprawdza `finish_attack` (`public.end_attack`), który odrzuca
+## zawyżony łup; tarczę obrońcy (SHIELD_PERCENT) ustawia tylko serwer.
 @warning_ignore_start("integer_division")
 
 const STAR_PERCENT := 50
@@ -28,6 +33,9 @@ const STASH_BASE := 1000
 const STASH_STEP := 500
 const GOLD_BASE := 20
 const GOLD_STEP := 10
+## Tarcza obrońcy-gracza od tylu procent zniszczeń, na SHIELD_HOURS godzin (#25, ustawia ją serwer).
+const SHIELD_PERCENT := 30
+const SHIELD_HOURS := 8
 
 enum Star { GATE, HALF, KEEP }
 const STAR_NAMES: Array[String] = ["Brama zdobyta", "Połowa zamku", "Donżon"]
@@ -91,7 +99,19 @@ func loot_percent() -> int:
 ## Liczy łup z zamku `i`: z niechronionej części skarbca LOOT_PERCENT × loot_percent(), więc przegrana
 ## nic nie daje; `repeat` (zamek był już zdobyty) daje REPEAT_PERCENT tego.
 func compute_loot(i: int, repeat: bool) -> void:
-	var s := stash(i)
+	_loot_from(stash(i), repeat)
+
+
+## Łup z zamku gracza (#25): `amounts` to jego zapasy (z kopii zamku z `start_attack`), w kolejności
+## EconomyConfig.Res. Bez zniżki za powtórkę (ten sam cel raz na 24 godziny pilnuje serwer).
+func compute_player_loot(amounts: Array) -> void:
+	var s: Array[int] = []
+	for res in EconomyConfig.count():
+		s.append(clampi(int(amounts[res]), 0, 10000000) if res < amounts.size() else 0)
+	_loot_from(s, false)
+
+
+func _loot_from(s: Array[int], repeat: bool) -> void:
 	loot.clear()
 	for res in s.size():
 		var open := s[res] * (100 - PROTECTED_PERCENT) / 100
@@ -115,6 +135,33 @@ static func estimate_bot_loot(i: int) -> Array[int]:
 ## (migracja `*_match_targets.sql`, znacznik LOOT_ESTIMATE_PERCENT), test pilnuje zgodności.
 static func loot_estimate_percent() -> int:
 	return (100 - PROTECTED_PERCENT) * LOOT_PERCENT * WIN_LOOT_PERCENT / 10000
+
+
+## Capacity łupu armii (#25): `army` to oddziały [rodzaj, liczba] z bitwy, `alive` ocaleli w każdym
+## z nich (Battle.survivors). Brak wpisu w `alive` liczy się jak 0 ocalałych.
+static func carry_capacity(army: Array, alive: Array[int]) -> int:
+	var total := 0
+	for i in mini(army.size(), alive.size()):
+		var squad := army[i] as Array
+		total += clampi(alive[i], 0, int(squad[1])) * UnitTypes.carry(int(squad[0]))
+	return total
+
+
+## Przycina łup do `capacity`: przy nadmiarze każdy surowiec maleje w tej samej proporcji (w dół,
+## w liczbach całkowitych), więc suma nie przekracza capacity, a wynik zależy tylko od danych.
+func limit_to_capacity(capacity: int) -> void:
+	var total := 0
+	for amount in loot:
+		total += amount
+	if total <= capacity:
+		return
+	for res in loot.size():
+		loot[res] = loot[res] * maxi(0, capacity) / total
+
+
+## Wynik dla `finish_attack` (#25): dokładnie pola, które sprawdza serwer.
+func to_server() -> Dictionary:
+	return {"won": won, "percent": percent, "stars": stars.duplicate()}
 
 
 ## Dodaje łup do magazynu gracza. Zwraca, ile faktycznie weszło (pełny magazyn nie przyjmie nadmiaru).
