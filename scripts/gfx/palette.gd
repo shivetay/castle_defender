@@ -23,9 +23,11 @@ const SHADOW: Color = AGE_I[14]
 const ACCENT: Color = AGE_I[15]
 
 ## Kolory interfejsu, wspólne dla wszystkich epok.
-const UI: Array[Color] = [Color("f2e8cf"), Color("9bd06a"), Color("7fb0e0")]
+const UI: Array[Color] = [Color("f2e8cf"), Color("9bd06a"), Color("7fb0e0"), Color("dca67c")]
 const INK: Color = UI[0]
 const VALID: Color = UI[1]
+## Skóra na portretach władców (#228); cień skóry to WOOD[3].
+const SKIN: Color = UI[3]
 ## Strony bitwy (#15): obrońca niebieski z UI, atakujący czerwony jak sztandary.
 const SIDE_DEFENDER: Color = UI[2]
 const SIDE_ATTACKER: Color = ACCENT

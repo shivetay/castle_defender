@@ -113,6 +113,10 @@ w sekcji „Następny etap”.
   spacja i łącznik. Tożsamość (imię, nazwa zamku i władca) leży w profilu `user://player.json` (wersja 2)
   obok seeda gracza; Zacznij od nowa jej nie kasuje. Władca to na razie tylko domyślny Kasztelan bez
   premii (`scripts/world/rulers.gd`, `Rulers`); generałowie (#31) i perki (#32) dojdą jako kolejne wpisy.
+  Po onboardingu w lewym górnym rogu HUD-u (pod paskiem celu) stoi portret władcy w okręgu 22×22 px
+  (`scripts/gfx/portrait_art.gd`, `PortraitArt`: wzór w kodzie, złoty pierścień, tekstura w cache).
+  Dotknięcie portretu otwiera okienko z graczem, zamkiem i premiami władcy. Skóra portretu to
+  `Palette.SKIN` w kolorach UI.
   Bez tożsamości zamek nie idzie na serwer, a `PlayerProfile.sync_fields` przygotowuje pola do wysyłki
   przy synchronizacji (#23). Powrót tożsamości po reinstalacji zależy od odtworzenia konta i zamku z #23.
 - `scripts/world/tech_tree.gd` (`TechTree`): 34 technologie MVP z notatki Drzewko technologiczne

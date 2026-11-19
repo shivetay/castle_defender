@@ -258,7 +258,10 @@ func _ready() -> void:
 	info_popup = InfoPopup.new()
 	layer.add_child(info_popup)  # dostaje dotyk przed panelami
 	identity = PlayerProfile.read_identity(PlayerProfile.PATH)
-	if identity == null:
+	hud.portrait_pressed.connect(_on_portrait_pressed)
+	if identity != null:
+		hud.ruler_id = identity.ruler
+	else:
 		# pierwsze uruchomienie: najpierw imię i nazwa zamku, nad wszystkim innym (ostatnie dziecko)
 		onboarding = OnboardingPanel.new()
 		layer.add_child(onboarding)
@@ -990,11 +993,29 @@ func _on_onboarding_finished(id: PlayerProfile.Identity) -> void:
 	if err != OK:
 		push_warning("Nie udało się zapisać profilu gracza: %s" % error_string(err))
 	identity = id
+	hud.ruler_id = id.ruler
 	onboarding.queue_free()
 	onboarding = null
 	hud.overlay = false
 	hud.message = "Witaj, %s!" % id.player_name
 	_save()
+
+
+## Portret władcy w HUD-zie (#228): okienko z władcą, graczem i zamkiem.
+func _on_portrait_pressed() -> void:
+	if identity == null:
+		return
+	info_popup.open(Rulers.ruler_name(identity.ruler), ruler_info(identity))
+
+
+## Linie okienka władcy: kto rządzi którym zamkiem i jakie ma premie (domyślny żadnych, #32).
+static func ruler_info(id: PlayerProfile.Identity) -> PackedStringArray:
+	var perks := Rulers.perks(id.ruler)
+	return PackedStringArray([
+		"Gracz: %s" % id.player_name,
+		"Zamek: %s" % id.castle_name,
+		"Premie: brak" if perks.is_empty() else "Premie: %s" % ", ".join(perks),
+	])
 
 
 func _on_overlay_closed() -> void:

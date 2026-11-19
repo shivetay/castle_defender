@@ -35,10 +35,12 @@ signal check_pressed
 signal seal_pressed
 ## Dotknięto surowca na górnym pasku (okienko z produkcją, InfoText.resource).
 signal resource_pressed(res: int)
+## Dotknięto portretu władcy (#228) w lewym górnym rogu.
+signal portrait_pressed
 
 enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK, CHECK, SEAL }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, CANCEL = 12, RESOURCE = 50, CARD = 100 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, CANCEL = 12, PORTRAIT = 13, RESOURCE = 50, CARD = 100 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -132,6 +134,9 @@ var battle := false
 ## Bieżący cel samouczka (#185), np. „Postaw Koszary”; pusty po 5. fali. Pokazuje się pod górnym
 ## paskiem, poza bitwą i ekranami na całą mapę.
 var goal_text := ""
+## Władca (Rulers) z portretem w okręgu w lewym górnym rogu (#228); pusty, dopóki gracz nie przejdzie
+## onboardingu. Portret stoi pod paskiem celu i znika w bitwie i pod ekranami na całą mapę.
+var ruler_id := ""
 ## Zlecenia budowy i szkolenia razem (licznik na przycisku Kolejka).
 var queue_count := 0
 ## Napis przycisku tempa, np. „Tempo ×2”.
@@ -462,6 +467,8 @@ func _target_at(p: Vector2) -> int:
 			return Target.RESOURCE + res
 	if not battle and queue_text_rect(content_right, queue_text, research_text, age_text).has_point(p):
 		return Target.QUEUE
+	if shows_portrait() and portrait_rect(content_left, not goal_text.is_empty()).has_point(p):
+		return Target.PORTRAIT
 	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit, battle, card_pve,
 			card_seal)
 
@@ -474,6 +481,17 @@ static func queue_text_rect(right: float, queue: String, research: String, age: 
 		return Rect2()
 	var w := PixelFont.text_width(top_right_text(queue, age, research))
 	return Rect2(right - w - 2, 0, w + 2, BAR_H)
+
+
+## Portret władcy (#228): okrąg PortraitArt.SIZE px przy lewej granicy treści, pod górnym paskiem,
+## a gdy jest cel samouczka, pod jego paskiem.
+static func portrait_rect(left: float, has_goal: bool) -> Rect2:
+	var top := BAR_H + 2 + (12 if has_goal else 0)
+	return Rect2(left, top, PortraitArt.SIZE, PortraitArt.SIZE)
+
+
+func shows_portrait() -> bool:
+	return not ruler_id.is_empty() and not overlay and not battle
 
 
 ## Pasek celu samouczka (#185): pod górnym paskiem, od lewej granicy treści do kolumny przycisków.
@@ -553,6 +571,8 @@ func _activate(t: int) -> void:
 		queue_pressed.emit()
 	elif t == Target.SETTINGS:
 		settings_pressed.emit()
+	elif t == Target.PORTRAIT:
+		portrait_pressed.emit()
 
 
 # --- Rysowanie ---------------------------------------------------------------------------------
@@ -570,6 +590,11 @@ func _draw() -> void:
 		PixelFont.draw_text(self, r.position + Vector2(2, 1), GOAL_PREFIX, Palette.THATCH[2])
 		PixelFont.draw_text(self, r.position + Vector2(3 + PixelFont.text_width(GOAL_PREFIX) + 2, 1),
 				ResearchPanel.fit_text(goal_text, int(r.size.x) - PixelFont.text_width(GOAL_PREFIX) - 8), Palette.INK)
+	if shows_portrait():
+		var pr := portrait_rect(content_left, not goal_text.is_empty())
+		draw_texture(PortraitArt.ruler_texture(ruler_id), pr.position)
+		if _pressed == Target.PORTRAIT:
+			draw_texture(PortraitArt.ruler_texture(ruler_id), pr.position, Color(Palette.SHADOW, 0.4))
 	if overlay:
 		pass
 	elif is_card_open() and not battle:

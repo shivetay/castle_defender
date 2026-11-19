@@ -7,6 +7,7 @@ const PATH := "user://test_onboarding_player.json"
 const E := PlayerProfile.NameError
 const F := OnboardingPanel.Field
 const T := OnboardingPanel.Target
+const MAIN := preload("res://scripts/main.gd")
 
 
 func _identity(player: String, castle: String) -> PlayerProfile.Identity:
@@ -131,4 +132,42 @@ func test_panel_submit() -> bool:
 		assert_eq(got[0].ruler, Rulers.DEFAULT, "domyślny władca")
 		assert_true(got[0].is_complete(), "kompletna tożsamość")
 	p.free()
+	return true
+
+
+## Portret władcy (#228): koło 22×22 z przezroczystymi rogami, z palety, zawsze ten sam.
+func test_ruler_portrait() -> bool:
+	var img := PortraitArt.ruler_image(Rulers.DEFAULT)
+	assert_eq(img.get_size(), Vector2i(PortraitArt.SIZE, PortraitArt.SIZE), "rozmiar")
+	assert_eq(img.get_pixel(0, 0).a, 0.0, "róg poza kołem przezroczysty")
+	assert_eq(img.get_pixel(PortraitArt.SIZE - 1, PortraitArt.SIZE - 1).a, 0.0, "drugi róg")
+	assert_eq(img.get_pixel(PortraitArt.SIZE / 2, PortraitArt.SIZE / 2).a, 1.0, "środek pełny")
+	assert_eq(img.get_pixel(PortraitArt.SIZE / 2, 0), Palette.WOOD[0], "obrys na brzegu koła")
+	assert_eq(img.get_data(), PortraitArt.ruler_image(Rulers.DEFAULT).get_data(), "deterministyczny")
+	assert_eq(PortraitArt.ruler_image("nieznany").get_data(), img.get_data(), "nieznany władca: domyślny portret")
+	for row: String in PortraitArt.PATTERNS[Rulers.DEFAULT]:
+		assert_eq(row.length(), PortraitArt.SIZE, "wiersz wzoru ma %d znaków" % PortraitArt.SIZE)
+	return true
+
+
+## Portret w lewym górnym rogu: pod paskiem surowców i pod paskiem celu, obok kolumny przycisków.
+func test_portrait_in_hud() -> bool:
+	var b := Hud.content_bounds(VIEW, Rect2(Vector2.ZERO, VIEW))
+	var goal := Hud.goal_rect(b.x, b.y)
+	for has_goal: bool in [false, true]:
+		var r := Hud.portrait_rect(b.x, has_goal)
+		assert_true(r.size.x >= 12 and r.size.y >= 12, "cel dotyku co najmniej 12×12")
+		assert_true(r.position.y >= Hud.BAR_H and r.position.x >= Hud.CORNER_INSET, "pod paskiem, z marginesem")
+		assert_true(r.position.x < VIEW.x / 4.0 and r.end.y < VIEW.y / 2.0, "lewy górny róg")
+		assert_true(not r.intersects(Hud.column_rect(b.y, 0, true)), "z dala od kolumny przycisków")
+	assert_true(not Hud.portrait_rect(b.x, true).intersects(goal), "pod paskiem celu")
+	var h := Hud.new()
+	assert_true(not h.shows_portrait(), "bez tożsamości bez portretu")
+	h.ruler_id = Rulers.DEFAULT
+	assert_true(h.shows_portrait(), "po onboardingu portret jest")
+	h.battle = true
+	assert_true(not h.shows_portrait(), "w bitwie znika")
+	h.free()
+	var lines := MAIN.ruler_info(_identity("Bolko", "Gród Bolka"))
+	assert_eq(lines, PackedStringArray(["Gracz: Bolko", "Zamek: Gród Bolka", "Premie: brak"]), "okienko władcy")
 	return true
