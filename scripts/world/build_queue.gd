@@ -205,8 +205,16 @@ func upgrade_hint(grid: BuildGrid, building_id: int) -> String:
 		return MESSAGES[Result.MAX_LEVEL]
 	if next > BuildConfig.max_level(kind, grid.manor_level()):
 		return "Poziom %d wymaga Dworu na poziomie %d" % [next, next]
-	return "Ulepszenie: %s, %s" % [Hud.cost_text(BuildConfig.cost(kind, next)),
-			Hud.format_time(BuildConfig.time_ms(kind, next))]
+	return "Ulepszenie: %s, %s%s" % [Hud.cost_text(BuildConfig.cost(kind, next)),
+			Hud.format_time(BuildConfig.time_ms(kind, next)), capacity_gain_text(kind, next)]
+
+
+## Dopisek do ulepszenia Magazynu: ile więcej zmieści poziom `level` (np. „, +250 miejsca”).
+## Dla innych budynków pusty, żeby gracz widział, po co ulepszać Magazyn (review PR 238).
+static func capacity_gain_text(kind: int, level: int) -> String:
+	if kind != BuildingTypes.Kind.WAREHOUSE:
+		return ""
+	return ", +%d miejsca" % EconomyConfig.warehouse_gain(level)
 
 
 ## Postęp zlecenia w budowie, 0..1000 (‰). 0 dla czekających i budynków bez zlecenia.

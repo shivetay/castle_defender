@@ -27,6 +27,29 @@ func test_warehouse_is_buildable_economy() -> bool:
 	assert_eq(BuildingTypes.NAMES.size(), BuildingTypes.SIZES.size(), "rozmiar dla każdego rodzaju")
 	assert_eq(BuildingTypes.SHORT_NAMES.size(), BuildingTypes.NAMES.size(), "skrót dla każdego rodzaju")
 	assert_true(BuildPanel.describe(K.WAREHOUSE).contains("pojemności"), "opis w panelu budowy")
+	# review PR 238: tablica pojemności ma wpis na każdy poziom, a limity surowców są równe
+	assert_eq(EconomyConfig.WAREHOUSE_CAPACITY.size(), BuildingTypes.MAX_LEVEL, "pojemność na każdy poziom")
+	var sum := 0
+	for level in range(1, BuildingTypes.MAX_LEVEL + 1):
+		assert_true(EconomyConfig.warehouse_gain(level) > 0, "poziom %d dodaje miejsca" % level)
+		sum += EconomyConfig.warehouse_gain(level)
+	assert_eq(sum, EconomyConfig.WAREHOUSE_CAPACITY[BuildingTypes.MAX_LEVEL - 1], "przyrosty sumują się do poziomu 5")
+	assert_eq(EconomyConfig.warehouse_gain(0), 0, "poza zakresem")
+	return true
+
+
+## Karta i podpowiedź ulepszenia Magazynu mówią, ile więcej zmieści następny poziom (review PR 238).
+func test_upgrade_shows_capacity_gain() -> bool:
+	var main: GDScript = load("res://scripts/main.gd")
+	var gain := EconomyConfig.warehouse_gain(2)
+	assert_true((main.upgrade_info(K.WAREHOUSE, 1, 2, false) as String).ends_with(", +%d miejsca" % gain), "karta")
+	assert_true(not (main.upgrade_info(K.TOWER, 1, 2, false) as String).contains("miejsca"), "inne budynki bez dopisku")
+	var grid := _grid()
+	grid.upgrade(grid.manor_id())
+	var id := grid.place_kind(_spot(grid), K.WAREHOUSE, 1)
+	var hint := BuildQueue.new().upgrade_hint(grid, id)
+	assert_true(hint.ends_with(", +%d miejsca" % gain), "podpowiedź: %s" % hint)
+	assert_true(PixelFont.text_width(hint) <= Hud.MESSAGE_MAX_WIDTH, "podpowiedź mieści się w pasku")
 	return true
 
 
@@ -107,6 +130,9 @@ func test_info_text_explains_storage() -> bool:
 	var amounts: Array[int] = [100, 100, 100, 0]
 	var text := " | ".join(InfoText.resource(R.WOOD, grid, null, amounts))
 	assert_true(text.contains("więcej mieści Magazyn"), "bez Magazynu: wskazówka (%s)" % text)
+	for res: int in [R.WOOD, R.STONE, R.FOOD]:
+		assert_eq(InfoText.storage_line(grid, res), "Pojemność: Dwór %d; więcej mieści Magazyn" % EconomyConfig.CAPACITY[res],
+				"%s: baza z własnego limitu" % EconomyConfig.NAMES[res])
 	grid.place_kind(_spot(grid), K.WAREHOUSE, 1)
 	var wood := InfoText.resource(R.WOOD, grid, null, amounts)
 	assert_eq(wood[0], "Zapas: 100 z %d (magazyn)" % (EconomyConfig.CAPACITY[R.WOOD] + EconomyConfig.WAREHOUSE_CAPACITY[0]),

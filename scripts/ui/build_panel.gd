@@ -120,7 +120,7 @@ static func describe(kind: int) -> String:
 		var prod: Array = EconomyConfig.BUILDING_PRODUCTION[kind]
 		parts.append("+%d %s/h" % [int((prod[1] as Array)[0]), EconomyConfig.SHORT_NAMES[int(prod[0])]])
 	if kind == BuildingTypes.Kind.WAREHOUSE:
-		parts.append("+%d pojemności" % EconomyConfig.WAREHOUSE_CAPACITY[0])
+		parts.append("+%d pojemności" % EconomyConfig.warehouse_gain(1))
 	var producer: String = GoodsConfig.PRODUCER_KINDS.get(kind, "")
 	if not producer.is_empty():
 		var goods: PackedStringArray = []

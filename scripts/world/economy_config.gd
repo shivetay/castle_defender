@@ -37,3 +37,11 @@ static func count() -> int:
 
 static func is_capped(res: int) -> bool:
 	return CAPACITY[res] > 0
+
+
+## O ile Magazyn mieści więcej po dojściu do poziomu `level` (z poziomu niższego o 1); poziom 1
+## to postawienie. Poza zakresem poziomów 0.
+static func warehouse_gain(level: int) -> int:
+	if level < 1 or level > WAREHOUSE_CAPACITY.size():
+		return 0
+	return WAREHOUSE_CAPACITY[level - 1] - (WAREHOUSE_CAPACITY[level - 2] if level >= 2 else 0)

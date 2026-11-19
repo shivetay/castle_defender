@@ -1173,8 +1173,8 @@ static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool
 		return WATCHTOWER_INFO
 	if level >= BuildingTypes.MAX_LEVEL:
 		return "Najwyższy poziom"
-	return "Ulepsz: %s, %s" % [Hud.cost_text(BuildConfig.cost(kind, level + 1)),
-			Hud.format_time(BuildConfig.time_ms(kind, level + 1))]
+	return "Ulepsz: %s, %s%s" % [Hud.cost_text(BuildConfig.cost(kind, level + 1)),
+			Hud.format_time(BuildConfig.time_ms(kind, level + 1)), BuildQueue.capacity_gain_text(kind, level + 1)]
 
 
 ## Linia karty z wymaganiami następnego poziomu (po teście na telefonie), np. „Wymaga: Dwór poz. 3

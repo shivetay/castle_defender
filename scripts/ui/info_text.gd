@@ -41,7 +41,7 @@ static func resource(res: int, grid: BuildGrid, research: Research, amounts: Arr
 		elif rate > 0:
 			@warning_ignore("integer_division")
 			out.append("Magazyn pełny za %s" % Hud.format_time(room * Economy.MS_PER_HOUR / rate))
-		out.append(storage_line(grid))
+		out.append(storage_line(grid, res))
 	var makers: PackedStringArray = []
 	for kind: int in producers(res):
 		makers.append(BuildingTypes.NAMES[kind])
@@ -51,16 +51,17 @@ static func resource(res: int, grid: BuildGrid, research: Research, amounts: Arr
 	return out
 
 
-## Skąd jest pojemność: zapas Dworu i Magazyny razem (np. „Pojemność: Dwór 1000, Magazyn ×2: +1250”).
-static func storage_line(grid: BuildGrid) -> String:
-	var base := EconomyConfig.CAPACITY[EconomyConfig.Res.WOOD]
+## Skąd jest pojemność surowca `res`: zapas Dworu i Magazyny razem
+## (np. „Pojemność: Dwór 1000, Magazyn ×2: +1250”).
+static func storage_line(grid: BuildGrid, res: int) -> String:
+	var base := EconomyConfig.CAPACITY[res]
 	var n := 0
 	for id: int in grid.buildings:
 		if grid.kinds[id] == BuildingTypes.Kind.WAREHOUSE and grid.levels[id] >= 1:
 			n += 1
 	if n == 0:
 		return "Pojemność: Dwór %d; więcej mieści Magazyn" % base
-	var extra := Economy.capacities_for(grid)[EconomyConfig.Res.WOOD] - base
+	var extra := Economy.capacities_for(grid)[res] - base
 	return "Pojemność: Dwór %d, Magazyn ×%d: +%d" % [base, n, extra]
 
 
