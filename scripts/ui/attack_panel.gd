@@ -145,7 +145,7 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 			_pressed = Target.NONE
 			_swallow_release = true
-			changed.emit(AttackPlanner.HINT)
+			hint.emit(AttackPlanner.HINT)
 			return
 	var t := target_at(touch.position, get_viewport_rect().size, content_left, content_right, planner.squads.size())
 	if touch.pressed:
@@ -224,7 +224,7 @@ func activate(t: int) -> void:
 	match t:
 		Target.MANOEUVRE:
 			picking = not picking
-			changed.emit("Oddział %d: wybierz manewr" % o.squad if picking else AttackPlanner.HINT)
+			hint.emit("Oddział %d: wybierz manewr" % o.squad if picking else AttackPlanner.HINT)
 		Target.START:
 			AttackPlanner.next_start(o, planner.squads.size())
 			changed.emit("Start: %s" % AttackPlanner.start_text(o))
@@ -252,7 +252,7 @@ func choose(m: int) -> void:
 		return
 	var why := missing_for(m)
 	if not why.is_empty():
-		changed.emit("%s: %s" % [AttackPlan.MANOEUVRE_NAMES[m], why])
+		hint.emit("%s: %s" % [AttackPlan.MANOEUVRE_NAMES[m], why])
 		return
 	o.manoeuvre = m
 	picking = false
