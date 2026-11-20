@@ -10,25 +10,32 @@ extends RefCounted
 ##
 ## Plan to same liczby całkowite, więc ten sam plan daje ten sam przebieg (powtórka, weryfikacja PvP
 ## na serwerze). Oddział bez rozkazu walczy jak dotąd, czyli jak Szturm frontalny na donżon.
+##
+## Tabor (#235): jedyny manewr Wozu. Wóz nie walczy, jedzie trasą z planu i staje na jej ostatnim
+## punkcie. Trasę trzeba zaplanować (bez punktu trasy plan jest niepoprawny), a start ma zawsze
+## co najmniej WAGON_DELAY_S sekund opóźnienia, żeby wozy nie wjeżdżały przed wojskiem.
 
-enum Manoeuvre { FRONTAL, RANGED, FIRE, FLANK, LADDERS, RAM_GATE }
+enum Manoeuvre { FRONTAL, RANGED, FIRE, FLANK, LADDERS, RAM_GATE, CONVOY }
 enum Start { NOW, AFTER_SECONDS, AFTER_SQUAD }
 
 const MANOEUVRE_NAMES: Array[String] = ["Szturm frontalny", "Ostrzał z dystansu", "Podpalenie", "Oskrzydlenie",
-		"Szturm z drabinami", "Taranowanie bramy"]
+		"Szturm z drabinami", "Taranowanie bramy", "Tabor"]
 ## Od której epoki manewr jest dostępny (0 = I), z notatki.
-const MANOEUVRE_AGE: Array[int] = [0, 0, 0, 0, 1, 1]
+const MANOEUVRE_AGE: Array[int] = [0, 0, 0, 0, 1, 1, 0]
 ## Technologia, która odblokowuje manewr (#12, notatka Drzewko technologiczne); pusty napis: bez badań.
-const MANOEUVRE_TECH: Array[String] = ["", "", "A3", "A4", "A5", "A6"]
+const MANOEUVRE_TECH: Array[String] = ["", "", "A3", "A4", "A5", "A6", ""]
 ## Krótki opis manewru na liście wyboru (ekran planu).
 const MANOEUVRE_DESC: Array[String] = ["Idzie na cel i burzy, co stoi na drodze",
 		"Punkt ostrzału; marsz tylko bez wroga w zasięgu",
 		"Podpala drewniane budynki", "Obchodzi obronę bokiem", "Wchodzi na mur po drabinach",
-		"Taran bije bramę, piechota go osłania"]
+		"Taran bije bramę, piechota go osłania", "Wóz jedzie trasą i czeka na łup"]
 ## Komunikat, gdy jednostka oddziału nie umie wykonać manewru (po teście na telefonie Chłopi mieli
 ## Ostrzał z dystansu).
-const UNIT_HINTS: Array[String] = ["", "tylko strzelcy", "tylko Podpalacze", "nie Taran",
-		"tylko piechota", "Taran lub piechota"]
+const UNIT_HINTS: Array[String] = ["nie Wóz", "tylko strzelcy", "tylko Podpalacze", "nie Taran ani Wóz",
+		"tylko piechota", "Taran lub piechota", "tylko Wóz"]
+## Wóz rusza najwcześniej po tylu sekundach bitwy, także przy starcie „od razu” (decyzja właścicielki,
+## TYMCZASOWE). Dłuższe opóźnienie albo czekanie na oddział ustawia się w planie jak zwykle.
+const WAGON_DELAY_S := 20
 const MAX_WAYPOINTS := 3
 ## Ile oddziałów mieści plan w epokach I–VI (Otwarte pytania, decyzja właściciela: 3 w epoce I,
 ## do 8 w epoce VI). Technologia U12 i generałowie dodadzą po +1 później.
@@ -81,7 +88,10 @@ func order_for(squad: int) -> Order:
 ## Czy jednostka `unit` umie wykonać manewr `m`: Ostrzał tylko z zasięgiem co najmniej
 ## BattleConfig.RANGED_MIN_RANGE, Podpalenie tylko Podpalacz (tylko on rozpala ogień), Drabiny piechota
 ## lekka i ciężka, Taranowanie Taran i piechota w osłonie, Oskrzydlenie każdy poza Taranem.
+## Wóz umie tylko Tabor i tylko on go umie.
 static func unit_can(m: int, unit: int) -> bool:
+	if unit == UnitTypes.Unit.WAGON or m == Manoeuvre.CONVOY:
+		return unit == UnitTypes.Unit.WAGON and m == Manoeuvre.CONVOY
 	var cls := UnitTypes.unit_class(unit)
 	var infantry := cls == RecruitmentConfig.UnitClass.LIGHT or cls == RecruitmentConfig.UnitClass.HEAVY
 	match m:
@@ -98,12 +108,19 @@ static func unit_can(m: int, unit: int) -> bool:
 	return true
 
 
+## Manewr nowego rozkazu dla jednostki `unit`: Tabor dla Wozu, inaczej Szturm frontalny.
+static func default_manoeuvre(unit: int) -> int:
+	return Manoeuvre.CONVOY if unit == UnitTypes.Unit.WAGON else Manoeuvre.FRONTAL
+
+
 ## Czego brakuje, żeby oddział z jednostkami `unit` wykonał manewr `m` w epoce `age` przy badaniach
 ## `research` (bez badań technologii nie sprawdza), a pusty napis, gdy manewr jest dostępny. Jednostka,
 ## która manewru nie umie, daje sam ten powód (np. „tylko piechota”), bo epoka ani badanie nic nie
 ## zmienią; inaczej epoka i badanie po przecinku, np. „epoka II, A5 Drabiny oblężnicze”. Jednostka -1:
 ## bez sprawdzania jednostki.
 static func missing(m: int, unit: int, age: int, research: Research = null) -> String:
+	if m == Manoeuvre.CONVOY and unit != UnitTypes.Unit.WAGON:
+		return UNIT_HINTS[m]  # Tabor tylko dla Wozu, także bez znanej jednostki
 	if unit >= 0 and not unit_can(m, unit):
 		return UNIT_HINTS[m]  # epoka ani badanie tego nie zmienią
 	var parts: PackedStringArray = []
@@ -133,6 +150,8 @@ func problem(squad_count: int, age: int, research: Research = null, units: Array
 			return tech_hint(o.manoeuvre)
 		if o.squad <= units.size() and not unit_can(o.manoeuvre, units[o.squad - 1]):
 			return "Oddział %d, %s: %s" % [o.squad, MANOEUVRE_NAMES[o.manoeuvre], UNIT_HINTS[o.manoeuvre]]
+		if o.manoeuvre == Manoeuvre.CONVOY and o.waypoints.is_empty():
+			return "Oddział %d: wyznacz trasę Wozu" % o.squad
 		if o.waypoints.size() > MAX_WAYPOINTS:
 			return "Najwyżej %d punkty trasy" % MAX_WAYPOINTS
 		if o.retreat_percent < 0 or o.retreat_percent > 100:
@@ -144,6 +163,9 @@ func problem(squad_count: int, age: int, research: Research = null, units: Array
 				return "Start: wskaż inny oddział"
 			if _waits_in_cycle(o.squad):
 				return "Start: oddziały czekają na siebie nawzajem"
+	for i in units.size():
+		if units[i] == UnitTypes.Unit.WAGON and order_for(i + 1) == null:
+			return "Oddział %d: wyznacz trasę Wozu" % (i + 1)
 	return ""
 
 

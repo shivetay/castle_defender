@@ -17,7 +17,7 @@ extends RefCounted
 ## zamek daje REPEAT_PERCENT łupu. Ranking (#27) dojdzie z PvP. Liczby TYMCZASOWE.
 ##
 ## Capacity (#25): łup razem najwyżej tyle, ile uniosą ocalali (UnitTypes.CARRY), więc więcej jednostek
-## wracających z grabieży daje wyższy limit. Łup z zamku gracza liczy się tak samo, z jego zapasów
+## wracających z grabieży daje wyższy limit, a ocalały Wóz (#235) podnosi go najbardziej. Łup z zamku gracza liczy się tak samo, z jego zapasów
 ## z kopii na serwerze. Te same limity sprawdza `finish_attack` (`public.end_attack`), który odrzuca
 ## zawyżony łup; tarczę obrońcy (SHIELD_PERCENT) ustawia tylko serwer.
 @warning_ignore_start("integer_division")
@@ -144,6 +144,24 @@ static func carry_capacity(army: Array, alive: Array[int]) -> int:
 	for i in mini(army.size(), alive.size()):
 		var squad := army[i] as Array
 		total += clampi(alive[i], 0, int(squad[1])) * UnitTypes.carry(int(squad[0]))
+	return total
+
+
+## Capacity łupu armii `army` [rodzaj, liczba], gdy wszyscy wrócą (plan ataku, #235): górna granica
+## tego, co policzy carry_capacity po bitwie.
+static func army_capacity(army: Array) -> int:
+	var alive: Array[int] = []
+	for sq: Array in army:
+		alive.append(int(sq[1]))
+	return carry_capacity(army, alive)
+
+
+## Ile z capacity armii `army` dają Wozy (#235).
+static func wagon_capacity(army: Array) -> int:
+	var total := 0
+	for sq: Array in army:
+		if int(sq[0]) == UnitTypes.Unit.WAGON:
+			total += maxi(0, int(sq[1])) * UnitTypes.carry(UnitTypes.Unit.WAGON)
 	return total
 
 

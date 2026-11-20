@@ -24,6 +24,8 @@ const INFO_H := 10
 ## Wiersz listy manewrów: nazwa i pod nią opis albo powód, dlaczego niedostępny.
 const PICK_H := 18
 const PICK_GAP := 2
+## Najwięcej wierszy listy manewrów (więcej nie zmieści się nad opisem rozkazu).
+const PICK_ROWS := 6
 
 var planner: AttackPlanner
 var content_left := float(Hud.CORNER_INSET)
@@ -76,18 +78,52 @@ static func pick_rect(right: float, left: float, i: int) -> Rect2:
 	return Rect2(left, Hud.BAR_H + 2 + i * (PICK_H + PICK_GAP), w, PICK_H)
 
 
+## Pasek capacity łupu nad opisem rozkazu (#235).
+static func capacity_rect(view: Vector2, left: float, right: float) -> Rect2:
+	var info := info_rect(view, left, right)
+	return Rect2(left, info.position.y - INFO_H - 1, right - left, INFO_H)
+
+
+## Tekst capacity łupu armii, np. „Unosi łupu: 115 (wozy +100)”: ile surowców zabiorą wszyscy,
+## jeśli wrócą (po bitwie liczą się tylko ocaleli).
+static func capacity_text(army: Array) -> String:
+	var text := "Unosi łupu: %d" % BattleResult.army_capacity(army)
+	var wagons := BattleResult.wagon_capacity(army)
+	if wagons > 0:
+		text += " (wozy +%d)" % wagons
+	return text
+
+
+## Manewry na liście wyboru dla jednostki oddziału `unit`: Wóz ma sam Tabor (#235), inne jednostki
+## wszystkie poza Taborem (najwyżej PICK_ROWS).
+static func pick_list(unit: int) -> Array[int]:
+	if unit == UnitTypes.Unit.WAGON:
+		return [AttackPlan.Manoeuvre.CONVOY] as Array[int]
+	var out: Array[int] = []
+	for m in AttackPlan.MANOEUVRE_NAMES.size():
+		if m != AttackPlan.Manoeuvre.CONVOY:
+			out.append(m)
+	return out
+
+
 ## Cała lista manewrów (wiersze z lukami między nimi): dotknięcie w niej nie zamyka listy.
-static func list_rect(left: float, right: float) -> Rect2:
+static func list_rect(left: float, right: float, rows: int = PICK_ROWS) -> Rect2:
 	var first := pick_rect(right, left, 0)
-	return first.merge(pick_rect(right, left, AttackPlan.MANOEUVRE_NAMES.size() - 1))
+	return first.merge(pick_rect(right, left, maxi(1, rows) - 1))
 
 
-## Manewr pod punktem na otwartej liście albo -1.
-static func pick_at(p: Vector2, left: float, right: float) -> int:
-	for i in AttackPlan.MANOEUVRE_NAMES.size():
+## Wiersz pod punktem na otwartej liście z `rows` wierszami albo -1.
+static func pick_at(p: Vector2, left: float, right: float, rows: int = PICK_ROWS) -> int:
+	for i in rows:
 		if pick_rect(right, left, i).has_point(p):
 			return i
 	return -1
+
+
+## Manewry na otwartej liście wybranego oddziału.
+func _picks() -> Array[int]:
+	var o := planner.order() if planner != null else null
+	return pick_list(planner.unit_of(o.squad) if o != null else -1)
 
 
 ## Cel pod punktem: przycisk kolumny, oddział (SQUAD + numer od 0) albo NONE.
@@ -119,10 +155,11 @@ func _input(event: InputEvent) -> void:
 		if not touch.pressed and touch.index == _drag_index:
 			_finish_end_drag(touch.position)
 		return
-	if picking and list_rect(content_left, content_right).has_point(touch.position):
+	var picks := _picks()
+	if picking and list_rect(content_left, content_right, picks.size()).has_point(touch.position):
 		# w obrębie listy (z lukami między wierszami): wiersz wybiera manewr, luka nic nie robi
 		get_viewport().set_input_as_handled()
-		var row := pick_at(touch.position, content_left, content_right)
+		var row := pick_at(touch.position, content_left, content_right, picks.size())
 		var hit := Target.PICK + row if row >= 0 else Target.NONE
 		if touch.pressed:
 			_pressed = hit
@@ -130,7 +167,7 @@ func _input(event: InputEvent) -> void:
 		var was_row := _pressed
 		_pressed = Target.NONE
 		if hit != Target.NONE and hit == was_row:
-			choose(row)
+			choose(picks[row])
 		return
 	if _swallow_release and not touch.pressed:
 		_swallow_release = false
@@ -272,6 +309,10 @@ func _draw() -> void:
 		var text := AttackPlanner.describe(o)
 		PixelFont.draw_text(self, info.position + Vector2(2, 1), "%d. %s" % [o.squad, text[0]], Palette.INK)
 		PixelFont.draw_right(self, info.end.x - 2, info.position.y + 1, text[1], Palette.THATCH[2])
+	var cap := capacity_rect(view, content_left, content_right)
+	var cap_text := capacity_text(planner.squads)
+	draw_rect(Rect2(cap.position, Vector2(PixelFont.text_width(cap_text) + 4, cap.size.y)), Color(Palette.SHADOW, 0.8))
+	PixelFont.draw_text(self, cap.position + Vector2(2, 1), cap_text, Palette.THATCH[2])
 	for i in planner.squads.size():
 		var sq: Array = planner.squads[i]
 		var r := squad_rect(view, content_left, i)
@@ -301,11 +342,13 @@ func _draw_picker() -> void:
 	var o := planner.order()
 	if o == null:
 		return
-	for m in AttackPlan.MANOEUVRE_NAMES.size():
-		var r := pick_rect(content_right, content_left, m)
+	var picks := _picks()
+	for row in picks.size():
+		var m := picks[row]
+		var r := pick_rect(content_right, content_left, row)
 		var why := missing_for(m)
 		var chosen := o.manoeuvre == m
-		var col: Color = Palette.WOOD[2] if chosen or _pressed == Target.PICK + m else Palette.WOOD[1]
+		var col: Color = Palette.WOOD[2] if chosen or _pressed == Target.PICK + row else Palette.WOOD[1]
 		draw_rect(r, col if why.is_empty() else Color(Palette.SHADOW, 0.9))
 		if chosen:
 			CastleView.draw_frame(self, Rect2i(r), Palette.INK)

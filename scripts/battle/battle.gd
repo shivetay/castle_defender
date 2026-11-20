@@ -318,11 +318,12 @@ func _record(kind: int, who: int, x0: int, y0: int, x1: int, y1: int) -> void:
 		_fx.append(PackedInt32Array([tick, kind, who, x0, y0, x1, y1]))
 
 
-## Jednostki strony, które jeszcze walczą: żywe i niewycofane.
+## Jednostki strony, które jeszcze walczą: żywe i niewycofane. Wóz (#235) nie walczy, więc gdy
+## z armii zostały same wozy, atak się kończy, zamiast czekać na limit czasu.
 func fighting_count(side: int) -> int:
 	var n := 0
 	for f in fighters:
-		if f.side == side and f.alive() and not routed(f):
+		if f.side == side and f.alive() and not routed(f) and f.unit != UnitTypes.Unit.WAGON:
 			n += 1
 	return n
 
@@ -712,7 +713,11 @@ func _act(f: Fighter) -> void:
 
 
 ## Zachowanie bez rozkazu: obrońca broni posterunku, atakujący idzie na cel bitwy, Taran na bramę.
+## Wóz bez zaplanowanej trasy stoi tam, gdzie jest (#235).
 func _default_act(f: Fighter) -> void:
+	if f.unit == UnitTypes.Unit.WAGON:
+		f.target = 0
+		return
 	if f.unit == UnitTypes.Unit.RAM:
 		_ram_act(f)
 		return
@@ -1115,10 +1120,13 @@ func _free_ground(c: Vector2i) -> bool:
 func _act_order(f: Fighter, o: AttackPlan.Order) -> void:
 	var key := _squad_key(f.side, f.squad)
 	if not _sq_started.has(key):
-		if not _start_ready(o):
+		if not _start_ready(o) or (o.manoeuvre == AttackPlan.Manoeuvre.CONVOY and not _wagon_ready()):
 			_hold(f)  # czeka na starcie, ale oddaje wrogom w zasięgu
 			return
 		_sq_started[key] = true
+	if o.manoeuvre == AttackPlan.Manoeuvre.CONVOY:
+		_order_convoy(f, key)
+		return
 	var route: Array = _sq_route.get(key, [])
 	if f.wp < route.size():
 		var w: Vector2i = route[f.wp]
@@ -1138,6 +1146,27 @@ func _act_order(f: Fighter, o: AttackPlan.Order) -> void:
 			_order_ram(f, o, key)
 		_:
 			_order_assault(f, o, key)  # Szturm frontalny i Oskrzydlenie (po obejściu)
+
+
+## Wóz rusza najwcześniej po AttackPlan.WAGON_DELAY_S sekundach bitwy (#235).
+func _wagon_ready() -> bool:
+	return tick >= AttackPlan.WAGON_DELAY_S * BattleConfig.TICK_HZ
+
+
+## Tabor (#235): Wóz jedzie po kolei przez punkty trasy drogą, która omija żywe budynki (nie burzy
+## niczego, bo nie ma ataku), i staje na ostatnim. Dojazd na koniec trasy to wykonane zadanie
+## (start „po oddziale” innych oddziałów). Wóz nie wdaje się w walkę.
+func _order_convoy(f: Fighter, key: int) -> void:
+	f.target = 0
+	var route: Array = _sq_route.get(key, [])
+	while f.wp < route.size():
+		var w: Vector2i = route[f.wp]
+		if absi(f.cell().x - w.x) > 1 or absi(f.cell().y - w.y) > 1:
+			_walk(f, w, w.x * BattleConfig.SUB + BattleConfig.SUB / 2, w.y * BattleConfig.SUB + BattleConfig.SUB / 2,
+					false, _retreat_astar)
+			return
+		f.wp += 1
+	_sq_done[key] = true
 
 
 func _start_ready(o: AttackPlan.Order) -> bool:

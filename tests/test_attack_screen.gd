@@ -220,7 +220,10 @@ func test_manoeuvres_follow_units() -> bool:
 			"drabiny: piechota tak, konnica nie")
 	assert_true(AttackPlan.unit_can(M.RAM_GATE, U.RAM) and not AttackPlan.unit_can(M.FLANK, U.RAM), "Taran")
 	for u in UnitTypes.count():
-		assert_true(AttackPlan.unit_can(M.FRONTAL, u), "%d: szturm dla każdego" % u)
+		assert_eq(AttackPlan.unit_can(M.FRONTAL, u), u != U.WAGON, "%d: szturm dla każdego poza Wozem" % u)
+		assert_eq(AttackPlan.unit_can(M.CONVOY, u), u == U.WAGON, "%d: Tabor tylko dla Wozu" % u)
+	assert_eq(AttackPlan.missing(M.CONVOY, -1, 0), "tylko Wóz", "Tabor bez znanej jednostki niedostępny")
+	assert_eq(AttackPlanner.next_manoeuvre(M.CONVOY, 0, null, U.WAGON), M.CONVOY, "Wóz: tylko Tabor")
 	assert_eq(AttackPlanner.next_manoeuvre(M.FRONTAL, 0, null, U.PEASANT), M.FLANK, "Chłop: po szturmie oskrzydlenie")
 	assert_eq(AttackPlan.missing(M.RANGED, U.PEASANT, 0), "tylko strzelcy", "powód: jednostka")
 	assert_eq(AttackPlan.missing(M.RANGED, U.ARCHER, 0), "", "Łucznik: dostępny")
@@ -242,12 +245,18 @@ func test_manoeuvre_picker() -> bool:
 	var left := float(Hud.CORNER_INSET)
 	var right := VIEW.x - Hud.CORNER_INSET
 	var r := Research.new()
+	for u in UnitTypes.count():
+		assert_true(AttackPanel.pick_list(u).size() <= AttackPanel.PICK_ROWS, "%d: lista mieści się" % u)
+	assert_eq(AttackPanel.pick_list(U.WAGON), [M.CONVOY] as Array[int], "Wóz: sam Tabor")
+	assert_true(not AttackPanel.pick_list(U.PEASANT).has(M.CONVOY), "inni bez Taboru")
+	for i in AttackPanel.PICK_ROWS:
+		var row := AttackPanel.pick_rect(right, left, i)
+		assert_true(row.size.y >= 12, "%d: cel dotyku 12 px" % i)
+		assert_true(row.end.y < AttackPanel.info_rect(VIEW, left, right).position.y, "%d: nad opisem rozkazu" % i)
+		assert_true(row.end.x < Hud.column_rect(right, 0).position.x, "%d: obok kolumny" % i)
+		assert_eq(AttackPanel.pick_at(row.get_center(), left, right), i, "%d: trafienie" % i)
 	for m in AttackPlan.MANOEUVRE_NAMES.size():
-		var row := AttackPanel.pick_rect(right, left, m)
-		assert_true(row.size.y >= 12, "%d: cel dotyku 12 px" % m)
-		assert_true(row.end.y < AttackPanel.info_rect(VIEW, left, right).position.y, "%d: nad opisem rozkazu" % m)
-		assert_true(row.end.x < Hud.column_rect(right, 0).position.x, "%d: obok kolumny" % m)
-		assert_eq(AttackPanel.pick_at(row.get_center(), left, right), m, "%d: trafienie" % m)
+		var row := AttackPanel.pick_rect(right, left, 0)
 		assert_true(PixelFont.text_width(AttackPlan.MANOEUVRE_DESC[m]) <= row.size.x - 4, "%d: opis mieści się" % m)
 		for u in UnitTypes.count():
 			for age in 2:

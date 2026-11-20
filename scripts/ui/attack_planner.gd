@@ -14,6 +14,7 @@ const START_SECONDS: Array[int] = [10, 20, 30]
 ## Odwrót: kolejne wartości przycisku Odwrót (procent strat; 0 = nigdy).
 const RETREAT_STEPS: Array[int] = [0, 30, 50, 70]
 const HINT := "Dotknij budynku: cel, trawy: punkt trasy"
+const WAGON_HINT := "Wóz: dotknij trawy, ostatni punkt to postój"
 ## Połowa celu dotyku końca strzałki (min. 12×12 px logicznych).
 const END_HIT := 6
 
@@ -62,18 +63,19 @@ static func unit_list(army: Array) -> Array[int]:
 
 
 ## Dopasowuje plan do liczby oddziałów: każdy ma rozkaz, nadmiarowe rozkazy znikają. Z `units`
-## rozkaz, którego jednostka oddziału nie umie wykonać (np. inny skład armii), wraca do Szturmu.
+## rozkaz, którego jednostka oddziału nie umie wykonać (np. inny skład armii), wraca do domyślnego
+## manewru jednostki (Szturm, a dla Wozu Tabor, #235).
 static func fit_plan(p: AttackPlan, count: int, units: Array[int] = []) -> void:
 	var keep: Array[AttackPlan.Order] = []
 	for o in p.orders:
 		if o.squad >= 1 and o.squad <= count:
 			if o.squad <= units.size() and not AttackPlan.unit_can(o.manoeuvre, units[o.squad - 1]):
-				o.manoeuvre = AttackPlan.Manoeuvre.FRONTAL
+				o.manoeuvre = AttackPlan.default_manoeuvre(units[o.squad - 1])
 			keep.append(o)
 	p.orders = keep
 	for i in range(1, count + 1):
 		if p.order_for(i) == null:
-			p.add(i, AttackPlan.Manoeuvre.FRONTAL)
+			p.add(i, AttackPlan.default_manoeuvre(units[i - 1] if i <= units.size() else -1))
 
 
 func order() -> AttackPlan.Order:
@@ -102,7 +104,9 @@ func unit_of(squad: int) -> int:
 static func next_start(o: AttackPlan.Order, squad_count: int) -> void:
 	var options: Array[Vector2i] = [Vector2i(AttackPlan.Start.NOW, 0)]
 	for s in START_SECONDS:
-		options.append(Vector2i(AttackPlan.Start.AFTER_SECONDS, s))
+		# Wóz i tak czeka WAGON_DELAY_S sekund: krótsze czasy nic by nie zmieniły (#235)
+		if o.manoeuvre != AttackPlan.Manoeuvre.CONVOY or s > AttackPlan.WAGON_DELAY_S:
+			options.append(Vector2i(AttackPlan.Start.AFTER_SECONDS, s))
 	for i in range(1, squad_count + 1):
 		if i != o.squad:
 			options.append(Vector2i(AttackPlan.Start.AFTER_SQUAD, i))
@@ -118,11 +122,14 @@ static func next_retreat(percent: int) -> int:
 
 
 ## Dotknięcie kratki `cell` mapy celu: budynek staje się celem rozkazu, trawa dodaje punkt trasy
-## (czwarty punkt zaczyna trasę od nowa). Zwraca komunikat dla paska.
+## (czwarty punkt zaczyna trasę od nowa). Tabor (#235) nie ma celu-budynku: ostatni punkt trasy
+## to postój Wozu. Zwraca komunikat dla paska.
 static func tap(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> String:
 	if not grid.terrain.in_bounds(cell):
 		return HINT
 	var id := grid.building_at(cell)
+	if id != 0 and o.manoeuvre == AttackPlan.Manoeuvre.CONVOY:
+		return WAGON_HINT
 	if id != 0:
 		o.target = cell
 		return "Cel: %s" % BuildingTypes.NAMES[grid.kinds[id]]
@@ -134,8 +141,11 @@ static func tap(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> String:
 	return "Trasa: punkt %d z %d" % [o.waypoints.size(), AttackPlan.MAX_WAYPOINTS]
 
 
-## Kratka końca strzałki: wskazany cel albo środek donżonu (domyślny koniec).
+## Kratka końca strzałki: wskazany cel albo środek donżonu (domyślny koniec). Tabor: ostatni punkt
+## trasy, a bez trasy brak końca (Wóz stoi na wejściu).
 static func end_cell(o: AttackPlan.Order, b: BotCastle) -> Vector2i:
+	if o.manoeuvre == AttackPlan.Manoeuvre.CONVOY:
+		return o.waypoints[-1] if not o.waypoints.is_empty() else AttackPlan.NO_TARGET
 	if o.target != AttackPlan.NO_TARGET:
 		return o.target
 	if b != null and b.grid.buildings.has(b.objective):
@@ -155,8 +165,15 @@ static func hit_end(o: AttackPlan.Order, b: BotCastle, world: Vector2, half: flo
 
 
 ## Ustawia koniec trasy na budynek w kratce `cell` (przeciągnięcie uchwytu). Trawa i woda
-## nie zmieniają celu. Zwraca komunikat dla paska.
+## nie zmieniają celu. Tabor (#235): przenosi postój (ostatni punkt trasy) na trawę.
+## Zwraca komunikat dla paska.
 static func set_end(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> String:
+	if o.manoeuvre == AttackPlan.Manoeuvre.CONVOY:
+		if not grid.terrain.in_bounds(cell) or grid.building_at(cell) != 0 \
+				or grid.terrain.get_tile(cell) == TerrainMap.Tile.WATER or o.waypoints.is_empty():
+			return WAGON_HINT
+		o.waypoints[-1] = cell
+		return "Postój Wozu przeniesiony"
 	if not grid.terrain.in_bounds(cell):
 		return "Koniec trasy: wskaż budynek"
 	var id := grid.building_at(cell)
@@ -171,13 +188,16 @@ static func clear(o: AttackPlan.Order) -> void:
 	o.waypoints.clear()
 
 
+## Start rozkazu na pasku. Wóz (#235) rusza najwcześniej po AttackPlan.WAGON_DELAY_S sekundach,
+## więc krótszy czas pokazuje się jako to opóźnienie.
 static func start_text(o: AttackPlan.Order) -> String:
+	var wagon := o.manoeuvre == AttackPlan.Manoeuvre.CONVOY
 	match o.start:
 		AttackPlan.Start.AFTER_SECONDS:
-			return "po %d s" % o.start_value
+			return "po %d s" % (maxi(o.start_value, AttackPlan.WAGON_DELAY_S) if wagon else o.start_value)
 		AttackPlan.Start.AFTER_SQUAD:
 			return "po oddz. %d" % o.start_value
-	return "od razu"
+	return "po %d s" % AttackPlan.WAGON_DELAY_S if wagon else "od razu"
 
 
 static func retreat_text(percent: int) -> String:
@@ -193,6 +213,12 @@ static func describe(o: AttackPlan.Order) -> Array[String]:
 ## bez trasy) i cel (wskazany budynek albo donżon). Z `end_override` zamiast celu (podgląd przeciągania).
 static func arrow_cells(o: AttackPlan.Order, b: BotCastle, end_override: Vector2i = AttackPlan.NO_TARGET) -> Array[Vector2i]:
 	var out: Array[Vector2i] = [b.spawn]
+	if o.manoeuvre == AttackPlan.Manoeuvre.CONVOY:
+		# Tabor: sama trasa, z podglądem przenoszonego postoju
+		out.append_array(o.waypoints)
+		if end_override != AttackPlan.NO_TARGET and out.size() > 1:
+			out[-1] = end_override
+		return out
 	var goal := end_override if end_override != AttackPlan.NO_TARGET else end_cell(o, b)
 	if o.manoeuvre == AttackPlan.Manoeuvre.FLANK and o.waypoints.is_empty() and goal != AttackPlan.NO_TARGET:
 		# ten sam punkt obejścia, który wyznaczy bitwa (Battle.set_plan)
