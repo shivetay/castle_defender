@@ -288,6 +288,23 @@ func test_keep_shoots_with_ranged_garrison() -> bool:
 	assert_true(g.keep_manned(gk), "donżon ma załogę")
 	assert_eq(Battle.station_range_bonus(K.KEEP), BattleConfig.TOWER_STATION_RANGE_BONUS, "z donżonu dalej")
 	assert_true(BattleConfig.TOWER_STATION_RANGE_BONUS > BattleConfig.WALL_RANGE_BONUS, "dalej niż z muru")
+	# załoga nie schodzi ścigać (review #244): po walce z wrogami w zasięgu wzroku dalej stoi na donżonie
+	var stay := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 6]], [[U.ARCHER, 2]], spawn, 5)
+	var sk := stay.structures[stay.objective]
+	var crew: Array[Battle.Fighter] = []
+	for f in _side(stay, Battle.Side.DEFENDER):
+		if f.wall == sk.id:
+			crew.append(f)
+	assert_eq(crew.size(), 2, "obaj łucznicy na donżonie")
+	var engaged := false
+	for i in 1800:
+		stay.step()
+		for f in crew:
+			engaged = engaged or f.target != 0
+			if f.alive() and not f.retreating and not sk.rect.has_point(f.cell()):
+				assert_true(false, "łucznik zszedł z donżonu (tick %d)" % stay.tick)
+				return true
+	assert_true(engaged, "załoga strzelała do wrogów")
 	# łucznik na donżonie sięga wroga o TOWER_STATION_RANGE_BONUS kratek dalej niż łuk
 	var archer: Battle.Fighter = null
 	for f in _side(g, Battle.Side.DEFENDER):

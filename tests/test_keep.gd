@@ -162,6 +162,12 @@ func test_keep_card_has_only_close() -> bool:
 	var grid := _castle()
 	assert_eq(BuildQueue.new().upgrade_hint(grid, grid.keep_id()), BuildQueue.KEEP_HINT, "komunikat bez ulepszenia")
 	assert_true(PixelFont.text_width(BuildQueue.KEEP_HINT) <= Hud.MESSAGE_MAX_WIDTH, "komunikat mieści się w pasku")
+	# stare zlecenie ulepszenia donżonu: zwykła karta, na której środkowy przycisk to Anuluj (review #244)
+	assert_true(MAIN.plain_card(K.KEEP, false), "donżon bez zlecenia: sam Zamknij")
+	assert_true(not MAIN.plain_card(K.KEEP, true), "donżon ze zleceniem: zwykła karta")
+	assert_true(not MAIN.plain_card(K.TOWER, false), "inne budynki: zwykła karta")
+	assert_true(Hud.card_buttons(false, false, false, MAIN.plain_card(K.KEEP, true)).has(Hud.CardButton.DEMOLISH),
+			"jest przycisk Anuluj")
 	var economy := Economy.new(0)
 	assert_true(BuildQueue.new().order_upgrade(grid, economy, grid.keep_id(), 0) != BuildQueue.Result.OK,
 			"ulepszenia nie da się zlecić")

@@ -704,6 +704,10 @@ func _act(f: Fighter) -> void:
 	if f.side == Side.DEFENDER and defence.has(f.squad):
 		_defend(f, defence[f.squad])
 		return
+	if f.side == Side.DEFENDER and f.wall != 0:
+		# załoga donżonu bez zadania (#232): stoi na stanowisku jak strzelcy na murze (review #244)
+		_wall_act(f)
+		return
 	_default_act(f)
 
 

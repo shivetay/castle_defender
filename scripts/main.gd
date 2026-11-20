@@ -1329,8 +1329,7 @@ func _refresh_card() -> void:
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
-	# zlecenie ulepszenia donżonu ze starego zapisu: zwykła karta z Anuluj (review #244)
-	hud.card_plain = kind == BuildingTypes.Kind.KEEP and not pending
+	hud.card_plain = plain_card(kind, pending)
 	hud.card_check_disabled = seal_check.is_busy()
 	hud.card_seal_disabled = not seal_check.has_selection()
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
@@ -1344,6 +1343,12 @@ func _refresh_card() -> void:
 	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
+
+
+## Karta z samym Zamknij (#232): donżon, chyba że ma zlecenie ulepszenia ze starego zapisu, wtedy
+## zwykła karta z Anuluj (review #244).
+static func plain_card(kind: int, pending: bool) -> bool:
+	return kind == BuildingTypes.Kind.KEEP and not pending
 
 
 ## Linia karty Komendy umocnień (#199): odliczanie Sprawdź, wynik albo zachęta do sprawdzenia.
