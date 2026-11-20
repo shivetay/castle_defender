@@ -4,7 +4,9 @@ extends Node2D
 ## U góry zakładki gałęzi (Atak, Obrona, Gospodarka, Użyteczne, Specjalne), pod nimi kafelki technologii
 ## z kodem. Kafelek pokazuje stan kolorem napisu: zbadana, w toku, dostępna, zablokowana
 ## (brak wymaganej technologii, budynku badań gałęzi z #165 albo późniejsza epoka); zbadana ma zielony kafelek ze znaczkiem
-## w lewym rogu, a technologia kluczowa ★ czerwony znacznik w prawym.
+## w lewym rogu, a technologia kluczowa ★ czerwony znacznik w prawym. Technologie z późniejszej epoki
+## są ukryte, dopóki nie zbadano ich wymagań (Research.is_visible); ukryte nie pojawiają się też
+## w ramkach, w „Odblokowuje” ani w „Powiązane”.
 ## Dotknięcie kafelka pokazuje szczegóły: nazwę, stan, efekt, koszt i czas, wymagania, co technologia
 ## odblokowuje i z czym łączy się przez towary (TechLinks). Ramki na kafelkach: wymagane czerwone
 ## (zielone, gdy zbadane), odblokowywane złote, powiązane niebieskie. Badaj rozpoczyna badanie,
@@ -48,8 +50,8 @@ var _pressed: int = Target.NONE
 func open() -> void:
 	visible = true
 	_pressed = Target.NONE
-	if selected.is_empty():
-		select(TechTree.in_branch(branch)[0])
+	if selected.is_empty() or not _is_shown(selected):
+		select(shown_codes(branch)[0])
 
 
 func close() -> void:
@@ -60,6 +62,21 @@ func close() -> void:
 func select(code: String) -> void:
 	selected = code
 	branch = TechTree.branch(code)
+
+
+## Kafelki gałęzi `b` widoczne w tej chwili (bez badań: całe drzewko, jak w testach układu).
+func shown_codes(b: int) -> Array[String]:
+	var codes := TechTree.in_branch(b)
+	return research.visible_of(codes, age) if research != null else codes
+
+
+func _is_shown(code: String) -> bool:
+	return research == null or research.is_visible(code, age)
+
+
+## Lista kodów bez ukrytych technologii.
+func _shown_of(codes: Array[String]) -> Array[String]:
+	return research.visible_of(codes, age) if research != null else codes
 
 
 func _process(_delta: float) -> void:
@@ -102,7 +119,7 @@ static func close_rect(view: Vector2, right: float) -> Rect2:
 	return Hud.right_corner_rect(view, right)
 
 
-static func target_at(p: Vector2, view: Vector2, left: float, right: float, shown_branch: int) -> int:
+static func target_at(p: Vector2, view: Vector2, left: float, right: float, tile_count: int) -> int:
 	if close_rect(view, right).has_point(p):
 		return Target.CLOSE
 	if start_rect(view, right).has_point(p):
@@ -110,7 +127,7 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, show
 	var tab := Hud.hit(tab_rects(left, right), p)
 	if tab >= 0:
 		return Target.TAB + tab
-	var tile := Hud.hit(tile_rects(left, right, TechTree.in_branch(shown_branch).size()), p)
+	var tile := Hud.hit(tile_rects(left, right, tile_count), p)
 	if tile >= 0:
 		return Target.TILE + tile
 	return Target.NONE
@@ -176,7 +193,8 @@ func _input(event: InputEvent) -> void:
 	if touch == null:
 		return
 	get_viewport().set_input_as_handled()
-	var t := target_at(touch.position, get_viewport_rect().size, content_left, content_right, branch)
+	var t := target_at(touch.position, get_viewport_rect().size, content_left, content_right,
+			shown_codes(branch).size())
 	if touch.pressed:
 		_pressed = t
 		return
@@ -188,10 +206,10 @@ func _input(event: InputEvent) -> void:
 
 func _activate(t: int) -> void:
 	if t >= Target.TILE:
-		select(TechTree.in_branch(branch)[t - Target.TILE])
+		select(shown_codes(branch)[t - Target.TILE])
 	elif t >= Target.TAB:
 		branch = t - Target.TAB
-		select(TechTree.in_branch(branch)[0])
+		select(shown_codes(branch)[0])
 	elif t == Target.START:
 		if not selected.is_empty():
 			research_requested.emit(selected)
@@ -207,8 +225,8 @@ func _draw() -> void:
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, Hud.BAR_H, view.x, view.y - 2 * Hud.BAR_H), Color(Palette.SHADOW, 0.92))
 	var reqs := TechTree.requires(selected)
-	var next := TechLinks.unlocks(selected)
-	var linked := TechLinks.related(selected)
+	var next := _shown_of(TechLinks.unlocks(selected))
+	var linked := _shown_of(TechLinks.related(selected))
 	var tabs := tab_rects(content_left, content_right)
 	for i in tabs.size():
 		Hud.paint_button(self, tabs[i], TechTree.BRANCH_NAMES[i], i == branch or _pressed == Target.TAB + i, false)
@@ -216,7 +234,7 @@ func _draw() -> void:
 		if i != branch and mark.a > 0.0:
 			# powiązanie w innej gałęzi: pasek w kolorze ramki na dole zakładki (review #157)
 			draw_rect(Rect2(tabs[i].position.x + 2, tabs[i].end.y - 3, tabs[i].size.x - 4, 2), mark)
-	var codes := TechTree.in_branch(branch)
+	var codes := shown_codes(branch)
 	var tiles := tile_rects(content_left, content_right, codes.size())
 	for i in codes.size():
 		var frame := link_color(codes[i], reqs, next, linked, research.is_done(codes[i]))
@@ -306,10 +324,10 @@ static func detail_lines(r: Research, code: String, current_age: int, now: int, 
 	if grid != null and not Research.has_building(code, grid) and not r.is_done(code):
 		missing_building.append(BuildingTypes.NAMES[ResearchConfig.research_building(code)])
 	links.append([requires_text(code, width), Palette.INK, "", missing_building])
-	var next := TechLinks.unlocks(code)
+	var next := r.visible_of(TechLinks.unlocks(code), current_age)
 	if not next.is_empty():
 		links.append([codes_text("Odblokowuje: ", next, width), Palette.THATCH[2], ""])
-	var linked := TechLinks.related(code)
+	var linked := r.visible_of(TechLinks.related(code), current_age)
 	if not linked.is_empty():
 		links.append([codes_text("Powiązane: ", linked, width), Palette.WATER[2], ""])
 	# brak miejsca: odblokowuje i powiązane w jednej linii, same kody

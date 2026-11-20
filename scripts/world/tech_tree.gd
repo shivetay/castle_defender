@@ -5,8 +5,8 @@ extends RefCounted
 ## (★, warunek przejścia do następnej epoki, #34), efektem i zależnościami.
 ## Zależności są według notatki, łącznie z jej sekcją „Zmienione zależności”
 ## (A21 ← A38, A3 ← G24, a A7 Strzemię wymaga A2 i A43).
-## Działają już efekty, które mają w grze na co wpłynąć (PRODUCTION_BONUS). Pozostałe
-## (budynki, jednostki, manewry, morale) włączą się razem z tymi systemami.
+## Działają już efekty, które mają w grze na co wpłynąć (PRODUCTION_BONUS, bitwa, jednostki, budynki). Pozostałe
+## (zwiad S1/S3 z #28, przejście epok O1/G6 z #34) włączą się razem z tymi systemami.
 
 enum Branch { ATTACK, DEFENSE, ECONOMY, UTILITY, SPECIAL }
 

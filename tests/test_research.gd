@@ -196,13 +196,13 @@ func test_panel_layout_fits_screen() -> bool:
 func test_panel_targets() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
 	var T := ResearchPanel.Target
-	assert_eq(ResearchPanel.target_at(ResearchPanel.close_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y, 0), T.CLOSE, "Zamknij")
-	assert_eq(ResearchPanel.target_at(ResearchPanel.start_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y, 0), T.START, "Badaj")
+	assert_eq(ResearchPanel.target_at(ResearchPanel.close_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y, 19), T.CLOSE, "Zamknij")
+	assert_eq(ResearchPanel.target_at(ResearchPanel.start_rect(VIEW, b.y).get_center(), VIEW, b.x, b.y, 19), T.START, "Badaj")
 	var tabs := ResearchPanel.tab_rects(b.x, b.y)
-	assert_eq(ResearchPanel.target_at(tabs[2].get_center(), VIEW, b.x, b.y, 0), T.TAB + 2, "zakładka Gospodarka")
+	assert_eq(ResearchPanel.target_at(tabs[2].get_center(), VIEW, b.x, b.y, 19), T.TAB + 2, "zakładka Gospodarka")
 	var tiles := ResearchPanel.tile_rects(b.x, b.y, 19)
-	assert_eq(ResearchPanel.target_at(tiles[18].get_center(), VIEW, b.x, b.y, 0), T.TILE + 18, "ostatni kafelek Ataku")
-	assert_eq(ResearchPanel.target_at(tiles[18].get_center(), VIEW, b.x, b.y, 1), T.NONE, "w Obronie tam pusto")
+	assert_eq(ResearchPanel.target_at(tiles[18].get_center(), VIEW, b.x, b.y, 19), T.TILE + 18, "ostatni kafelek Ataku")
+	assert_eq(ResearchPanel.target_at(tiles[18].get_center(), VIEW, b.x, b.y, 3), T.NONE, "w Obronie tam pusto")
 	return true
 
 
@@ -339,4 +339,32 @@ func test_research_needs_branch_building() -> bool:
 		if (l[0] as String).begins_with("Wymaga: Koszary") and l.size() > 3 and (l[3] as PackedStringArray).has("Koszary"):
 			found = true
 	assert_true(found, "szczegóły: brakujące Koszary na czerwono")
+	return true
+
+
+## Technologie z późniejszej epoki widać dopiero po zbadaniu ich wymagań; z bieżącej epoki zawsze.
+func test_later_age_hidden_until_requirements_done() -> bool:
+	var r := Research.new()
+	assert_true(r.is_visible("A1", 0), "epoka I zawsze widoczna")
+	assert_true(r.is_visible("A4", 0), "epoka I widoczna, choć brak A1")
+	assert_true(not r.is_visible("A6", 0), "A6 (epoka II, wymaga A1) ukryta")
+	assert_true(not r.is_visible("A22", 0), "A22 ukryta bez A7")
+	var attack := TechTree.in_branch(TechTree.Branch.ATTACK)
+	assert_true(r.visible_of(attack, 0).size() < attack.size(), "w Ataku część kafelków ukryta")
+	r.done["A1"] = true
+	assert_true(r.is_visible("A6", 0), "A6 widoczna po A1 (badać dalej nie można: epoka II)")
+	assert_eq(r.check("A6", 0), Research.Result.WRONG_AGE, "widoczna, ale zablokowana epoką")
+	assert_true(not r.is_visible("A5", 0), "A5 wymaga A4, nadal ukryta")
+	assert_true(r.is_visible("A5", 1), "w epoce II widać całe drzewko epoki II")
+	assert_true(r.is_visible("G4", 1) and not Research.new().is_visible("G4", 0), "G4 bez G1 ukryte w epoce I")
+	for b in TechTree.BRANCH_NAMES.size():
+		assert_true(Research.new().visible_of(TechTree.in_branch(b), 0).size() > 0, "każda gałąź ma kafelek na starcie")
+	return true
+
+
+## Ukryte technologie nie zdradzają się w „Odblokowuje” ani „Powiązane”.
+func test_hidden_techs_not_in_details() -> bool:
+	var lines := ResearchPanel.detail_lines(Research.new(), "A7", 0, 0, 296)
+	for l: Array in lines:
+		assert_true(not (l[0] as String).contains("A22"), "A22 ukryte w szczegółach A7")
 	return true

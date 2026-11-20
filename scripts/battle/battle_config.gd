@@ -107,9 +107,10 @@ const CHARGE_PERCENT := 200
 const AXE_VS_WOOD_PERCENT := 150
 ## Technologie w bitwie (#12, notatka Drzewko technologiczne): A1 Hartowane topory (wojownik z toporem
 ## +15% przeciw drewnu), A2 Łuk kompozytowy (łuki +20% zasięgu, w całych kratkach w dół),
-## O2 Zaostrzone pale (palisada obrońcy +20% wytrzymałości).
+## A7 Strzemię (konnica +25% szybkości), O2 Zaostrzone pale (palisada obrońcy +20% wytrzymałości).
 const A1_WOOD_PERCENT := 115
 const A2_RANGE_PERCENT := 120
+const A7_CAVALRY_SPEED_PERCENT := 125
 const O2_PALISADE_HP_PERCENT := 120
 ## Jeździec omija wolne cele (szybkość do tej wartości), chyba że stoją tuż obok.
 const RIDER_IGNORES_SPEED := 2
