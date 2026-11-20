@@ -137,9 +137,11 @@ func cancel(grid: BuildGrid, economy: Economy, building_id: int, now_ms: int) ->
 ## albo premia z technologii liczą się dokładnie od chwili ukończenia. Zwraca ukończone zlecenia.
 ## Towary (`goods`) liczą się w tych samych punktach czasu co surowce: wytwórca ukończony w trakcie
 ## nieobecności produkuje dopiero od chwili ukończenia (review PR 140). `upkeep` to utrzymanie armii
-## w Ży/h (#214, Recruitment.army_upkeep), odejmowane od produkcji żywności.
+## w Ży/h (#214, Recruitment.army_upkeep), odejmowane od produkcji żywności. `ruins`: budynki
+## w odbudowie po ataku PvP (#99); produkcja liczy się osobno przed i po każdym początku i końcu
+## odbudowy, więc ruina odbudowana podczas nieobecności produkuje pełną stawką od tej chwili.
 func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research = null,
-		goods: Goods = null, upkeep: int = 0) -> Array[Order]:
+		goods: Goods = null, upkeep: int = 0, ruins: Ruins = null) -> Array[Order]:
 	var done: Array[Order] = []
 	# pojemność z Magazynów (także po rozbiórce albo odczycie), zanim cokolwiek się naliczy
 	economy.refresh_capacity(grid)
@@ -154,7 +156,7 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 		var take_research := research_due and (not build_due or research_at < build_at)
 		var at := research_at if take_research else build_at
 		if at > economy.last_update_ms:
-			economy.update(at, Economy.net_rates(grid, research, upkeep))
+			_economy_to(at, grid, economy, research, upkeep, ruins)
 		if goods != null and at > goods.last_update_ms:
 			goods.update(at, Goods.producers(grid), economy)
 		if take_research:
@@ -171,10 +173,27 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 		if not orders.is_empty():
 			orders[0].start_ms = at
 		done.append(o)
-	economy.update(now_ms, Economy.net_rates(grid, research, upkeep))
+	_economy_to(now_ms, grid, economy, research, upkeep, ruins)
 	if goods != null:
 		goods.update(now_ms, Goods.producers(grid), economy)
 	return done
+
+
+## Nalicza produkcję do `at_ms`, dzieląc czas w chwilach, w których zmienia się zbiór ruin (#99).
+static func _economy_to(at_ms: int, grid: BuildGrid, economy: Economy, research: Research, upkeep: int,
+		ruins: Ruins) -> void:
+	if ruins == null:
+		grid.ruined = {}
+		economy.update(at_ms, Economy.net_rates(grid, research, upkeep))
+		return
+	while true:
+		var change := ruins.next_change_after(economy.last_update_ms)
+		grid.ruined = ruins.active_at(economy.last_update_ms)
+		if change < 0 or change >= at_ms:
+			break
+		economy.update(change, Economy.net_rates(grid, research, upkeep))
+	economy.update(at_ms, Economy.net_rates(grid, research, upkeep))
+	grid.ruined = ruins.active_at(at_ms)
 
 
 ## Ile zostało do końca zlecenia budynku (ms). Dla czekającego zlecenia: cały jego czas

@@ -13,6 +13,9 @@ var cells: PackedInt32Array
 var buildings: Dictionary[int, Rect2i] = {}
 var kinds: Dictionary[int, int] = {}
 var levels: Dictionary[int, int] = {}
+## Budynki w ruinie po ataku PvP (#99, Ruins.active_at): tylko obniżają produkcję (Economy.rates).
+## Ustawia je BuildQueue.update; nie trafiają do zapisu.
+var ruined: Dictionary[int, bool] = {}
 var _next_id := 1
 
 

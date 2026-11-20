@@ -47,6 +47,8 @@ var stars: Array[bool] = [false, false, false]
 var loot: Array[int] = []
 var destroyed := 0
 var total := 0
+## Id zniszczonych budynków (bez wału i palisady), rosnąco: z nich obrońca-gracz odbudowuje zamek (#99, Ruins).
+var destroyed_ids: Array[int] = []
 
 
 static func of(b: Battle) -> BattleResult:
@@ -62,9 +64,11 @@ static func of(b: Battle) -> BattleResult:
 		r.total += 1
 		if s.hp <= 0:
 			r.destroyed += 1
+			r.destroyed_ids.append(id)
 	for f in b.fighters:
 		if f.side == Battle.Side.ATTACKER and f.climbed:
 			gate = true
+	r.destroyed_ids.sort()
 	r.percent = r.destroyed * 100 / r.total if r.total > 0 else 0
 	r.stars = [gate, r.percent >= STAR_PERCENT, r.won]
 	r.loot.resize(EconomyConfig.count())

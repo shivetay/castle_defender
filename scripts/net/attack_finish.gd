@@ -6,11 +6,15 @@ extends RefCounted
 ## Ponowienie dla zakończonego ataku zwraca zapisany wynik, więc klient może bezpiecznie powtórzyć żądanie.
 
 const PATH := "/functions/v1/finish_attack"
+## Najwięcej id zniszczonych budynków w żądaniu (to samo sprawdza Edge Function). MAX_DESTROYED = 200
+const MAX_DESTROYED := 200
 
 
 ## Treść żądania: id ataku ze `start_attack`, wynik (BattleResult.to_server), łup w kolejności
 ## EconomyConfig.Res i ocaleli w każdym oddziale armii wysłanej przy starcie (Battle.survivors),
-## dopełnieni zerami do liczby oddziałów.
+## dopełnieni zerami do liczby oddziałów, oraz id zniszczonych budynków obrońcy (#99,
+## BattleResult.destroyed_ids). Serwer (`public.record_destroyed`) przyjmuje tylko gotowe budynki
+## z kopii zamku, bez wału i palisady, i nie więcej, niż wynika z procentu zniszczeń.
 static func request(attack_id: String, result: BattleResult, squads: int, alive: Array[int]) -> Dictionary:
 	var survivors: Array[int] = []
 	for i in squads:
@@ -18,7 +22,12 @@ static func request(attack_id: String, result: BattleResult, squads: int, alive:
 	var loot: Array[int] = []
 	for res in EconomyConfig.count():
 		loot.append(maxi(0, result.loot[res]) if res < result.loot.size() else 0)
-	return {"attack_id": attack_id, "result": result.to_server(), "loot": loot, "survivors": survivors}
+	var destroyed: Array[int] = []
+	for id in result.destroyed_ids:
+		if id > 0 and destroyed.size() < MAX_DESTROYED:
+			destroyed.append(id)
+	return {"attack_id": attack_id, "result": result.to_server(), "loot": loot, "survivors": survivors,
+			"destroyed": destroyed}
 
 
 ## Odpowiedź serwera: łup przyjęty przez serwer (w kolejności EconomyConfig.Res). Pusty słownik =

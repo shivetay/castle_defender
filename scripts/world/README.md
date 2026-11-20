@@ -13,6 +13,7 @@ Dane i logika świata zamku (poza bitwą i UI). Tu żyje **ekonomia**, budowa i 
 | `build_grid.gd` | Siatka budowy, sąsiedztwo, kolejność rysowania |
 | `build_config.gd` / `build_queue.gd` | Koszty/czasy i kolejka budowy |
 | `economy.gd` / `economy_config.gd` | Zasoby, produkcja, magazyn |
+| `ruins.gd` | Ruiny po ataku PvP (#99): odbudowa w czasie z epoki, mniejsza produkcja w ruinie |
 | `goods.gd` / `goods_config.gd` | Towary i łańcuchy produkcji |
 | `research.gd` / `research_config.gd` | Badania w toku |
 | `tech_tree.gd` / `tech_links.gd` | Drzewko i zależności technologii |
