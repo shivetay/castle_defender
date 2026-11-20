@@ -1,7 +1,8 @@
 // start_attack (#166, #25): start ataku po stronie serwera. Id atakującego idzie wyłącznie z tokenu.
-// Całą walidację i zapis robi `public.begin_attack` w jednej transakcji (migracja *_finish_attack.sql):
-// limit 10 startów na 10 minut, armia nie większa niż w zamku atakującego, cel bez tarczy, w zasięgu
-// epoki i rankingu, nieatakowany przez niego w 24 h i bez innego ataku w toku (blokada celu).
+// Całą walidację i zapis robi `public.begin_attack` w jednej transakcji (migracje *_finish_attack.sql
+// i *_army_limits.sql): limit 10 startów na 10 minut, armia nie większa niż w zamku atakującego
+// i w jego limicie miejsc oraz utrzymania żywności (#249), cel bez tarczy, w zasięgu epoki
+// i rankingu, nieatakowany przez niego w 24 h i bez innego ataku w toku (blokada celu).
 // Odpowiedź: id ataku, seed terenu obrońcy (`map_seed`) osobno od seeda bitwy (`battle_seed`) i przy
 // ataku na gracza kopie jego zamku i obrony, z których klient liczy bitwę.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -23,6 +24,8 @@ const ERRORS: Record<string, number> = {
   target_recent: 409,
   target_out_of_range: 409,
   attacker_no_castle: 409,
+  army_over_limit: 409,
+  army_over_upkeep: 409,
   target_not_found: 404,
   attacker_not_found: 404,
   army_not_owned: 400,

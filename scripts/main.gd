@@ -783,9 +783,11 @@ func _update_battle() -> void:
 # --- Atak na zamek-cel (#17) -----------------------------------------------------------------------
 
 ## Oddziały armii, które idą do ataku: pierwsze tyle, ile mieści plan w bieżącej epoce.
+## Armia ataku: oddziały w limicie epoki, a z nich tyle, ile mieści się w limicie miejsc i utrzymania
+## zamku (#249, ten sam warunek sprawdza serwer przy starcie ataku na gracza).
 func _attack_army() -> Array:
 	var army := recruitment.battle_squads()
-	return army.slice(0, AttackPlan.max_squads(CURRENT_AGE))
+	return Recruitment.fit_attack(army.slice(0, AttackPlan.max_squads(CURRENT_AGE)), grid, research)
 
 
 ## Zamek-bot wybrany jako cel Wyprawy (z pamięci, gdy plan pokazuje już ten zamek).
@@ -922,8 +924,13 @@ func _open_target(bot: BotCastle, player: PlayerCastle) -> void:
 	hud.overlay = true
 	camera.look_at_world(Vector2(bot.grid.buildings[bot.objective].get_center() * TerrainMap.CELL))
 	var all := recruitment.battle_squads().size()
-	hud.message = AttackPlanner.HINT if all <= army.size() else \
-			"W ataku %d z %d oddziałów (limit epoki)" % [army.size(), all]
+	var by_age := mini(all, AttackPlan.max_squads(CURRENT_AGE))
+	if all <= army.size():
+		hud.message = AttackPlanner.HINT
+	elif army.size() < by_age:
+		hud.message = "W ataku %d z %d oddziałów (limit armii)" % [army.size(), all]
+	else:
+		hud.message = "W ataku %d z %d oddziałów (limit epoki)" % [army.size(), all]
 	queue_redraw()
 
 
