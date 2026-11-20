@@ -1527,7 +1527,7 @@ func _draw_defence() -> void:
 		if post == DefensePlan.NO_POST:
 			continue
 		var at := post * TerrainMap.CELL
-		var blocked := not DefensePlan.post_problem(grid, post).is_empty() and not DefensePlan.wall_post(grid, post)
+		var blocked := not DefensePlan.post_problem(grid, post).is_empty() and not DefensePlan.station_post(grid, post)
 		var col: Color = Palette.INK if i == defense_panel.selected else Palette.THATCH[1]
 		if fallback and i != defense_panel.selected:
 			col = Palette.WOOD[0]
