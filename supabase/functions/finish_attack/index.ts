@@ -3,6 +3,8 @@
 // startu; wynik zgodny z gwiazdkami; łup nie większy niż niechroniona część zapasów obrońcy z kopii
 // z chwili startu i nie większy niż capacity ocalałych jednostek; tarcza obrońcy 8 h od 30 procent.
 // Zawyżony wynik albo łup jest odrzucany. Ponowienie dla zakończonego ataku zwraca zapisany wynik.
+// Potem zapisuje zniszczone budynki obrońcy (#99, `public.record_destroyed`, migracja *_attack_ruins.sql),
+// z których obrońca odbudowuje zamek. Odrzucona lista nie cofa wyniku: obrońca ma wtedy po prostu mniej ruin.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -11,7 +13,9 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ALLOWED_KEYS = new Set(["attack_id", "result", "loot", "survivors"]);
+const ALLOWED_KEYS = new Set(["attack_id", "result", "loot", "survivors", "destroyed"]);
+// AttackFinish.MAX_DESTROYED w grze
+const MAX_DESTROYED = 200;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // błędy z end_attack (raise exception ... P0001) → kod HTTP
@@ -77,6 +81,11 @@ Deno.serve(async (req) => {
   if (!Array.isArray(b.survivors) || b.survivors.length > 16) {
     return json({ error: "bad_survivors" }, 400);
   }
+  // starszy klient nie wysyła listy; wtedy obrońca nie ma ruin
+  if (b.destroyed !== undefined && (!Array.isArray(b.destroyed) || b.destroyed.length > MAX_DESTROYED ||
+      !b.destroyed.every((v) => Number.isInteger(v)))) {
+    return json({ error: "bad_destroyed" }, 400);
+  }
 
   const admin = createClient(supabaseUrl, serviceKey);
   const { data, error } = await admin.rpc("end_attack", {
@@ -101,6 +110,17 @@ Deno.serve(async (req) => {
   if (row.status !== "finished") {
     // atak porzucony albo wygasły (10 minut od startu): wyniku już się nie przyjmuje
     return json({ error: "attack_expired" }, 410);
+  }
+  if (b.destroyed !== undefined) {
+    const { error: ruinErr } = await admin.rpc("record_destroyed", {
+      p_attacker: userData.user.id,
+      p_attack: b.attack_id,
+      p_destroyed: b.destroyed,
+    });
+    if (ruinErr) {
+      // sam kod błędu, bez treści żądania (zasada: bez danych graczy w logach)
+      console.error("record_destroyed rpc", ruinErr.code);
+    }
   }
   // bez czasu tarczy obrońcy: atakujący go nie potrzebuje
   return json({ status: row.status, result: row.result, loot: row.loot });
