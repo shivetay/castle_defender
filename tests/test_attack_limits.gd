@@ -5,7 +5,7 @@ extends TestCase
 
 const MIGRATION := "res://supabase/migrations/20261120131426_army_limits.sql"
 ## Nowsza wersja private.food_production z Polem i spichlerzem (#35).
-const FARM_MIGRATION := "res://supabase/migrations/20261120170000_farm_food.sql"
+const FARM_MIGRATION := "res://supabase/migrations/20261120135657_farm_food.sql"
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
 const R := EconomyConfig.Res

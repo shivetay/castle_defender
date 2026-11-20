@@ -488,7 +488,7 @@ w sekcji „Następny etap”.
     strzelają o +1 kratkę dalej (od 3. poziomu Kopca o +2). Strzelcy z Obroną odcinka mogą stanąć
     na Kopcu jak na wieży, z +1 zasięgu.
   - **Pole i spichlerz**, **Kamieniołom** (G4): produkcja żywności i kamienia (wyżej). Serwer liczy Pole
-    w limicie utrzymania przy starcie ataku (migracja `farm_food`, do wgrania za zgodą właścicielki).
+    w limicie utrzymania przy starcie ataku (migracja `farm_food` jest na projekcie).
   - **Studnia** (Gospodarka, 2×2): woda dla zadania obrony Gaszenie pożarów.
   - **Wieża sygnałowa** (Wojsko, 2×2, S2): budynek badań gałęzi Specjalne od epoki I (S2 bada Dwór,
     S3 już Wieża sygnałowa). Wykrywanie zwiadu wroga i −20% jego zasięgu włączą się ze zwiadem (#28).
@@ -689,5 +689,5 @@ zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec 
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu.
 Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
-Wieża sygnałowa); migracja `farm_food` czeka na wgranie na projekt za zgodą właścicielki. Donżon strzela jak wieża,
+Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
