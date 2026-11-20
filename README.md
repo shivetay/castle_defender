@@ -217,9 +217,13 @@ w sekcji „Następny etap”.
 - Donżon (#120): Wieża grodowa stoi od startu obok Dworu (starsze zapisy dostają ją przy wczytaniu), nie ma
   jej na pasku, nie da się jej rozebrać ani ulepszyć (#232; karta ma sam przycisk Zamknij, a donżon
   ulepszony w starszym zapisie zostaje na swoim poziomie). Z załogą strzelców strzela w bitwie jak wieża
-  drewniana (#232): gdy najwyżej 2 kratki od niego stoi żywy, niewycofany strzelec obrońcy, ma ten sam
-  zasięg, obrażenia, priorytet celów i wolniejsze tempo bez strzał w zbrojowni. Sama piechota go nie
-  obsadza, więc fale samouczka na Chłopach się nie zmieniają. Promień załogi jest tymczasowy. `Battle.for_castle()` bierze ją
+  drewniana (#232). Strzelcy oddziału przy donżonie (bez zadania albo z zadaniem Przy donżonie) stają
+  na nim, tylu, ile ma kratek, reszta pod nim. Dopóki choć jeden żyje i się nie wycofuje, donżon ma ten
+  sam zasięg, obrażenia, priorytet celów i wolniejsze tempo bez strzał w zbrojowni co wieża. Sama
+  piechota go nie obsadza, więc fale samouczka na Chłopach się nie zmieniają.
+- Stanowiska na wieży i donżonie (#232): strzelcy na wieży drewnianej (Obrona odcinka, dotknięcie wieży
+  w panelu Obrona) i na donżonie mają +2 kratki zasięgu (z muru +1), nie schodzą ścigać wroga, a ochronę
+  mają jak na murze: −40% od strzał, wręcz tylko atakujący po drabinie. Liczby tymczasowe. `Battle.for_castle()` bierze ją
   za cel: atakujący wygrywa po jej upadku albo zdobyciu (piechota lekka lub ciężka trzyma się przy niej
   10 s bez obrońców w pobliżu). Zniszczenie Dworu bitwy nie kończy. Walidacja seeda mapy (#97) sprawdza
   też miejsce na donżon. Grafika: wieża z bali na ziemnej podmurówce, z gankiem od poziomu 3.
@@ -630,4 +634,4 @@ reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji 
 zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu. Donżon strzela jak wieża,
-gdy stoi przy nim strzelec obrońcy, i nie ma już ulepszeń (#232).
+gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
