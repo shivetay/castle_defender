@@ -13,7 +13,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - [ ] Czy obok reklam dodać jednorazowy zakup (pakiet startowy / „wesprzyj twórcę” ze sztandarem)? Ticket sklepu: #174; model reklam: [[Model wydania]].
 - [ ] Czy ranking PvP ma sezony z resetem co kilka tygodni? (Roadmapa zakłada sezony od 0.3 / #45 — potwierdzić przed backendem rankingu.)
 - [ ] Koszty i czasy badań, produkcji towarów, szkolenia i stawek bitewnych są w kodzie **tymczasowe** — kiedy pierwsza passa balansu (tabele lokalne vs od razu Supabase #56)?
-- [ ] Czy Gaszenie pożarów (#20) blokuje zamknięcie etapu 8, dopóki nie ma Studni (#35), czy wystarczy uproszczona wersja bez budynku?
+- [x] Czy Gaszenie pożarów (#20) blokuje zamknięcie etapu 8, dopóki nie ma Studni (#35), czy wystarczy uproszczona wersja bez budynku? Rozstrzygnięte: Gaszenie pożarów weszło razem ze Studnią w #35.
 - [ ] Samouczek PvE (#16): czy 5 fal pod Oblężenie wystarczy do zamknięcia ticketu, a prowadzenie gracza (#185) idzie osobno do etapu 1.0 / onboardingu (#57)?
 - [ ] Ekran startowy, tryb offline i widoki gry (#177) — przed PvP (etap 9) czy razem z kontem Google (#63)?
 

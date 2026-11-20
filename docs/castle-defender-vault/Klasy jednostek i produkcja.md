@@ -61,7 +61,7 @@ Każda klasa ma własny budynek rekrutacji i własny łańcuch produkcji. Kowal 
 | Ciężka | Dom drużyny (od I) | Garbarnia → Wytwórca zbroi skórzanych: zbroje skórzane, przeszywanice, tarcze | Płatnerz: kolczugi, zbroje płytowe, kirysy |
 | Strzelecka | Strzelnica (od I), od V Arsenał dla broni palnej | Cięciwiarz (cięciwy) → Łukmistrz (łuki) + Strzałmistrz (strzały) | Warsztat kuszniczy (III), Rusznikarnia + Prochownia (IV+), Strzałmistrz robi bełty i kule |
 | Szybka | Stajnia (od I) | Stajnia (konie) + Rymarz (siodła, uprząż) | + Płatnerz dla ciężkiej konnicy, Rusznikarnia dla rajtarów i dragonów |
-| Specjalna | własny budynek każdej jednostki | Podpalacz: Smolarnia; Tropiciel: Wieża sygnałowa; Zwiadowca: Dom zwiadowców | Cyrulik: Kaplica + Zielarnia; Ogniomistrz: Prochownia; Strzelec wyborowy: Arsenał; Dobosz: Sztab |
+| Specjalna | własny budynek każdej jednostki | Podpalacz: Smolarnia; Tropiciel: osobny budynek zwiadu (nie Wieża sygnałowa, decyzja z 20.11.2026); Zwiadowca: Dom zwiadowców | Cyrulik: Kaplica + Zielarnia; Ogniomistrz: Prochownia; Strzelec wyborowy: Arsenał; Dobosz: Sztab |
 
 ## Budynki produkcyjne i towary
 

@@ -3,7 +3,7 @@
 | Budynek | Epoka | Daje |
 | --- | --- | --- |
 | Chata drwala | I | drewno |
-| Pole i spichlerz | I | żywność |
+| Pole i spichlerz | I | żywność (+60/90/120/160/200 na h, tymczasowe; #35) |
 | Chata myśliwego (myśliwy) | I | skóry, kość, ścięgna, pióra, trochę żywności |
 | Pole lnu | I | len na cięciwy i przeszywanice |
 | Rybak | I | żywność, stawiany przy rzece |
@@ -16,8 +16,8 @@
 | Łukmistrz (wytwórca łuków) | I | łuki, od poz. 3 łuki refleksyjne |
 | Strzałmistrz (wytwórca strzał) | I | strzały, od epoki III bełty; zapas dla wież |
 | Smolarnia | I | smoła dla Podpalacza i machikuł |
-| Studnia | I | gasi pożary, warunek długiego oblężenia |
-| Kamieniołom | II | kamień |
+| Studnia | I | gasi pożary (zadanie obrony Gaszenie pożarów, #35), warunek długiego oblężenia |
+| Kamieniołom | II | kamień (+40/60/80/110/140 na h, tymczasowe; wymaga G4, #35) |
 | Młyn | II | +żywność |
 | Targ | III | złoto |
 | Węglarz | III | węgiel drzewny dla Kopalni rudy, Kuźni i Prochowni |

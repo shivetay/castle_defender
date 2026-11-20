@@ -31,7 +31,8 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) ustawienia obrony
 z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#100). Trwa etap 9 (#131): backend
 Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22), synchronizacja zamku
-z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25), atak na gracza w kliencie (#240), ranking PvP ataku i obrony (#27) oraz odbudowa zamku obrońcy po ataku (#99); stan i kolejne kroki są
+z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25), atak na gracza w kliencie (#240), ranking PvP ataku i obrony (#27) oraz odbudowa zamku obrońcy po ataku (#99). Z etapu 13 (#135) są już pozostałe budynki MVP (#35):
+Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom i Wieża sygnałowa. Stan i kolejne kroki są
 w sekcji „Następny etap”.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
@@ -131,11 +132,11 @@ w sekcji „Następny etap”.
   i zależności z notatki. Epoka II: A5, A6, A22, A46, A47, G4, G6. Działają premie G1 +20% drewna
   i G2 +15% żywności (`PRODUCTION_BONUS`). W bitwie (`Battle.apply_research`, osobno dla każdej strony)
   działają A1 (wojownik z toporem +15% w drewno), A2 (łuki +20% zasięgu: łucznik 6 → 7, łuk refleksyjny
-  7 → 8) i O2 (palisady obrońcy +20% wytrzymałości). Manewry wymagają technologii: Podpalenie A3,
+  7 → 8), O2 (palisady obrońcy +20% wytrzymałości) i O3 (kolce w Fosie suchej, #35). Manewry wymagają technologii: Podpalenie A3,
   Oskrzydlenie A4, Drabiny A5, Taranowanie A6 (na liście Manewr są wyszarzone z tym, czego brakuje).
-  Jednostki i budynki wymagają swoich technologii już wcześniej. Bez efektu zostają technologie, których
-  rzecz jeszcze nie istnieje: O1 Kopiec, O3 fosa, G4 Kamieniołom, S2 Wieża sygnałowa (#35), S1 zwiad (#28),
-  G6 przejście do epoki III.
+  Jednostki i budynki wymagają swoich technologii już wcześniej, także O1 Kopiec, G4 Kamieniołom
+  i S2 Wieża sygnałowa (#35). Bez efektu zostają technologie, których rzecz jeszcze nie istnieje: S1 zwiad
+  (#28), O1 jako przejście do epoki II (#34) i G6 przejście do epoki III.
 - `scripts/world/research_config.gd` (`ResearchConfig`): koszt i czas badań. Każda kolejna technologia
   w epoce ×1,6 kosztu i ×2 czasu (#12). Bazowe liczby (epoka I: 100 Dr 50 Ka 50 Ży, 1 min) są tymczasowe.
 - `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga
@@ -375,7 +376,10 @@ w sekcji „Następny etap”.
     wszyscy stoją przy donżonie, więc wczesne fale samouczka się nie zmieniają. Ekran Obrona pokazuje
     zadanie domyślne w opisie i miejsce na mapie w przygaszonej ramce; Zdejmij wraca do domyślnego.
     Zamki-cele (`BotCastle`) nie dostają jeszcze zadań domyślnych.
-  - **Dalej:** Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31).
+  - **Gaszenie pożarów** (#35, piechota lekka, gdy zamek ma Studnię): oddział wskazuje się Studnią
+    i czeka przy niej. Gdy do 8 kratek od Studni płonie budynek, idzie do niego, a każdy gaszący obok
+    co sekundę skraca ogień o 3 s (bez walki). Bez Studni, albo gdy padnie, broni tylko swojego miejsca.
+  - **Dalej:** komendant do generałów (#31).
 - Pułapki (#100, `scripts/battle/trap_config.gd`, lista w notatce Budynki/Obrona, zatwierdzona przez
   właściciela): Wilczy dół, Kolczatka, Zrzucane kłody, Płonące strzały i Wrząca smoła (epoka II). Każda
   wymaga technologii, a większość budynku (np. Wilczy dół: G18 i Chata myśliwego). Przycisk Pułapki na
@@ -460,7 +464,7 @@ w sekcji „Następny etap”.
   Efekty powstają ze zdarzeń, które bitwa zapisuje tylko dla widoku (`Battle.take_fx`). Nie wchodzą do
   sumy kontrolnej, więc nie zmieniają przebiegu. Ogień w symulacji przechodzi po 4 s na sąsiednie
   drewniane budynki, także po skosie (bez losowania; wał ziemny nie płonie; czas tymczasowy).
-  Gaszenie wodą ze Studni czeka na Studnię (#35).
+  Gaszenie wodą ze Studni to zadanie obrony Gaszenie pożarów (#35).
 - `scripts/world/save_game.gd` (`SaveGame`): zapis lokalny w `user://castle.json` (JSON z wersją formatu
   i miejscem na migracje; wersja 2 dodała badania, wersja 3 towary, wersja 4 armię). Zapisuje seed terenu, budynki, surowce,
   towary, kolejkę budowy i badania. Pisze pełny plik
@@ -472,7 +476,23 @@ w sekcji „Następny etap”.
   ukończony Magazyn (Gospodarka, bez technologii) dodaje +500/750/1000/1500/2000 na poziomach 1–5;
   Magazyny się sumują, a rozbiórka zmniejsza limit (nadmiar przepada). Złoto jest bez
   limitu (docelowo waluta premium, przybywa tylko z łupu i PvE). Gród daje 20/h drewna, kamienia
-  i żywności, a Chata drwala +60/90/120/160/200 drewna/h na poziomach 1–5.
+  i żywności, a Chata drwala +60/90/120/160/200 drewna/h na poziomach 1–5. Pole i spichlerz (#35) daje
+  tyle samo żywności, a Kamieniołom (G4) +40/60/80/110/140 kamienia/h, jak Rybak żywności.
+- Pozostałe budynki MVP (#35, decyzje właścicielki z 20.11.2026, liczby tymczasowe), grafika
+  w `scripts/gfx/mvp_building_art.gd` (`MvpBuildingArt`), każdy z 5 poziomami i 4 stanami:
+  - **Fosa sucha** (Umocnienia, 1×1, bez technologii): rów przez całą kratkę, więc odcinki tworzą ciągły
+    rów. W bitwie nie jest przeszkodą i nie da się jej zburzyć (`BuildingTypes.is_passable`, nie liczy się
+    do procentu zniszczeń); atakujący idzie po niej 2× wolniej, a z O3 traci co sekundę 2/3/4/5/6 HP
+    według poziomu fosy.
+  - **Kopiec** (Umocnienia, 2×2, O1): wieża drewniana albo donżon, które stykają się z nim bokiem,
+    strzelają o +1 kratkę dalej (od 3. poziomu Kopca o +2). Strzelcy z Obroną odcinka mogą stanąć
+    na Kopcu jak na wieży, z +1 zasięgu.
+  - **Pole i spichlerz**, **Kamieniołom** (G4): produkcja żywności i kamienia (wyżej). Serwer liczy Pole
+    w limicie utrzymania przy starcie ataku (migracja `farm_food`, do wgrania za zgodą właścicielki).
+  - **Studnia** (Gospodarka, 2×2): woda dla zadania obrony Gaszenie pożarów.
+  - **Wieża sygnałowa** (Wojsko, 2×2, S2): budynek badań gałęzi Specjalne od epoki I (S2 bada Dwór,
+    S3 już Wieża sygnałowa). Wykrywanie zwiadu wroga i −20% jego zasięgu włączą się ze zwiadem (#28).
+    Tropiciel się w niej nie szkoli (decyzja właścicielki): czeka na swój budynek zwiadu.
 - `scripts/world/economy.gd` (`Economy`): naliczanie produkcji w liczbach całkowitych (ten sam wynik
   co klatkę i jednym skokiem), limity magazynów (`capacities_for` z siatki: Dwór plus Magazyny,
   przeliczane w kolejce budowy, po rozbiórce i przed odczytem zapisu), łup (`add`) i wydawanie (`spend`). Produkcja liczy
@@ -658,8 +678,8 @@ build/           eksportowane APK i logi (ignorowane przez git)
 ## Następny etap
 
 Etap 8 (#130) jest zrobiony w kodzie: ustawienia obrony (#19), zadania obrony (#20) i pułapki (#100).
-Gaszenie pożarów przeszło do Studni (#35), komendant do generałów (#31), a odsłanianie pułapek do zwiadu
-(#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
+Gaszenie pożarów jest zadaniem obrony przy Studni (#35), komendant przeszedł do generałów (#31),
+a odsłanianie pułapek do zwiadu (#28). PvE przeszło do Strażnicy, a kolumna HUD-u ma zębatkę Ustawień z trybem offline (#177). Trwa etap 9 (#131):
 backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym kontem (#22) oraz zapis
 `map_seed` i `start_attack` z seedem terenu (#166), onboarding z imieniem gracza, nazwą zamku i domyślnym
 władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i dobór przeciwnika z ekranem
@@ -667,5 +687,7 @@ władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i do
 reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
 zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze w jego limicie miejsc i utrzymania żywności, #249), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10, Wóz 50, #235), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Ranking PvP (#27) ma osobne tabele ataku i obrony w epoce gracza (Elo, punkty zmienia tylko serwer po bitwie); migracja `pvp_ranking` i funkcja `ranking` są na projekcie, a dobór przeciwnika nadal używa wspólnego `rating` (przejście na ranking ataku i obrony to decyzja właścicielki). Wóz (#235) podnosi capacity łupu; migracja `wagon_carry` jest na projekcie. Limit armii przy starcie ataku (#249, migracja `army_limits`) jest na projekcie razem z nową wersją `start_attack`; klient wysyła tylko oddziały mieszczące się w limitach. Po ataku na gracza (#99) `finish_attack` zapisuje zniszczone budynki (`record_destroyed`, migracja `attack_ruins` i nowe `finish_attack` są na projekcie): tylko gotowe budynki z kopii zamku, bez umocnień, nie więcej niż procent zniszczeń. Obrońca po połączeniu czyta swoje obrony i widzi te budynki jako ruiny, które same się odbudowują (epoka I godzina, każda następna o godzinę dłużej); w ruinie Chata drwala i Rybak produkują 75%. Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
-(Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu. Donżon strzela jak wieża,
+(Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu.
+Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
+Wieża sygnałowa); migracja `farm_food` czeka na wgranie na projekt za zgodą właścicielki. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
