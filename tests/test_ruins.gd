@@ -7,7 +7,7 @@ extends TestCase
 const K := BuildingTypes.Kind
 const R := EconomyConfig.Res
 const HOUR := Economy.MS_PER_HOUR
-const MIGRATION := "res://supabase/migrations/20261120200000_attack_ruins.sql"
+const MIGRATION := "res://supabase/migrations/20261120131521_attack_ruins.sql"
 const UID := "00000000-0000-0000-0000-00000000000a"
 const SESSION_PATH := "user://test_ruins_session.json"
 const SYNC_PATH := "user://test_ruins_sync.json"

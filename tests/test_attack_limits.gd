@@ -3,7 +3,7 @@ extends TestCase
 ## zamku to samo co gra (Recruitment.army_limit, Recruitment.upkeep_limit), więc liczby w migracji
 ## muszą zgadzać się z grą, a klient wysyła tylko armię, która mieści się w obu limitach.
 
-const MIGRATION := "res://supabase/migrations/20261120180000_army_limits.sql"
+const MIGRATION := "res://supabase/migrations/20261120131426_army_limits.sql"
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
 const R := EconomyConfig.Res
