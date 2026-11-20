@@ -5,7 +5,7 @@ extends TestCase
 const U := UnitTypes.Unit
 const MIGRATION := "res://supabase/migrations/20261119183238_finish_attack.sql"
 ## Najnowsza wersja `private.unit_carry` i `private.unit_count` (Wóz, #235).
-const CARRY_MIGRATION := "res://supabase/migrations/20261120150000_wagon_carry.sql"
+const CARRY_MIGRATION := "res://supabase/migrations/20261120122724_wagon_carry.sql"
 
 
 ## Piechota 5, konnica 10, taran 0; więcej ocalałych daje więcej capacity.

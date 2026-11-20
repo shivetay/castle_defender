@@ -84,6 +84,12 @@ static func capacity_rect(view: Vector2, left: float, right: float) -> Rect2:
 	return Rect2(left, info.position.y - INFO_H - 1, right - left, INFO_H)
 
 
+## Pasek capacity jest widoczny tylko przy zamkniętej liście manewrów: jej ostatni wiersz zajmuje
+## to samo miejsce nad opisem rozkazu (review #252).
+func capacity_visible() -> bool:
+	return not picking
+
+
 ## Tekst capacity łupu armii, np. „Unosi łupu: 115 (wozy +100)”: ile surowców zabiorą wszyscy,
 ## jeśli wrócą (po bitwie liczą się tylko ocaleli).
 static func capacity_text(army: Array) -> String:
@@ -309,10 +315,11 @@ func _draw() -> void:
 		var text := AttackPlanner.describe(o)
 		PixelFont.draw_text(self, info.position + Vector2(2, 1), "%d. %s" % [o.squad, text[0]], Palette.INK)
 		PixelFont.draw_right(self, info.end.x - 2, info.position.y + 1, text[1], Palette.THATCH[2])
-	var cap := capacity_rect(view, content_left, content_right)
-	var cap_text := capacity_text(planner.squads)
-	draw_rect(Rect2(cap.position, Vector2(PixelFont.text_width(cap_text) + 4, cap.size.y)), Color(Palette.SHADOW, 0.8))
-	PixelFont.draw_text(self, cap.position + Vector2(2, 1), cap_text, Palette.THATCH[2])
+	if capacity_visible():
+		var cap := capacity_rect(view, content_left, content_right)
+		var cap_text := capacity_text(planner.squads)
+		draw_rect(Rect2(cap.position, Vector2(PixelFont.text_width(cap_text) + 4, cap.size.y)), Color(Palette.SHADOW, 0.8))
+		PixelFont.draw_text(self, cap.position + Vector2(2, 1), cap_text, Palette.THATCH[2])
 	for i in planner.squads.size():
 		var sq: Array = planner.squads[i]
 		var r := squad_rect(view, content_left, i)

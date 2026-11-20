@@ -275,8 +275,14 @@ func test_manoeuvre_picker() -> bool:
 	AttackPlanner.fit_plan(planner.plan, 1)
 	var panel := AttackPanel.new()
 	panel.planner = planner
+	assert_true(panel.capacity_visible(), "pasek capacity przy zamkniętej liście")
+	var cap := AttackPanel.capacity_rect(VIEW, left, right)
+	assert_true(AttackPanel.list_rect(left, right).intersects(cap), "lista zajmuje miejsce paska capacity")
+	assert_true(not AttackPanel.list_rect(left, right).intersects(AttackPanel.info_rect(VIEW, left, right)),
+			"ale nie opis rozkazu")
 	panel.activate(AttackPanel.Target.MANOEUVRE)
 	assert_true(panel.picking, "Manewr otwiera listę")
+	assert_true(not panel.capacity_visible(), "otwarta lista chowa pasek capacity")
 	panel.choose(M.RANGED)
 	assert_eq(planner.order().manoeuvre, M.FRONTAL, "niedostępny: rozkaz bez zmian")
 	assert_true(panel.picking, "i lista zostaje")
