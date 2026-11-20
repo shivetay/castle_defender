@@ -27,6 +27,8 @@ signal research_pressed
 signal army_pressed
 signal recruit_pressed
 signal attack_pressed
+## Ranking PvP (#27) z karty Strażnicy.
+signal ranking_pressed
 signal defence_pressed
 signal queue_pressed
 signal settings_pressed
@@ -38,7 +40,7 @@ signal resource_pressed(res: int)
 ## Dotknięto portretu władcy (#228) w lewym górnym rogu.
 signal portrait_pressed
 
-enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK, CHECK, SEAL }
+enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK, CHECK, SEAL, RANKING }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
 enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, CANCEL = 12, PORTRAIT = 13, RESOURCE = 50, CARD = 100 }
 
@@ -62,13 +64,15 @@ const MESSAGE_MAX_WIDTH := 320 - 2 * CORNER_INSET - FPS_WIDTH
 const CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Zamknij"]
 ## Karta budynku rekrutacji ma czwarty przycisk Szkol przed Zamknij.
 const RECRUIT_CARD_LABELS: Array[String] = ["Ulepsz", "Rozbierz", "Szkol", "Zamknij"]
-## Karta Strażnicy (#177): z niej rusza się na fale samouczka (Oblężenie) i na zamki botów (Wyprawa).
-## Strażnica ma jeden poziom i nie da się jej rozebrać, więc nie ma Ulepsz ani Rozbierz.
-const PVE_CARD_LABELS: Array[String] = ["Oblężenie", "Wyprawa", "Zamknij"]
+## Karta Strażnicy (#177): z niej rusza się na fale samouczka (Oblężenie) i na zamki botów (Wyprawa),
+## a Ranking pokazuje tabelę PvP (#27). Strażnica ma jeden poziom i nie da się jej rozebrać, więc nie
+## ma Ulepsz ani Rozbierz.
+const PVE_CARD_LABELS: Array[String] = ["Oblężenie", "Wyprawa", "Ranking", "Zamknij"]
 ## Karta Komendy umocnień (#199): Sprawdź / Domknij obok Ulepsz i Rozbierz.
 const CHECK_LABEL := "Sprawdź"
 const SEAL_LABEL := "Domknij"
 const EXPEDITION_LABEL := "Wyprawa"
+const RANKING_LABEL := "Ranking"
 const ARMY_LABEL := "Wojsko"
 const CANCEL_LABEL := "Anuluj"
 const SIEGE_LABEL := "Oblężenie"
@@ -216,14 +220,14 @@ static func column_targets(is_building: bool, in_battle: bool = false) -> Array[
 
 
 ## Przyciski karty (CardButton) od lewej: Ulepsz, Rozbierz, [Szkol,] Zamknij; Strażnica: Oblężenie,
-## Wyprawa, Zamknij; Komenda umocnień: Ulepsz, Rozbierz, Sprawdź, Domknij, Zamknij (#199);
+## Wyprawa, Ranking, Zamknij; Komenda umocnień: Ulepsz, Rozbierz, Sprawdź, Domknij, Zamknij (#199);
 ## donżon: sam Zamknij (#232).
 static func card_buttons(recruit: bool = false, pve: bool = false, seal: bool = false,
 		plain: bool = false) -> Array[int]:
 	if plain:
 		return [CardButton.CLOSE] as Array[int]
 	if pve:
-		return [CardButton.SIEGE, CardButton.ATTACK, CardButton.CLOSE] as Array[int]
+		return [CardButton.SIEGE, CardButton.ATTACK, CardButton.RANKING, CardButton.CLOSE] as Array[int]
 	if seal:
 		return [CardButton.UPGRADE, CardButton.DEMOLISH, CardButton.CHECK, CardButton.SEAL, CardButton.CLOSE] as Array[int]
 	if recruit:
@@ -243,6 +247,8 @@ static func card_label(button: int) -> String:
 			return SIEGE_LABEL
 		CardButton.ATTACK:
 			return EXPEDITION_LABEL
+		CardButton.RANKING:
+			return RANKING_LABEL
 		CardButton.CHECK:
 			return CHECK_LABEL
 		CardButton.SEAL:
@@ -550,6 +556,8 @@ func _activate(t: int) -> void:
 				siege_pressed.emit()
 			CardButton.ATTACK:
 				attack_pressed.emit()
+			CardButton.RANKING:
+				ranking_pressed.emit()
 			CardButton.CHECK:
 				if not card_check_disabled:
 					check_pressed.emit()

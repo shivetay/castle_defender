@@ -31,7 +31,7 @@ const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 ## Linia karty Strażnicy (#177): jeden poziom, więc zamiast kosztu ulepszenia krótki opis.
-const WATCHTOWER_INFO := "Fale i wyprawy na boty"
+const WATCHTOWER_INFO := "Fale, wyprawy i ranking PvP"
 ## Linia karty donżonu (#232): bez ulepszeń i rozbiórki, strzela jak wieża.
 const KEEP_INFO := "Cel ataku, strzela ze strzelcem"
 ## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
@@ -90,6 +90,8 @@ var attack_target := 0
 var bot_picker: BotPicker
 ## Wybór 3 celów Wyprawy (#24): gracze z serwera i zamki-boty.
 var target_picker: TargetPicker
+## Ranking PvP (#27) z karty Strażnicy: tabele ataku i obrony z serwera.
+var ranking_panel: RankingPanel
 ## Okno wyniku ataku (#99).
 var result_panel: ResultPanel
 var planner: AttackPlanner
@@ -220,6 +222,13 @@ func _ready() -> void:
 	target_picker.player_chosen.connect(_on_player_target)
 	target_picker.bots_pressed.connect(_open_bot_list)
 	target_picker.closed.connect(_on_overlay_closed)
+	ranking_panel = RankingPanel.new()
+	ranking_panel.visible = false
+	layer.add_child(ranking_panel)
+	ranking_panel.closed.connect(_on_overlay_closed)
+	ranking_panel.kind_changed.connect(_on_ranking_kind)
+	ranking_panel.message_changed.connect(_on_ranking_message)
+	hud.ranking_pressed.connect(_on_ranking_pressed)
 	result_panel = ResultPanel.new()
 	result_panel.visible = false
 	layer.add_child(result_panel)
@@ -307,6 +316,7 @@ func _ready() -> void:
 	net.state_changed.connect(_on_net_state)
 	net.castle_restored.connect(_on_castle_restored)
 	net.targets_found.connect(target_picker.set_players)
+	net.ranking_loaded.connect(ranking_panel.set_rows)
 	net.attack_started.connect(_on_player_attack_started)
 	net.attack_finished.connect(_on_player_attack_finished)
 	add_child(net)
@@ -799,6 +809,30 @@ func _on_attack_pressed() -> void:
 	hud.overlay = true
 	hud.message = "Wybierz cel ataku"
 	queue_redraw()
+
+
+## Ranking (karta Strażnicy, #27): tabela PvP z epoki gracza. Bez tożsamości zamek nie jest na
+## serwerze (#23), więc gracza i tak nie ma w rankingu; tabela wymaga sieci.
+func _on_ranking_pressed() -> void:
+	_tick()
+	_selected_id = 0
+	hud.hide_card()
+	hud.set_building(false)
+	_cursor = Rect2i()
+	hud.overlay = true
+	ranking_panel.open(CURRENT_AGE, net != null and identity != null and net.is_online())
+	queue_redraw()
+
+
+## Widok rankingu bez tabeli w pamięci: prośba do serwera (wynik w `ranking_loaded`).
+func _on_ranking_kind(kind: int) -> void:
+	if net == null or not net.load_ranking(kind):
+		ranking_panel.set_rows(kind, [] as Array[RankingBoard.Row], false)
+
+
+func _on_ranking_message(text: String) -> void:
+	if ranking_panel.visible:
+		hud.message = text
 
 
 ## Boty (ekran 3 celów): pełna lista 20 zamków-botów (#26).
