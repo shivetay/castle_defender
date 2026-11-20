@@ -175,7 +175,7 @@ w sekcji „Następny etap”.
 - Dom zwiadowców (#92): budynek epoki II w zakładce Wojsko, odblokowuje go S3 (po S1 Tropiciele).
   Szkoli tylko Zwiadowcę. Grafika: warsztat z czatownią (żerdź z pomostem i rogiem sygnałowym),
   a od poziomu 4 z proporcem. Koszt i czas są tymczasowe.
-- `scripts/world/unit_types.gd` (`UnitTypes`): 15 jednostek, czyli 13 jednostek MVP oraz Chłop i Zwiadowca
+- `scripts/world/unit_types.gd` (`UnitTypes`): 16 jednostek, czyli 13 jednostek MVP oraz Chłop, Zwiadowca i Wóz
   (opisani niżej), z notatek Jednostki oraz Klasy jednostek
   i produkcja: klasa (lekka, ciężka, strzelecka, szybka, specjalna; Taran i Kopacz to inżynieria), HP, atak,
   zasięg, szybkość, technologia, budynek rekrutacji i koszt w towarach (np. Łucznik: łuk i 20 strzał).
@@ -187,6 +187,14 @@ w sekcji „Następny etap”.
   Do tego Zwiadowca (#92): konny zwiad epoki II, klasa specjalna, 35 HP, atak 2, szybkość 5, wymaga S3.
   Kosztuje konia ze Stajni, siodło od Rymarza i 15 żywności (ilość żywności tymczasowa). Sam zwiad przed
   atakiem dojdzie w #28.
+  Do tego Wóz (#235): wóz na łup z epoki I, szkoli się w Stajni bez badań za 40 drewna, konia i uprząż
+  od Rymarza. Ma 120 HP, nie walczy, szybkość 2, utrzymanie 2 Ży/h i unosi 50 surowców łupu (piechota 5,
+  konnica 10). W planie ataku ma tylko manewr Tabor: gracz wyznacza trasę (ostatni punkt to postój, bez
+  trasy plan jest niepoprawny), a Wóz rusza najwcześniej po 20 s bitwy (`AttackPlan.WAGON_DELAY_S`).
+  Jedzie drogą, która omija budynki. Same wozy nie przedłużają bitwy. Ekran planu pokazuje capacity
+  łupu armii z udziałem wozów, a serwer zna Wóz z migracji `wagon_carry` (`private.unit_carry`).
+  Widok globalny Wojska ma przy 16 jednostkach 4 kolumny kafelków. Liczby tymczasowe. To nie Wóz bojowy
+  z epoki IV.
   Każda jednostka ma krótki opis roli (`ROLES`) i linię przewag liczoną z tabeli klas
   (`counters_text`: przeciw komu jest silna i kto ją kontruje); na ekranie Wojsko pokazuje je przycisk Opis.
 - `scripts/world/recruitment.gd` (`Recruitment`): armia w oddziałach i kolejki szkolenia (#89). Oddział ma
@@ -655,7 +663,7 @@ backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym konte
 władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i dobór przeciwnika z ekranem
 3 celów (#24, migracja `match_targets` i funkcja `find_targets` są na projekcie). Konto anonimowe przetrwa
 reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
-zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Ranking PvP (#27) ma osobne tabele ataku i obrony w epoce gracza (Elo, punkty zmienia tylko serwer po bitwie); migracja `pvp_ranking` i funkcja `ranking` są na projekcie, a dobór przeciwnika nadal używa wspólnego `rating` (przejście na ranking ataku i obrony to decyzja właścicielki). Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
+zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10, Wóz 50, #235), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Ranking PvP (#27) ma osobne tabele ataku i obrony w epoce gracza (Elo, punkty zmienia tylko serwer po bitwie); migracja `pvp_ranking` i funkcja `ranking` są na projekcie, a dobór przeciwnika nadal używa wspólnego `rating` (przejście na ranking ataku i obrony to decyzja właścicielki). Wóz (#235) podnosi capacity łupu; jego migracja `wagon_carry` czeka na wgranie na projekt (bez niej serwer odrzuca armię z wozem jako `bad_army`). Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
