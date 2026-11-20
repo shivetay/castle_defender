@@ -24,6 +24,10 @@ const BUILDING_PRODUCTION := {
 	BuildingTypes.Kind.LUMBER_HUT: [Res.WOOD, [60, 90, 120, 160, 200]],
 	## Rybak (#122): żywność, stawiany tylko przy wodzie. Stawki tymczasowe, w skali Chaty drwala.
 	BuildingTypes.Kind.FISHER: [Res.FOOD, [40, 60, 80, 110, 140]],
+	## Pole i spichlerz (#35): główne źródło żywności epoki I, w skali Chaty drwala. Kamieniołom (#35,
+	## G4): kamień. Stawki tymczasowe, do decyzji balansowej właścicielki.
+	BuildingTypes.Kind.FARM: [Res.FOOD, [60, 90, 120, 160, 200]],
+	BuildingTypes.Kind.QUARRY: [Res.STONE, [40, 60, 80, 110, 140]],
 }
 
 ## Najdłuższa nieobecność, za którą liczy się produkcję. Magazyny i tak zapełniają się

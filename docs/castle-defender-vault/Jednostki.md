@@ -16,7 +16,7 @@ Każda epoka ma jednostki w 5 klasach bojowych (lekka, ciężka, strzelecka, szy
 | Procarz | strzelcy | 30 | 5 | 5 | 3 | tani ostrzał | — | Strzelnica |
 | Łucznik | strzelcy | 35 | 7 | 6 | 3 | ostrzał z dystansu | — | Strzelnica |
 | Podpalacz | specjalne | 35 | 4 + ogień | 3 | 3 | podpala drewniane budowle | A3 | Smolarnia |
-| Tropiciel | specjalne | 25 | — | — | 5 | zwiad przed atakiem | S1 | Wieża sygnałowa |
+| Tropiciel | specjalne | 25 | — | — | 5 | zwiad przed atakiem | S1 | osobny budynek zwiadu (do ustalenia; nie Wieża sygnałowa) |
 | Jeździec | konnica | 90 | 12 | 1 | 6 | szybki, omija wolne cele | A7 | Stajnia |
 
 ## Epoka II — Zamek drewniano-ziemny (1050–1200)

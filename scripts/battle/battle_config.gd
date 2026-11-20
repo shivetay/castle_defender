@@ -43,6 +43,8 @@ const KIND_HP_PERCENT := {
 	BuildingTypes.Kind.TOWER: 250,
 	BuildingTypes.Kind.MANOR: 400,
 	BuildingTypes.Kind.KEEP: 600,
+	## Kopiec (#35): usypana ziemia, trudna do rozkopania.
+	BuildingTypes.Kind.MOUND: 300,
 }
 ## Zdobycie donżonu (#120): piechota atakującego stoi przy nim tyle sekund bez obrońców w pobliżu.
 const CAPTURE_S := 10
@@ -129,6 +131,29 @@ const ESCORT_RADIUS := 3
 ## Wieża drewniana strzela do atakujących (łucznicy na wieży). TYMCZASOWE.
 const TOWER_ATTACK := 6
 const TOWER_RANGE := 6
+
+## Pozostałe budynki MVP (#35, decyzje właścicielki z 20.11.2026). TYMCZASOWE.
+## Fosa sucha: atakujący na jej kratce idzie z tylu procentami szybkości (−50%, notatka Budynki).
+const MOAT_SPEED_PERCENT := 50
+## O3 Fosa z kolcami: co sekundę tyle HP traci atakujący na kratce fosy, według poziomu fosy 1–5.
+const MOAT_SPIKE_DAMAGE: Array[int] = [2, 3, 4, 5, 6]
+## Kopiec: wieża drewniana albo donżon, które stykają się z nim bokiem, strzelają o tyle kratek dalej
+## (Kopiec poziomu 1–2: +1, od poziomu 3: +2). Strzelcy na samym Kopcu mają +1 (WALL_RANGE_BONUS).
+const MOUND_RANGE_BONUS: Array[int] = [1, 1, 2, 2, 2]
+## Gaszenie pożarów: Studnia obsługuje pożary najwyżej tyle kratek od siebie, a każdy gaszący przy
+## płonącym budynku co sekundę skraca ogień o tyle sekund.
+const FIREFIGHT_RADIUS := 8
+const FIREFIGHT_S := 3
+
+
+## Premia zasięgu wieży od Kopca na poziomie `level` (poza zakresem: najbliższy poziom).
+static func mound_range_bonus(level: int) -> int:
+	return MOUND_RANGE_BONUS[clampi(level, 1, MOUND_RANGE_BONUS.size()) - 1]
+
+
+## Obrażenia kolców fosy na poziomie `level` (O3).
+static func moat_spike_damage(level: int) -> int:
+	return MOAT_SPIKE_DAMAGE[clampi(level, 1, MOAT_SPIKE_DAMAGE.size()) - 1]
 
 
 static func building_hp(kind: int, level: int) -> int:

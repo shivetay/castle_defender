@@ -13,26 +13,28 @@ extends RefCounted
 ## - Przed murami (konnica, od epoki I, prośba właściciela 17.11.2026): konnica stoi na wskazanej
 ##   kratce, także na zewnątrz murów, bije wrogów do FIELD_RADIUS kratek od niej i wraca; przez własne
 ##   bramy przejeżdża;
-## - Przy donżonie: oddział stoi jak przed #19.
+## - Przy donżonie: oddział stoi jak przed #19;
+## - Gaszenie pożarów (#35, piechota lekka, gdy zamek ma Studnię): oddział czeka przy wskazanej Studni
+##   i gasi płonące budynki w jej pobliżu (Battle._firefight_act).
 ## Oddział bez ustawionego zadania dostaje w bitwie zadanie domyślne według klasy (default_order,
 ## plan zatwierdzony przez właściciela): strzelcy na mur przy bramie, piechota przy bramie, konnica
 ## na wypad, specjalni przy donżonie. Bez bramy i murów wszyscy stoją przy donżonie. Priorytet celów
 ## wież to jedno ustawienie na cały zamek. Pułapki (#100, TrapConfig) stoją na kratkach strefy obrony
-## i są częścią tego samego układu. Gaszenie pożarów dojdzie ze Studnią (#35), a komendant
-## z generałami (#31).
+## i są częścią tego samego układu. Komendant dojdzie z generałami (#31).
 ##
 ## Zadania są przypisane do id oddziału z rekrutacji (nie do jego miejsca w armii), więc nowy oddział
 ## nie przejmuje cudzego zadania. Układ to same liczby całkowite, więc ten sam układ i ten sam seed
 ## dają ten sam przebieg bitwy (powtórka, weryfikacja PvP).
 
-enum Task { HOLD, PATROL, SORTIE, KEEP, FIELD }
+enum Task { HOLD, PATROL, SORTIE, KEEP, FIELD, FIREFIGHT }
 ## Priorytet celów wież: najbliższy atakujący (jak dotąd), Taran, strzelcy, konnica. Wieża bierze
 ## najbliższego atakującego z wybranej grupy w swoim zasięgu, a gdy takiego nie ma, najbliższego.
 enum TowerPriority { NEAREST, RAM, RANGED, CAVALRY }
 
-const TASK_NAMES: Array[String] = ["Obrona odcinka", "Patrol", "Wypad konnicy", "Przy donżonie", "Przed murami"]
+const TASK_NAMES: Array[String] = ["Obrona odcinka", "Patrol", "Wypad konnicy", "Przy donżonie", "Przed murami",
+		"Gaszenie pożarów"]
 ## Od której epoki zadanie jest dostępne (0 = I), z notatki Manewry i zadania.
-const TASK_AGE: Array[int] = [0, 0, 1, 0, 0]
+const TASK_AGE: Array[int] = [0, 0, 1, 0, 0, 0]
 const TOWER_PRIORITY_NAMES: Array[String] = ["najbliższy", "taran", "strzelcy", "konnica"]
 const NO_POST := Vector2i(-1, -1)
 ## Posterunek stoi najwyżej tyle kratek (w pionie i poziomie) od środka donżonu: obrona skupia się
@@ -263,15 +265,16 @@ static func wall_post(grid: BuildGrid, cell: Vector2i) -> bool:
 	return id != 0 and BuildingTypes.is_wall(grid.kinds[id]) and grid.levels[id] >= 1
 
 
-## Czy kratka `cell` to stanowisko strzelców: mur (wall_post) albo gotowa wieża drewniana w strefie
-## obrony (#232). Na donżonie strzelcy stają sami, gdy oddział stoi przy donżonie.
+## Czy kratka `cell` to stanowisko strzelców: mur (wall_post), gotowa wieża drewniana (#232) albo Kopiec
+## (#35) w strefie obrony. Na donżonie strzelcy stają sami, gdy oddział stoi przy donżonie.
 static func station_post(grid: BuildGrid, cell: Vector2i) -> bool:
 	if wall_post(grid, cell):
 		return true
 	if not grid.terrain.in_bounds(cell) or not zone(grid).has_point(cell):
 		return false
 	var id := grid.building_at(cell)
-	return id != 0 and grid.kinds[id] == BuildingTypes.Kind.TOWER and grid.levels[id] >= 1
+	return id != 0 and (grid.kinds[id] == BuildingTypes.Kind.TOWER or grid.kinds[id] == BuildingTypes.Kind.MOUND) \
+			and grid.levels[id] >= 1
 
 
 ## Czy budynek rodzaju `kind` to odcinek obrony (wał, palisada, brama, wieża).

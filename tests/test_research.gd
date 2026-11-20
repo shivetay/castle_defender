@@ -311,8 +311,9 @@ func test_research_needs_branch_building() -> bool:
 	assert_eq(ResearchConfig.research_building("O1"), K.MANOR, "Obrona: Dwór")
 	assert_eq(ResearchConfig.research_building("G4"), K.MANOR, "Gospodarka: Dwór")
 	assert_eq(ResearchConfig.research_building("U1"), K.MANOR, "Użyteczne: Dwór")
-	assert_eq(ResearchConfig.research_building("S1"), K.MANOR, "Specjalne epoki I: Dwór (Wieży sygnałowej jeszcze nie ma)")
-	assert_eq(ResearchConfig.research_building("S3"), K.MANOR, "S3 nie wymaga Domu zwiadowców, który odblokowuje")
+	assert_eq(ResearchConfig.research_building("S1"), K.SIGNAL_TOWER, "Specjalne epoki I: Wieża sygnałowa (#35)")
+	assert_eq(ResearchConfig.research_building("S2"), K.MANOR, "S2 nie wymaga Wieży sygnałowej, którą odblokowuje")
+	assert_eq(ResearchConfig.research_building("S3"), K.SIGNAL_TOWER, "S3 nie wymaga Domu zwiadowców, który odblokowuje")
 	for code in TechTree.codes():
 		var kind := ResearchConfig.research_building(code)
 		assert_true(BuildConfig.required_tech(kind) != code, "%s: budynek badań nie zależy od samej technologii" % code)

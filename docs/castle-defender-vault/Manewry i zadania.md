@@ -27,7 +27,7 @@ Parametry każdego manewru: cel, trasa (0–3 punkty), start (od razu / po X s /
 | Obrona odcinka | trzyma wskazany fragment muru | I |
 | Patrol | krąży między punktami | I |
 | Priorytet celów wież | np. najpierw taran, artyleria albo najbliższy wróg | I |
-| Gaszenie pożarów | robotnicy gaszą ogień wodą ze studni | I |
+| Gaszenie pożarów | robotnicy gaszą ogień wodą ze studni (piechota lekka przy Studni, do 8 kratek, −3 s ognia na sekundę na gaszącego, #35) | I |
 | Wypad konnicy | gdy taran dojdzie do bramy, konnica wychodzi i atakuje | II |
 | Rezerwa | czeka w centrum i idzie tam, gdzie powstanie wyłom | III |
 | Odwrót do donżonu | po upadku murów załoga wycofuje się do donżonu i broni go przed zdobyciem | III |

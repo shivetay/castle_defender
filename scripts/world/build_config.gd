@@ -33,6 +33,13 @@ const BASE_COST := {
 	K.SEAL_HOUSE: [100, 40, 30, 0],
 	## Magazyn: koszt tymczasowy, w skali Chaty drwala, bez żywności (sam nic nie produkuje).
 	K.WAREHOUSE: [100, 40, 0, 0],
+	## Pozostałe budynki MVP (#35): koszty tymczasowe, w skali Chaty drwala. Fosa to odcinek 1×1 jak wał.
+	K.DRY_MOAT: [5, 0, 15, 0],
+	K.MOUND: [60, 40, 40, 0],
+	K.FARM: [60, 0, 20, 0],
+	K.WELL: [40, 30, 10, 0],
+	K.QUARRY: [100, 0, 30, 0],
+	K.SIGNAL_TOWER: [100, 20, 30, 0],
 }
 ## Czas poziomu 1 w sekundach.
 const BASE_TIME_S := {
@@ -41,15 +48,17 @@ const BASE_TIME_S := {
 	K.FLETCHER: 50, K.SADDLER: 60, K.TAR_KILN: 45, K.FLAX_FIELD: 30, K.FISHER: 40,
 	K.STABLE: 60, K.BARRACKS: 60, K.WARBAND_HOUSE: 75, K.ARCHERY_RANGE: 70,
 	K.KEEP: 90, K.SCOUT_HOUSE: 70, K.SEAL_HOUSE: 60, K.WAREHOUSE: 45,
+	K.DRY_MOAT: 5, K.MOUND: 60, K.FARM: 40, K.WELL: 30, K.QUARRY: 50, K.SIGNAL_TOWER: 50,
 }
 ## Technologia, bez której budynku nie da się postawić (Drzewko technologiczne). Ulepszenia
 ## już postawionego budynku jej nie sprawdzają. Stajnia (#91) i Koszary (#119) nie mają technologii
-## w drzewku, więc stoją od początku epoki I.
+## w drzewku, więc stoją od początku epoki I. Fosa sucha, Pole i spichlerz oraz Studnia (#35) też.
 const REQUIRED_TECH := {
 	K.HUNTER: "G18", K.TANNERY: "G19", K.LEATHERWORKER: "A38", K.POLEARM: "A39", K.BOWSTRING: "A40",
 	K.BOWYER: "A41", K.FLETCHER: "A42", K.SADDLER: "A43", K.TAR_KILN: "G24",
 	K.FLAX_FIELD: "G20", K.FISHER: "G21", K.WARBAND_HOUSE: "A45", K.ARCHERY_RANGE: "A44",
 	K.SCOUT_HOUSE: "S3", K.SEAL_HOUSE: "O2",
+	K.MOUND: "O1", K.QUARRY: "G4", K.SIGNAL_TOWER: "S2",
 }
 ## Mnożnik kosztu poziomów 1–5 w procentach (×1, ×1,5, ×2,5, ×4, ×6).
 const COST_PERCENT: Array[int] = [100, 150, 250, 400, 600]

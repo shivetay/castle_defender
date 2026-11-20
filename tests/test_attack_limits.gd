@@ -4,6 +4,8 @@ extends TestCase
 ## muszą zgadzać się z grą, a klient wysyła tylko armię, która mieści się w obu limitach.
 
 const MIGRATION := "res://supabase/migrations/20261120131426_army_limits.sql"
+## Nowsza wersja private.food_production z Polem i spichlerzem (#35).
+const FARM_MIGRATION := "res://supabase/migrations/20261120135657_farm_food.sql"
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
 const R := EconomyConfig.Res
@@ -48,12 +50,29 @@ func test_server_constants_match_game() -> bool:
 	return true
 
 
-## Serwer zna tylko Rybaka i G2 jako źródła żywności. Nowe źródło bez migracji rozjechałoby limity.
+## Pole i spichlerz (#35): nowa wersja private.food_production w osobnej migracji zna Rybaka i Pole.
+func test_farm_food_on_server() -> bool:
+	var sql := FileAccess.get_file_as_string(FARM_MIGRATION)
+	assert_true(not sql.is_empty(), "migracja Pola jest")
+	var fisher: Array = EconomyConfig.BUILDING_PRODUCTION[K.FISHER]
+	var farm: Array = EconomyConfig.BUILDING_PRODUCTION[K.FARM]
+	assert_eq(int(farm[0]), R.FOOD, "Pole daje żywność")
+	assert_true(sql.contains("FOOD_BASE = %d" % EconomyConfig.BASE_PER_HOUR[R.FOOD]), "żywność grodu")
+	assert_true(sql.contains("FISHER_FOOD = %s" % str(fisher[1])), "stawki Rybaka")
+	assert_true(sql.contains("FARM_FOOD = %s" % str(farm[1])), "stawki Pola")
+	assert_true(sql.contains("when %d then (array%s)" % [K.FISHER, str(fisher[1])]), "tabela Rybaka w funkcji")
+	assert_true(sql.contains("when %d then (array%s)" % [K.FARM, str(farm[1])]), "tabela Pola w funkcji")
+	assert_true(sql.contains("FISHER = %d, FARM = %d" % [K.FISHER, K.FARM]), "rodzaje budynków")
+	assert_true(sql.contains("G2 = %d procent" % int((TechTree.PRODUCTION_BONUS["G2"] as Array)[1])), "premia G2")
+	return true
+
+
+## Serwer zna tylko Rybaka, Pole i G2 jako źródła żywności. Nowe źródło bez migracji rozjechałoby limity.
 func test_food_sources_known_to_server() -> bool:
 	for kind: int in EconomyConfig.BUILDING_PRODUCTION:
 		var entry: Array = EconomyConfig.BUILDING_PRODUCTION[kind]
 		if int(entry[0]) == R.FOOD:
-			assert_eq(kind, K.FISHER, "żywność daje tylko Rybak")
+			assert_true(kind == K.FISHER or kind == K.FARM, "żywność dają tylko Rybak i Pole")
 	for code: String in TechTree.PRODUCTION_BONUS:
 		var bonus: Array = TechTree.PRODUCTION_BONUS[code]
 		if int(bonus[0]) == R.FOOD:
