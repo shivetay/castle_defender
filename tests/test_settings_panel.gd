@@ -86,18 +86,20 @@ func test_settings_button_in_hud_column() -> bool:
 	return true
 
 
-## Karta Strażnicy: tylko Oblężenie, Wyprawa i Zamknij (jeden poziom, nie do rozebrania).
+## Karta Strażnicy: tylko Oblężenie, Wyprawa, Ranking i Zamknij (jeden poziom, nie do rozebrania).
 func test_watchtower_card() -> bool:
 	var b := Hud.content_bounds(VIEW, Rect2())
 	var card := Hud.card_rects(VIEW, false, true)
-	assert_eq(card.size(), 3, "3 przyciski")
+	assert_eq(card.size(), 4, "4 przyciski")
 	assert_true(card[0].position.x >= b.x and card[-1].end.x <= b.y, "karta mieści się na 320 px")
 	assert_eq(Hud.target_at(card[0].get_center(), VIEW, b.y, false, true, false, false, true),
 			Hud.Target.CARD + Hud.CardButton.SIEGE, "pierwszy: Oblężenie")
 	assert_eq(Hud.target_at(card[1].get_center(), VIEW, b.y, false, true, false, false, true),
 			Hud.Target.CARD + Hud.CardButton.ATTACK, "drugi: Wyprawa")
 	assert_eq(Hud.target_at(card[2].get_center(), VIEW, b.y, false, true, false, false, true),
-			Hud.Target.CARD + Hud.CardButton.CLOSE, "trzeci: Zamknij")
+			Hud.Target.CARD + Hud.CardButton.RANKING, "trzeci: Ranking")
+	assert_eq(Hud.target_at(card[3].get_center(), VIEW, b.y, false, true, false, false, true),
+			Hud.Target.CARD + Hud.CardButton.CLOSE, "czwarty: Zamknij")
 	assert_true(PixelFont.text_width(MAIN.WATCHTOWER_INFO) <= int(card[-1].end.x - card[0].position.x),
 			"opis mieści się na karcie")
 	for button in Hud.card_buttons(false, true):

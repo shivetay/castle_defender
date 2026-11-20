@@ -116,8 +116,8 @@ select results_eq(
   $$select nickname, castle_name, ruler, age, rating, map_seed
     from public.match_targets('00000000-0000-0000-0000-0000000000a1')
     where player_id = '00000000-0000-0000-0000-0000000000b1'$$,
-  $$values ('Bolko'::text, 'Bardzo Długa Naz'::text, 'kasztelan'::text, 0::smallint, 50000, 777::bigint)$$,
-  'karta: nick, nazwa zamku przycięta do 16 znaków, władca, epoka, ranking, seed terenu');
+  $$values ('Bolko'::text, 'Bardzo Długa Naz'::text, 'kasztelan'::text, 0::smallint, 1000, 777::bigint)$$,
+  'karta: nick, nazwa zamku przycięta do 16 znaków, władca, epoka, ranking obrony (#27), seed terenu');
 select is(
   (select footprint from public.match_targets('00000000-0000-0000-0000-0000000000a1')
    where player_id = '00000000-0000-0000-0000-0000000000b1'),

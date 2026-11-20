@@ -24,6 +24,9 @@ signal attack_started(start: Dictionary, error: String)
 ## Odpowiedź `finish_attack` (#240): łup przyjęty przez serwer (EconomyConfig.Res) albo pusta lista
 ## i kod błędu. Błąd `NETWORK_ERROR` można ponowić tym samym żądaniem (serwer jest idempotentny).
 signal attack_finished(loot: Array[int], error: String)
+## Odpowiedź `ranking` (#27): wiersze tabeli rodzaju `kind` (RankingBoard.Kind). `ok` false: błąd sieci
+## albo serwera.
+signal ranking_loaded(kind: int, rows: Array[RankingBoard.Row], ok: bool)
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -71,6 +74,11 @@ var _targets_pending := false
 ## Start i koniec ataku na gracza (#240) idą osobnym połączeniem, po jednym naraz.
 var _attack: HTTPRequest
 var _attack_call: int = AttackCall.NONE
+## Tabela rankingu (#27) idzie osobnym połączeniem; naraz jedno żądanie, a prośba o inny rodzaj
+## w trakcie czeka w `_ranking_next`.
+var _ranking: HTTPRequest
+var _ranking_kind := -1
+var _ranking_next := -1
 var _castle_call: int = CastleCall.NONE
 var _castle_map_seed := 0
 var _castle_save_version := 0
@@ -135,6 +143,10 @@ func _ready() -> void:
 	_attack.timeout = TIMEOUT_S
 	add_child(_attack)
 	_attack.request_completed.connect(_on_attack_completed)
+	_ranking = HTTPRequest.new()
+	_ranking.timeout = TIMEOUT_S
+	add_child(_ranking)
+	_ranking.request_completed.connect(_on_ranking_completed)
 	session = SupabaseSession.load_from(session_path)
 	connect_now()
 
@@ -232,6 +244,46 @@ func handle_targets(result: int, code: int, body: String) -> void:
 				result == HTTPRequest.RESULT_SUCCESS and code == 429)
 		return
 	targets_found.emit(TargetSearch.parse_response(SupabaseConfig.parse_json(body)), true, false)
+
+
+## Tabela rankingu `kind` (RankingBoard.Kind, #27); wynik przychodzi w `ranking_loaded`. False, gdy
+## nie ma sieci. Gdy trwa żądanie innego rodzaju, ten idzie zaraz po nim.
+func load_ranking(kind: int) -> bool:
+	if not is_online() or user_id().is_empty():
+		return false
+	if _ranking_kind >= 0:
+		# ten sam rodzaj już idzie; inny czeka (prośba o bieżący nie kasuje czekającego)
+		if kind != _ranking_kind:
+			_ranking_next = kind
+		return true
+	_ranking_kind = kind
+	if fake_transport:
+		sent_requests.append({"path": RankingBoard.PATH, "body": RankingBoard.request(kind)})
+		return true
+	if _ranking == null:
+		_ranking_kind = -1
+		return false
+	var err := _ranking.request(config.url + RankingBoard.PATH, rest_headers(), HTTPClient.METHOD_POST,
+			JSON.stringify(RankingBoard.request(kind)))
+	if err != OK:
+		handle_ranking(HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	return true
+
+
+## Obsługa odpowiedzi `ranking` (bez sieci, wołana też z testów).
+func handle_ranking(result: int, code: int, body: String) -> void:
+	var kind := _ranking_kind
+	_ranking_kind = -1
+	if kind < 0:
+		return
+	if outcome_of(result, code) != Outcome.OK:
+		ranking_loaded.emit(kind, [] as Array[RankingBoard.Row], false)
+	else:
+		ranking_loaded.emit(kind, RankingBoard.parse_response(SupabaseConfig.parse_json(body), kind), true)
+	var next := _ranking_next
+	_ranking_next = -1
+	if next >= 0:
+		load_ranking(next)
 
 
 ## Start ataku na gracza `defender_id` armią `army` (oddziały [rodzaj, liczba]); odpowiedź przychodzi
@@ -393,6 +445,10 @@ func _on_rpc_completed(result: int, code: int, _headers: PackedStringArray, body
 
 func _on_attack_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	handle_attack(_attack_call, result, code, body.get_string_from_utf8())
+
+
+func _on_ranking_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_ranking(result, code, body.get_string_from_utf8())
 
 
 func _attack_send(call: int, path: String, body: Dictionary) -> bool:
