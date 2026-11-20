@@ -299,3 +299,21 @@ func test_picker_lines_and_buttons() -> bool:
 	var y := TargetPicker.SCOUT_Y + 2 * PixelFont.LINE
 	assert_true(y < Hud.row_y(VIEW), "linie zwiadu nad przyciskami")
 	return true
+
+
+## Zwiad idzie na serwer (`castles.data`): po reinstalacji misja w drodze i jej zwiadowcy wracają.
+func test_mission_survives_restore_from_server() -> bool:
+	var c := _castle()
+	var s := Scouting.new()
+	_send(s, c)
+	var save := SaveGame.to_dict(1337, c["grid"], c["e"], BuildQueue.new(), c["r"], null, c["rec"], 0, null, 0, null, 0,
+			null, s)
+	var remote := CastleSync.castle_data(save)
+	var row := {"map_seed": 1337, "save_version": SaveGame.FORMAT_VERSION, "revision": 1,
+			"data": JSON.parse_string(JSON.stringify(remote))}
+	var st := SaveGame.from_dict(CastleSync.save_from_row(row), T0)
+	assert_true(st.scouting.is_busy(), "misja z serwera")
+	assert_eq(st.scouting.mission.seed_value, s.mission.seed_value, "ten sam seed")
+	var rep := st.scouting.update(T0 + ScoutConfig.duration_ms(1), st.recruitment)
+	assert_eq(st.recruitment.army_of(U.TRACKER), rep.returned, "ocaleli wracają do odtworzonej armii")
+	return true
