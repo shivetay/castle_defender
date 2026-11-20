@@ -54,6 +54,9 @@ const HOLD_RADIUS := 4
 ## Stanowisko na murze (#20): strzelec na wale albo palisadzie ma +1 kratkę zasięgu i dostaje 60%
 ## obrażeń od strzał (−40%), a wręcz dosięgnie go tylko atakujący po drabinie. TYMCZASOWE.
 const WALL_RANGE_BONUS := 1
+## Strzelec na wieży drewnianej albo na donżonie (#232) ma +2 kratki zasięgu (wyżej niż mur); ochrona
+## przed strzałami i wręcz jak na murze. TYMCZASOWE.
+const TOWER_STATION_RANGE_BONUS := 2
 const WALL_ARROW_PERCENT := 60
 ## Wypad konnicy (#20): rusza, gdy atakujący podejdzie na tyle kratek do bramy, i bije wrogów najwyżej
 ## tyle kratek od niej (potem wraca za bramę). TYMCZASOWE.
@@ -125,9 +128,6 @@ const ESCORT_RADIUS := 3
 ## Wieża drewniana strzela do atakujących (łucznicy na wieży). TYMCZASOWE.
 const TOWER_ATTACK := 6
 const TOWER_RANGE := 6
-## Donżon strzela jak wieża tylko z załogą strzelców (#232): żywy, niewycofany strzelec obrońcy
-## (zasięg od RANGED_MIN_RANGE) najwyżej tyle kratek od obrysu donżonu. Liczba tymczasowa.
-const KEEP_GARRISON_CELLS := 2
 
 
 static func building_hp(kind: int, level: int) -> int:

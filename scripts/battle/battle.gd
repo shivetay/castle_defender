@@ -43,7 +43,7 @@ class Fighter:
 	## Kratka, na którą jednostka wycofuje się po złamaniu oddziału (#98): miejsce startu atakującego,
 	## a dla obrońcy kratka przy donżonie, także gdy jego oddział stał na wysuniętym posterunku (#19).
 	var rally := Vector2i.ZERO
-	## Stanowisko na murze (#20): id wału albo palisady, na którym jednostka stoi, albo 0.
+	## Stanowisko (#20, #232): id wału, palisady, wieży albo donżonu, na którym jednostka stoi, albo 0.
 	var wall := 0
 	## Pułapki (#100): ile ticków jednostka jeszcze stoi (Wilczy dół) i ile jeszcze płonie.
 	var stun := 0
@@ -537,7 +537,8 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 	var placed: Dictionary[Vector2i, int] = {}
 	var taken: Dictionary[Vector2i, bool] = {}
 	var rally_n := 0
-	# stanowiska na murze (#20): kratki linii wału i palisady od miejsca oddziału, w stałej kolejności
+	# stanowiska na murze (#20): kratki linii wału i palisady od miejsca oddziału, w stałej kolejności;
+	# na wieży i donżonie (#232) kratki budynku
 	var wall_cells: Dictionary[Vector2i, Array] = {}
 	for k in units.size():
 		var unit := units[k]
@@ -549,11 +550,14 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 		f.side = side
 		f.hp = UnitTypes.hp(unit)
 		var anchor := anchors[f.squad - 1] if f.squad - 1 < anchors.size() else at
-		if _wall_station(side, f.squad, f.unit, anchor):
-			if not wall_cells.has(anchor):
-				wall_cells[anchor] = _wall_line(anchor)
+		var station := anchor
+		if _keep_station(side, f.squad, f.unit, anchor, at):
+			station = structures[objective].rect.position
+		if _wall_station(side, f.squad, f.unit, station):
+			if not wall_cells.has(station):
+				wall_cells[station] = _wall_line(station)
 			var free_wall := Vector2i(-1, -1)
-			for c: Vector2i in wall_cells[anchor]:
+			for c: Vector2i in wall_cells[station]:
 				if not taken.has(c):
 					free_wall = c
 					break
@@ -561,7 +565,7 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 				# na murze: kratka muru jest stanowiskiem, bez szukania wolnej trawy
 				taken[free_wall] = true
 				f.wall = _cells[free_wall.y * _terrain.size + free_wall.x]
-				_place_fighter(f, free_wall, at, anchor, rally_n)
+				_place_fighter(f, free_wall, at, station, rally_n)
 				rally_n += 1
 				continue
 		var cell := _free_cell_near(anchor, int(placed.get(anchor, 0)))
@@ -595,20 +599,44 @@ func _place_fighter(f: Fighter, cell: Vector2i, at: Vector2i, anchor: Vector2i, 
 	squad_size[key] = int(squad_size.get(key, 0)) + 1
 
 
-## Czy jednostka `unit` oddziału `squad` strony `side` staje na murze: strzelec obrońcy z Obroną
-## odcinka, którego miejsce to kratka żywego wału albo palisady (#20). Inni stają pod murem.
+## Czy jednostka `unit` oddziału `squad` strony `side` staje na stanowisku: strzelec obrońcy z Obroną
+## odcinka, którego miejsce to kratka żywego wału albo palisady (#20) albo wieży drewnianej (#232),
+## a także strzelec przy donżonie (_keep_station). Inni stają pod murem.
 func _wall_station(side: int, squad: int, unit: int, anchor: Vector2i) -> bool:
-	if side != Side.DEFENDER or not defence.has(squad) or defence[squad].task != DefensePlan.Task.HOLD:
-		return false
-	if UnitTypes.unit_class(unit) != RecruitmentConfig.UnitClass.RANGED:
+	if side != Side.DEFENDER or UnitTypes.unit_class(unit) != RecruitmentConfig.UnitClass.RANGED:
 		return false
 	var s := _structure_at(anchor)
-	return s != null and BuildingTypes.is_wall(s.kind)
+	if s == null:
+		return false
+	if s.kind == BuildingTypes.Kind.KEEP:
+		return s.id == objective
+	if not defence.has(squad) or defence[squad].task != DefensePlan.Task.HOLD:
+		return false
+	return BuildingTypes.is_wall(s.kind) or s.kind == BuildingTypes.Kind.TOWER
 
 
-## Kratki linii wału i palisady połączonej z `start` (bokami), od `start` wszerz, sąsiedzi w stałej
-## kolejności N, E, S, W.
+## Czy strzelec obrońcy z oddziału przy donżonie (bez zadania albo z zadaniem Przy donżonie, miejsce
+## `anchor` to `home`) staje na donżonie jako jego załoga (#232). Miejsc jest tyle, ile kratek donżonu;
+## reszta staje pod nim.
+func _keep_station(side: int, squad: int, unit: int, anchor: Vector2i, home: Vector2i) -> bool:
+	if side != Side.DEFENDER or anchor != home or UnitTypes.unit_class(unit) != RecruitmentConfig.UnitClass.RANGED:
+		return false
+	if defence.has(squad) and defence[squad].task != DefensePlan.Task.KEEP:
+		return false
+	var s: Structure = structures.get(objective, null)
+	return s != null and s.kind == BuildingTypes.Kind.KEEP and s.hp > 0
+
+
+## Kratki stanowisk od `start`: na wieży i donżonie kratki budynku wierszami (#232), na murze linia
+## wału i palisady połączona z `start` (bokami), od `start` wszerz, sąsiedzi w stałej kolejności N, E, S, W.
 func _wall_line(start: Vector2i) -> Array:
+	var st := _structure_at(start)
+	if st != null and (st.kind == BuildingTypes.Kind.TOWER or st.kind == BuildingTypes.Kind.KEEP):
+		var cells: Array = []
+		for y in range(st.rect.position.y, st.rect.end.y):
+			for x in range(st.rect.position.x, st.rect.end.x):
+				cells.append(Vector2i(x, y))
+		return cells
 	var out: Array = [start]
 	var seen: Dictionary[Vector2i, bool] = {start: true}
 	var i := 0
@@ -1476,8 +1504,9 @@ func _defend(f: Fighter, o: DefensePlan.Order) -> void:
 		_hold_section(f)
 
 
-## Stanowisko na murze: strzela do wroga w zasięgu (+WALL_RANGE_BONUS) i nie schodzi. Gdy odcinek
-## padnie, jednostka zostaje na gruzie i broni się dalej jak Obrona odcinka z tego miejsca.
+## Stanowisko na murze: strzela do wroga w zasięgu (+WALL_RANGE_BONUS, z wieży i donżonu
+## +TOWER_STATION_RANGE_BONUS, #232) i nie schodzi. Gdy odcinek padnie, jednostka zostaje na gruzie
+## i broni się dalej jak Obrona odcinka z tego miejsca.
 func _wall_act(f: Fighter) -> void:
 	var s: Structure = structures.get(f.wall, null)
 	if s == null or s.hp <= 0:
@@ -1487,11 +1516,18 @@ func _wall_act(f: Fighter) -> void:
 		_hold_section(f)
 		return
 	var enemy := _enemy_for(f)
-	if enemy != null and _in_range(f, enemy.x, enemy.y, range_of(f) + BattleConfig.WALL_RANGE_BONUS):
+	if enemy != null and _in_range(f, enemy.x, enemy.y, range_of(f) + station_range_bonus(s.kind)):
 		f.target = enemy.id
 		_strike_unit(f, enemy)
 		return
 	f.target = 0
+
+
+## Dodatkowy zasięg strzelca na stanowisku z budynku `kind`: z wieży i donżonu dalej niż z muru (#232).
+static func station_range_bonus(kind: int) -> int:
+	if kind == BuildingTypes.Kind.TOWER or kind == BuildingTypes.Kind.KEEP:
+		return BattleConfig.TOWER_STATION_RANGE_BONUS
+	return BattleConfig.WALL_RANGE_BONUS
 
 
 ## Zejście z muru (np. przy wycofaniu): na wolną kratkę przy murze najbliżej kratki wycofania.
@@ -1784,14 +1820,11 @@ func _trap_fx(c: Vector2i) -> void:
 # --- Wieże i koniec ----------------------------------------------------------------------------------
 
 ## Czy donżon `s` ma załogę strzelców (#232, decyzja właścicielki): wtedy strzela jak wieża drewniana
-## (ten sam zasięg, obrażenia, priorytet celów i tempo ze strzał zbrojowni). Załoga to żywy, niewycofany
-## obrońca walczący z dystansu (zasięg od RANGED_MIN_RANGE, czyli łucznicy, ale też Oszczepnik
-## i Podpalacz, a nie tylko klasa RANGED) najwyżej KEEP_GARRISON_CELLS kratek od obrysu donżonu.
+## (ten sam zasięg, obrażenia, priorytet celów i tempo ze strzał zbrojowni). Załoga to żywi, niewycofani
+## strzelcy obrońcy (klasa RANGED) na stanowisku na donżonie (`Fighter.wall`), jak strzelcy na murze.
 func keep_manned(s: Structure) -> bool:
-	var r := s.rect.grow(BattleConfig.KEEP_GARRISON_CELLS)
 	for f in fighters:
-		if f.side == Side.DEFENDER and f.alive() and not f.retreating \
-				and range_of(f) >= BattleConfig.RANGED_MIN_RANGE and r.has_point(f.cell()):
+		if f.wall == s.id and f.alive() and not f.retreating:
 			return true
 	return false
 
