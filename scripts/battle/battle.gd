@@ -833,12 +833,27 @@ func _move_toward(f: Fighter, tx: int, ty: int) -> void:
 	if f.side == Side.ATTACKER and UnitTypes.unit_class(f.unit) == RecruitmentConfig.UnitClass.FAST and _in_caltrops(f.cell()):
 		@warning_ignore("integer_division")
 		step_len = maxi(1, step_len * TrapConfig.CALTROPS_SLOW_PERCENT / 100)
-	var dx := tx - f.x
-	var dy := ty - f.y
-	if absi(dx) >= absi(dy):
-		f.x += clampi(dx, -step_len, step_len)
+	var dx := clampi(tx - f.x, -step_len, step_len)
+	var dy := clampi(ty - f.y, -step_len, step_len)
+	# woda jest nieprzechodnia (#248): krok, który kończy się w wodzie, idzie drugą osią albo wcale
+	if absi(tx - f.x) >= absi(ty - f.y):
+		if _dry(f.x + dx, f.y):
+			f.x += dx
+		elif dy != 0 and _dry(f.x, f.y + dy):
+			f.y += dy
 	else:
-		f.y += clampi(dy, -step_len, step_len)
+		if _dry(f.x, f.y + dy):
+			f.y += dy
+		elif dx != 0 and _dry(f.x + dx, f.y):
+			f.x += dx
+
+
+## Czy punkt (`x`, `y`) w podjednostkach leży na lądzie (most to ląd).
+func _dry(x: int, y: int) -> bool:
+	if x < 0 or y < 0:
+		return false
+	@warning_ignore("integer_division")
+	return _terrain.is_walkable(Vector2i(x / BattleConfig.SUB, y / BattleConfig.SUB))
 
 
 func _in_range(f: Fighter, tx: int, ty: int, cells: int) -> bool:
@@ -1094,7 +1109,7 @@ func _walkable_near(c: Vector2i) -> Vector2i:
 
 ## Czy na kratce da się stanąć: na mapie, bez wody i bez żywego budynku.
 func _free_ground(c: Vector2i) -> bool:
-	return _terrain.in_bounds(c) and _terrain.get_tile(c) != TerrainMap.Tile.WATER and _structure_at(c) == null
+	return _terrain.is_walkable(c) and _structure_at(c) == null
 
 
 func _act_order(f: Fighter, o: AttackPlan.Order) -> void:

@@ -32,6 +32,7 @@ static func generate(map_seed: int, map_size: int = SIZE) -> TerrainMap:
 	var river_west := rng.randi_range(0, 1) == 0
 	map._make_river(rng, river_west)
 	map._make_paths(rng, river_west)
+	map.ensure_crossing()
 	return map
 
 
@@ -50,6 +51,55 @@ func get_height(c: Vector2i) -> int:
 ## Czy na kratce wolno budować (tylko trawa; ścieżki, woda i mosty są wolne od zabudowy).
 func is_buildable(c: Vector2i) -> bool:
 	return in_bounds(c) and get_tile(c) == Tile.GRASS
+
+
+## Czy jednostka może stanąć na kratce (#248): na mapie i nie w wodzie. Most jest lądem.
+func is_walkable(c: Vector2i) -> bool:
+	return in_bounds(c) and get_tile(c) != Tile.WATER
+
+
+## Czy cały ląd (trawa, ścieżki, mosty) łączy się bokami kratek, czyli czy rzeka nie odcina żadnego
+## kawałka mapy (#248). Przez wodę nikt nie przechodzi, więc brzegi łączy tylko most.
+func land_connected() -> bool:
+	var start := Vector2i(-1, -1)
+	var land := 0
+	for i in tiles.size():
+		if tiles[i] != Tile.WATER:
+			land += 1
+			if start.x < 0:
+				start = Vector2i(i % size, i / size)
+	if land == 0:
+		return true
+	var seen := PackedByteArray()
+	seen.resize(tiles.size())
+	seen[start.y * size + start.x] = 1
+	var queue: Array[Vector2i] = [start]
+	var reached := 1
+	while not queue.is_empty():
+		var c: Vector2i = queue.pop_back()
+		for d: Vector2i in [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]:
+			var n := c + d
+			if not is_walkable(n) or seen[n.y * size + n.x] != 0:
+				continue
+			seen[n.y * size + n.x] = 1
+			reached += 1
+			queue.append(n)
+	return reached == land
+
+
+## Gwarancja przejścia (#248): gdy rzeka odcina część lądu, wodę w wierszu grodu przykrywa most.
+## Ścieżka do rzeki zwykle już go daje, więc dla zwykłych seedów teren się nie zmienia (ten sam seed,
+## ten sam teren). Zwraca true tylko wtedy, gdy most został dołożony i ląd jest już spójny.
+func ensure_crossing() -> bool:
+	if land_connected():
+		return false
+	var y := center().y
+	var changed := false
+	for x in size:
+		if tiles[y * size + x] == Tile.WATER:
+			tiles[y * size + x] = Tile.BRIDGE
+			changed = true
+	return changed and land_connected()
 
 
 ## Środek wzgórza, na którym stoi gród.
