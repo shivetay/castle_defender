@@ -33,7 +33,7 @@ const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 ## Linia karty Strażnicy (#177): jeden poziom, więc zamiast kosztu ulepszenia krótki opis.
 const WATCHTOWER_INFO := "Fale i wyprawy na boty"
 ## Linia karty donżonu (#232): bez ulepszeń i rozbiórki, strzela jak wieża.
-const KEEP_INFO := "Cel ataku, strzela do wrogów"
+const KEEP_INFO := "Cel ataku, strzela ze strzelcem"
 ## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
 const SEAL_HOUSE_INFO := "Sprawdź szczelność umocnień"
 ## Karta Komendy, gdy gracz wskazał lukę (#199).
@@ -1295,7 +1295,8 @@ func _refresh_card() -> void:
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
-	hud.card_plain = kind == BuildingTypes.Kind.KEEP
+	# zlecenie ulepszenia donżonu ze starego zapisu: zwykła karta z Anuluj (review #244)
+	hud.card_plain = kind == BuildingTypes.Kind.KEEP and not pending
 	hud.card_check_disabled = seal_check.is_busy()
 	hud.card_seal_disabled = not seal_check.has_selection()
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)

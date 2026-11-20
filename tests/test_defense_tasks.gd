@@ -324,12 +324,26 @@ func test_keep_shoots_with_ranged_garrison() -> bool:
 	assert_true(far.keep_manned(fk), "łucznik na skraju strefy")
 	archer.retreating = true
 	assert_true(not far.keep_manned(fk), "wycofany łucznik nie obsadza donżonu")
-	# w zwykłym przebiegu: z łucznikami przy donżonie atakujący tracą więcej niż z tą samą piechotą
-	var hp_with := _attackers_hp(Battle.for_castle_squads(grid, [[U.DIGGER, 6]], [[U.ARCHER, 2]], spawn, 5))
+	# w zwykłym przebiegu (step): z łucznikami przy donżonie strzela sam donżon (SHOT FX_TOWER, bez wieży
+	# drewnianej w zamku), z samą piechotą nie strzela
+	assert_true(_keep_shots(grid, spawn, [[U.ARCHER, 2]]) > 0, "z załogą donżon strzela w przebiegu")
+	assert_eq(_keep_shots(grid, spawn, [[U.AXE_WARRIOR, 2]]), 0, "z samą piechotą nie strzela")
 	var unmanned := Battle.for_castle_squads(grid, [[U.DIGGER, 6]], [], spawn, 5)
 	assert_eq(_attackers_hp(unmanned), 6 * UnitTypes.hp(U.DIGGER), "bez załogi donżon nie rani")
-	assert_true(hp_with < 6 * UnitTypes.hp(U.DIGGER), "z załogą atakujący tracą HP")
 	return true
+
+
+## Strzały wież (SHOT FX_TOWER) w przebiegu z obrońcami `defenders`; zamek z _castle() nie ma wieży
+## drewnianej, więc to strzały donżonu.
+func _keep_shots(grid: BuildGrid, spawn: Vector2i, defenders: Array) -> int:
+	var b := Battle.for_castle_squads(grid, [[U.RIDER, 4]], defenders, spawn, 5)
+	b.record_fx = true
+	var n := 0
+	for i in 2400:
+		b.step()
+		for e in b.take_fx():
+			n += int(e[1] == Battle.Fx.SHOT and e[2] == Battle.FX_TOWER)
+	return n
 
 
 func _attackers_hp(b: Battle) -> int:

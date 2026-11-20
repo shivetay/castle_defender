@@ -1785,7 +1785,8 @@ func _trap_fx(c: Vector2i) -> void:
 
 ## Czy donżon `s` ma załogę strzelców (#232, decyzja właścicielki): wtedy strzela jak wieża drewniana
 ## (ten sam zasięg, obrażenia, priorytet celów i tempo ze strzał zbrojowni). Załoga to żywy, niewycofany
-## strzelec obrońcy najwyżej KEEP_GARRISON_CELLS kratek od obrysu donżonu.
+## obrońca walczący z dystansu (zasięg od RANGED_MIN_RANGE, czyli łucznicy, ale też Oszczepnik
+## i Podpalacz, a nie tylko klasa RANGED) najwyżej KEEP_GARRISON_CELLS kratek od obrysu donżonu.
 func keep_manned(s: Structure) -> bool:
 	var r := s.rect.grow(BattleConfig.KEEP_GARRISON_CELLS)
 	for f in fighters:
