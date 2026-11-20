@@ -158,7 +158,8 @@ static func task_text(o: DefensePlan.Order, g: BuildGrid = null) -> String:
 	if o.task == DefensePlan.Task.HOLD and g != null and DefensePlan.wall_post(g, o.post):
 		return "Na murze"
 	if o.task == DefensePlan.Task.HOLD and g != null and DefensePlan.station_post(g, o.post):
-		return "Na wieży"
+		var on := g.building_at(o.post)
+		return "Na kopcu" if on != 0 and g.kinds[on] == BuildingTypes.Kind.MOUND else "Na wieży"
 	return DefensePlan.TASK_NAMES[o.task]
 
 
@@ -207,6 +208,16 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 	var id := grid.building_at(cell) if grid.terrain.in_bounds(cell) else 0
 	if o != null and o.task == DefensePlan.Task.KEEP:
 		return "Przy donżonie: zmień Zadanie, żeby wskazać miejsce"
+	if o != null and o.task == DefensePlan.Task.FIREFIGHT:
+		# Gaszenie pożarów (#35) wskazuje się Studnią: oddział czeka tuż przy niej
+		if id == 0 or grid.kinds[id] != BuildingTypes.Kind.WELL or grid.levels[id] < 1 \
+				or not DefensePlan.zone(grid).has_point(cell):
+			return "Gaszenie: dotknij Studni"
+		var beside := DefensePlan.section_post(grid, id)
+		if beside == DefensePlan.NO_POST:
+			return "Studnia: brak miejsca obok"
+		o.post = beside
+		return "Oddział %d: gasi pożary przy Studni" % (selected + 1)
 	if o != null and o.task == DefensePlan.Task.SORTIE:
 		# Wypad konnicy wskazuje się bramą: oddział czeka tuż za nią, od strony donżonu
 		if id == 0 or grid.kinds[id] != BuildingTypes.Kind.GATE or not DefensePlan.zone(grid).has_point(cell):
@@ -218,9 +229,10 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 		return "Oddział %d: wypad przez bramę" % (selected + 1)
 	if not patrol and not field and DefensePlan.station_post(grid, cell) \
 			and unit_class_of(selected) == RecruitmentConfig.UnitClass.RANGED:
-		# strzelcy stają na samym murze (#20) albo na wieży (#232)
+		# strzelcy stają na samym murze (#20), na wieży (#232) albo na Kopcu (#35)
 		plan.set_post(selected_id(), cell)
-		var where := "na murze" if DefensePlan.wall_post(grid, cell) else "na wieży"
+		var where := "na murze" if DefensePlan.wall_post(grid, cell) else \
+				("na kopcu" if grid.kinds[id] == BuildingTypes.Kind.MOUND else "na wieży")
 		return "Oddział %d: %s, %s" % [selected + 1, where, BuildingTypes.NAMES[grid.kinds[id]]]
 	# odcinek umocnień przyciąga tylko Obronę odcinka; punkt patrolu stawia się na trawie (review #181)
 	var section := ""
@@ -289,21 +301,24 @@ func trap_describe() -> Array[String]:
 
 
 ## Zadania do wyboru dla oddziału klasy `unit_class` w epoce `current_age`, w kolejności przycisku
-## Zadanie: Obrona odcinka, Patrol, dla konnicy Przed murami i Wypad konnicy (od epoki II), Przy donżonie.
-static func task_options(unit_class: int, current_age: int) -> Array[int]:
+## Zadanie: Obrona odcinka, Patrol, dla konnicy Przed murami i Wypad konnicy (od epoki II), dla piechoty
+## lekkiej Gaszenie pożarów, gdy zamek ma Studnię (`has_well`, #35), na końcu Przy donżonie.
+static func task_options(unit_class: int, current_age: int, has_well: bool = false) -> Array[int]:
 	var out: Array[int] = [DefensePlan.Task.HOLD, DefensePlan.Task.PATROL]
 	if unit_class == RecruitmentConfig.UnitClass.FAST:
 		out.append(DefensePlan.Task.FIELD)
 	if unit_class == RecruitmentConfig.UnitClass.FAST and current_age >= DefensePlan.TASK_AGE[DefensePlan.Task.SORTIE]:
 		out.append(DefensePlan.Task.SORTIE)
+	if unit_class == RecruitmentConfig.UnitClass.LIGHT and has_well:
+		out.append(DefensePlan.Task.FIREFIGHT)
 	out.append(DefensePlan.Task.KEEP)
 	return out
 
 
 ## Następne zadanie oddziału: bez zadania (domyślne) pierwsze z listy, potem po kolei w kółko.
-## Miejsce zostaje (Wypad bierze miejsce za bramą dopiero z dotknięcia bramy).
-static func next_task(o: DefensePlan.Order, unit_class: int = 0, current_age: int = 0) -> int:
-	var options := task_options(unit_class, current_age)
+## Miejsce zostaje (Wypad bierze miejsce za bramą, a Gaszenie przy Studni dopiero z dotknięcia).
+static func next_task(o: DefensePlan.Order, unit_class: int = 0, current_age: int = 0, has_well: bool = false) -> int:
+	var options := task_options(unit_class, current_age, has_well)
 	if o == null:
 		return options[0]
 	return options[(options.find(o.task) + 1) % options.size()]
@@ -377,9 +392,11 @@ func activate(t: int) -> void:
 			changed.emit(tower_text(plan.tower_priority))
 		Target.TASK:
 			if selected_id() != 0:
-				var o := plan.set_task(selected_id(), next_task(plan.order_for(selected_id()), unit_class_of(selected), age))
-				if o.task == DefensePlan.Task.SORTIE:
-					o.post = DefensePlan.NO_POST  # brama do wskazania
+				var well := castle != null and castle.has_built(BuildingTypes.Kind.WELL)
+				var o := plan.set_task(selected_id(), next_task(plan.order_for(selected_id()), unit_class_of(selected), age,
+						well))
+				if o.task == DefensePlan.Task.SORTIE or o.task == DefensePlan.Task.FIREFIGHT:
+					o.post = DefensePlan.NO_POST  # brama albo Studnia do wskazania
 				changed.emit("Oddział %d: %s" % [selected + 1, task_text(o, castle)])
 		Target.CLEAR:
 			if selected_id() != 0:

@@ -86,6 +86,8 @@ class Structure:
 	var rect := Rect2i()
 	var hp := 0
 	var max_hp := 0
+	## Poziom budynku 1–5 (Kopiec, #35: od poziomu zależy premia zasięgu sąsiednich wież).
+	var level := 0
 	## Wytrzymałość z poziomu budynku, przed premiami z badań (#12, O2 liczy się od niej).
 	var base_hp := 0
 	var cooldown := 0
@@ -120,6 +122,13 @@ var _sortie_gate: Dictionary[int, int] = {}
 var _sortie_out: Dictionary[int, bool] = {}
 ## Pułapki obrońcy (#100) w kolejności z ustawień obrony.
 var traps: Array[TrapState] = []
+## Fosa sucha obrońcy (#35): kratka → poziom fosy. Fosa nie jest budynkiem bitwy (structures): nie
+## blokuje drogi i nie da się jej zburzyć, tylko spowalnia atakujących, a z O3 ich rani.
+var moat: Dictionary[Vector2i, int] = {}
+## Gaszenie pożarów (#35): Studnia oddziału obrońcy (klucz: numer oddziału) albo 0.
+var _fire_well: Dictionary[int, int] = {}
+## Kopce przy wieżach (#35): id wieży drewnianej albo donżonu → id Kopców, które stykają się z nią bokiem.
+var _mounds_by: Dictionary[int, Array] = {}
 
 var _terrain: TerrainMap
 var _cells: PackedInt32Array
@@ -187,14 +196,23 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 	for id: int in grid.buildings:
 		if grid.levels[id] < 1:
 			continue  # plac budowy nie broni się
+		if BuildingTypes.is_passable(grid.kinds[id]):
+			# fosa (#35) to rów: kratka jest wolna dla drogi, a fosa działa na tego, kto na niej stoi
+			for y in range(grid.buildings[id].position.y, grid.buildings[id].end.y):
+				for x in range(grid.buildings[id].position.x, grid.buildings[id].end.x):
+					b.moat[Vector2i(x, y)] = grid.levels[id]
+					b._cells[y * grid.terrain.size + x] = 0
+			continue
 		var s := Structure.new()
 		s.id = id
 		s.kind = grid.kinds[id]
 		s.rect = grid.buildings[id]
+		s.level = grid.levels[id]
 		s.max_hp = BattleConfig.building_hp(s.kind, grid.levels[id])
 		s.base_hp = s.max_hp
 		s.hp = s.max_hp
 		b.structures[id] = s
+	b._link_mounds()
 	b._setup_astar()
 	b._spawn = spawn
 	b._spawn_squads(attackers, Side.ATTACKER, spawn)
@@ -214,6 +232,8 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 		b._patrol[i + 1] = points
 		if o.task == DefensePlan.Task.SORTIE:
 			b._sortie_gate[i + 1] = b._gate_near(o.post)
+		if o.task == DefensePlan.Task.FIREFIGHT:
+			b._fire_well[i + 1] = b._well_near(o.post)
 	b._spawn_squads(defenders, Side.DEFENDER, home, anchors)
 	return b
 
@@ -262,7 +282,7 @@ func apply_research(side: int, research: Research) -> void:
 
 ## Kody technologii, które coś zmieniają w bitwie.
 static func battle_tech_codes() -> Array[String]:
-	return ["A1", "A2", "O2"] as Array[String]
+	return ["A1", "A2", "O2", "O3"] as Array[String]
 
 
 func has_tech(side: int, code: String) -> bool:
@@ -296,6 +316,8 @@ func step() -> void:
 			_act(f)
 	if not traps.is_empty():
 		_traps_act()
+	if not moat.is_empty() and tick % BattleConfig.TICK_HZ == 0 and has_tech(Side.DEFENDER, "O3"):
+		_moat_spikes()
 	for id: int in structures:
 		var s := structures[id]
 		if s.hp > 0 and (s.kind == BuildingTypes.Kind.TOWER \
@@ -467,6 +489,9 @@ func checksum() -> int:
 		h = _mix(h, id)
 		h = _mix(h, structures[id].hp)
 		h = _mix(h, structures[id].burning)
+	for c: Vector2i in moat:
+		h = _mix(h, c.x * 256 + c.y)
+		h = _mix(h, moat[c])
 	for key: int in morale:
 		h = _mix(h, key)
 		h = _mix(h, int(morale[key]))
@@ -601,7 +626,7 @@ func _place_fighter(f: Fighter, cell: Vector2i, at: Vector2i, anchor: Vector2i, 
 
 
 ## Czy jednostka `unit` oddziału `squad` strony `side` staje na stanowisku: strzelec obrońcy z Obroną
-## odcinka, którego miejsce to kratka żywego wału albo palisady (#20) albo wieży drewnianej (#232),
+## odcinka, którego miejsce to kratka żywego wału albo palisady (#20), wieży drewnianej (#232) albo Kopca (#35),
 ## a także strzelec przy donżonie (_keep_station). Inni stają pod murem.
 func _wall_station(side: int, squad: int, unit: int, anchor: Vector2i) -> bool:
 	if side != Side.DEFENDER or UnitTypes.unit_class(unit) != RecruitmentConfig.UnitClass.RANGED:
@@ -613,7 +638,7 @@ func _wall_station(side: int, squad: int, unit: int, anchor: Vector2i) -> bool:
 		return s.id == objective
 	if not defence.has(squad) or defence[squad].task != DefensePlan.Task.HOLD:
 		return false
-	return BuildingTypes.is_wall(s.kind) or s.kind == BuildingTypes.Kind.TOWER
+	return BuildingTypes.is_wall(s.kind) or s.kind == BuildingTypes.Kind.TOWER or s.kind == BuildingTypes.Kind.MOUND
 
 
 ## Czy strzelec obrońcy z oddziału przy donżonie (bez zadania albo z zadaniem Przy donżonie, miejsce
@@ -628,11 +653,12 @@ func _keep_station(side: int, squad: int, unit: int, anchor: Vector2i, home: Vec
 	return s != null and s.kind == BuildingTypes.Kind.KEEP and s.hp > 0
 
 
-## Kratki stanowisk od `start`: na wieży i donżonie kratki budynku wierszami (#232), na murze linia
+## Kratki stanowisk od `start`: na wieży, donżonie i Kopcu kratki budynku wierszami (#232, #35), na murze linia
 ## wału i palisady połączona z `start` (bokami), od `start` wszerz, sąsiedzi w stałej kolejności N, E, S, W.
 func _wall_line(start: Vector2i) -> Array:
 	var st := _structure_at(start)
-	if st != null and (st.kind == BuildingTypes.Kind.TOWER or st.kind == BuildingTypes.Kind.KEEP):
+	if st != null and (st.kind == BuildingTypes.Kind.TOWER or st.kind == BuildingTypes.Kind.KEEP \
+			or st.kind == BuildingTypes.Kind.MOUND):
 		var cells: Array = []
 		for y in range(st.rect.position.y, st.rect.end.y):
 			for x in range(st.rect.position.x, st.rect.end.x):
@@ -838,6 +864,9 @@ func _move_toward(f: Fighter, tx: int, ty: int) -> void:
 	if f.side == Side.ATTACKER and UnitTypes.unit_class(f.unit) == RecruitmentConfig.UnitClass.FAST and _in_caltrops(f.cell()):
 		@warning_ignore("integer_division")
 		step_len = maxi(1, step_len * TrapConfig.CALTROPS_SLOW_PERCENT / 100)
+	if f.side == Side.ATTACKER and moat.has(f.cell()):
+		@warning_ignore("integer_division")
+		step_len = maxi(1, step_len * BattleConfig.MOAT_SPEED_PERCENT / 100)
 	var dx := clampi(tx - f.x, -step_len, step_len)
 	var dy := clampi(ty - f.y, -step_len, step_len)
 	# woda jest nieprzechodnia (#248): krok, który kończy się w wodzie, idzie drugą osią albo wcale
@@ -1549,6 +1578,8 @@ func _defend(f: Fighter, o: DefensePlan.Order) -> void:
 		_sortie_act(f)
 	elif o.task == DefensePlan.Task.FIELD:
 		_field_act(f)
+	elif o.task == DefensePlan.Task.FIREFIGHT:
+		_firefight_act(f)
 	else:
 		_hold_section(f)
 
@@ -1579,6 +1610,7 @@ func _on_keep(f: Fighter) -> bool:
 
 
 ## Dodatkowy zasięg strzelca na stanowisku z budynku `kind`: z wieży i donżonu dalej niż z muru (#232).
+## Kopiec (#35, decyzja właścicielki) daje tyle co mur: +1.
 static func station_range_bonus(kind: int) -> int:
 	if kind == BuildingTypes.Kind.TOWER or kind == BuildingTypes.Kind.KEEP:
 		return BattleConfig.TOWER_STATION_RANGE_BONUS
@@ -1890,7 +1922,7 @@ func _tower_act(s: Structure) -> void:
 		return
 	var cx := (s.rect.position.x * 2 + s.rect.size.x) * BattleConfig.SUB / 2
 	var cy := (s.rect.position.y * 2 + s.rect.size.y) * BattleConfig.SUB / 2
-	var r := BattleConfig.TOWER_RANGE * BattleConfig.SUB
+	var r := tower_range(s) * BattleConfig.SUB
 	# najbliższy w zasięgu, a z priorytetem (#20) najbliższy z wybranej grupy, jeśli jest
 	var best: Fighter = null
 	var best_d := 0
@@ -1921,6 +1953,107 @@ func _tower_act(s: Structure) -> void:
 		_ignite_arrow_target(best)
 	_hurt(best, _roll(dmg))
 	_record(Fx.SHOT, FX_TOWER, cx, cy, best.x, best.y)
+
+
+## Zasięg strzału wieży drewnianej albo obsadzonego donżonu w kratkach: TOWER_RANGE plus premia
+## od żywego Kopca, który styka się z nią bokiem (#35). Z kilku Kopców liczy się najwyższa premia.
+func tower_range(s: Structure) -> int:
+	var bonus := 0
+	for id: int in _mounds_by.get(s.id, []) as Array:
+		var m: Structure = structures.get(id, null)
+		if m != null and m.hp > 0:
+			bonus = maxi(bonus, BattleConfig.mound_range_bonus(m.level))
+	return BattleConfig.TOWER_RANGE + bonus
+
+
+## Czy prostokąty kratek `a` i `b` stykają się bokiem (nie po skosie i bez nakładania).
+static func touches_side(a: Rect2i, b: Rect2i) -> bool:
+	if a.intersects(b):
+		return false
+	return a.grow_individual(1, 0, 1, 0).intersects(b) or a.grow_individual(0, 1, 0, 1).intersects(b)
+
+
+## Spis Kopców przy wieżach i donżonie (#35), raz przy tworzeniu bitwy, w stałej kolejności budynków.
+func _link_mounds() -> void:
+	for id: int in structures:
+		var s := structures[id]
+		if s.kind != BuildingTypes.Kind.TOWER and s.kind != BuildingTypes.Kind.KEEP:
+			continue
+		var near: Array = []
+		for mid: int in structures:
+			var m := structures[mid]
+			if m.kind == BuildingTypes.Kind.MOUND and touches_side(s.rect, m.rect):
+				near.append(mid)
+		if not near.is_empty():
+			_mounds_by[id] = near
+
+
+## Kolce w fosie (#35, O3 Fosa z kolcami): co sekundę każdy żywy atakujący na kratce fosy traci
+## BattleConfig.moat_spike_damage(poziom fosy) punktów, w stałej kolejności jednostek.
+func _moat_spikes() -> void:
+	for f in fighters:
+		if f.side != Side.ATTACKER or not f.alive():
+			continue
+		var c := f.cell()
+		if moat.has(c):
+			_hurt(f, BattleConfig.moat_spike_damage(moat[c]))
+
+
+## Studnia najbliżej kratki `c` (żywa, przy remisie niższe id) albo 0.
+func _well_near(c: Vector2i) -> int:
+	var best := 0
+	var best_d := -1
+	for id: int in structures:
+		var s := structures[id]
+		if s.kind != BuildingTypes.Kind.WELL or s.hp <= 0:
+			continue
+		var d := (s.rect.get_center() - c).length_squared()
+		if best_d < 0 or d < best_d or (d == best_d and id < best):
+			best = id
+			best_d = d
+	return best
+
+
+## Płonący żywy budynek najbliżej Studni `well` i najwyżej FIREFIGHT_RADIUS kratek od niej (środek do
+## środka), przy remisie niższe id; null, gdy nic nie płonie albo Studnia padła.
+func _fire_near(well: Structure) -> Structure:
+	if well == null or well.hp <= 0:
+		return null
+	var wc := _rect_center_sub(well.rect)
+	var reach := BattleConfig.FIREFIGHT_RADIUS * BattleConfig.SUB
+	var best: Structure = null
+	var best_d := 0
+	for id: int in structures:
+		var s := structures[id]
+		if s.hp <= 0 or s.burning <= 0:
+			continue
+		var sc := _rect_center_sub(s.rect)
+		var d := _dist2(wc.x, wc.y, sc.x, sc.y)
+		if d > reach * reach:
+			continue
+		if best == null or d < best_d or (d == best_d and id < best.id):
+			best = s
+			best_d = d
+	return best
+
+
+## Gaszenie pożarów (#35, notatka Manewry i zadania): oddział czeka przy swojej Studni jak Obrona
+## odcinka. Gdy w promieniu FIREFIGHT_RADIUS kratek od Studni płonie budynek, idzie do niego i każdy
+## gaszący, który stoi tuż przy nim, co sekundę skraca ogień o FIREFIGHT_S sekund. Wtedy nie walczy.
+## Bez żywej Studni (albo gdy padła) nie ma czym gasić i oddział tylko broni swojego miejsca.
+func _firefight_act(f: Fighter) -> void:
+	var well: Structure = structures.get(int(_fire_well.get(f.squad, 0)), null)
+	var fire := _fire_near(well)
+	if fire == null:
+		_hold_section(f)
+		return
+	f.target = 0
+	if _rect_in_range(f, fire.rect, 1):
+		if f.cooldown == 0:
+			f.cooldown = BattleConfig.ATTACK_COOLDOWN_TICKS
+			fire.burning = maxi(0, fire.burning - BattleConfig.FIREFIGHT_S * BattleConfig.TICK_HZ)
+		return
+	_walk_to(f, fire, false)
 
 
 func _check_end() -> void:
