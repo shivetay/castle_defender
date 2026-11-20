@@ -263,6 +263,17 @@ static func wall_post(grid: BuildGrid, cell: Vector2i) -> bool:
 	return id != 0 and BuildingTypes.is_wall(grid.kinds[id]) and grid.levels[id] >= 1
 
 
+## Czy kratka `cell` to stanowisko strzelców: mur (wall_post) albo gotowa wieża drewniana w strefie
+## obrony (#232). Na donżonie strzelcy stają sami, gdy oddział stoi przy donżonie.
+static func station_post(grid: BuildGrid, cell: Vector2i) -> bool:
+	if wall_post(grid, cell):
+		return true
+	if not grid.terrain.in_bounds(cell) or not zone(grid).has_point(cell):
+		return false
+	var id := grid.building_at(cell)
+	return id != 0 and grid.kinds[id] == BuildingTypes.Kind.TOWER and grid.levels[id] >= 1
+
+
 ## Czy budynek rodzaju `kind` to odcinek obrony (wał, palisada, brama, wieża).
 static func is_section(kind: int) -> bool:
 	return BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.GATE or kind == BuildingTypes.Kind.TOWER

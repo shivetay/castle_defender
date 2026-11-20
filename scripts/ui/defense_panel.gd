@@ -157,6 +157,8 @@ static func task_text(o: DefensePlan.Order, g: BuildGrid = null) -> String:
 		return "Patrol %d/%d pkt" % [o.route.size() + 1, DefensePlan.MAX_ROUTE + 1]
 	if o.task == DefensePlan.Task.HOLD and g != null and DefensePlan.wall_post(g, o.post):
 		return "Na murze"
+	if o.task == DefensePlan.Task.HOLD and g != null and DefensePlan.station_post(g, o.post):
+		return "Na wieży"
 	return DefensePlan.TASK_NAMES[o.task]
 
 
@@ -186,9 +188,10 @@ func describe(i: int) -> Array[String]:
 
 
 ## Dotknięcie kratki `cell` własnego zamku. Miejsce innego oddziału go wybiera. Odcinek umocnień
-## (wał, palisada, brama, wieża) w strefie daje miejsce tuż przy nim od strony donżonu. Przy
-## Patrolu kolejne dotknięcia dodają punkty trasy (czwarte zaczyna trasę od nowa), inaczej kratka
-## staje się miejscem Obrony odcinka. Zwraca komunikat dla paska.
+## (wał, palisada, brama, wieża) w strefie daje miejsce tuż przy nim od strony donżonu, a strzelcom
+## stanowisko na murze albo na wieży (#232). Przy Patrolu kolejne dotknięcia dodają punkty trasy
+## (czwarte zaczyna trasę od nowa), inaczej kratka staje się miejscem Obrony odcinka. Zwraca komunikat
+## dla paska.
 func tap(grid: BuildGrid, cell: Vector2i) -> String:
 	if trap_mode:
 		return tap_trap(grid, cell)
@@ -213,11 +216,12 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 			return "Brama: brak miejsca od środka"
 		o.post = behind
 		return "Oddział %d: wypad przez bramę" % (selected + 1)
-	if not patrol and not field and DefensePlan.wall_post(grid, cell) \
+	if not patrol and not field and DefensePlan.station_post(grid, cell) \
 			and unit_class_of(selected) == RecruitmentConfig.UnitClass.RANGED:
-		# strzelcy stają na samym murze (#20)
+		# strzelcy stają na samym murze (#20) albo na wieży (#232)
 		plan.set_post(selected_id(), cell)
-		return "Oddział %d: na murze, %s" % [selected + 1, BuildingTypes.NAMES[grid.kinds[id]]]
+		var where := "na murze" if DefensePlan.wall_post(grid, cell) else "na wieży"
+		return "Oddział %d: %s, %s" % [selected + 1, where, BuildingTypes.NAMES[grid.kinds[id]]]
 	# odcinek umocnień przyciąga tylko Obronę odcinka; punkt patrolu stawia się na trawie (review #181)
 	var section := ""
 	if not patrol and not field and id != 0 and DefensePlan.is_section(grid.kinds[id]) and DefensePlan.zone(grid).has_point(cell):

@@ -263,3 +263,199 @@ func test_panel_edits_tasks() -> bool:
 		assert_true(PixelFont.text_width(DefensePanel.tower_text(i)) <= Hud.MESSAGE_MAX_WIDTH, "komunikat wież mieści się")
 	panel.free()
 	return true
+
+
+
+## Donżon strzela jak wieża tylko z załogą strzelców (#232): strzelcy oddziału przy donżonie stają
+## na nim (tyle, ile kratek donżonu), mają +TOWER_STATION_RANGE_BONUS zasięgu i nie schodzą. Z załogą
+## donżon rani atakującego w zasięgu bez wieży drewnianej, trzyma priorytet celów wież, a bez strzał
+## ze zbrojowni strzela wolniej. Bez załogi (piechota, łucznicy na posterunku, wycofani) nie strzela.
+func test_keep_shoots_with_ranged_garrison() -> bool:
+	var grid := _castle()
+	var spawn := BotCastle.edge_road(grid.terrain)
+	for id: int in grid.kinds:
+		assert_true(grid.kinds[id] != K.TOWER, "bez wieży drewnianej")
+	# załoga: 4 kratki donżonu, piąty łucznik i topornicy pod donżonem
+	var g := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 1]], [[U.ARCHER, 5], [U.AXE_WARRIOR, 2]], spawn, 5)
+	var gk := g.structures[g.objective]
+	var on_keep := 0
+	for f in _side(g, Battle.Side.DEFENDER):
+		if f.wall == gk.id:
+			on_keep += 1
+			assert_eq(f.unit, U.ARCHER, "na donżonie tylko strzelcy")
+			assert_true(gk.rect.has_point(f.cell()), "stoi na kratce donżonu")
+	assert_eq(on_keep, gk.rect.get_area(), "tylu, ile kratek donżonu")
+	assert_true(g.keep_manned(gk), "donżon ma załogę")
+	assert_eq(Battle.station_range_bonus(K.KEEP), BattleConfig.TOWER_STATION_RANGE_BONUS, "z donżonu dalej")
+	assert_true(BattleConfig.TOWER_STATION_RANGE_BONUS > BattleConfig.WALL_RANGE_BONUS, "dalej niż z muru")
+	# załoga nie schodzi ścigać (review #244): po walce z wrogami w zasięgu wzroku dalej stoi na donżonie
+	var stay := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 6]], [[U.ARCHER, 2]], spawn, 5)
+	var sk := stay.structures[stay.objective]
+	var crew: Array[Battle.Fighter] = []
+	for f in _side(stay, Battle.Side.DEFENDER):
+		if f.wall == sk.id:
+			crew.append(f)
+	assert_eq(crew.size(), 2, "obaj łucznicy na donżonie")
+	var engaged := false
+	for i in 1800:
+		stay.step()
+		for f in crew:
+			engaged = engaged or f.target != 0
+			if f.alive() and not f.retreating and not sk.rect.has_point(f.cell()):
+				assert_true(false, "łucznik zszedł z donżonu (tick %d)" % stay.tick)
+				return true
+	assert_true(engaged, "załoga strzelała do wrogów")
+	# załogę donżonu bije piechota spod donżonu, bo wchodzi się bez drabiny (balans #232)
+	var foot := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 1]], [[U.ARCHER, 1]], spawn, 5)
+	var rk := foot.structures[foot.objective]
+	var guard := _side(foot, Battle.Side.DEFENDER)[0]
+	var axe1 := _side(foot, Battle.Side.ATTACKER)[0]
+	assert_eq(guard.wall, rk.id, "łucznik na donżonie")
+	_put(foot, axe1, rk.rect.position + Vector2i(-1, 0))
+	assert_true(foot._enemy_for(axe1) == guard, "topornik spod donżonu bierze załogę na cel")
+	# łucznik na donżonie sięga wroga o TOWER_STATION_RANGE_BONUS kratek dalej niż łuk
+	var archer: Battle.Fighter = null
+	for f in _side(g, Battle.Side.DEFENDER):
+		if archer == null and f.wall == gk.id:
+			archer = f
+	var axe0 := _side(g, Battle.Side.ATTACKER)[0]
+	var reach := range_cells(g, archer) + BattleConfig.TOWER_STATION_RANGE_BONUS
+	_put(g, axe0, archer.cell() + Vector2i(-reach, 0))
+	archer.cooldown = 0
+	g._wall_act(archer)
+	assert_eq(archer.target, axe0.id, "strzela z większym zasięgiem")
+	var shots := {}
+	for priority: int in [DefensePlan.TowerPriority.NEAREST, DefensePlan.TowerPriority.RAM]:
+		var b := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 1], [U.RAM, 1]], [[U.ARCHER, 1]], spawn,
+				5, null, [] as Array[DefensePlan.Order], priority)
+		var keep := b.structures[b.objective]
+		assert_eq(keep.kind, K.KEEP, "cel to donżon")
+		assert_true(b.keep_manned(keep), "łucznik przy donżonie staje na nim")
+		var r := keep.rect
+		var axe := _side(b, Battle.Side.ATTACKER)[0]
+		var ram := _side(b, Battle.Side.ATTACKER)[1]
+		_put(b, axe, r.position + Vector2i(-2, 0))
+		_put(b, ram, r.position + Vector2i(-5, 0))
+		keep.cooldown = 0
+		b.record_fx = true
+		b._tower_act(keep)
+		shots[priority] = "taran" if ram.hp < UnitTypes.hp(U.RAM) else ("topór" if axe.hp < UnitTypes.hp(U.AXE_WARRIOR) else "nic")
+		var tower_shot := false
+		for e in b.take_fx():
+			tower_shot = tower_shot or (e[1] == Battle.Fx.SHOT and e[2] == Battle.FX_TOWER)
+		assert_true(tower_shot, "efekt strzału wieży")
+	assert_eq(shots[DefensePlan.TowerPriority.NEAREST], "topór", "donżon: najbliższy")
+	assert_eq(shots[DefensePlan.TowerPriority.RAM], "taran", "donżon: priorytet taran")
+	# tempo: bez strzał ze zbrojowni dłuższy odpoczynek między strzałami
+	var cooldowns: Array[int] = []
+	for percent: int in [100, GoodsConfig.NO_ARROWS_FIRE_PERCENT]:
+		var b := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 1]], [[U.ARCHER, 1]], spawn, 5)
+		b.tower_fire_percent = percent
+		var keep := b.structures[b.objective]
+		_put(b, _side(b, Battle.Side.ATTACKER)[0], keep.rect.position + Vector2i(-2, 0))
+		keep.cooldown = 0
+		b._tower_act(keep)
+		cooldowns.append(keep.cooldown)
+	assert_true(cooldowns[0] > 0 and cooldowns[1] > cooldowns[0], "bez strzał wolniej (%s)" % str(cooldowns))
+	# kto nie jest załogą: piechota, łucznicy z posterunkiem z dala od donżonu, wycofany łucznik
+	var melee := Battle.for_castle_squads(grid, [[U.ARCHER, 1]], [[U.AXE_WARRIOR, 2]], spawn, 5)
+	assert_true(not melee.keep_manned(melee.structures[melee.objective]), "sama piechota to nie załoga")
+	var posted := Battle.for_castle_squads(grid, [[U.ARCHER, 1]], [[U.ARCHER, 2]], spawn, 5, null,
+			[_order(T.HOLD, _free_at(grid, Vector2i.RIGHT, 6))] as Array[DefensePlan.Order])
+	assert_true(not posted.keep_manned(posted.structures[posted.objective]), "łucznicy na posterunku nie obsadzają")
+	var ordered := Battle.for_castle_squads(grid, [[U.ARCHER, 1]], [[U.ARCHER, 1]], spawn, 5, null,
+			[_order(T.KEEP, NO)] as Array[DefensePlan.Order])
+	var ok := ordered.structures[ordered.objective]
+	assert_true(ordered.keep_manned(ok), "zadanie Przy donżonie obsadza donżon")
+	_side(ordered, Battle.Side.DEFENDER)[0].retreating = true
+	assert_true(not ordered.keep_manned(ok), "wycofany łucznik nie obsadza donżonu")
+	# w zwykłym przebiegu (step): z łucznikami donżon strzela sam (SHOT FX_TOWER, bez wieży drewnianej
+	# w zamku), z samą piechotą nie strzela
+	assert_true(_keep_shots(grid, spawn, [[U.ARCHER, 2]]) > 0, "z załogą donżon strzela w przebiegu")
+	assert_eq(_keep_shots(grid, spawn, [[U.AXE_WARRIOR, 2]]), 0, "z samą piechotą nie strzela")
+	var unmanned := Battle.for_castle_squads(grid, [[U.DIGGER, 6]], [], spawn, 5)
+	assert_eq(_attackers_hp(unmanned), 6 * UnitTypes.hp(U.DIGGER), "bez załogi donżon nie rani")
+	return true
+
+
+## Zasięg strzelca `f` w kratkach (z badaniami strony).
+static func range_cells(b: Battle, f: Battle.Fighter) -> int:
+	return b.range_of(f)
+
+
+## Strzelcy z Obroną odcinka na wieży drewnianej stają na niej (#232), z większym zasięgiem niż z muru,
+## a panel Obrona przyjmuje wieżę jako ich stanowisko.
+func test_archers_stand_on_tower() -> bool:
+	var grid := _castle()
+	var c := DefensePlan.keep_center(grid)
+	var spot := NO
+	for k in range(4, 9):
+		for dy in range(-4, 5):
+			var q := c + Vector2i(k, dy)
+			if spot == NO and grid.can_place(Rect2i(q, Vector2i(2, 2))):
+				spot = q
+	assert_true(spot != NO, "miejsce na wieżę")
+	grid.place(Rect2i(spot, Vector2i(2, 2)), K.TOWER, 1)
+	var tower := grid.building_at(spot)
+	assert_true(DefensePlan.station_post(grid, spot), "wieża to stanowisko strzelców")
+	assert_true(not DefensePlan.wall_post(grid, spot), "ale nie mur")
+	var b := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 1]], [[U.ARCHER, 5]], BotCastle.edge_road(grid.terrain),
+			5, null, [_order(T.HOLD, spot)] as Array[DefensePlan.Order])
+	var on_tower := 0
+	for f in _side(b, Battle.Side.DEFENDER):
+		on_tower += int(f.wall == tower)
+	assert_eq(on_tower, 4, "4 łuczników na wieży 2×2, piąty pod nią")
+	# strzelca na wieży wręcz dosięgnie tylko atakujący po drabinie (jak na murze)
+	var axe := _side(b, Battle.Side.ATTACKER)[0]
+	_put(b, axe, spot + Vector2i(-1, 0))
+	var target := b._enemy_for(axe)
+	assert_true(target == null or target.wall != tower, "topornik spod wieży nie bierze jej załogi na cel")
+	assert_eq(Battle.station_range_bonus(K.TOWER), BattleConfig.TOWER_STATION_RANGE_BONUS, "z wieży dalej")
+	assert_eq(Battle.station_range_bonus(K.PALISADE), BattleConfig.WALL_RANGE_BONUS, "z muru jak dotąd")
+	# panel: dotknięcie wieży strzelcami stawia ich na niej
+	var p := DefensePlan.new()
+	var panel := DefensePanel.new()
+	panel.open(p, [[U.ARCHER, 4]], [1] as Array[int], grid)
+	panel.activate(DefensePanel.Target.TASK)
+	var msg := panel.tap(grid, spot)
+	assert_eq(msg, "Oddział 1: na wieży, %s" % BuildingTypes.NAMES[K.TOWER], "komunikat")
+	assert_eq(p.post_for(1), spot, "miejsce to kratka wieży")
+	assert_eq(panel.describe(0)[1], "Na wieży", "opis zadania")
+	assert_true(PixelFont.text_width(msg) <= Hud.MESSAGE_MAX_WIDTH, "komunikat mieści się")
+	panel.free()
+	return true
+
+## Strzały wież (SHOT FX_TOWER) w przebiegu z obrońcami `defenders`; zamek z _castle() nie ma wieży
+## drewnianej, więc to strzały donżonu.
+func _keep_shots(grid: BuildGrid, spawn: Vector2i, defenders: Array) -> int:
+	var b := Battle.for_castle_squads(grid, [[U.RIDER, 4]], defenders, spawn, 5)
+	b.record_fx = true
+	var n := 0
+	for i in 2400:
+		b.step()
+		for e in b.take_fx():
+			n += int(e[1] == Battle.Fx.SHOT and e[2] == Battle.FX_TOWER)
+	return n
+
+
+func _attackers_hp(b: Battle) -> int:
+	b.run(2400)
+	var hp := 0
+	for f in _side(b, Battle.Side.ATTACKER):
+		hp += maxi(0, f.hp)
+	return hp
+
+
+## Balans #232: dwóch łuczników na donżonie nie zatrzymuje dużego szturmu (12 Toporników, 6 tarczowników),
+## a mały oddział (4 Toporników) odpiera. Trzy mapy, ten sam seed bitwy.
+func test_keep_crew_is_not_overpowered() -> bool:
+	for world_seed: int in [1337, 42, 9001]:
+		var grid := _castle(world_seed)
+		var spawn := BotCastle.edge_road(grid.terrain)
+		var big := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 12]], [[U.ARCHER, 2]], spawn, 5)
+		assert_eq(big.run(), Battle.Winner.ATTACKER, "seed %d: 12 Toporników zdobywa donżon" % world_seed)
+		var shields := Battle.for_castle_squads(grid, [[U.SHIELDBEARER, 6]], [[U.ARCHER, 2]], spawn, 5)
+		assert_eq(shields.run(), Battle.Winner.ATTACKER, "seed %d: 6 tarczowników zdobywa donżon" % world_seed)
+		var small := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 4]], [[U.ARCHER, 2]], spawn, 5)
+		assert_eq(small.run(), Battle.Winner.DEFENDER, "seed %d: 4 Toporników odpartych" % world_seed)
+	return true

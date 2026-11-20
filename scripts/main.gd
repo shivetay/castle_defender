@@ -32,6 +32,8 @@ const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 ## Linia karty Strażnicy (#177): jeden poziom, więc zamiast kosztu ulepszenia krótki opis.
 const WATCHTOWER_INFO := "Fale, wyprawy i ranking PvP"
+## Linia karty donżonu (#232): bez ulepszeń i rozbiórki, strzela jak wieża.
+const KEEP_INFO := "Cel ataku, strzela ze strzelcem"
 ## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
 const SEAL_HOUSE_INFO := "Sprawdź szczelność umocnień"
 ## Karta Komendy, gdy gracz wskazał lukę (#199).
@@ -1327,6 +1329,7 @@ func _refresh_card() -> void:
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
+	hud.card_plain = plain_card(kind, pending)
 	hud.card_check_disabled = seal_check.is_busy()
 	hud.card_seal_disabled = not seal_check.has_selection()
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
@@ -1340,6 +1343,12 @@ func _refresh_card() -> void:
 	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending)
 	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
+
+
+## Karta z samym Zamknij (#232): donżon, chyba że ma zlecenie ulepszenia ze starego zapisu, wtedy
+## zwykła karta z Anuluj (review #244).
+static func plain_card(kind: int, pending: bool) -> bool:
+	return kind == BuildingTypes.Kind.KEEP and not pending
 
 
 ## Linia karty Komendy umocnień (#199): odliczanie Sprawdź, wynik albo zachęta do sprawdzenia.
@@ -1360,6 +1369,8 @@ static func seal_card_info(check: SealCheck, now_ms: int) -> String:
 static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool) -> String:
 	if pending:
 		return "Trwa budowa"
+	if kind == BuildingTypes.Kind.KEEP:
+		return KEEP_INFO
 	if not BuildingTypes.has_levels(kind):
 		return WATCHTOWER_INFO
 	if level >= BuildingTypes.MAX_LEVEL:
@@ -1555,7 +1566,7 @@ func _draw_defence() -> void:
 		if post == DefensePlan.NO_POST:
 			continue
 		var at := post * TerrainMap.CELL
-		var blocked := not DefensePlan.post_problem(grid, post).is_empty() and not DefensePlan.wall_post(grid, post)
+		var blocked := not DefensePlan.post_problem(grid, post).is_empty() and not DefensePlan.station_post(grid, post)
 		var col: Color = Palette.INK if i == defense_panel.selected else Palette.THATCH[1]
 		if fallback and i != defense_panel.selected:
 			col = Palette.WOOD[0]

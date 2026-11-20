@@ -7,6 +7,7 @@ const U := UnitTypes.Unit
 const W := Battle.Winner
 const E := Battle.EndReason
 const SPAWN := Vector2i(32, 60)
+const MAIN := preload("res://scripts/main.gd")
 
 
 ## Zamek jak w nowej grze: Dwór i donżon na swoich miejscach.
@@ -27,7 +28,8 @@ func test_keep_stands_next_to_manor_and_is_unique() -> bool:
 			"blisko Dworu")
 	assert_true(BuildingTypes.is_unique(K.KEEP) and BuildingTypes.is_unique(K.MANOR), "nie do rozebrania")
 	assert_true(not BuildingTypes.is_unique(K.TOWER), "wieżę drewnianą można rozebrać")
-	assert_eq(BuildConfig.max_level(K.KEEP, 2), 2, "donżon nie przerasta Dworu")
+	assert_true(not BuildingTypes.has_levels(K.KEEP), "donżon bez ulepszeń (#232)")
+	assert_eq(BuildConfig.max_level(K.KEEP, BuildingTypes.MAX_LEVEL), 1, "nawet przy Dworze 5")
 	return true
 
 
@@ -142,4 +144,31 @@ func test_capture_stops_counting_on_destroyed_keep() -> bool:
 	b.capture_ticks = 5
 	b._update_capture()
 	assert_eq(b.capture_ticks, 5, "zniszczony cel nie liczy zdobycia")
+	return true
+
+
+## #232: karta donżonu ma sam Zamknij (bez Ulepsz i Rozbierz), a opisy mieszczą się na 320 px.
+func test_keep_card_has_only_close() -> bool:
+	var view := Vector2(320, 180)
+	assert_eq(Hud.card_buttons(false, false, false, true), [Hud.CardButton.CLOSE] as Array[int], "sam Zamknij")
+	var card := Hud.card_rects(view, false, false, false, true)
+	assert_eq(card.size(), 1, "jeden przycisk")
+	var b := Hud.content_bounds(view, Rect2())
+	assert_eq(Hud.target_at(card[0].get_center(), view, b.y, false, true, false, false, false, false, true),
+			Hud.Target.CARD + Hud.CardButton.CLOSE, "dotyk: Zamknij")
+	assert_true(card[0].size.x >= 12 and card[0].size.y >= 12, "cel dotyku co najmniej 12×12")
+	assert_eq(MAIN.upgrade_info(K.KEEP, 1, 5, false), MAIN.KEEP_INFO, "karta bez kosztu ulepszenia")
+	assert_true(PixelFont.text_width(MAIN.KEEP_INFO) <= Hud.CARD_MIN_W - 8, "opis mieści się na karcie")
+	var grid := _castle()
+	assert_eq(BuildQueue.new().upgrade_hint(grid, grid.keep_id()), BuildQueue.KEEP_HINT, "komunikat bez ulepszenia")
+	assert_true(PixelFont.text_width(BuildQueue.KEEP_HINT) <= Hud.MESSAGE_MAX_WIDTH, "komunikat mieści się w pasku")
+	# stare zlecenie ulepszenia donżonu: zwykła karta, na której środkowy przycisk to Anuluj (review #244)
+	assert_true(MAIN.plain_card(K.KEEP, false), "donżon bez zlecenia: sam Zamknij")
+	assert_true(not MAIN.plain_card(K.KEEP, true), "donżon ze zleceniem: zwykła karta")
+	assert_true(not MAIN.plain_card(K.TOWER, false), "inne budynki: zwykła karta")
+	assert_true(Hud.card_buttons(false, false, false, MAIN.plain_card(K.KEEP, true)).has(Hud.CardButton.DEMOLISH),
+			"jest przycisk Anuluj")
+	var economy := Economy.new(0)
+	assert_true(BuildQueue.new().order_upgrade(grid, economy, grid.keep_id(), 0) != BuildQueue.Result.OK,
+			"ulepszenia nie da się zlecić")
 	return true

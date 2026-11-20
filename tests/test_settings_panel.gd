@@ -131,6 +131,6 @@ func test_watchtower_is_unique_and_placed_near_manor() -> bool:
 	assert_true(not BuildingTypes.has_levels(K.WATCHTOWER), "bez poziomów")
 	assert_eq(BuildConfig.max_level(K.WATCHTOWER, BuildingTypes.MAX_LEVEL), 1, "najwyższy poziom 1")
 	assert_eq(MAIN.upgrade_info(K.WATCHTOWER, 1, 5, false), MAIN.WATCHTOWER_INFO, "karta bez kosztu ulepszenia")
-	assert_true(BuildingTypes.has_levels(K.KEEP) and BuildingTypes.has_levels(K.BARRACKS), "inne budynki mają poziomy")
+	assert_true(BuildingTypes.has_levels(K.BARRACKS), "inne budynki mają poziomy")
 	assert_eq(BuildQueue.new().upgrade_hint(grid, id), BuildQueue.NO_LEVELS_HINT, "komunikat bez wymogu Dworu")
 	return true
