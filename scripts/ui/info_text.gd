@@ -75,8 +75,9 @@ static func producers(res: int) -> Array[int]:
 	return out
 
 
-## Okienko limitu armii: ile jest, skąd bierze się limit (Dwór i każde Koszary) i jak go podnieść.
-static func army(grid: BuildGrid, recruitment: Recruitment) -> PackedStringArray:
+## Okienko limitu armii: ile jest, skąd bierze się limit (Dwór i każde Koszary) i jak go podnieść,
+## a pod spodem drugi, niezależny limit: utrzymanie w żywności względem produkcji Ży (#214).
+static func army(grid: BuildGrid, recruitment: Recruitment, research: Research = null) -> PackedStringArray:
 	var out: PackedStringArray = []
 	var limit := Recruitment.army_limit(grid)
 	var used := recruitment.army_size() + recruitment.orders.size()
@@ -98,4 +99,24 @@ static func army(grid: BuildGrid, recruitment: Recruitment) -> PackedStringArray
 		out.append("- Koszary ×%d (poziomy razem %d): +%d" % [barracks, levels, RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL * levels])
 	out.append("Więcej miejsc: ulepsz Dwór (+%d za poziom)" % RecruitmentConfig.ARMY_PER_MANOR_LEVEL)
 	out.append("albo postaw i ulepszaj Koszary (+%d za poziom)" % RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL)
+	out.append_array(upkeep(grid, recruitment, research))
+	return out
+
+
+## Linie utrzymania armii (#214): zużycie względem produkcji żywności, stan i jak podnieść limit.
+static func upkeep(grid: BuildGrid, recruitment: Recruitment, research: Research = null) -> PackedStringArray:
+	var out: PackedStringArray = []
+	var used := recruitment.upkeep_used()
+	var limit := Recruitment.upkeep_limit(grid, research)
+	out.append("Utrzymanie: %d z %d Ży/h produkcji" % [used, limit])
+	if used > limit:
+		out.append("Za mało żywności: armia zostaje, ale nikogo nie wyszkolisz")
+	elif used >= limit:
+		out.append("Utrzymanie pełne: nikogo więcej nie wyszkolisz")
+	out.append("Jednostka je %d Ży/h, konna %d, taran %d" % [UnitTypes.upkeep(UnitTypes.Unit.AXE_WARRIOR),
+			UnitTypes.upkeep(UnitTypes.Unit.RIDER), UnitTypes.upkeep(UnitTypes.Unit.RAM)])
+	var names: PackedStringArray = []
+	for kind in producers(EconomyConfig.Res.FOOD):
+		names.append(BuildingTypes.NAMES[kind])
+	out.append("Więcej: postaw i ulepszaj %s" % ", ".join(names))
 	return out

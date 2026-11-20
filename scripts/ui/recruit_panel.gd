@@ -4,9 +4,9 @@ extends Node2D
 ## - globalnym (przycisk Wojsko w HUD): wszystkie jednostki MVP, a Szkol wybiera budynek danego
 ##   rodzaju z najkrótszą kolejką,
 ## - budynku (przycisk Szkol na karcie budynku rekrutacji): tylko jednostki tego budynku.
-## U góry stan armii, globalny limit (ile zamek może utrzymać) i wolne miejsca, pod spodem kafelki
+## U góry stan armii, globalny limit miejsc i utrzymanie w żywności względem produkcji Ży (#214), pod spodem kafelki
 ## jednostek (ikona klasy, nazwa, liczba w armii i w szkoleniu). Jednostki, których nie da się
-## szkolić, są przygaszone. Dotknięcie kafelka pokazuje szczegóły: koszt, brakujące towary
+## szkolić, są przygaszone. Dotknięcie kafelka pokazuje szczegóły: koszt z utrzymaniem, brakujące towary
 ## z budynkiem, który je robi, szkolenie, a w ostatnim rzędzie wybór oddziału: Nowy albo istniejący
 ## oddział tego rodzaju z zajętymi miejscami (pełne są przygaszone).
 ## Przycisk Opis przełącza szczegóły: koszt → opis jednostki → produkcja cywilna (postawieni
@@ -318,10 +318,17 @@ static func limit_rect(left: float, right: float) -> Rect2:
 	return Rect2(left, TITLE_Y - 2, floorf((right - left) / 2.0), 12)
 
 
-## Tytuł ekranu z licznikiem armii, np. „Wojsko: 12/12, wolne 0 (?)”; znak zapytania mówi, że
-## licznik da się dotknąć.
-static func title_text(r: Recruitment, g: BuildGrid) -> String:
-	return "Wojsko: %d/%d, wolne %d (?)" % [r.army_size() + r.orders.size(), Recruitment.army_limit(g), r.free_army(g)]
+## Tytuł ekranu z licznikiem armii i utrzymaniem w żywności (#214), np. „Wojsko 12/12 Ży 12/20 (?)”:
+## zajęte miejsca względem limitu i utrzymanie (Ży/h) względem produkcji żywności. Znak zapytania
+## mówi, że licznik da się dotknąć.
+static func title_text(r: Recruitment, g: BuildGrid, res: Research = null) -> String:
+	return "Wojsko %d/%d Ży %d/%d (?)" % [r.army_size() + r.orders.size(), Recruitment.army_limit(g),
+			r.upkeep_used(), Recruitment.upkeep_limit(g, res)]
+
+
+## Czy licznik w tytule ma ostrzegać: brak miejsc albo utrzymanie na granicy lub ponad produkcją.
+static func limit_warning(r: Recruitment, g: BuildGrid, res: Research) -> bool:
+	return r.free_army(g) <= 0 or r.free_upkeep(g, res) <= 0
 
 ## Teksty produkcji postawionych wytwórców cywilnych z danych gry (EconomyConfig / GoodsConfig):
 ## np. „Chata drwala ×2: +150 Dr/h”, „Drzewcarz ×1: Topór kamienny 2/h, Oszczep 6/h”.
@@ -559,8 +566,8 @@ func _draw() -> void:
 		return
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, Hud.BAR_H, view.x, view.y - 2 * Hud.BAR_H), Color(Palette.SHADOW, 0.92))
-	var full := recruitment.free_army(grid) <= 0
-	PixelFont.draw_text(self, Vector2(content_left, TITLE_Y), title_text(recruitment, grid),
+	var full := limit_warning(recruitment, grid, research)
+	PixelFont.draw_text(self, Vector2(content_left, TITLE_Y), title_text(recruitment, grid, research),
 			Palette.ACCENT if full else Palette.INK)
 	var mode := BuildingTypes.NAMES[building_kind] if building_kind >= 0 else "wszystkie jednostki"
 	PixelFont.draw_right(self, content_right, TITLE_Y, mode, Palette.THATCH[2])
@@ -620,8 +627,8 @@ func _draw_tile(r: Rect2, unit: int, active: bool) -> void:
 
 func _draw_details() -> void:
 	var width := int(content_right - content_left)
-	var cost := "Koszt: %s, %s" % [cost_text(selected),
-			Hud.format_time(RecruitmentConfig.train_ms(selected, 1))]
+	var cost := "Koszt: %s, %s, utrzym. %d Ży/h" % [cost_text(selected),
+			Hud.format_time(RecruitmentConfig.train_ms(selected, 1)), UnitTypes.upkeep(selected)]
 	var extra := missing_text(selected, goods)
 	var extra_col: Color = Palette.ACCENT
 	var queued := recruitment.orders.size()

@@ -7,6 +7,12 @@ extends RefCounted
 ## ma globalny limit, czyli tyle, ile zamek może teraz utrzymać (Dwór i Koszary); limit i miejsca
 ## w oddziale liczą też jednostki w szkoleniu, więc nic nie wyjdzie ponad limit po wyszkoleniu.
 ##
+## Niezależnie od liczby miejsc armia ma limit utrzymania (#214): każda jednostka zajmuje
+## UnitTypes.upkeep() żywności na godzinę, a suma (wyszkoleni i szkoleni, także garnizon, bo to ta
+## sama armia) nie może przekroczyć produkcji żywności zamku. Utrzymanie nie zjada zapasu, tylko
+## ogranicza armię. Gdy produkcja spadnie poniżej utrzymania (rozbiórka Rybaka), armia zostaje,
+## ale nikogo nowego nie da się szkolić, dopóki gracz nie podniesie produkcji.
+##
 ## Każdy budynek szkoli po kolei jednostki ze swojej kolejki; kolejka mieści tyle, ile
 ## RecruitmentConfig.training_slots() dla poziomu budynku, a poziom przyspiesza szkolenie.
 ## Koszt (surowce i towary) schodzi przy zleceniu; bez towaru szkolenie nie rusza. Szkolenie
@@ -16,11 +22,12 @@ extends RefCounted
 ## wtedy start_any() wybiera budynek danego rodzaju z najkrótszą kolejką.
 
 enum Result { OK, NO_BUILDING, NEEDS_TECH, WRONG_AGE, QUEUE_FULL, ARMY_FULL, NO_RESOURCES, NO_GOODS,
-		SQUAD_FULL, WRONG_SQUAD, ERA_PASSED }
+		SQUAD_FULL, WRONG_SQUAD, ERA_PASSED, NO_UPKEEP }
 
 const MESSAGES: Array[String] = ["", "Brak budynku do szkolenia", "Najpierw zbadaj technologię",
 		"Wymaga późniejszej epoki", "Kolejka szkolenia pełna", "Limit armii pełny: dotknij „Wojsko: … (?)”", "Brak surowców",
-		"Brak towarów", "Oddział pełny", "W oddziale jest inny rodzaj jednostek", "Tylko w epoce I"]
+		"Brak towarów", "Oddział pełny", "W oddziale jest inny rodzaj jednostek", "Tylko w epoce I",
+		"Za mało żywności na utrzymanie: dotknij „Wojsko: … (?)”"]
 
 ## Id „nowego oddziału” przy zleceniu szkolenia.
 const NEW_SQUAD := 0
@@ -174,6 +181,31 @@ func free_army(grid: BuildGrid) -> int:
 	return maxi(0, army_limit(grid) - army_size() - orders.size())
 
 
+## Utrzymanie armii w żywności na godzinę: wyszkoleni i szkoleni (#214).
+func upkeep_used() -> int:
+	var n := 0
+	for s in squads:
+		n += s.count * UnitTypes.upkeep(s.unit)
+	for o in orders:
+		n += UnitTypes.upkeep(o.unit)
+	return n
+
+
+## Limit utrzymania, czyli produkcja żywności na godzinę z premiami badań (#214).
+static func upkeep_limit(grid: BuildGrid, research: Research) -> int:
+	return Economy.rates(grid, research)[EconomyConfig.Res.FOOD]
+
+
+## Ile żywności na godzinę zostaje na nowe jednostki (0, gdy utrzymanie przekracza produkcję).
+func free_upkeep(grid: BuildGrid, research: Research) -> int:
+	return maxi(0, upkeep_limit(grid, research) - upkeep_used())
+
+
+## Czy armia przekracza produkcję żywności (np. po rozbiórce Rybaka).
+func over_upkeep(grid: BuildGrid, research: Research) -> bool:
+	return upkeep_used() > upkeep_limit(grid, research)
+
+
 ## Zlecenia jednego budynku w kolejności szkolenia.
 func queue_of(building_id: int) -> Array[Order]:
 	var out: Array[Order] = []
@@ -279,6 +311,8 @@ func check(unit: int, building_id: int, squad_id: int, grid: BuildGrid, economy:
 		return Result.QUEUE_FULL
 	if free_army(grid) <= 0:
 		return Result.ARMY_FULL
+	if UnitTypes.upkeep(unit) > free_upkeep(grid, research):
+		return Result.NO_UPKEEP
 	var res_cost := _resource_array(unit)
 	if not economy.can_afford(res_cost):
 		return Result.NO_RESOURCES

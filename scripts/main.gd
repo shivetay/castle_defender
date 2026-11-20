@@ -1237,7 +1237,7 @@ func _on_resource_info(res: int) -> void:
 
 ## Okienko limitu armii z ekranu Wojsko: skąd bierze się limit i jak go podnieść.
 func _on_army_limit_info() -> void:
-	info_popup.open("Limit armii", InfoText.army(grid, recruitment))
+	info_popup.open("Limit armii", InfoText.army(grid, recruitment, research))
 
 
 ## Ustawienia (#177): zapis, karta i kursor się zamykają, a panel przykrywa mapę.
