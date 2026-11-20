@@ -32,6 +32,8 @@ const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 ## Linia karty Strażnicy (#177): jeden poziom, więc zamiast kosztu ulepszenia krótki opis.
 const WATCHTOWER_INFO := "Fale i wyprawy na boty"
+## Linia karty donżonu (#232): bez ulepszeń i rozbiórki, strzela jak wieża.
+const KEEP_INFO := "Cel ataku, strzela do wrogów"
 ## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
 const SEAL_HOUSE_INFO := "Sprawdź szczelność umocnień"
 ## Karta Komendy, gdy gracz wskazał lukę (#199).
@@ -1293,6 +1295,7 @@ func _refresh_card() -> void:
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
+	hud.card_plain = kind == BuildingTypes.Kind.KEEP
 	hud.card_check_disabled = seal_check.is_busy()
 	hud.card_seal_disabled = not seal_check.has_selection()
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
@@ -1326,6 +1329,8 @@ static func seal_card_info(check: SealCheck, now_ms: int) -> String:
 static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool) -> String:
 	if pending:
 		return "Trwa budowa"
+	if kind == BuildingTypes.Kind.KEEP:
+		return KEEP_INFO
 	if not BuildingTypes.has_levels(kind):
 		return WATCHTOWER_INFO
 	if level >= BuildingTypes.MAX_LEVEL:
