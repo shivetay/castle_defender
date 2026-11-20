@@ -179,7 +179,7 @@ func test_panel_modes_and_layout() -> bool:
 	assert_eq(RecruitPanel.units_for(-1).size(), UnitTypes.count(), "globalnie wszystkie jednostki")
 	assert_eq(RecruitPanel.units_for(K.BARRACKS), [U.PEASANT, U.AXE_WARRIOR, U.JAVELINEER, U.SPEARMAN, U.RAM, U.DIGGER] as Array[int],
 			"Koszary: lekka piechota i inżynieria")
-	assert_eq(RecruitPanel.units_for(K.STABLE), [U.RIDER, U.LANCER] as Array[int], "Stajnia: konnica")
+	assert_eq(RecruitPanel.units_for(K.STABLE), [U.RIDER, U.LANCER, U.WAGON] as Array[int], "Stajnia: konnica i Wóz")
 	assert_true(not RecruitPanel.recruits(K.MANOR), "Dwór nie szkoli")
 	assert_true(RecruitPanel.recruits(K.TAR_KILN), "Smolarnia szkoli Podpalacza")
 	var b := Hud.content_bounds(VIEW, Rect2())
@@ -187,8 +187,20 @@ func test_panel_modes_and_layout() -> bool:
 	for i in tiles.size():
 		assert_true(tiles[i].size.y >= 12 and tiles[i].size.x >= 12, "kafelek ≥ 12×12")
 		assert_true(tiles[i].end.y <= RecruitPanel.DETAIL_Y, "kafelki nad szczegółami")
-		assert_true(9 + PixelFont.text_width(UnitTypes.SHORT_NAMES[i] + " 99+9") <= tiles[i].size.x,
-				"„%s” mieści się na kafelku" % UnitTypes.SHORT_NAMES[i])
+		var unit := RecruitPanel.units_for(-1)[i]
+		var name_w := PixelFont.text_width(UnitTypes.SHORT_NAMES[unit])
+		# 4 kolumny widoku globalnego (#235): „+szkoleni” chowa się, gdy się nie mieści (stan jest w szczegółach)
+		var count := RecruitPanel.tile_count_text(99, 9, name_w, int(tiles[i].size.x) - 11)
+		assert_true(9 + name_w + 2 + PixelFont.text_width(count) <= tiles[i].size.x - 2,
+				"„%s” mieści się na kafelku" % UnitTypes.SHORT_NAMES[unit])
+	var three := RecruitPanel.tile_rects(b.x, b.y, 3)
+	for unit in UnitTypes.count():
+		assert_true(9 + PixelFont.text_width(UnitTypes.SHORT_NAMES[unit] + " 99+9") <= three[0].size.x,
+				"„%s 99+9” mieści się na kafelku budynku" % UnitTypes.SHORT_NAMES[unit])
+	assert_eq(RecruitPanel.tile_cols(UnitTypes.count()), 4, "widok globalny z Wozem: 4 kolumny")
+	assert_eq(RecruitPanel.tile_cols(3), 3, "budynek: 3 kolumny")
+	assert_eq(RecruitPanel.tile_count_text(5, 2, 20, 60), "5+2", "szeroki kafelek: ze szkolonymi")
+	assert_eq(RecruitPanel.tile_count_text(5, 2, 55, 60), "5", "wąski: sami wyszkoleni")
 	assert_true(RecruitPanel.DETAIL_Y + RecruitPanel.DETAIL_LINES * (PixelFont.LINE + 2) <= Hud.row_y(VIEW),
 			"szczegóły nad przyciskami")
 	var T := RecruitPanel.Target

@@ -8,13 +8,13 @@ const C := RecruitmentConfig.UnitClass
 
 
 func test_mvp_units_and_their_classes() -> bool:
-	assert_eq(UnitTypes.count(), 15, "13 jednostek MVP (Plan MVP), Chłop epoki I i Zwiadowca (#92)")
+	assert_eq(UnitTypes.count(), 16, "13 jednostek MVP (Plan MVP), Chłop epoki I, Zwiadowca (#92) i Wóz (#235)")
 	var expected := {
 		U.AXE_WARRIOR: C.LIGHT, U.JAVELINEER: C.LIGHT, U.SPEARMAN: C.LIGHT,
 		U.SHIELDBEARER: C.HEAVY, U.GAMBESON_WARRIOR: C.HEAVY,
 		U.ARCHER: C.RANGED, U.REFLEX_ARCHER: C.RANGED,
 		U.RIDER: C.FAST, U.LANCER: C.FAST,
-		U.FIRE_RAISER: C.SPECIAL, U.TRACKER: C.SPECIAL, U.SCOUT: C.SPECIAL,
+		U.FIRE_RAISER: C.SPECIAL, U.TRACKER: C.SPECIAL, U.SCOUT: C.SPECIAL, U.WAGON: C.SPECIAL,
 		U.RAM: UnitTypes.ENGINEERING, U.DIGGER: UnitTypes.ENGINEERING,
 		U.PEASANT: C.LIGHT,
 	}
