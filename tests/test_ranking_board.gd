@@ -2,7 +2,7 @@ extends TestCase
 ## Ranking PvP (#27): odpowiedź `ranking` (dane niezaufane), żądania klienta, układ panelu na 320 px,
 ## przewijanie o całe wiersze, karta Strażnicy i zgodność liczb gry z migracją serwera.
 
-const MIGRATION := "res://supabase/migrations/20261119220000_pvp_ranking.sql"
+const MIGRATION := "res://supabase/migrations/20261120072817_pvp_ranking.sql"
 const VIEW := Vector2(320, 180)
 const UID := "00000000-0000-0000-0000-0000000000a1"
 const SESSION_PATH := "user://test_ranking_session.json"
