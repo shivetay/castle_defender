@@ -25,16 +25,23 @@ static func resource(res: int, grid: BuildGrid, research: Research, amounts: Arr
 	out.append("Produkcja: %+d na godzinę" % rate)
 	if EconomyConfig.BASE_PER_HOUR[res] > 0:
 		out.append("- gród: +%d" % EconomyConfig.BASE_PER_HOUR[res])
+	var ruin_loss := 0
 	for kind: int in producers(res):
 		var n := 0
 		var sum := 0
 		for id: int in grid.buildings:
 			if grid.kinds[id] == kind and grid.levels[id] >= 1:
 				var per_level: Array = (EconomyConfig.BUILDING_PRODUCTION[kind] as Array)[1]
+				var amount := int(per_level[clampi(grid.levels[id], 1, per_level.size()) - 1])
 				n += 1
-				sum += int(per_level[clampi(grid.levels[id], 1, per_level.size()) - 1])
+				sum += amount
+				if grid.ruined.has(id):
+					@warning_ignore("integer_division")
+					ruin_loss += amount - amount * Ruins.PRODUCTION_PERCENT / 100
 		if n > 0:
 			out.append("- %s ×%d: +%d" % [BuildingTypes.NAMES[kind], n, sum])
+	if ruin_loss > 0:
+		out.append("- ruiny po ataku: -%d" % ruin_loss)
 	var percent := research.production_percent(res) if research != null else 100
 	if percent != 100:
 		out.append("- badania: %+d%%" % (percent - 100))

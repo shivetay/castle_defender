@@ -27,6 +27,9 @@ signal attack_finished(loot: Array[int], error: String)
 ## Odpowiedź `ranking` (#27): wiersze tabeli rodzaju `kind` (RankingBoard.Kind). `ok` false: błąd sieci
 ## albo serwera.
 signal ranking_loaded(kind: int, rows: Array[RankingBoard.Row], ok: bool)
+## Ostatnie obrony gracza (#99, DefenseLog.parse_response): zniszczone budynki i koniec ataku.
+## `ok` false: błąd sieci albo serwera.
+signal defenses_loaded(rows: Array[Dictionary], ok: bool)
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -79,6 +82,9 @@ var _attack_call: int = AttackCall.NONE
 var _ranking: HTTPRequest
 var _ranking_kind := -1
 var _ranking_next := -1
+## Ostatnie obrony (#99) idą osobnym połączeniem, naraz jedno żądanie.
+var _defenses: HTTPRequest
+var _defenses_pending := false
 var _castle_call: int = CastleCall.NONE
 var _castle_map_seed := 0
 var _castle_save_version := 0
@@ -147,6 +153,10 @@ func _ready() -> void:
 	_ranking.timeout = TIMEOUT_S
 	add_child(_ranking)
 	_ranking.request_completed.connect(_on_ranking_completed)
+	_defenses = HTTPRequest.new()
+	_defenses.timeout = TIMEOUT_S
+	add_child(_defenses)
+	_defenses.request_completed.connect(_on_defenses_completed)
 	session = SupabaseSession.load_from(session_path)
 	connect_now()
 
@@ -284,6 +294,36 @@ func handle_ranking(result: int, code: int, body: String) -> void:
 	_ranking_next = -1
 	if next >= 0:
 		load_ranking(next)
+
+
+## Obrony gracza zakończone po `since_s` (unix s); wynik przychodzi w `defenses_loaded`. False, gdy
+## nie ma sieci albo poprzednie żądanie jeszcze trwa.
+func load_defenses(since_s: int) -> bool:
+	if _defenses_pending or not is_online():
+		return false
+	var p := DefenseLog.path(user_id(), since_s)
+	if p.is_empty():
+		return false
+	_defenses_pending = true
+	if fake_transport:
+		sent_requests.append({"path": p})
+		return true
+	if _defenses == null:
+		_defenses_pending = false
+		return false
+	var err := _defenses.request(config.url + p, rest_headers(), HTTPClient.METHOD_GET)
+	if err != OK:
+		handle_defenses(HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	return true
+
+
+## Obsługa odpowiedzi z obronami (bez sieci, wołana też z testów).
+func handle_defenses(result: int, code: int, body: String) -> void:
+	_defenses_pending = false
+	if outcome_of(result, code) != Outcome.OK:
+		defenses_loaded.emit([] as Array[Dictionary], false)
+		return
+	defenses_loaded.emit(DefenseLog.parse_response(SupabaseConfig.parse_json(body)), true)
 
 
 ## Start ataku na gracza `defender_id` armią `army` (oddziały [rodzaj, liczba]); odpowiedź przychodzi
@@ -449,6 +489,10 @@ func _on_attack_completed(result: int, code: int, _headers: PackedStringArray, b
 
 func _on_ranking_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	handle_ranking(result, code, body.get_string_from_utf8())
+
+
+func _on_defenses_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_defenses(result, code, body.get_string_from_utf8())
 
 
 func _attack_send(call: int, path: String, body: Dictionary) -> bool:

@@ -29,7 +29,8 @@ func _init(now_ms: int = 0) -> void:
 
 
 ## Produkcja na godzinę dla zamku z siatki `grid`: gród plus budynki produkcyjne, razy premie
-## ze zbadanych technologii (`research`, np. G1 +20% drewna).
+## ze zbadanych technologii (`research`, np. G1 +20% drewna). Budynek w ruinie po ataku PvP
+## (`grid.ruined`, #99) daje Ruins.PRODUCTION_PERCENT swojej produkcji.
 static func rates(grid: BuildGrid, research: Research = null) -> Array[int]:
 	var out: Array[int] = []
 	out.assign(EconomyConfig.BASE_PER_HOUR)
@@ -57,7 +58,11 @@ static func _add_buildings(grid: BuildGrid, out: Array[int]) -> void:
 			continue  # plac budowy jeszcze nic nie produkuje
 		var res: int = entry[0]
 		var per_level: Array = entry[1]
-		out[res] += per_level[clampi(grid.levels[id], 1, per_level.size()) - 1] as int
+		var amount := per_level[clampi(grid.levels[id], 1, per_level.size()) - 1] as int
+		if grid.ruined.has(id):
+			@warning_ignore("integer_division")
+			amount = amount * Ruins.PRODUCTION_PERCENT / 100  # ruina po ataku PvP (#99)
+		out[res] += amount
 
 
 ## Pojemność dla zamku z siatki `grid`: zapas Dworu plus każdy ukończony Magazyn według poziomu.

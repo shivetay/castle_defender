@@ -77,6 +77,11 @@ var pve_cleared := 0
 var battle_view: BattleView
 ## Stan zniszczeń budynków własnego zamku w trwającej bitwie (BattleView.states_of).
 var battle_states: Dictionary = {}
+## Ruiny po atakach PvP na zamek gracza (#99): odbudowują się same, w ruinie Chata drwala i Rybak
+## produkują mniej. Przychodzą z serwera (DefenseLog) po połączeniu, nie trafiają do zapisu.
+var ruins := Ruins.new()
+## Stany ruin narysowane ostatnio (id → BuildingTypes.State), żeby przerysować mapę tylko przy zmianie.
+var _ruin_states: Dictionary = {}
 var _battle_wave := -1
 ## Oddziały armii w kolejności oddziałów bitwy, do rozliczenia strat po fali (#164).
 var _battle_ids: Array[int] = []
@@ -319,6 +324,7 @@ func _ready() -> void:
 	net.ranking_loaded.connect(ranking_panel.set_rows)
 	net.attack_started.connect(_on_player_attack_started)
 	net.attack_finished.connect(_on_player_attack_finished)
+	net.defenses_loaded.connect(_on_defenses_loaded)
 	add_child(net)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
@@ -399,6 +405,7 @@ func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_APPLICATION_RESUMED:
 			_catch_up("Podczas nieobecności: ")
+			_load_defenses()
 		NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_CLOSE_REQUEST:
 			# Android potrafi zabić aplikację w tle bez ostrzeżenia, więc zapis idzie przy wyjściu
 			_tick()
@@ -440,6 +447,30 @@ func _on_net_state(st: int) -> void:
 	settings_panel.net_state = st
 	if st == SupabaseClient.State.ONLINE:
 		net.flush()
+		_load_defenses()
+
+
+## Pyta serwer o obrony z czasu, w którym ruiny mogą jeszcze stać (#99).
+func _load_defenses() -> void:
+	if net != null and net.is_online():
+		@warning_ignore("integer_division")
+		net.load_defenses(_now_s() - Ruins.rebuild_ms(CURRENT_AGE) / 1000)
+
+
+## Obrony z serwera (#99): zniszczone budynki stają się ruinami w odbudowie. Komunikat tylko wtedy,
+## gdy przybyły nowe ruiny (ponowny odczyt tych samych obron niczego nie zmienia).
+func _on_defenses_loaded(rows: Array[Dictionary], ok: bool) -> void:
+	if not ok:
+		return
+	var now := _now_ms()
+	_tick()  # produkcja do teraz po starych stawkach, kara liczy się od chwili, gdy klient wie o ruinach
+	var added := false
+	for row in rows:
+		added = ruins.add(row["ids"] as Array[int], int(row["at_ms"]), CURRENT_AGE) or added
+	ruins.prune(now, grid)
+	if added and not ruins.is_empty():
+		hud.message = "Zamek zaatakowany: w odbudowie %d bud." % ruins.ends.size()
+	_refresh_ruins(now)
 
 
 ## Synchronizacja zamku i obrony z serwerem (#23): klient trzyma najnowszy stan i wysyła go, gdy
@@ -490,7 +521,8 @@ func _tick() -> void:
 	var now := _now_ms()
 	var researching := research.active
 	# towary po surowcach w każdym punkcie czasu: wytwórcy zużywają drewno i żywność naliczone do tej chwili
-	var done := queue.update(now, grid, economy, research, goods, recruitment.army_upkeep())
+	var done := queue.update(now, grid, economy, research, goods, recruitment.army_upkeep(), ruins)
+	_refresh_ruins(now)
 	var deserted := recruitment.starve(economy, grid, research)
 	if not deserted.is_empty():
 		_save()
@@ -1338,6 +1370,8 @@ func _refresh_card() -> void:
 	var status := "poziom %d/%d" % [level, BuildingTypes.MAX_LEVEL] if BuildingTypes.has_levels(kind) else ""
 	if pending:
 		status = "budowa %s" % Hud.format_time(queue.remaining_ms(_selected_id, _now_ms()))
+	elif ruins.is_ruined(_selected_id, _now_ms()):
+		status = "odbudowa %s" % Hud.format_time(ruins.remaining_ms(_selected_id, _now_ms()))
 	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level())
 	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
@@ -1500,9 +1534,24 @@ func _on_middle_button() -> void:
 	_save()
 
 
+## Odbudowa ruin (#99): usuwa odbudowane, a mapę i kartę odświeża tylko przy zmianie wyglądu.
+func _refresh_ruins(now: int) -> void:
+	if ruins.is_empty() and _ruin_states.is_empty():
+		return
+	ruins.prune(now, grid)
+	var st := ruins.states(now)
+	if st == _ruin_states:
+		return
+	_ruin_states = st
+	queue_redraw()
+	if _selected_id != 0:
+		_refresh_card()
+
+
 func _draw() -> void:
 	draw_texture(_terrain_tex, Vector2.ZERO)
-	CastleView.draw_buildings(self, grid, textures, battle_states)
+	# w bitwie stany z bitwy; poza nią ruiny po ataku PvP (#99)
+	CastleView.draw_buildings(self, grid, textures, battle_states if battle_view != null and not _attacking else _ruin_states)
 	if not queue.orders.is_empty():
 		_draw_progress(queue.orders[0].building_id)
 	_draw_seal_gaps()
