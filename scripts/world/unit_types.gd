@@ -60,6 +60,12 @@ const UNITS: Array = [
 ## Wóz (#235) dopisze tu swoją wartość.
 const CARRY: Array[int] = [5, 5, 5, 5, 5, 5, 10, 5, 5, 5, 10, 0, 5, 5, 10]
 
+## Utrzymanie (#214): ile żywności na godzinę zajmuje jedna jednostka (w armii albo w szkoleniu).
+## Suma utrzymania nie może przekroczyć produkcji żywności zamku (Recruitment.upkeep_limit).
+## Piechota i strzelcy 1, konnica (Jeździec, Kopijnik, Zwiadowca) 2, Taran jawnie 0 (nie je,
+## kosztuje drewno). Decyzja balansowa właścicielki, TYMCZASOWE.
+const UPKEEP: Array[int] = [1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 0, 1, 1, 2]
+
 ## Jednostki tylko na epokę I (pospolite ruszenie): od epoki II nie da się ich szkolić.
 const ERA_I_ONLY: Array[int] = [Unit.PEASANT]
 
@@ -152,6 +158,11 @@ static func count() -> int:
 ## Ile surowców unosi jedna jednostka rodzaju `unit` (0 dla nieznanego rodzaju).
 static func carry(unit: int) -> int:
 	return CARRY[unit] if unit >= 0 and unit < CARRY.size() else 0
+
+
+## Utrzymanie jednej jednostki w żywności na godzinę (#214).
+static func upkeep(unit: int) -> int:
+	return UPKEEP[unit] if unit >= 0 and unit < UPKEEP.size() else 0
 
 
 static func unit_name(unit: int) -> String:

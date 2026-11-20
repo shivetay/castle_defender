@@ -24,6 +24,7 @@ i wymagają zbadania swojej technologii. Doszły też budynki gospodarcze z #122
 oraz Stajnia z #91 i budynki rekrutacji z #119 (Koszary, Dom drużyny, Strzelnica). Klasy jednostek
 z #87: 13 jednostek MVP z klasą, statystykami i kosztem w towarach oraz tabela przewag klas.
 Rekrutacja z #89: kolejki szkolenia w budynkach klas, koszt w żywności i towarach, armia z limitem
+miejsc i limitem utrzymania z produkcji żywności (#214)
 i ekran Wojsko (globalny z HUD albo z karty budynku rekrutacji).
 Etap 6 (#128) zaczyna deterministyczna symulacja bitwy z #14 (logika bez renderu) i donżon jako cel
 ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
@@ -191,13 +192,21 @@ w sekcji „Następny etap”.
 - `scripts/world/recruitment.gd` (`Recruitment`): armia w oddziałach i kolejki szkolenia (#89). Oddział ma
   jeden rodzaj jednostek i najwyżej 10 jednostek (tymczasowe); nowa jednostka idzie do wskazanego oddziału
   tego rodzaju albo do nowego. Globalny limit armii to tyle, ile zamek może teraz utrzymać: 10 za poziom
-  Dworu i 2 za poziom Koszar (tymczasowe); limit i miejsca w oddziale liczą też szkolonych. Każdy budynek
+  Dworu i 2 za poziom Koszar (tymczasowe); limit i miejsca w oddziale liczą też szkolonych. Niezależnie
+  od miejsc działa limit utrzymania (#214): każda jednostka zajmuje `UnitTypes.UPKEEP` Ży/h (piechota 1,
+  konnica 2, Taran 0, tymczasowe), a suma armii i szkolonych (także garnizonu) nie może przekroczyć
+  produkcji żywności z `Economy.rates`. Wyszkolona armia je: `Economy.net_rates` odejmuje jej utrzymanie
+  od produkcji Ży. Gdy produkcja spadnie poniżej utrzymania (np. rozbiórka Rybaka), szkolenie zwraca
+  `NO_UPKEEP`, zapas żywności maleje, a po jego końcu co `RecruitmentConfig.DESERT_MS` głodu (1 h,
+  tymczasowe) odchodzi jedna jedząca jednostka z najmłodszego oddziału, aż armia zmieści się
+  w produkcji (`Recruitment.starve`, głód w `Economy.starved_ms` trafia do zapisu). Każdy budynek
   szkoli po kolei jednostki ze swojej kolejki (długość i tempo rosną z poziomem), także offline. Koszt
   w surowcach i towarach schodzi przy zleceniu; bez towaru szkolenie nie rusza. Jednostka szkoli się
   tylko w budynku swojej klasy. `start_any()` dla widoku globalnego wybiera budynek z najkrótszą kolejką.
 - `scripts/ui/recruit_panel.gd` (`RecruitPanel`): ekran Wojsko. Przycisk Wojsko w HUD (obok Oblężenia)
   pokazuje wszystkie jednostki; Szkol na karcie budynku rekrutacji tylko jednostki tego budynku.
-  Nagłówek: zajęte miejsca, limit i wolne miejsca w armii. Kafelki z ikoną klasy, liczbą w armii
+  Nagłówek: zajęte miejsca i limit armii oraz utrzymanie względem produkcji Ży („Wojsko 12/22 Ży 14/60 (?)”);
+  w szczegółach jednostki jest jej utrzymanie. Kafelki z ikoną klasy, liczbą w armii
   i w szkoleniu; zablokowane przygaszone z powodem (technologia, epoka, brak budynku); brakujące towary
   na czerwono z budynkiem, który je robi. Długie teksty (nazwa, koszt, braki) zawijają się po słowach
   (`PixelFont.wrap`) w 4 liniach szczegółów; braki towarów, pogrupowane według budynku, który je robi,
@@ -472,7 +481,8 @@ w sekcji „Następny etap”.
   Ulepsz, Rozbierz lub Anuluj, Zamknij). Dotknięcie surowca na górnym pasku otwiera okienko z informacją
   (`InfoPopup`, treść z `InfoText`): zapas i magazyn, produkcja na godzinę z rozbiciem na gród, budynki
   i badania, kiedy magazyn się zapełni i jak zdobyć więcej. Na ekranie Wojsko dotknięcie licznika
-  „Wojsko: 12/12 (?)” mówi, skąd jest limit armii (Dwór i każde Koszary) i jak go podnieść (Koszary zliczone w jednej linii); pełny licznik
+  „Wojsko 12/12 Ży 12/20 (?)” mówi, skąd jest limit armii (Dwór i każde Koszary), ile żywności zjada armia
+  względem produkcji i jak podnieść oba limity (Koszary zliczone w jednej linii); pełny licznik
   jest czerwony. Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
 - `scripts/ui/settings_panel.gd` (`SettingsPanel`, #177): gra startuje od razu w zamku (to gra PvP,

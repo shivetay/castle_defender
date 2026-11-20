@@ -130,8 +130,9 @@ func test_army_limit_counts_training_units() -> bool:
 	assert_eq(limit, RecruitmentConfig.ARMY_PER_MANOR_LEVEL * 5 + RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL,
 			"Dwór 5 i Koszary 1")
 	var left := limit - 1
+	# Tarany nie mają utrzymania (#214), więc test sprawdza sam limit miejsc
 	while left > 0:
-		rec.add_squad(U.AXE_WARRIOR, mini(left, RecruitmentConfig.SQUAD_SIZE))
+		rec.add_squad(U.RAM, mini(left, RecruitmentConfig.SQUAD_SIZE))
 		left -= RecruitmentConfig.SQUAD_SIZE
 	assert_eq(rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, grid, c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.OK, "ostatnie miejsce")
 	assert_eq(rec.start(U.ARCHER, c["range_a"], Recruitment.NEW_SQUAD, grid, c["e"], c["goods"], c["r"], 0, T0), Recruitment.Result.ARMY_FULL,

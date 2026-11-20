@@ -136,9 +136,10 @@ func cancel(grid: BuildGrid, economy: Economy, building_id: int, now_ms: int) ->
 ## Przed każdym ukończeniem ekonomia nalicza produkcję po starych stawkach, więc nowy budynek
 ## albo premia z technologii liczą się dokładnie od chwili ukończenia. Zwraca ukończone zlecenia.
 ## Towary (`goods`) liczą się w tych samych punktach czasu co surowce: wytwórca ukończony w trakcie
-## nieobecności produkuje dopiero od chwili ukończenia (review PR 140).
+## nieobecności produkuje dopiero od chwili ukończenia (review PR 140). `upkeep` to utrzymanie armii
+## w Ży/h (#214, Recruitment.army_upkeep), odejmowane od produkcji żywności.
 func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research = null,
-		goods: Goods = null) -> Array[Order]:
+		goods: Goods = null, upkeep: int = 0) -> Array[Order]:
 	var done: Array[Order] = []
 	# pojemność z Magazynów (także po rozbiórce albo odczycie), zanim cokolwiek się naliczy
 	economy.refresh_capacity(grid)
@@ -153,7 +154,7 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 		var take_research := research_due and (not build_due or research_at < build_at)
 		var at := research_at if take_research else build_at
 		if at > economy.last_update_ms:
-			economy.update(at, Economy.rates(grid, research))
+			economy.update(at, Economy.net_rates(grid, research, upkeep))
 		if goods != null and at > goods.last_update_ms:
 			goods.update(at, Goods.producers(grid), economy)
 		if take_research:
@@ -170,7 +171,7 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 		if not orders.is_empty():
 			orders[0].start_ms = at
 		done.append(o)
-	economy.update(now_ms, Economy.rates(grid, research))
+	economy.update(now_ms, Economy.net_rates(grid, research, upkeep))
 	if goods != null:
 		goods.update(now_ms, Goods.producers(grid), economy)
 	return done

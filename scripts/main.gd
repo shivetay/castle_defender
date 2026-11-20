@@ -490,7 +490,10 @@ func _tick() -> void:
 	var now := _now_ms()
 	var researching := research.active
 	# towary po surowcach w każdym punkcie czasu: wytwórcy zużywają drewno i żywność naliczone do tej chwili
-	var done := queue.update(now, grid, economy, research, goods)
+	var done := queue.update(now, grid, economy, research, goods, recruitment.army_upkeep())
+	var deserted := recruitment.starve(economy, grid, research)
+	if not deserted.is_empty():
+		_save()
 	for o in done:
 		hud.message = "Ukończono: %s, poziom %d" % [BuildingTypes.NAMES[o.kind], o.level]
 	if not researching.is_empty() and research.is_done(researching):
@@ -505,6 +508,9 @@ func _tick() -> void:
 	var trained := recruitment.update(now)
 	for unit in trained:
 		hud.message = "Wyszkolono: %s" % UnitTypes.unit_name(unit)
+	# głód na końcu, żeby „Ukończono” ani „Wyszkolono” z tej samej klatki go nie przykryły
+	if not deserted.is_empty():
+		hud.message = "Głód: z armii odeszło %d (brak żywności)" % deserted.size()
 	if not trained.is_empty():
 		_save()
 	var checked := false
@@ -1232,12 +1238,13 @@ func _on_train_requested(unit: int, squad_id: int) -> void:
 ## Okienko surowca z górnego paska: zapas, produkcja z rozbiciem i jak zdobyć więcej.
 func _on_resource_info(res: int) -> void:
 	_tick()
-	info_popup.open(EconomyConfig.NAMES[res], InfoText.resource(res, grid, research, economy.amounts))
+	info_popup.open(EconomyConfig.NAMES[res], InfoText.resource(res, grid, research, economy.amounts,
+			recruitment.army_upkeep()))
 
 
 ## Okienko limitu armii z ekranu Wojsko: skąd bierze się limit i jak go podnieść.
 func _on_army_limit_info() -> void:
-	info_popup.open("Limit armii", InfoText.army(grid, recruitment))
+	info_popup.open("Limit armii", InfoText.army(grid, recruitment, research))
 
 
 ## Ustawienia (#177): zapis, karta i kursor się zamykają, a panel przykrywa mapę.
