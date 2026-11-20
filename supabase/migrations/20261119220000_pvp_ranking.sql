@@ -5,7 +5,8 @@
 -- - oczekiwany wynik atakującego E = 1 / (1 + 10^((obrona - atak) / 400)),
 -- - zmiana d = round(K × (S - E)), K = ELO_K = 32; S = 1 za wygraną atakującego, 0 w każdym innym
 --   przypadku (przegrana albo atak porzucony),
--- - atakujący dostaje +d do ataku, obrońca -d do obrony (suma zero), punkty nie spadają poniżej 0.
+-- - atakujący dostaje +d do ataku, obrońca -d do obrony (suma zero). Punkty nie spadają poniżej 0:
+--   zmianę przycina się do punktów tego, kto traci, więc suma zostaje zerowa także przy podłodze.
 --   Odparty atak podnosi więc ranking obrony, a przegrana obrona go obniża.
 -- - Atak porzucony (wygasł po 10 minutach albo gracz zaczął inny atak) liczy się jak odparty: bez tego
 --   atakujący zamykałby grę przed przegraną i nie tracił punktów.
@@ -19,8 +20,10 @@
 -- ma uprawnień do tych kolumn (GRANT tylko na `nickname`). Wynik (`won`) w MVP pochodzi od klienta
 -- po sprawdzeniu limitów w `end_attack`; pełna weryfikacja powtórką to #29.
 --
--- Dobór przeciwnika (`match_targets`, #24) zostaje na kolumnie `rating`; przejście na
--- `attack_rating` vs `defense_rating` to osobna decyzja właścicielki.
+-- Dobór przeciwnika (`match_targets`, #24) dalej filtruje po kolumnie `rating`; przejście na
+-- `attack_rating` vs `defense_rating` to osobna decyzja właścicielki. Karta celu pokazuje już ranking
+-- obrony celu (kolumna `rating` w odpowiedzi `match_targets` ma teraz wartość `defense_rating`),
+-- bo `players.rating` nie zmienia się po bitwach.
 --
 -- `public.pvp_ranking(p_player, p_kind)` zwraca tabelę dla gracza z tokenu (Edge Function `ranking`):
 -- najwyżej RANKING_TOP = 20 graczy z jego epoki według punktów ataku albo obrony, a pod nią jego
@@ -82,11 +85,13 @@ begin
   end if;
   d := private.elo_delta(ra, rd,
     new.status = 'finished' and coalesce((new.result ->> 'won')::boolean, false));
+  -- podłoga 0 bez punktów „z powietrza”: nikt nie traci więcej, niż ma
+  d := least(greatest(d, -ra), rd);
   update public.players p
-  set attack_rating = greatest(0, p.attack_rating + d), attack_games = p.attack_games + 1
+  set attack_rating = p.attack_rating + d, attack_games = p.attack_games + 1
   where p.id = new.attacker_id;
   update public.players p
-  set defense_rating = greatest(0, p.defense_rating - d), defense_games = p.defense_games + 1
+  set defense_rating = p.defense_rating - d, defense_games = p.defense_games + 1
   where p.id = new.defender_id;
   return null;
 end;
@@ -169,3 +174,107 @@ comment on function public.pvp_ranking(uuid, text) is
 
 revoke all on function public.pvp_ranking(uuid, text) from public, anon, authenticated;
 grant execute on function public.pvp_ranking(uuid, text) to service_role;
+
+-- ---------------------------------------------------------------------------------------------
+-- Karta celu: ranking obrony zamiast nieaktualnego `rating`
+-- ---------------------------------------------------------------------------------------------
+
+-- Ta sama funkcja co w *_match_targets.sql (warunki doboru bez zmian); inna jest tylko wartość
+-- kolumny `rating` w odpowiedzi.
+create or replace function public.match_targets(p_attacker uuid)
+returns table (
+  player_id uuid,
+  nickname text,
+  castle_name text,
+  ruler text,
+  age smallint,
+  rating integer,
+  map_seed bigint,
+  footprint jsonb,
+  loot integer[]
+)
+language plpgsql
+volatile
+security invoker
+set search_path = ''
+as $$
+#variable_conflict use_column
+declare
+  w timestamptz;
+  n integer;
+begin
+  if p_attacker is null then
+    return;
+  end if;
+  -- limit sprawdzany przed zapisem: odrzucone szukanie niczego nie zmienia, więc nie zależy od tego,
+  -- czy wyjątek cofnie transakcję (licznik zostaje na 20 do końca okna)
+  select t.window_start, t.searches into w, n
+  from private.target_searches t where t.player_id = p_attacker for update;
+  if found and w >= now() - interval '10 minutes' and n >= 20 then
+    raise exception 'rate_limited' using errcode = 'P0001';
+  end if;
+  insert into private.target_searches as t (player_id, window_start, searches)
+  values (p_attacker, now(), 1)
+  on conflict (player_id) do update set
+    window_start = case when t.window_start < now() - interval '10 minutes' then now() else t.window_start end,
+    searches = case when t.window_start < now() - interval '10 minutes' then 1 else t.searches + 1 end;
+
+  return query
+  with me as (
+    select p.age, p.rating from public.players p where p.id = p_attacker
+  )
+  select
+    p.id,
+    p.nickname,
+    left(c.data -> 'profile' ->> 'castle_name', 16),
+    left(coalesce(c.data -> 'profile' ->> 'ruler', ''), 20),
+    p.age,
+    -- karta celu pokazuje ranking obrony (#27): atakujący mierzy się z obroną celu
+    p.defense_rating,
+    c.map_seed,
+    -- zarys budynków: wpis zapisu [id, rodzaj, poziom, x, y, szer., wys.] → [x, y, szer., wys.]
+    coalesce((
+      select jsonb_agg(jsonb_build_array(e.v -> 3, e.v -> 4, e.v -> 5, e.v -> 6) order by e.ord)
+      from jsonb_array_elements(
+        case when jsonb_typeof(c.data -> 'grid' -> 'buildings') = 'array'
+          then c.data -> 'grid' -> 'buildings' else '[]'::jsonb end
+      ) with ordinality as e(v, ord)
+      -- CASE, bo SQL nie gwarantuje kolejności warunków w AND (długość skalara rzuca błąd)
+      where e.ord <= 400
+        and case when jsonb_typeof(e.v) = 'array' then jsonb_array_length(e.v) >= 7 else false end
+    ), '[]'::jsonb),
+    -- szacowany łup: LOOT_ESTIMATE_PERCENT = 5 procent zapasów (połowa chroniona × 20 procent łupu
+    -- × co najmniej 50 procent zniszczeń po wygranej, jak BattleResult), w dół do pełnych dziesiątek,
+    -- żeby karta nie zdradzała dokładnego stanu magazynu
+    array(
+      select (greatest(0, least(coalesce(
+        case when jsonb_typeof(c.data -> 'economy' -> 'amounts' -> i) = 'number'
+          then floor((c.data -> 'economy' -> 'amounts' ->> i)::numeric) end, 0), 10000000))::integer
+        * 5 / 100 / 10 * 10)
+      from generate_series(0, 3) as i
+      order by i
+    )
+  from me, public.players p
+  join public.castles c on c.player_id = p.id
+  where p.id <> p_attacker
+    and char_length(coalesce(c.data -> 'profile' ->> 'castle_name', '')) > 0
+    and abs(p.age - me.age) <= 1
+    and abs(p.rating - me.rating) <= 100
+    and not exists (
+      select 1 from public.shields s where s.player_id = p.id and s.until > now()
+    )
+    and not exists (
+      select 1 from public.attacks a
+      where a.attacker_id = p_attacker and a.defender_id = p.id
+        and a.started_at > now() - interval '24 hours'
+    )
+  order by random()
+  limit 3;
+end;
+$$;
+
+comment on function public.match_targets(uuid) is
+  'Dobór przeciwnika (#24): do 3 graczy bez tarczy, epoka ±1, ranking ±100, bez ataku od p_attacker w 24 h; najwyżej 20 wywołań na 10 minut; karta pokazuje ranking obrony (#27). Tylko dla service_role (Edge Function find_targets).';
+
+revoke all on function public.match_targets(uuid) from public, anon, authenticated;
+grant execute on function public.match_targets(uuid) to service_role;

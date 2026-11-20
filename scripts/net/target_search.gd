@@ -33,7 +33,7 @@ class Target:
 	var castle_name := ""
 	var ruler := Rulers.DEFAULT
 	var age := 0
-	## Ranking gracza; bot nie ma rankingu (-1).
+	## Ranking obrony gracza (#27, `defense_rating`); bot nie ma rankingu (-1).
 	var rating := -1
 	var map_seed := 0
 	## Zarys budynków w kratkach mapy (bez rodzajów, poziomów i pułapek).

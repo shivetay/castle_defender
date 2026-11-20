@@ -100,6 +100,7 @@ func test_client_requests() -> bool:
 	c.sent_requests.clear()
 	assert_true(c.load_ranking(RankingBoard.Kind.ATTACK), "żądanie idzie")
 	assert_true(c.load_ranking(RankingBoard.Kind.DEFENSE), "drugie czeka")
+	assert_true(c.load_ranking(RankingBoard.Kind.ATTACK), "znowu atak w trakcie")
 	assert_eq(c.sent_requests.size(), 1, "naraz jedno żądanie")
 	assert_eq(c.sent_requests[0]["path"], RankingBoard.PATH, "ścieżka Edge Function")
 	assert_eq(c.sent_requests[0]["body"], {"kind": "attack"}, "treść")

@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(42);
+select plan(45);
 
 -- Gracze testu są w epoce 9 (bez prawdziwych graczy), z rankingiem doboru w paśmie 70 000, bo testy
 -- biegną też na projekcie w chmurze, w transakcji, która się cofa.
@@ -125,6 +125,23 @@ select is((select attack_rating from public.players where id = '00000000-0000-00
   999, 'wygrana z botem nie zmienia rankingu');
 select is((select attack_games from public.players where id = '00000000-0000-0000-0000-0000000000e1'),
   2, 'bitwa z botem się nie liczy');
+
+-- ---- podłoga 0: nikt nie traci więcej, niż ma, a suma zostaje zerowa ----
+-- C (10 punktów ataku) przegrywa z D (0 punktów obrony): Elo dałoby -16, C ma tylko 10
+update public.players set defense_rating = 0 where id = '00000000-0000-0000-0000-0000000000f2';
+update public.players set attack_rating = 10 where id = '00000000-0000-0000-0000-0000000000e2';
+create temp table s5 on commit drop as
+  select * from public.begin_attack('00000000-0000-0000-0000-0000000000e2',
+    '00000000-0000-0000-0000-0000000000f2', null, '[[0, 10]]', 15);
+select is((select status from public.end_attack('00000000-0000-0000-0000-0000000000e2', (select attack_id from s5),
+  '{"won": false, "percent": 10, "stars": [false, false, false]}', '[0, 0, 0, 0]', '[3]')), 'finished',
+  'C kończy atak na D');
+select is((select attack_rating from public.players where id = '00000000-0000-0000-0000-0000000000e2'),
+  0, 'C przy 10 punktach ataku spada do 0');
+select is((select defense_rating from public.players where id = '00000000-0000-0000-0000-0000000000f2'),
+  10, 'D dostaje tylko 10 punktów, które C stracił (suma zero)');
+update public.players set defense_rating = 1017 where id = '00000000-0000-0000-0000-0000000000f2';
+update public.players set attack_rating = 983 where id = '00000000-0000-0000-0000-0000000000e2';
 
 -- ---- tabela rankingu ----
 -- O (epoka 8) ma bitwy i wysoki ranking, N nie ma bitew: obu nie ma w tabeli epoki 9

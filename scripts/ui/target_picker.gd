@@ -2,7 +2,7 @@ class_name TargetPicker
 extends Node2D
 ## Wybór celu ataku (#24), pierwszy ekran Wyprawy ze Strażnicy: zawsze 3 karty celów. Karta ma
 ## portret władcy, imię gracza, epokę, nazwę zamku, miniaturę zamku (teren i zarys budynków),
-## ranking (bot: trudność) i szacowany łup. Graczy dobiera serwer (TargetSearch, `find_targets`);
+## ranking obrony (bot: trudność) i szacowany łup. Graczy dobiera serwer (TargetSearch, `find_targets`);
 ## puste miejsca, a bez sieci wszystkie trzy, zajmują zamki-boty. Boty otwiera dotychczasową listę
 ## 20 zamków-botów (BotPicker), Planuj plan ataku na wybranym celu, a Wróć wraca do mapy.
 ## Planuj na karcie gracza zaczyna atak na serwerze (`start_attack`, #240) i otwiera plan na kopii
@@ -25,6 +25,8 @@ const NO_PLAYERS_TEXT := "Brak graczy: boty"
 const PLAN_LABEL := "Planuj"
 const CLOSE_LABEL := "Wróć"
 const BOTS_LABEL := "Boty"
+## Karta gracza: jego punkty rankingu obrony (#27).
+const DEFENSE_RATING_LABEL := "Obrona"
 const CARD_Y := Hud.BAR_H + 12
 const CARD_GAP := 4
 const CARD_H := 90
@@ -147,7 +149,8 @@ static func card_lines(t: TargetSearch.Target, w: int) -> Array:
 		out.append([Vector2(stats_x, MINI_Y), fit("Trudność", stats_w), Palette.THATCH[1]])
 		out.append([Vector2(stats_x, MINI_Y + 9), "%d/%d" % [t.bot_idx + 1, BotRoster.COUNT], Palette.INK])
 	else:
-		out.append([Vector2(stats_x, MINI_Y), fit("Ranking", stats_w), Palette.THATCH[1]])
+		# ranking obrony celu (#27): z nim mierzy się ranking ataku gracza
+		out.append([Vector2(stats_x, MINI_Y), fit(DEFENSE_RATING_LABEL, stats_w), Palette.THATCH[1]])
 		out.append([Vector2(stats_x, MINI_Y + 9), str(t.rating), Palette.INK])
 	out.append([Vector2(stats_x, MINI_Y + 20), fit("Łup ok.", stats_w), Palette.THATCH[1]])
 	for res in t.loot.size():

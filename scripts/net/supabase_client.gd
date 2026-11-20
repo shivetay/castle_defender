@@ -252,7 +252,9 @@ func load_ranking(kind: int) -> bool:
 	if not is_online() or user_id().is_empty():
 		return false
 	if _ranking_kind >= 0:
-		_ranking_next = kind if kind != _ranking_kind else -1
+		# ten sam rodzaj już idzie; inny czeka (prośba o bieżący nie kasuje czekającego)
+		if kind != _ranking_kind:
+			_ranking_next = kind
 		return true
 	_ranking_kind = kind
 	if fake_transport:

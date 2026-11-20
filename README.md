@@ -404,6 +404,8 @@ w sekcji „Następny etap”.
     i jego własny wiersz: miejsce, nick, nazwę zamku, władcę i punkty, bez id innych graczy. W tabeli
     są tylko gracze z co najmniej jedną bitwą PvP w danej roli. Ranking otwiera przycisk na karcie
     Strażnicy: przełącznik Atak / Obrona, wiersz z portretem, przewijanie przeciąganiem o całe wiersze.
+    Karta celu na ekranie 3 celów pokazuje ranking obrony celu (z nim mierzy się Twój atak). Punkty
+    nie spadają poniżej 0, a zmianę przycina się do punktów tego, kto traci, więc suma zostaje zerowa.
   - **Konfiguracja:** adres i klucz publishable w `config/supabase.json` (poza repo, wzór w
     `config/supabase.example.json`). Działa tylko nowy klucz `sb_publishable_…` (w grze i w CI);
     z kluczem serwera albo dawnym kluczem JWT klient się nie łączy. APK z CI dostaje plik ze zmiennych
