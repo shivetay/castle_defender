@@ -66,6 +66,7 @@ Każda epoka ma jednostki w 5 klasach bojowych (lekka, ciężka, strzelecka, szy
 | Jednostka | Epoka | HP | Atak | Zasięg | Szybkość | Rola | Wymaga | Budynek |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Kopacz | I | 40 | 2 | 1 | 3 | zasypuje kratkę fosy w 10 s, robi przejście dla innych | — | Koszary |
+| Wóz | I | 120 | — | — | 2 | wóz na łup: unosi 50 surowców (piechota 5, konnica 10), nie walczy, w planie ataku jedzie trasą (Tabor) z opóźnieniem 20 s; koń i uprząż, utrzymanie 2 Ży/h (#235, liczby tymczasowe). To nie Wóz bojowy | — | Stajnia |
 | Cieśla | I | 45 | 3 | 1 | 3 | stawia kładkę przez fosę; w obronie naprawia palisadę i bramę | — | Koszary |
 | Drabiniarz | II | 50 | 4 | 1 | 3 | niesie drabiny; bez niego Szturm z drabinami jest o 50% wolniejszy | A5 | Koszary |
 | Taran | II | 300 | 40 (tylko bramy) | 1 | 1 | niszczy bramy | A6 | Koszary |

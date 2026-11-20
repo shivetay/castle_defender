@@ -20,6 +20,7 @@ enum Unit {
 	RAM, DIGGER,
 	PEASANT,
 	SCOUT,
+	WAGON,
 }
 
 ## Klasa „inżynieria”: poza 5 klasami bojowymi.
@@ -52,26 +53,30 @@ const UNITS: Array = [
 	# Konny zwiad epoki II (#92): statystyki z notatki Jednostki, koszt z notatki Klasy jednostek
 	# i produkcja (koń ze Stajni, siodło od Rymarza); ilość żywności TYMCZASOWA.
 	["Zwiadowca", C.SPECIAL, 1, 35, 2, 1, 5, "S3", K.SCOUT_HOUSE, {R.FOOD: 15}, {G.HORSE: 1, G.SADDLE: 1}],
+	# Wóz łupowy (#235): logistyka, nie walczy, podnosi capacity łupu. Szkoli się w Stajni (koń
+	# ze Stajni, uprząż od Rymarza), od epoki I bez badań. Liczby TYMCZASOWE, decyzja właścicielki.
+	# To nie Wóz bojowy z epoki IV (A25, Kuźnia).
+	["Wóz", C.SPECIAL, 0, 120, 0, 0, 2, "", K.STABLE, {R.WOOD: 40}, {G.HORSE: 1, G.HARNESS: 1}],
 ]
 
 ## Capacity łupu (#25): ile surowców (suma rodzajów) unosi jedna ocalała jednostka. Piechota 5,
-## konnica (Jeździec, Kopijnik, Zwiadowca) 10, taran 0 (decyzja właścicielki, TYMCZASOWE). Tę samą
-## tabelę ma serwer (`private.unit_carry` w migracji `*_finish_attack.sql`), a test pilnuje zgodności.
-## Wóz (#235) dopisze tu swoją wartość.
-const CARRY: Array[int] = [5, 5, 5, 5, 5, 5, 10, 5, 5, 5, 10, 0, 5, 5, 10]
+## konnica (Jeździec, Kopijnik, Zwiadowca) 10, taran 0, Wóz 50 (#235) (decyzja właścicielki, TYMCZASOWE).
+## Tę samą tabelę ma serwer (`private.unit_carry`, najnowsza wersja w migracji `*_wagon_carry.sql`),
+## a test pilnuje zgodności.
+const CARRY: Array[int] = [5, 5, 5, 5, 5, 5, 10, 5, 5, 5, 10, 0, 5, 5, 10, 50]
 
 ## Utrzymanie (#214): ile żywności na godzinę zajmuje jedna jednostka (w armii albo w szkoleniu).
 ## Suma utrzymania nie może przekroczyć produkcji żywności zamku (Recruitment.upkeep_limit).
-## Piechota i strzelcy 1, konnica (Jeździec, Kopijnik, Zwiadowca) 2, Taran jawnie 0 (nie je,
-## kosztuje drewno). Decyzja balansowa właścicielki, TYMCZASOWE.
-const UPKEEP: Array[int] = [1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 0, 1, 1, 2]
+## Piechota i strzelcy 1, konnica (Jeździec, Kopijnik, Zwiadowca) i Wóz (koń) 2, Taran jawnie 0
+## (nie je, kosztuje drewno). Decyzja balansowa właścicielki, TYMCZASOWE.
+const UPKEEP: Array[int] = [1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 2, 0, 1, 1, 2, 2]
 
 ## Jednostki tylko na epokę I (pospolite ruszenie): od epoki II nie da się ich szkolić.
 const ERA_I_ONLY: Array[int] = [Unit.PEASANT]
 
 ## Krótkie nazwy na kafelkach ekranu Wojsko (szerokość ok. 60 px).
 const SHORT_NAMES: Array[String] = ["Topornik", "Oszczepnik", "Łucznik", "Tarczownik", "Podpalacz", "Tropiciel",
-		"Jeździec", "Włócznik", "Drużynnik", "Strz. refl.", "Kopijnik", "Taran", "Kopacz", "Chłop", "Zwiadowca"]
+		"Jeździec", "Włócznik", "Drużynnik", "Strz. refl.", "Kopijnik", "Taran", "Kopacz", "Chłop", "Zwiadowca", "Wóz"]
 
 ## Krótki opis roli każdej jednostki (ekran Wojsko, przycisk Opis), z notatki Jednostki.
 const ROLES: Array[String] = [
@@ -90,6 +95,7 @@ const ROLES: Array[String] = [
 	"Kopie wyłomy i przygotowuje podkopy. Słaby w walce.",
 	"Pospolite ruszenie: tanie, bez towarów i badań, tylko w epoce I.",
 	"Konny zwiad z większym zasięgiem niż Tropiciel. W walce słaby.",
+	"Wóz na łup: unosi 50 surowców (piechota 5). Nie walczy, jedzie trasą z planu.",
 ]
 
 ## Klasy, przeciw którym jednostka zadaje więcej obrażeń (przewaga > 100%), i te, które zadają jej

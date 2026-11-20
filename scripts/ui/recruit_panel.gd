@@ -145,13 +145,28 @@ func _process(_delta: float) -> void:
 # --- Układ -----------------------------------------------------------------------------------
 
 static func tile_rects(left: float, right: float, count: int) -> Array[Rect2]:
-	var w := floorf((right - left - (TILE_COLS - 1) * GAP) / TILE_COLS)
+	var cols := tile_cols(count)
+	var w := floorf((right - left - (cols - 1) * GAP) / cols)
 	var out: Array[Rect2] = []
 	for i in count:
 		@warning_ignore("integer_division")
-		var row := i / TILE_COLS
-		out.append(Rect2(left + (i % TILE_COLS) * (w + GAP), GRID_Y + row * (TILE_H + ROW_GAP), w, TILE_H))
+		var row := i / cols
+		out.append(Rect2(left + (i % cols) * (w + GAP), GRID_Y + row * (TILE_H + ROW_GAP), w, TILE_H))
 	return out
+
+
+## Kolumny kafelków: TILE_COLS, a gdy tyle kolumn nie mieści `count` jednostek w MAX_ROWS rzędach
+## (widok globalny z Wozem, #235), o jedną więcej.
+static func tile_cols(count: int) -> int:
+	return TILE_COLS if count <= TILE_COLS * MAX_ROWS else TILE_COLS + 1
+
+
+## Licznik na kafelku: wyszkoleni i „+szkoleni”, ale bez „+szkoleni”, gdy z nazwą nie zmieści się
+## w `room` px (wąskie kafelki widoku globalnego).
+static func tile_count_text(army: int, training: int, name_w: int, room: int) -> String:
+	var count := "%d" % army
+	var full := count + ("+%d" % training if training > 0 else "")
+	return full if name_w + 2 + PixelFont.text_width(full) <= room else count
 
 
 ## Miejsca w rzędzie wyboru oddziału na całej szerokości treści: pierwsze to Nowy, dalej istniejące
@@ -618,10 +633,8 @@ func _draw_tile(r: Rect2, unit: int, active: bool) -> void:
 		PixelIcons.draw_class_badge(self, Vector2(r.position.x + 2, icon_y), unit_class)
 	var text_y := r.position.y + floorf((r.size.y - PixelFont.LINE) / 2.0)
 	PixelFont.draw_text(self, Vector2(r.position.x + 9, text_y), UnitTypes.SHORT_NAMES[unit], col)
-	var count := "%d" % recruitment.army_of(unit)
-	var training := recruitment.in_training(unit)
-	if training > 0:
-		count += "+%d" % training
+	var count := tile_count_text(recruitment.army_of(unit), recruitment.in_training(unit),
+			PixelFont.text_width(UnitTypes.SHORT_NAMES[unit]), int(r.size.x) - 11)
 	PixelFont.draw_right(self, r.end.x - 2, text_y, count, Palette.VALID if available else col)
 
 

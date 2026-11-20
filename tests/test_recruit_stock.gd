@@ -15,7 +15,7 @@ func test_unit_goods_are_equipment_from_unit_costs() -> bool:
 			"topór, koń i siodło")
 	assert_true(not list.has(G.FLAX) and not list.has(G.LEATHER) and not list.has(G.BOWSTRING),
 			"półprodukty poza kosztami jednostek nie wchodzą")
-	assert_true(not list.has(G.HARNESS), "uprząż nie jest kosztem żadnej jednostki MVP")
+	assert_true(list.has(G.HARNESS), "uprząż to koszt Wozu (#235)")
 	var prev := -1
 	for good in list:
 		assert_true(good > prev, "kolejność GoodsConfig")

@@ -4,6 +4,8 @@ extends TestCase
 
 const U := UnitTypes.Unit
 const MIGRATION := "res://supabase/migrations/20261119183238_finish_attack.sql"
+## Najnowsza wersja `private.unit_carry` i `private.unit_count` (Wóz, #235).
+const CARRY_MIGRATION := "res://supabase/migrations/20261120150000_wagon_carry.sql"
 
 
 ## Piechota 5, konnica 10, taran 0; więcej ocalałych daje więcej capacity.
@@ -122,9 +124,11 @@ func test_start_response_snapshots() -> bool:
 func test_server_constants_match_game() -> bool:
 	var sql := FileAccess.get_file_as_string(MIGRATION)
 	assert_true(not sql.is_empty(), "migracja jest")
-	assert_true(sql.contains("CARRY = %s" % str(UnitTypes.CARRY)), "capacity jednostek")
-	assert_true(sql.contains("array%s" % str(UnitTypes.CARRY)), "tabela w private.unit_carry")
-	assert_true(sql.contains("UNIT_COUNT = %d" % UnitTypes.count()), "liczba rodzajów jednostek")
+	var carry_sql := FileAccess.get_file_as_string(CARRY_MIGRATION)
+	assert_true(carry_sql.contains("CARRY = %s" % str(UnitTypes.CARRY)), "capacity jednostek")
+	assert_true(carry_sql.contains("array%s" % str(UnitTypes.CARRY)), "tabela w private.unit_carry")
+	assert_true(carry_sql.contains("UNIT_COUNT = %d" % UnitTypes.count()), "liczba rodzajów jednostek")
+	assert_true(carry_sql.contains("select %d $$" % UnitTypes.count()), "liczba w private.unit_count")
 	assert_true(sql.contains("MAX_SQUADS_BY_AGE = %s" % str(AttackPlan.MAX_SQUADS_BY_AGE)), "oddziały na epokę")
 	assert_true(sql.contains("SQUAD_SIZE = %d" % RecruitmentConfig.SQUAD_SIZE), "wielkość oddziału")
 	assert_true(sql.contains("STAR_PERCENT = %d" % BattleResult.STAR_PERCENT), "gwiazdka połowy")

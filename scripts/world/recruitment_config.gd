@@ -27,7 +27,7 @@ const TRAINING_SLOTS: Array[int] = [2, 3, 4, 5, 6]
 const TRAINING_SPEED_PERCENT: Array[int] = [100, 120, 140, 170, 200]
 
 ## Czas szkolenia jednostki na poziomie 1 budynku, w sekundach (indeks = UnitTypes.Unit). TYMCZASOWE.
-const TRAIN_TIME_S: Array[int] = [20, 20, 25, 40, 30, 30, 45, 25, 50, 35, 60, 90, 15, 10, 40]
+const TRAIN_TIME_S: Array[int] = [20, 20, 25, 40, 30, 30, 45, 25, 50, 35, 60, 90, 15, 10, 40, 45]
 ## Limit armii (wyszkoleni i szkoleni): za każdy poziom Dworu i za każdy poziom Koszar (#89, #81).
 ## TYMCZASOWE.
 const ARMY_PER_MANOR_LEVEL := 10
