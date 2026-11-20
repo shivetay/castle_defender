@@ -746,8 +746,9 @@ func _enemy_for(f: Fighter) -> Fighter:
 	for o in fighters:
 		if o.side == f.side or not o.alive():
 			continue
-		# obrońcę na murze (#20) wręcz dosięgnie tylko ten, kto wszedł po drabinie
-		if o.wall != 0 and not reach_walls:
+		# obrońcę na murze i wieży (#20) wręcz dosięgnie tylko ten, kto wszedł po drabinie; załogę donżonu
+		# bije też piechota spod donżonu, bo wchodzi się do niego bez drabiny (balans, #232)
+		if o.wall != 0 and not reach_walls and not _on_keep(o):
 			continue
 		var d := _dist2(f.x, f.y, o.x, o.y)
 		if d > sight * sight:
@@ -1525,6 +1526,12 @@ func _wall_act(f: Fighter) -> void:
 		_strike_unit(f, enemy)
 		return
 	f.target = 0
+
+
+## Czy `f` stoi na donżonie jako jego załoga (#232).
+func _on_keep(f: Fighter) -> bool:
+	var s: Structure = structures.get(f.wall, null)
+	return s != null and s.kind == BuildingTypes.Kind.KEEP
 
 
 ## Dodatkowy zasięg strzelca na stanowisku z budynku `kind`: z wieży i donżonu dalej niż z muru (#232).

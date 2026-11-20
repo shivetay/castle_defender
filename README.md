@@ -222,8 +222,10 @@ w sekcji „Następny etap”.
   sam zasięg, obrażenia, priorytet celów i wolniejsze tempo bez strzał w zbrojowni co wieża. Sama
   piechota go nie obsadza, więc fale samouczka na Chłopach się nie zmieniają.
 - Stanowiska na wieży i donżonie (#232): strzelcy na wieży drewnianej (Obrona odcinka, dotknięcie wieży
-  w panelu Obrona) i na donżonie mają +2 kratki zasięgu (z muru +1), nie schodzą ścigać wroga, a ochronę
-  mają jak na murze: −40% od strzał, wręcz tylko atakujący po drabinie. Liczby tymczasowe. `Battle.for_castle()` bierze ją
+  w panelu Obrona) i na donżonie mają +2 kratki zasięgu (z muru +1), nie schodzą ścigać wroga i dostają
+  −40% obrażeń od strzał. Na wieży wręcz dosięgnie ich tylko atakujący po drabinie, a na donżonie także
+  piechota spod donżonu (balans: 2 łuczników na donżonie odpiera 4 Toporników, ale nie 12 Toporników
+  ani 6 tarczowników). Liczby tymczasowe. `Battle.for_castle()` bierze ją
   za cel: atakujący wygrywa po jej upadku albo zdobyciu (piechota lekka lub ciężka trzyma się przy niej
   10 s bez obrońców w pobliżu). Zniszczenie Dworu bitwy nie kończy. Walidacja seeda mapy (#97) sprawdza
   też miejsce na donżon. Grafika: wieża z bali na ziemnej podmurówce, z gankiem od poziomu 3.

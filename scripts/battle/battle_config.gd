@@ -54,8 +54,9 @@ const HOLD_RADIUS := 4
 ## Stanowisko na murze (#20): strzelec na wale albo palisadzie ma +1 kratkę zasięgu i dostaje 60%
 ## obrażeń od strzał (−40%), a wręcz dosięgnie go tylko atakujący po drabinie. TYMCZASOWE.
 const WALL_RANGE_BONUS := 1
-## Strzelec na wieży drewnianej albo na donżonie (#232) ma +2 kratki zasięgu (wyżej niż mur); ochrona
-## przed strzałami i wręcz jak na murze. TYMCZASOWE.
+## Strzelec na wieży drewnianej albo na donżonie (#232) ma +2 kratki zasięgu (wyżej niż mur) i ochronę
+## przed strzałami jak na murze. Wręcz na wieży dosięgnie go tylko atakujący po drabinie, a na donżonie
+## także piechota spod donżonu (balans: 2 łuczników nie zatrzymuje dużego szturmu). TYMCZASOWE.
 const TOWER_STATION_RANGE_BONUS := 2
 const WALL_ARROW_PERCENT := 60
 ## Wypad konnicy (#20): rusza, gdy atakujący podejdzie na tyle kratek do bramy, i bije wrogów najwyżej

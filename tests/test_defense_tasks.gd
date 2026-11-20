@@ -305,6 +305,14 @@ func test_keep_shoots_with_ranged_garrison() -> bool:
 				assert_true(false, "łucznik zszedł z donżonu (tick %d)" % stay.tick)
 				return true
 	assert_true(engaged, "załoga strzelała do wrogów")
+	# załogę donżonu bije piechota spod donżonu, bo wchodzi się bez drabiny (balans #232)
+	var foot := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 1]], [[U.ARCHER, 1]], spawn, 5)
+	var rk := foot.structures[foot.objective]
+	var guard := _side(foot, Battle.Side.DEFENDER)[0]
+	var axe1 := _side(foot, Battle.Side.ATTACKER)[0]
+	assert_eq(guard.wall, rk.id, "łucznik na donżonie")
+	_put(foot, axe1, rk.rect.position + Vector2i(-1, 0))
+	assert_true(foot._enemy_for(axe1) == guard, "topornik spod donżonu bierze załogę na cel")
 	# łucznik na donżonie sięga wroga o TOWER_STATION_RANGE_BONUS kratek dalej niż łuk
 	var archer: Battle.Fighter = null
 	for f in _side(g, Battle.Side.DEFENDER):
@@ -397,6 +405,11 @@ func test_archers_stand_on_tower() -> bool:
 	for f in _side(b, Battle.Side.DEFENDER):
 		on_tower += int(f.wall == tower)
 	assert_eq(on_tower, 4, "4 łuczników na wieży 2×2, piąty pod nią")
+	# strzelca na wieży wręcz dosięgnie tylko atakujący po drabinie (jak na murze)
+	var axe := _side(b, Battle.Side.ATTACKER)[0]
+	_put(b, axe, spot + Vector2i(-1, 0))
+	var target := b._enemy_for(axe)
+	assert_true(target == null or target.wall != tower, "topornik spod wieży nie bierze jej załogi na cel")
 	assert_eq(Battle.station_range_bonus(K.TOWER), BattleConfig.TOWER_STATION_RANGE_BONUS, "z wieży dalej")
 	assert_eq(Battle.station_range_bonus(K.PALISADE), BattleConfig.WALL_RANGE_BONUS, "z muru jak dotąd")
 	# panel: dotknięcie wieży strzelcami stawia ich na niej
@@ -431,3 +444,18 @@ func _attackers_hp(b: Battle) -> int:
 	for f in _side(b, Battle.Side.ATTACKER):
 		hp += maxi(0, f.hp)
 	return hp
+
+
+## Balans #232: dwóch łuczników na donżonie nie zatrzymuje dużego szturmu (12 Toporników, 6 tarczowników),
+## a mały oddział (4 Toporników) odpiera. Trzy mapy, ten sam seed bitwy.
+func test_keep_crew_is_not_overpowered() -> bool:
+	for world_seed: int in [1337, 42, 9001]:
+		var grid := _castle(world_seed)
+		var spawn := BotCastle.edge_road(grid.terrain)
+		var big := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 12]], [[U.ARCHER, 2]], spawn, 5)
+		assert_eq(big.run(), Battle.Winner.ATTACKER, "seed %d: 12 Toporników zdobywa donżon" % world_seed)
+		var shields := Battle.for_castle_squads(grid, [[U.SHIELDBEARER, 6]], [[U.ARCHER, 2]], spawn, 5)
+		assert_eq(shields.run(), Battle.Winner.ATTACKER, "seed %d: 6 tarczowników zdobywa donżon" % world_seed)
+		var small := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 4]], [[U.ARCHER, 2]], spawn, 5)
+		assert_eq(small.run(), Battle.Winner.DEFENDER, "seed %d: 4 Toporników odpartych" % world_seed)
+	return true
