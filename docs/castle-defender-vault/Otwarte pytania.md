@@ -38,7 +38,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 | Brak | Ticket |
 | --- | --- |
 | Pozostałe budynki MVP (Fosa, Kopiec, Pole i spichlerz, Studnia, Kamieniołom, Wieża sygnałowa) | #35 |
-| Epoka II i przejście I → II | #34 |
+| Epoka II i przejście I → II (Dwór 5 + 2 techy; max→lvl1; bez niszczenia postępu) | #34 |
 | Budynki epoki II spoza rdzenia (Pomost, Częstokół, Młyn, Kaplica; Dom zwiadowców już jest) | #102 |
 | Życie w zamku (mieszkańcy, dym, flagi, pora dnia) | #36 |
 | Wynik bitwy: % zniszczeń, gwiazdki, łup, odbudowa | #99 |

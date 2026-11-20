@@ -25,7 +25,7 @@ Zamek z góry pod kątem 3/4 (top-down z widoczną przednią ścianą murów). T
 - Paleta 12–16 kolorów na epokę: I brązy i zieleń, III szarości wapienia, VI ceglana czerwień i piaskowiec.
 - Faktura kamienia: szum z ziarnem `hash(x, y)`, stały dla kratki, bez powtarzalnego wzoru.
 - 4 stany zniszczenia: cały, pęknięcia, wyrwa w blankach, gruz.
-- Przebudowa widoczna: stare elementy zostają jako ruiny lub fundamenty pod nowymi.
+- Przebudowa widoczna: zamek ewoluuje w miejscu — ciągłość wyglądu i bonusów, bez kasowania postępu ([[Progresja budowy]]).
 - Życie w zamku: mieszkańcy, kowal, łopocząca flaga, patrole na murach.
 
 ## Tryb „Kronika” (opcjonalnie)

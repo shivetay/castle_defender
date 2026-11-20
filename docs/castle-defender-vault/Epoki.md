@@ -9,4 +9,10 @@
 | V. Fortyfikacja bastionowa | 1550–1700 | artyleria oblężnicza, saperzy | bastiony, raweliny, mury przysypane ziemią |
 | VI. Twierdza napoleońska | 1700–1815 | artyleria polowa, kolumny piechoty, haubice | forty zewnętrzne, kazamaty, glacis, droga kryta |
 
+## Przejście epoki (zasady)
+- Wejście w kolejną epokę: konkretne technologie (preferencyjnie **dwie**) **oraz** Dwór na poziomie **5**. Ticket: #34.
+- Technologie następnej epoki dopiero po odblokowaniu prerequisite / blokujących.
+- Budynki: max poziom w bieżącej epoce → w następnej od poziomu 1, z zachowaniem bonusów.
+- Nie niszczymy postępu — kontynuacja i ulepszanie ([[Progresja budowy]]).
+
 Paleta kolorów każdej epoki: [[Widok zamku]]. Budynki: [[Obrona]], [[Gospodarka]], [[Załoga i administracja]].
