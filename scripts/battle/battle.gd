@@ -110,7 +110,8 @@ var objective := 0
 ## Ile procent tempa strzelania mają wieże (zbrojownia bez strzał: 50%, #88).
 var tower_fire_percent := 100
 ## Zbadane technologie stron (#12; klucz Side → {kod: true}), które działają w bitwie: A1 Hartowane
-## topory, A2 Łuk kompozytowy, O2 Zaostrzone pale. Ustawia je apply_research() przed startem.
+## topory, A2 Łuk kompozytowy, A7 Strzemię, O2 Zaostrzone pale, O3 Fosa z kolcami. Ustawia je
+## apply_research() przed startem.
 var techs: Dictionary[int, Dictionary] = {Side.ATTACKER: {}, Side.DEFENDER: {}}
 ## Ustawienia obrony (#19, #20): zadanie oddziału obrońcy (klucz: numer oddziału), punkty patrolu
 ## (kratki, na których da się stanąć) i priorytet celów wież (DefensePlan.TowerPriority).
@@ -282,11 +283,21 @@ func apply_research(side: int, research: Research) -> void:
 
 ## Kody technologii, które coś zmieniają w bitwie.
 static func battle_tech_codes() -> Array[String]:
-	return ["A1", "A2", "O2", "O3"] as Array[String]
+	return ["A1", "A2", "A7", "O2", "O3"] as Array[String]
 
 
 func has_tech(side: int, code: String) -> bool:
 	return techs[side].has(code)
+
+
+## Krok ruchu jednostki na tick w podjednostkach: z UnitTypes, a konnica strony z A7 Strzemię
+## +25% (#12), w całych podjednostkach w dół. Spowolnienia (kolczatka, fosa) liczą się od tej wartości.
+func step_of(f: Fighter) -> int:
+	var step_len := UnitTypes.speed(f.unit) * BattleConfig.SPEED_SUB_PER_TICK
+	if UnitTypes.unit_class(f.unit) == RecruitmentConfig.UnitClass.FAST and has_tech(f.side, "A7"):
+		@warning_ignore("integer_division")
+		step_len = step_len * BattleConfig.A7_CAVALRY_SPEED_PERCENT / 100
+	return step_len
 
 
 ## Zasięg ataku jednostki w kratkach: z UnitTypes, a łuki strony z A2 Łuk kompozytowy +20% (#12).
@@ -860,7 +871,7 @@ func _structure_at(c: Vector2i) -> Structure:
 
 ## Ruch w stronę punktu, najpierw w osi z większą różnicą (całe podjednostki).
 func _move_toward(f: Fighter, tx: int, ty: int) -> void:
-	var step_len := UnitTypes.speed(f.unit) * BattleConfig.SPEED_SUB_PER_TICK
+	var step_len := step_of(f)
 	if f.side == Side.ATTACKER and UnitTypes.unit_class(f.unit) == RecruitmentConfig.UnitClass.FAST and _in_caltrops(f.cell()):
 		@warning_ignore("integer_division")
 		step_len = maxi(1, step_len * TrapConfig.CALTROPS_SLOW_PERCENT / 100)

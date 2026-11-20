@@ -156,3 +156,39 @@ func test_research_effects_are_deterministic() -> bool:
 		sums.append(b.checksum())
 	assert_eq(sums[0], sums[1], "ten sam przebieg")
 	return true
+
+
+## A7 Strzemię: konnica strony +25% szybkości (w całych podjednostkach), piechota bez zmian.
+func test_a7_stirrup_cavalry_speed() -> bool:
+	var b := _battle([[U.RIDER, 1], [U.AXE_WARRIOR, 1]], [[U.RIDER, 1]])
+	var rider := _first(b, SIDE.ATTACKER, U.RIDER)
+	var axe := _first(b, SIDE.ATTACKER, U.AXE_WARRIOR)
+	var guard := _first(b, SIDE.DEFENDER, U.RIDER)
+	var base := UnitTypes.speed(U.RIDER) * BattleConfig.SPEED_SUB_PER_TICK
+	assert_eq(b.step_of(rider), base, "bez A7 szybkość z tabeli")
+	b.apply_research(SIDE.ATTACKER, _research(["A7"] as Array[String]))
+	assert_eq(b.step_of(rider), base * 125 / 100, "A7: jeździec +25%")
+	assert_true(b.step_of(rider) > base, "jeździec realnie szybszy")
+	assert_eq(b.step_of(axe), UnitTypes.speed(U.AXE_WARRIOR) * BattleConfig.SPEED_SUB_PER_TICK, "piechota bez zmian")
+	assert_eq(b.step_of(guard), base, "A7 atakującego nie działa na obrońcę")
+	assert_true(Battle.battle_tech_codes().has("A7"), "A7 działa w bitwie")
+	return true
+
+
+## Ta sama bitwa z A7 przebiega identycznie przy tym samym seedzie.
+func test_a7_deterministic() -> bool:
+	var ticks: Array[int] = []
+	var alive: Array[int] = []
+	for i in 2:
+		var b := _battle([[U.RIDER, 4], [U.AXE_WARRIOR, 4]], [[U.ARCHER, 3]])
+		b.apply_research(SIDE.ATTACKER, _research(["A7"] as Array[String]))
+		b.run(900)
+		ticks.append(b.tick)
+		var n := 0
+		for f in b.fighters:
+			if f.alive():
+				n += f.x + f.y * 3
+		alive.append(n)
+	assert_eq(ticks[0], ticks[1], "ten sam czas")
+	assert_eq(alive[0], alive[1], "te same pozycje")
+	return true
