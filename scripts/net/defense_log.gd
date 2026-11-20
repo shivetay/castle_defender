@@ -12,12 +12,14 @@ const UUID_LEN := 36
 
 
 ## Ścieżka zapytania: obrony gracza `user_id` zakończone po `since_s` (unix s), od najnowszej.
+## Tylko z niepustą listą zniszczeń (`neq.{}`; null też odpada): ataki bez zniszczeń nie zajmują
+## miejsc w LIMIT, więc nie wypchną obrony, po której ruiny jeszcze stoją (review #255).
 ## Pusty tekst, gdy id nie wygląda jak UUID (nic nie idzie do sieci).
 static func path(user_id: String, since_s: int) -> String:
 	if not _is_uuid(user_id):
 		return ""
 	var since := Time.get_datetime_string_from_unix_time(maxi(0, since_s)) + "Z"
-	return "%s?select=destroyed,finished_at&defender_id=eq.%s&status=eq.finished&destroyed=not.is.null&finished_at=gte.%s&order=finished_at.desc&limit=%d" \
+	return "%s?select=destroyed,finished_at&defender_id=eq.%s&status=eq.finished&destroyed=neq.%%7B%%7D&finished_at=gte.%s&order=finished_at.desc&limit=%d" \
 			% [PATH, user_id, since, LIMIT]
 
 

@@ -152,6 +152,7 @@ func test_defense_log() -> bool:
 	var p := DefenseLog.path(UID, 1700000000)
 	assert_true(p.begins_with(DefenseLog.PATH + "?select=destroyed,finished_at&defender_id=eq." + UID), "własne obrony")
 	assert_true(p.contains("finished_at=gte.2023-11-14T22:13:20Z"), "od podanej chwili, UTC")
+	assert_true(p.contains("&destroyed=neq.%7B%7D&"), "tylko obrony z niepustą listą (puste nie zajmują limitu)")
 	assert_eq(DefenseLog.path("x&select=*", 0), "", "zły id nie idzie do sieci")
 	assert_eq(DefenseLog.parse_timestamp("2023-11-14T22:13:20+00:00"), 1700000000, "strefa +00:00")
 	assert_eq(DefenseLog.parse_timestamp("2023-11-14T22:13:20.123456+00:00"), 1700000000, "ułamek sekundy")
