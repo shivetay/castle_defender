@@ -25,9 +25,9 @@ enum Result { OK, NO_BUILDING, NEEDS_TECH, WRONG_AGE, QUEUE_FULL, ARMY_FULL, NO_
 		SQUAD_FULL, WRONG_SQUAD, ERA_PASSED, NO_UPKEEP }
 
 const MESSAGES: Array[String] = ["", "Brak budynku do szkolenia", "Najpierw zbadaj technologię",
-		"Wymaga późniejszej epoki", "Kolejka szkolenia pełna", "Limit armii pełny: dotknij „Wojsko: … (?)”", "Brak surowców",
+		"Wymaga późniejszej epoki", "Kolejka szkolenia pełna", "Limit armii pełny: dotknij „Wojsko … (?)”", "Brak surowców",
 		"Brak towarów", "Oddział pełny", "W oddziale jest inny rodzaj jednostek", "Tylko w epoce I",
-		"Za mało żywności na utrzymanie: dotknij „Wojsko: … (?)”"]
+		"Za mało żywności na utrzymanie: dotknij „Wojsko … (?)”"]
 
 ## Id „nowego oddziału” przy zleceniu szkolenia.
 const NEW_SQUAD := 0

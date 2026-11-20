@@ -162,7 +162,7 @@ static func carry(unit: int) -> int:
 
 ## Utrzymanie jednej jednostki w żywności na godzinę (#214).
 static func upkeep(unit: int) -> int:
-	return UPKEEP[unit]
+	return UPKEEP[unit] if unit >= 0 and unit < UPKEEP.size() else 0
 
 
 static func unit_name(unit: int) -> String:
