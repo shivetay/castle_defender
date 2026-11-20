@@ -243,7 +243,7 @@ func _finish_end_drag(screen: Vector2) -> void:
 		planner.queue_redraw()
 		return
 	var cell := Vector2i((_world_of(screen) / TerrainMap.CELL).floor())
-	changed.emit(AttackPlanner.set_end(o, planner.bot.grid, cell))
+	changed.emit(AttackPlanner.set_end(o, planner.bot.grid, cell, planner.intel))
 	planner.queue_redraw()
 
 

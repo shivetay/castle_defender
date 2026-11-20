@@ -103,6 +103,7 @@ func test_castle_data_round_trip_with_profile() -> bool:
 	assert_true(not remote.has("world_seed"), "seed stoi w kolumnie map_seed")
 	assert_true(not remote.has("version"), "wersja stoi w kolumnie save_version")
 	assert_true(not remote.has("seal"), "Sprawdź zostaje na telefonie")
+	assert_true(save.has("scout") and not remote.has("scout"), "zwiad (#28) zostaje na telefonie")
 	assert_eq((remote["profile"] as Dictionary)["castle_name"], "Gniezno", "tożsamość z onboardingu")
 	assert_true(save.has("world_seed") and save.has("version"), "lokalny zapis bez zmian")
 	var row := {"map_seed": SEED, "save_version": SaveGame.FORMAT_VERSION, "revision": 3, "data": remote}

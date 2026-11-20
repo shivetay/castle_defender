@@ -96,7 +96,7 @@ func test_availability_reasons() -> bool:
 	var none := Research.new()
 	assert_eq(rec.availability(U.SHIELDBEARER, c["grid"], none, 0), Recruitment.Result.NEEDS_TECH, "Tarczownik bez A21")
 	assert_eq(rec.availability(U.SPEARMAN, c["grid"], c["r"], 0), Recruitment.Result.WRONG_AGE, "Włócznik w epoce II")
-	assert_eq(rec.availability(U.TRACKER, c["grid"], c["r"], 0), Recruitment.Result.NO_BUILDING, "Tropiciel: brak Wieży sygnałowej")
+	assert_eq(rec.availability(U.TRACKER, c["grid"], c["r"], 0), Recruitment.Result.NO_BUILDING, "Tropiciel: brak Chaty tropicieli")
 	assert_eq(rec.availability(U.AXE_WARRIOR, c["grid"], none, 0), Recruitment.Result.OK, "Topornik od razu")
 	assert_eq(RecruitPanel.state_text(rec, U.SHIELDBEARER, c["grid"], none, 0), "zbadaj A21", "powód na ekranie")
 	return true

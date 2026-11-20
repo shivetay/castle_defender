@@ -6,7 +6,7 @@ extends RefCounted
 ## Zależności są według notatki, łącznie z jej sekcją „Zmienione zależności”
 ## (A21 ← A38, A3 ← G24, a A7 Strzemię wymaga A2 i A43).
 ## Działają już efekty, które mają w grze na co wpłynąć (PRODUCTION_BONUS, bitwa, jednostki, budynki). Pozostałe
-## (zwiad S1/S3 z #28, przejście epok O1/G6 z #34) włączą się razem z tymi systemami.
+## (przejście epok O1/G6 z #34) włączą się razem z tym systemem. Zwiad S1/S3 działa od #28 (Scouting).
 
 enum Branch { ATTACK, DEFENSE, ECONOMY, UTILITY, SPECIAL }
 
@@ -49,9 +49,9 @@ const TECHS: Array = [
 	["G4", "Kamieniarstwo", Branch.ECONOMY, 1, false, ["G1"], "budynek Kamieniołom"],
 	["G6", "Zaprawa wapienna", Branch.ECONOMY, 1, true, ["G4"], "warunek przejścia II → III"],
 	["U1", "Wiec grodowy", Branch.UTILITY, 0, false, [], "+5 morale załogi"],
-	["S1", "Tropiciele", Branch.SPECIAL, 0, false, [], "zwiad odsłania 20% zamku przeciwnika"],
+	["S1", "Tropiciele", Branch.SPECIAL, 0, false, [], "budynek Chata tropicieli, jednostka Tropiciel, zwiad odsłania 20% zamku przeciwnika"],
 	["S2", "Ogniska sygnałowe", Branch.SPECIAL, 0, false, [], "budynek Wieża sygnałowa"],
-	["S3", "Dom zwiadowców", Branch.SPECIAL, 1, false, ["S1"], "budynek Dom zwiadowców i jednostka Zwiadowca, zwiad +10% zasięgu"],
+	["S3", "Dom zwiadowców", Branch.SPECIAL, 1, false, ["S1"], "Chata tropicieli staje się Domem zwiadowców, jednostka Zwiadowca, zwiad +10% zasięgu i szansy"],
 ]
 
 ## Efekty, które już działają: kod → [surowiec (EconomyConfig.Res), premia do produkcji w %].

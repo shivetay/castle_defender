@@ -102,12 +102,12 @@ func test_required_techs() -> bool:
 
 
 ## Wieża sygnałowa bada gałąź Specjalne od epoki I (decyzja z 17.11). Budynek nie bada technologii,
-## która go odblokowuje: S2 bada Dwór, a S3 (Dom zwiadowców) Wieża sygnałowa.
+## która go odblokowuje: S2 bada Dwór, a S3 Chata tropicieli (odblokowana przez S1, #28).
 func test_signal_tower_researches_special() -> bool:
 	assert_eq(ResearchConfig.research_building("S1"), K.SIGNAL_TOWER, "S1 w Wieży sygnałowej")
 	assert_eq(ResearchConfig.research_building("S2"), K.MANOR, "S2 w Dworze, bo odblokowuje Wieżę")
-	assert_eq(ResearchConfig.research_building("S3"), K.SIGNAL_TOWER, "S3 w Wieży, bo odblokowuje Dom zwiadowców")
-	assert_eq(UnitTypes.building(U.TRACKER), -1, "Tropiciel nie szkoli się w Wieży sygnałowej")
+	assert_eq(ResearchConfig.research_building("S3"), K.SCOUT_HOUSE, "S3 w Chacie tropicieli (#28)")
+	assert_eq(UnitTypes.building(U.TRACKER), K.SCOUT_HOUSE, "Tropiciel w Chacie tropicieli, nie w Wieży sygnałowej")
 	return true
 
 

@@ -17,7 +17,7 @@ na jednostki, bitwę i epokę II z późniejszych etapów.
 Etap 5 (#127) zaczyna badania z #12: 34 technologie z notatki Drzewko technologiczne z epokami,
 zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2 oraz w bitwie A1, A2, A7 (konnica
 +25% szybkości), O2 i O3, a manewry wymagają A3–A6. Jednostki i budynki MVP mają swoje technologie.
-Czekają S1 i S3 (zwiad, #28) oraz O1 i G6 jako warunki przejścia epok (#34). Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
+S1 i S3 działają w zwiadzie (#28), a O1 i G6 czekają jako warunki przejścia epok (#34). Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
 Do tego mechanizm towarów i łańcuchów produkcji z #88 (zbrojownia, przepisy wytwórców według notatki
 Klasy jednostek i produkcja) oraz 9 budynków wytwórców z #90, które produkują towary
 i wymagają zbadania swojej technologii. Doszły też budynki gospodarcze z #122: Pole lnu i Rybak,
@@ -690,6 +690,13 @@ reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji 
 zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze w jego limicie miejsc i utrzymania żywności, #249), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10, Wóz 50, #235), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Ranking PvP (#27) ma osobne tabele ataku i obrony w epoce gracza (Elo, punkty zmienia tylko serwer po bitwie); migracja `pvp_ranking` i funkcja `ranking` są na projekcie, a dobór przeciwnika nadal używa wspólnego `rating` (przejście na ranking ataku i obrony to decyzja właścicielki). Wóz (#235) podnosi capacity łupu; migracja `wagon_carry` jest na projekcie. Limit armii przy starcie ataku (#249, migracja `army_limits`) jest na projekcie razem z nową wersją `start_attack`; klient wysyła tylko oddziały mieszczące się w limitach. Po ataku na gracza (#99) `finish_attack` zapisuje zniszczone budynki (`record_destroyed`, migracja `attack_ruins` i nowe `finish_attack` są na projekcie): tylko gotowe budynki z kopii zamku, bez umocnień, nie więcej niż procent zniszczeń. Obrońca po połączeniu czyta swoje obrony i widzi te budynki jako ruiny, które same się odbudowują (epoka I godzina, każda następna o godzinę dłużej); w ruinie Chata drwala i Rybak produkują 75%. Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu.
+Zwiad z mgłą wojny (#28, etap 10) ma część kliencką: Chata tropicieli (S1, epoka I) szkoli
+Tropicieli i po S3 staje się Domem zwiadowców. Zwiad wysyła się z ekranu wyboru celu (2, 10 albo 30 min,
+złoto i żywność za zwiadowcę). Wynik z seeda misji: sukces, częściowy, wykryci albo porażka;
+zwiadowcy wracają wszyscy, część albo nikt. Raport jest na karcie budynku i celu. Plan ataku pokazuje bez
+zwiadu tylko zarys budynków, a w odsłoniętym fragmencie (20–80% zabudowy) budynki, załogę, patrole
+i pułapki. Działa na zamki-boty; zwiad na gracza (wynik i odsłonięte dane z serwera, plan dostaje tylko
+odsłoniętą obronę, a pełną dopiero po zatwierdzeniu planu) to następny PR. Liczby zwiadu są tymczasowe.
 Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
 Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).

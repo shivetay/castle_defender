@@ -36,6 +36,8 @@ const WATCHTOWER_INFO := "Fale, wyprawy i ranking PvP"
 const KEEP_INFO := "Cel ataku, strzela ze strzelcem"
 ## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
 const SEAL_HOUSE_INFO := "Sprawdź szczelność umocnień"
+## Opis karty Chaty tropicieli (#28), gdy nie ma misji ani raportu.
+const SCOUT_HOUSE_INFO := "Zwiad wysyłasz z ekranu Wyprawy"
 ## Karta Komendy, gdy gracz wskazał lukę (#199).
 const SEAL_SELECTED_INFO := "Wybrana luka: Domknij ją"
 ## Zapas w px przy dotknięciu czerwonej luki (kratka ma 8 px, cel dotyku co najmniej 12 px).
@@ -108,6 +110,8 @@ var defense := DefensePlan.new()
 var defense_panel: DefensePanel
 ## Sprawdzanie szczelności z Komendy umocnień (#199).
 var seal_check := SealCheck.new()
+## Zwiad (#28) z Chaty tropicieli: misja w drodze i raporty o zamkach-celach.
+var scouting := Scouting.new()
 ## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
 const ABANDONED_MESSAGE := "Atak porzucony: ten zamek znowu po dobie"
 ## Czy trwająca bitwa to atak (inaczej fala PvE).
@@ -149,6 +153,7 @@ func _ready() -> void:
 		attack_target = saved.attack_target
 		defense = saved.defense
 		seal_check = saved.seal
+		scouting = saved.scouting
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -227,6 +232,8 @@ func _ready() -> void:
 	target_picker.player_chosen.connect(_on_player_target)
 	target_picker.bots_pressed.connect(_open_bot_list)
 	target_picker.closed.connect(_on_overlay_closed)
+	target_picker.scout_requested.connect(_on_scout_requested)
+	target_picker.scout_changed.connect(_refresh_scout_lines)
 	ranking_panel = RankingPanel.new()
 	ranking_panel.visible = false
 	layer.add_child(ranking_panel)
@@ -435,7 +442,7 @@ func _save() -> void:
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
 	var save := SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check)
+			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check, scouting)
 	var err := SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
@@ -545,6 +552,12 @@ func _tick() -> void:
 		hud.message = "Głód: z armii odeszło %d (brak żywności)" % deserted.size()
 	if not trained.is_empty():
 		_save()
+	var scouted := scouting.update(now, recruitment)
+	if scouted != null:
+		hud.message = Scouting.report_text(scouted)
+		_save()
+	if target_picker != null and target_picker.visible:
+		_refresh_scout_lines()
 	var checked := false
 	if _has_ready_seal_house():
 		checked = seal_check.update(now, grid)
@@ -568,7 +581,7 @@ func _tick() -> void:
 		hud.queue_text = Hud.format_time(queue.remaining_ms(queue.orders[0].building_id, now))
 		if queue.orders.size() > 1:
 			hud.queue_text += " +%d" % (queue.orders.size() - 1)
-	if not done.is_empty() or checked:
+	if not done.is_empty() or checked or scouted != null:
 		if not done.is_empty():
 			_save()
 		if _selected_id != 0:
@@ -578,6 +591,10 @@ func _tick() -> void:
 			and int(grid.kinds.get(_selected_id, -1)) == BuildingTypes.Kind.SEAL_HOUSE:
 		# odliczanie Sprawdź na karcie Komendy; mapa się nie zmienia
 		_refresh_card()
+	elif scouting.is_busy() and _selected_id != 0 \
+			and int(grid.kinds.get(_selected_id, -1)) == BuildingTypes.Kind.SCOUT_HOUSE:
+		# odliczanie zwiadu na karcie Chaty tropicieli (#28)
+		_refresh_card()
 
 
 ## Dotknięcie mapy. W trybie oglądania zaznacza budynek (albo zamyka kartę), w trybie budowy
@@ -586,7 +603,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 	if battle_view != null:
 		return  # w trakcie fali tylko tempo (#16)
 	if planner.visible:
-		_on_plan_changed(AttackPlanner.tap(planner.order(), planner.bot.grid, Vector2i((world_pos / TerrainMap.CELL).floor())))
+		_on_plan_changed(AttackPlanner.tap(planner.order(), planner.bot.grid, Vector2i((world_pos / TerrainMap.CELL).floor()),
+				planner.intel))
 		return
 	if defense_panel.visible:
 		_on_defence_changed(defense_panel.tap(grid, Vector2i((world_pos / TerrainMap.CELL).floor())))
@@ -846,6 +864,7 @@ func _on_attack_pressed() -> void:
 	target_picker.open(bots_beaten, online)
 	if online and not net.find_targets():
 		target_picker.set_players([] as Array[TargetSearch.Target], false)
+	_refresh_scout_lines()
 	hud.overlay = true
 	hud.message = "Wybierz cel ataku"
 	queue_redraw()
@@ -873,6 +892,67 @@ func _on_ranking_kind(kind: int) -> void:
 func _on_ranking_message(text: String) -> void:
 	if ranking_panel.visible:
 		hud.message = text
+
+
+## Stan zwiadu (#28) pod kartami celów i czy przycisk Zwiad jest czynny, dla wybranego celu.
+func _refresh_scout_lines() -> void:
+	var t := target_picker.selected_target()
+	if t == null:
+		target_picker.scout_lines = []
+		target_picker.scout_enabled = false
+		target_picker.queue_redraw()
+		return
+	var check := scouting.check(grid, research, recruitment, economy)
+	var lines := scout_lines(t, scouting, check, Scouting.available(recruitment), target_picker.scout_duration,
+			research.is_done(Scouting.BETTER_TECH), _now_ms())
+	var enabled := t.is_bot and check == Scouting.Result.OK
+	if lines != target_picker.scout_lines or enabled != target_picker.scout_enabled:
+		target_picker.scout_lines = lines
+		target_picker.scout_enabled = enabled
+		target_picker.queue_redraw()
+
+
+## Dwie linie stanu zwiadu (#28) dla celu `t`: co wiadomo (misja w drodze, raport albo nic) i co
+## da zwiad teraz (zwiadowcy, procent zamku i koszt) albo czemu się nie da.
+static func scout_lines(t: TargetSearch.Target, s: Scouting, check: Scouting.Result, units: Dictionary[int, int],
+		duration: int, s3: bool, now_ms: int) -> Array[String]:
+	var out: Array[String] = []
+	var rep := s.report_for(t.key())
+	if s.is_busy() and s.mission.target_key == t.key():
+		out.append("Zwiad w drodze: %s" % Hud.format_time(s.remaining_ms(now_ms)))
+	elif rep != null:
+		out.append(Scouting.report_text(rep))
+	else:
+		out.append("Bez zwiadu: plan pokaże tylko zarys budynków")
+	if not t.is_bot:
+		# zwiad na gracza liczy serwer (osobny PR, #28)
+		out.append("Zwiad na gracza: wkrótce")
+	elif check != Scouting.Result.OK:
+		if s.is_busy() and s.mission.target_key != t.key():
+			out.append("Zwiadowcy w drodze: %s" % s.mission.target_name)
+		else:
+			out.append(Scouting.MESSAGES[check])
+	else:
+		var n := Scouting.count_of(units)
+		out.append("%d zwiad., %d%% zamku, koszt %s" % [n, ScoutConfig.reveal_percent(duration, n, s3),
+				Hud.cost_text(ScoutConfig.cost(n))])
+	return out
+
+
+## Zwiad (#28) z ekranu celów: zwiadowcy wychodzą z armii, raport czeka w Chacie tropicieli.
+func _on_scout_requested(t: TargetSearch.Target, duration: int) -> void:
+	_tick()
+	if not t.is_bot:
+		hud.message = "Zwiad na gracza: wkrótce"
+		return
+	var r := scouting.send(t.key(), t.castle_name, duration, world_seed, _now_ms(), grid, research, recruitment,
+			economy)
+	if r == Scouting.Result.OK:
+		hud.message = "Zwiad wyruszył: %s, %s" % [t.castle_name, Hud.format_time(ScoutConfig.duration_ms(duration))]
+		_save()
+	else:
+		hud.message = Scouting.MESSAGES[r]
+	_refresh_scout_lines()
 
 
 ## Boty (ekran 3 celów): pełna lista 20 zamków-botów (#26).
@@ -951,7 +1031,7 @@ func _open_target(bot: BotCastle, player: PlayerCastle) -> void:
 	var army := player.army if player != null else _attack_army()
 	bot_picker.visible = false
 	target_picker.visible = false
-	planner.open(bot, attack_plan, army, CURRENT_AGE)
+	planner.open(bot, attack_plan, army, CURRENT_AGE, _scout_intel(bot, player, army))
 	attack_panel.visible = true
 	hud.overlay = true
 	camera.look_at_world(Vector2(bot.grid.buildings[bot.objective].get_center() * TerrainMap.CELL))
@@ -964,6 +1044,28 @@ func _open_target(bot: BotCastle, player: PlayerCastle) -> void:
 	else:
 		hud.message = "W ataku %d z %d oddziałów (limit epoki)" % [army.size(), all]
 	queue_redraw()
+
+
+## Bitwa na zamku-bocie `bot` z armią `army`, przed planem i badaniami.
+func _bot_battle(bot: BotCastle, army: Array) -> Battle:
+	return Battle.create_squads(bot.grid, bot.objective, army, bot.defenders, bot.spawn,
+			PixelCanvas.hash2(bot.seed_value, attack_target, 0xa77) & 0x7fffffff)
+
+
+## Co plan ataku widzi z zamku-celu (#28): fragment z raportu zwiadu na ten cel, z miejscami załogi
+## z początku bitwy (te same, z których ruszy bitwa), patrolami i pułapkami obrońcy. Bez raportu
+## z danymi: sam zarys budynków.
+func _scout_intel(bot: BotCastle, player: PlayerCastle, army: Array) -> ScoutIntel:
+	var key := "gracz:" + player.defender_id if player != null else "bot:%d" % bot.index
+	var rep := scouting.report_for(key)
+	if rep == null or not rep.has_intel():
+		return ScoutIntel.new()
+	var area := ScoutIntel.region_of(ScoutIntel.castle_rect(bot.grid), rep.percent, rep.region_seed)
+	var b := player.create_battle(attack_plan, research) if player != null else _bot_battle(bot, army)
+	var defense_copy := player.defense if player != null else null
+	if defense_copy != null:
+		ScoutIntel.mark_traps(defense_copy, area)
+	return ScoutIntel.build(area, ScoutIntel.defender_posts(b), defense_copy)
 
 
 func _on_plan_changed(message: String) -> void:
@@ -1023,8 +1125,7 @@ func _on_attack_launched() -> void:
 	if _player != null:
 		b = _player.create_battle(attack_plan, research)  # seed bitwy i obrona z serwera (#240)
 	else:
-		b = Battle.create_squads(bot.grid, bot.objective, army, bot.defenders, bot.spawn,
-				PixelCanvas.hash2(bot.seed_value, attack_target, 0xa77) & 0x7fffffff)
+		b = _bot_battle(bot, army)
 		b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
 		b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
 	_attacking = true
@@ -1384,12 +1485,16 @@ func _refresh_card() -> void:
 	if hud.card_seal and not pending:
 		hud.card_info = seal_card_info(seal_check, _now_ms())
 		hud.card_info_missing = PackedStringArray()
+	elif kind == BuildingTypes.Kind.SCOUT_HOUSE and level >= 1 and not pending:
+		# raport zwiadu jest w budynku (#28): misja w drodze albo ostatni raport
+		hud.card_info = scout_card_info(scouting, _now_ms())
+		hud.card_info_missing = PackedStringArray()
 	else:
 		hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, BuildingTypes.MAX_LEVEL) \
 				else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
 	hud.card_needs = upgrade_needs(kind, level, grid.manor_level(), pending)
 	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending)
-	hud.show_card(BuildingTypes.NAMES[kind], status, can_upgrade, pending, middle_enabled)
+	hud.show_card(BuildingTypes.name_of(kind, research), status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
 
 
@@ -1410,6 +1515,15 @@ static func seal_card_info(check: SealCheck, now_ms: int) -> String:
 			return SEAL_SELECTED_INFO
 		return "Luki: %d, dotknij luki na mapie" % check.gaps.size()
 	return SEAL_HOUSE_INFO
+
+
+## Linia karty Chaty tropicieli (#28): zwiad w drodze, ostatni raport albo podpowiedź.
+static func scout_card_info(s: Scouting, now_ms: int) -> String:
+	if s.is_busy():
+		return "Zwiad: %s, %s" % [s.mission.target_name, Hud.format_time(s.remaining_ms(now_ms))]
+	if not s.reports.is_empty():
+		return Scouting.report_text(s.reports[-1])
+	return SCOUT_HOUSE_INFO
 
 
 ## Opis karty z kosztem ulepszenia, np. „Ulepsz: 180 Dr 60 Ka 60 Ży, 3:00”. Wymagania są osobno

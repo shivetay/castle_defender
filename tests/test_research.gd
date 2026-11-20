@@ -303,7 +303,7 @@ func test_loaded_active_research_needs_requirements() -> bool:
 
 
 ## #165: technologię bada budynek jej gałęzi (notatka Drzewko technologiczne). Atak w Koszarach,
-## reszta w Dworze, który stoi zawsze; Dom zwiadowców nie bada S3, które go odblokowuje.
+## reszta w Dworze, który stoi zawsze; S3 bada Chata tropicieli (od S1), która po nim staje się Domem zwiadowców.
 func test_research_needs_branch_building() -> bool:
 	const K := BuildingTypes.Kind
 	assert_eq(ResearchConfig.research_building("A1"), K.BARRACKS, "Atak: Koszary")
@@ -313,7 +313,7 @@ func test_research_needs_branch_building() -> bool:
 	assert_eq(ResearchConfig.research_building("U1"), K.MANOR, "Użyteczne: Dwór")
 	assert_eq(ResearchConfig.research_building("S1"), K.SIGNAL_TOWER, "Specjalne epoki I: Wieża sygnałowa (#35)")
 	assert_eq(ResearchConfig.research_building("S2"), K.MANOR, "S2 nie wymaga Wieży sygnałowej, którą odblokowuje")
-	assert_eq(ResearchConfig.research_building("S3"), K.SIGNAL_TOWER, "S3 nie wymaga Domu zwiadowców, który odblokowuje")
+	assert_eq(ResearchConfig.research_building("S3"), K.SCOUT_HOUSE, "S3 bada Chata tropicieli, którą odblokowuje S1 (#28)")
 	for code in TechTree.codes():
 		var kind := ResearchConfig.research_building(code)
 		assert_true(BuildConfig.required_tech(kind) != code, "%s: budynek badań nie zależy od samej technologii" % code)

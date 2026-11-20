@@ -34,6 +34,7 @@ const DESCRIPTIONS := {
 	BuildingTypes.Kind.MOUND: "Wieża przy nim strzela dalej, strzelcy +1",
 	BuildingTypes.Kind.WELL: "Woda do gaszenia pożarów (zadanie obrony)",
 	BuildingTypes.Kind.SIGNAL_TOWER: "Bada Specjalne (wykrywanie zwiadu wkrótce)",
+	BuildingTypes.Kind.SCOUT_HOUSE: "Tropiciele: zwiad z ekranu Wyprawy",
 }
 
 var research: Research
@@ -160,7 +161,7 @@ static func state_text(kind: int, r: Research) -> String:
 static func detail_lines(kind: int, r: Research, e: Economy, width: int) -> Array:
 	var out: Array = []
 	var size := BuildingTypes.size_of(kind)
-	var title := "%s (%d×%d)" % [BuildingTypes.NAMES[kind], size.x, size.y]
+	var title := "%s (%d×%d)" % [BuildingTypes.name_of(kind, r), size.x, size.y]
 	var state := state_text(kind, r)
 	out.append([ResearchPanel.fit_text(title, width - PixelFont.text_width(state) - 6), Palette.INK, state])
 	var cost := BuildConfig.cost(kind, 1)

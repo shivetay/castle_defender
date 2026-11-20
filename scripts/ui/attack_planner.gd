@@ -5,6 +5,8 @@ extends Node2D
 ## (AttackPanel). Gracz wybiera oddział, przyciskami ustawia manewr, start i odwrót, a dotykiem mapy
 ## cel (budynek) i trasę (do 3 punktów na trawie); koniec strzałki (domyślnie donżon) przeciąga
 ## na inny budynek. Plan zapisuje się w grze (SaveGame, wersja 6).
+## Mgła wojny (#28): przy planowaniu widać tylko zarys budynków; odsłonięty przez zwiad fragment
+## zamku (ScoutIntel) pokazuje budynki, oddziały załogi, patrole i pułapki. W bitwie mgła znika.
 ## Ten węzeł rysuje mapę w pikselach świata; logika edycji planu to funkcje statyczne.
 
 ## Strefa rozstawienia: tyle kratek wokół wejścia na mapę.
@@ -14,6 +16,8 @@ const START_SECONDS: Array[int] = [10, 20, 30]
 ## Odwrót: kolejne wartości przycisku Odwrót (procent strat; 0 = nigdy).
 const RETREAT_STEPS: Array[int] = [0, 30, 50, 70]
 const HINT := "Dotknij budynku: cel, trawy: punkt trasy"
+## Cel w budynku spoza odsłoniętego fragmentu: bez rodzaju (#28).
+const HIDDEN_TARGET := "Cel: nieznany budynek"
 const WAGON_HINT := "Wóz: dotknij trawy, ostatni punkt to postój"
 ## Połowa celu dotyku końca strzałki (min. 12×12 px logicznych).
 const END_HIT := 6
@@ -35,11 +39,15 @@ var _terrain_tex: ImageTexture
 var states: Dictionary = {}
 ## Podgląd przeciąganego końca strzałki (kratka); NO_TARGET = bez przeciągania.
 var drag_end_cell := AttackPlan.NO_TARGET
+## Co odsłonił zwiad (#28); pusty obszar = sam zarys budynków.
+var intel := ScoutIntel.new()
 
 
 ## Otwiera plan dla zamku `target` i oddziałów `army`. Rozkazy dla brakujących oddziałów to
 ## Szturm frontalny; rozkazy oddziałów spoza armii wypadają.
-func open(target: BotCastle, attack_plan: AttackPlan, army: Array, current_age: int) -> void:
+func open(target: BotCastle, attack_plan: AttackPlan, army: Array, current_age: int,
+		scout: ScoutIntel = null) -> void:
+	intel = scout if scout != null else ScoutIntel.new()
 	if bot != target:
 		_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(target.grid.terrain))
 	bot = target
@@ -124,7 +132,7 @@ static func next_retreat(percent: int) -> int:
 ## Dotknięcie kratki `cell` mapy celu: budynek staje się celem rozkazu, trawa dodaje punkt trasy
 ## (czwarty punkt zaczyna trasę od nowa). Tabor (#235) nie ma celu-budynku: ostatni punkt trasy
 ## to postój Wozu. Zwraca komunikat dla paska.
-static func tap(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> String:
+static func tap(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i, scout: ScoutIntel = null) -> String:
 	if not grid.terrain.in_bounds(cell):
 		return HINT
 	var id := grid.building_at(cell)
@@ -132,7 +140,7 @@ static func tap(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> String:
 		return WAGON_HINT
 	if id != 0:
 		o.target = cell
-		return "Cel: %s" % BuildingTypes.NAMES[grid.kinds[id]]
+		return target_text(grid, id, scout)
 	if grid.terrain.get_tile(cell) == TerrainMap.Tile.WATER:
 		return "Trasa nie prowadzi przez wodę"
 	if o.waypoints.size() >= AttackPlan.MAX_WAYPOINTS:
@@ -167,7 +175,7 @@ static func hit_end(o: AttackPlan.Order, b: BotCastle, world: Vector2, half: flo
 ## Ustawia koniec trasy na budynek w kratce `cell` (przeciągnięcie uchwytu). Trawa i woda
 ## nie zmieniają celu. Tabor (#235): przenosi postój (ostatni punkt trasy) na trawę.
 ## Zwraca komunikat dla paska.
-static func set_end(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> String:
+static func set_end(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i, scout: ScoutIntel = null) -> String:
 	if o.manoeuvre == AttackPlan.Manoeuvre.CONVOY:
 		if not grid.terrain.in_bounds(cell) or grid.building_at(cell) != 0 \
 				or grid.terrain.get_tile(cell) == TerrainMap.Tile.WATER or o.waypoints.is_empty():
@@ -180,6 +188,14 @@ static func set_end(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i) -> Str
 	if id == 0:
 		return "Koniec trasy: wskaż budynek"
 	o.target = cell
+	return target_text(grid, id, scout)
+
+
+## Komunikat celu: rodzaj budynku albo, poza fragmentem odsłoniętym przez zwiad, „nieznany” (#28).
+## Bez `scout` (np. testy, stary kod) rodzaj zawsze widać.
+static func target_text(grid: BuildGrid, id: int, scout: ScoutIntel = null) -> String:
+	if scout != null and not scout.shows(grid.buildings[id]):
+		return HIDDEN_TARGET
 	return "Cel: %s" % BuildingTypes.NAMES[grid.kinds[id]]
 
 
@@ -266,7 +282,12 @@ func _draw() -> void:
 	if bot == null:
 		return
 	draw_texture(_terrain_tex, Vector2.ZERO)
-	CastleView.draw_buildings(self, bot.grid, textures, states)
+	if show_plan:
+		var hidden := hidden_ids(bot.grid, intel)
+		CastleView.draw_buildings(self, bot.grid, textures, states, hidden)
+		_draw_fog(hidden)
+	else:
+		CastleView.draw_buildings(self, bot.grid, textures, states)
 	var zone := zone_rect(bot.spawn, bot.grid.terrain.size)
 	draw_rect(Rect2(zone.position * TerrainMap.CELL, zone.size * TerrainMap.CELL), Color(Palette.VALID, 0.25))
 	CastleView.draw_frame(self, Rect2i(zone.position * TerrainMap.CELL, zone.size * TerrainMap.CELL), Palette.VALID)
@@ -285,6 +306,48 @@ func _draw() -> void:
 			if id != 0:
 				var r := bot.grid.buildings[id]
 				CastleView.draw_frame(self, Rect2i(r.position * TerrainMap.CELL, r.size * TerrainMap.CELL), Palette.ACCENT)
+
+
+## Budynki poza fragmentem odsłoniętym przez zwiad (#28): id → true.
+static func hidden_ids(grid: BuildGrid, scout: ScoutIntel) -> Dictionary:
+	var out := {}
+	for id: int in grid.buildings:
+		if scout == null or not scout.shows(grid.buildings[id]):
+			out[id] = true
+	return out
+
+
+## Mgła (#28): ukryte budynki jako sam zarys (kolory miniatury z karty celu), a odsłonięty fragment
+## w ramce, z oddziałami załogi, patrolami i pułapkami (jak na ekranie obrony).
+func _draw_fog(hidden: Dictionary) -> void:
+	for id: int in hidden:
+		var r := bot.grid.buildings[id]
+		var px := Rect2(r.position * TerrainMap.CELL, r.size * TerrainMap.CELL)
+		draw_rect(px, MinimapArt.BUILDING)
+		CastleView.draw_frame(self, Rect2i(px), MinimapArt.BUILDING_EDGE)
+	if intel.is_empty():
+		return
+	CastleView.draw_frame(self, Rect2i(intel.region.position * TerrainMap.CELL, intel.region.size * TerrainMap.CELL),
+			Palette.THATCH[2])
+	for points: Array in intel.patrols:
+		for k in points.size():
+			var a := cell_center_px(points[k] as Vector2i)
+			var b := cell_center_px(points[(k + 1) % points.size()] as Vector2i)
+			for p in line_pixels(a, b):
+				draw_rect(Rect2(p.x, p.y, 1, 1), Palette.ACCENT)
+	for e: Array in intel.squads:
+		var at := (e[1] as Vector2i) * TerrainMap.CELL
+		draw_rect(Rect2(at.x, at.y, TerrainMap.CELL, TerrainMap.CELL), Color(Palette.SHADOW, 0.7))
+		CastleView.draw_frame(self, Rect2i(at, Vector2i.ONE * TerrainMap.CELL), Palette.ACCENT)
+		var cls := int(e[0])
+		if PixelIcons.class_region(cls).has_area():
+			PixelIcons.draw_class(self, Vector2(at + Vector2i(2, 2)), cls)
+	for e: Array in intel.traps:
+		var tp := (e[1] as Vector2i) * TerrainMap.CELL
+		draw_rect(Rect2(tp.x, tp.y, TerrainMap.CELL, TerrainMap.CELL), Color(Palette.SHADOW, 0.7))
+		CastleView.draw_frame(self, Rect2i(tp, Vector2i.ONE * TerrainMap.CELL), Palette.ACCENT)
+		PixelFont.draw_centered(self, Rect2(tp, Vector2.ONE * TerrainMap.CELL), TrapConfig.GLYPHS[int(e[0])],
+				Palette.THATCH[2])
 
 
 func _draw_arrow(o: AttackPlan.Order, col: Color) -> void:

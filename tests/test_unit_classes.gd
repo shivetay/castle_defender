@@ -36,7 +36,7 @@ func test_units_train_in_their_class_building() -> bool:
 		if expected >= 0:
 			assert_eq(UnitTypes.building(unit), expected, "%s: budynek swojej klasy" % UnitTypes.unit_name(unit))
 	assert_eq(UnitTypes.building(U.FIRE_RAISER), BuildingTypes.Kind.TAR_KILN, "Podpalacz w Smolarni")
-	assert_eq(UnitTypes.building(U.TRACKER), -1, "Tropiciel: Wieży sygnałowej jeszcze nie ma")
+	assert_eq(UnitTypes.building(U.TRACKER), BuildingTypes.Kind.SCOUT_HOUSE, "Tropiciel: Chata tropicieli (#28)")
 	return true
 
 
