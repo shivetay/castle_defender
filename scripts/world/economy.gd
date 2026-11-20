@@ -3,7 +3,8 @@ extends RefCounted
 ## Surowce zamku i ich produkcja w czasie. Cały rachunek jest w liczbach całkowitych:
 ## ułamki jednostek czekają w `_remainder` (jednostka × milisekunda), więc wynik nie zależy
 ## od tego, czy czas płynie co klatkę, co sekundę czy jednym skokiem po powrocie do gry.
-## Liczby balansu są w EconomyConfig. Pojemność to zapas z Dworu plus Magazyny (`capacities`),
+## Liczby balansu są w EconomyConfig. Żywność może mieć ujemny bilans, gdy armia je więcej,
+## niż zamek produkuje (#214, net_rates()); zapas wtedy maleje, a po zerze rośnie głód. Pojemność to zapas z Dworu plus Magazyny (`capacities`),
 ## liczona z siatki przez refresh_capacity(); sama nie trafia do zapisu.
 
 const MS_PER_HOUR := 3600 * 1000
@@ -13,6 +14,9 @@ var amounts: Array[int] = []
 var last_update_ms := 0
 ## Pojemność każdego surowca (0 = bez limitu). Na start tyle, ile daje sam Dwór.
 var capacities: Array[int] = []
+## Głód (#214): ile ms żywność była na zerze przy ujemnym bilansie (armia je więcej, niż zamek
+## produkuje), a jeszcze nie zamieniła się w dezercję (Recruitment.starve). Trafia do zapisu.
+var starved_ms := 0
 var _remainder: Array[int] = []
 
 
@@ -35,6 +39,14 @@ static func rates(grid: BuildGrid, research: Research = null) -> Array[int]:
 		for res in out.size():
 			@warning_ignore("integer_division")
 			out[res] = out[res] * research.production_percent(res) / 100
+	return out
+
+
+## Bilans na godzinę: produkcja z rates() minus utrzymanie armii w żywności (#214). Żywność
+## może wyjść ujemna; wtedy advance() zjada zapas, a po jego końcu liczy głód (starved_ms).
+static func net_rates(grid: BuildGrid, research: Research = null, upkeep: int = 0) -> Array[int]:
+	var out := rates(grid, research)
+	out[EconomyConfig.Res.FOOD] -= maxi(0, upkeep)
 	return out
 
 
@@ -91,6 +103,10 @@ func advance(ms: int, per_hour: Array[int]) -> Array[int]:
 	ms = clampi(ms, 0, EconomyConfig.MAX_CATCH_UP_MS)
 	for res in EconomyConfig.count():
 		var before := amounts[res]
+		if per_hour[res] < 0:
+			_consume(res, ms, -per_hour[res])
+			gained.append(amounts[res] - before)
+			continue
 		if is_full(res) or per_hour[res] <= 0:
 			_remainder[res] = 0
 			gained.append(0)
@@ -105,6 +121,25 @@ func advance(ms: int, per_hour: Array[int]) -> Array[int]:
 			_remainder[res] = 0
 		gained.append(amounts[res] - before)
 	return gained
+
+
+## Zużycie `per_hour` jednostek na godzinę przez `ms` ms (ujemny bilans żywności, #214). Zapas
+## i ułamek schodzą w tej samej skali co przy produkcji (jednostka × ms). Gdy zapas się skończy,
+## reszta czasu idzie do starved_ms: ceil, więc ostatnia porcja zawsze zdąży zejść przed głodem.
+func _consume(res: int, ms: int, per_hour: int) -> void:
+	var stock := amounts[res] * MS_PER_HOUR + _remainder[res]
+	var need := per_hour * ms
+	if need <= stock:
+		stock -= need
+		@warning_ignore("integer_division")
+		amounts[res] = stock / MS_PER_HOUR
+		_remainder[res] = stock % MS_PER_HOUR
+		return
+	@warning_ignore("integer_division")
+	var empty_after := (stock + per_hour - 1) / per_hour
+	amounts[res] = 0
+	_remainder[res] = 0
+	starved_ms += maxi(0, ms - empty_after)
 
 
 ## Nalicza produkcję od ostatniego naliczenia do `now_ms` (także za czas, gdy gra była w tle).
@@ -143,7 +178,8 @@ func spend(cost: Array[int]) -> bool:
 
 ## Stan do zapisu: zapasy, ułamki jednostek i czas ostatniego naliczenia (liczby całkowite).
 func save_data() -> Dictionary:
-	return {"amounts": amounts.duplicate(), "remainder": _remainder.duplicate(), "last_update_ms": last_update_ms}
+	return {"amounts": amounts.duplicate(), "remainder": _remainder.duplicate(), "last_update_ms": last_update_ms,
+			"starved_ms": starved_ms}
 
 
 ## Wczytuje stan z save_data(). Brakujące albo złe pola zostawiają wartości startowe.
@@ -159,3 +195,4 @@ func load_data(d: Dictionary) -> void:
 		if res < saved_rem.size():
 			_remainder[res] = clampi(int(saved_rem[res]), 0, MS_PER_HOUR - 1)
 	last_update_ms = int(d.get("last_update_ms", last_update_ms))
+	starved_ms = clampi(int(d.get("starved_ms", 0)), 0, EconomyConfig.MAX_CATCH_UP_MS)

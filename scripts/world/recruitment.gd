@@ -9,9 +9,11 @@ extends RefCounted
 ##
 ## Niezależnie od liczby miejsc armia ma limit utrzymania (#214): każda jednostka zajmuje
 ## UnitTypes.upkeep() żywności na godzinę, a suma (wyszkoleni i szkoleni, także garnizon, bo to ta
-## sama armia) nie może przekroczyć produkcji żywności zamku. Utrzymanie nie zjada zapasu, tylko
-## ogranicza armię. Gdy produkcja spadnie poniżej utrzymania (rozbiórka Rybaka), armia zostaje,
-## ale nikogo nowego nie da się szkolić, dopóki gracz nie podniesie produkcji.
+## sama armia) nie może przekroczyć produkcji żywności zamku. Wyszkolona armia je: jej utrzymanie
+## (army_upkeep) schodzi z produkcji żywności (Economy.net_rates). Gdy produkcja spadnie poniżej
+## utrzymania (rozbiórka Rybaka), nikogo nowego nie da się szkolić, zapas żywności maleje, a gdy się
+## skończy, co RecruitmentConfig.DESERT_MS głodu odchodzi jedna jednostka (starve), aż armia
+## zmieści się w produkcji.
 ##
 ## Każdy budynek szkoli po kolei jednostki ze swojej kolejki; kolejka mieści tyle, ile
 ## RecruitmentConfig.training_slots() dla poziomu budynku, a poziom przyspiesza szkolenie.
@@ -189,6 +191,46 @@ func upkeep_used() -> int:
 	for o in orders:
 		n += UnitTypes.upkeep(o.unit)
 	return n
+
+
+## Ile żywności na godzinę zjada wyszkolona armia (#214). Szkoleni jeszcze nie jedzą, ale liczą
+## się do limitu (upkeep_used), żeby po wyszkoleniu armia wciąż mieściła się w produkcji.
+func army_upkeep() -> int:
+	var n := 0
+	for s in squads:
+		n += s.count * UnitTypes.upkeep(s.unit)
+	return n
+
+
+## Dezercja z głodu (#214): za każde pełne RecruitmentConfig.DESERT_MS na zerze żywności
+## (Economy.starved_ms) odchodzi jedna jedząca jednostka z najmłodszego oddziału, dopóki utrzymanie
+## przekracza produkcję. Gdy armia mieści się już w produkcji, głód się zeruje. Wynik zależy tylko
+## od czasu głodu, więc ten sam przy naliczaniu co klatkę i jednym skokiem po powrocie do gry.
+## Zwraca rodzaje jednostek, które odeszły.
+func starve(economy: Economy, grid: BuildGrid, research: Research) -> Array[int]:
+	var gone: Array[int] = []
+	var limit := upkeep_limit(grid, research)
+	while economy.starved_ms >= RecruitmentConfig.DESERT_MS and army_upkeep() > limit:
+		var s := _newest_eater()
+		if s == null:
+			break
+		s.count -= 1
+		gone.append(s.unit)
+		economy.starved_ms -= RecruitmentConfig.DESERT_MS
+	if army_upkeep() <= limit:
+		economy.starved_ms = 0
+	if not gone.is_empty():
+		_drop_empty_squads()
+	return gone
+
+
+## Najmłodszy oddział z jedzącymi jednostkami albo null.
+func _newest_eater() -> Squad:
+	for i in range(squads.size() - 1, -1, -1):
+		var s := squads[i]
+		if s.count > 0 and UnitTypes.upkeep(s.unit) > 0:
+			return s
+	return null
 
 
 ## Limit utrzymania, czyli produkcja żywności na godzinę z premiami badań (#214).

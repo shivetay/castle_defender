@@ -195,8 +195,11 @@ w sekcji „Następny etap”.
   Dworu i 2 za poziom Koszar (tymczasowe); limit i miejsca w oddziale liczą też szkolonych. Niezależnie
   od miejsc działa limit utrzymania (#214): każda jednostka zajmuje `UnitTypes.UPKEEP` Ży/h (piechota 1,
   konnica 2, Taran 0, tymczasowe), a suma armii i szkolonych (także garnizonu) nie może przekroczyć
-  produkcji żywności z `Economy.rates`. Utrzymanie nie zjada zapasu. Gdy produkcja spadnie poniżej
-  utrzymania (np. rozbiórka Rybaka), armia zostaje, ale szkolenie zwraca `NO_UPKEEP`. Każdy budynek
+  produkcji żywności z `Economy.rates`. Wyszkolona armia je: `Economy.net_rates` odejmuje jej utrzymanie
+  od produkcji Ży. Gdy produkcja spadnie poniżej utrzymania (np. rozbiórka Rybaka), szkolenie zwraca
+  `NO_UPKEEP`, zapas żywności maleje, a po jego końcu co `RecruitmentConfig.DESERT_MS` głodu (1 h,
+  tymczasowe) odchodzi jedna jedząca jednostka z najmłodszego oddziału, aż armia zmieści się
+  w produkcji (`Recruitment.starve`, głód w `Economy.starved_ms` trafia do zapisu). Każdy budynek
   szkoli po kolei jednostki ze swojej kolejki (długość i tempo rosną z poziomem), także offline. Koszt
   w surowcach i towarach schodzi przy zleceniu; bez towaru szkolenie nie rusza. Jednostka szkoli się
   tylko w budynku swojej klasy. `start_any()` dla widoku globalnego wybiera budynek z najkrótszą kolejką.

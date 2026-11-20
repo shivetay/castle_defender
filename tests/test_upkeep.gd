@@ -1,12 +1,14 @@
 extends TestCase
 ## Utrzymanie armii z produkcji żywności (#214): każda jednostka ma koszt utrzymania w Ży/h,
 ## suma utrzymania (wyszkoleni i szkoleni) nie przekracza produkcji żywności, a limit miejsc
-## (Dwór i Koszary) działa niezależnie i jednocześnie.
+## (Dwór i Koszary) działa niezależnie i jednocześnie. Armia je: utrzymanie schodzi z produkcji,
+## a po końcu zapasu jednostki odchodzą z głodu.
 
 const T0 := 1_700_000_000_000
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
 const R := EconomyConfig.Res
+const HOUR := 3600 * 1000
 
 
 func _free_cell(grid: BuildGrid, kind: int, near_water: bool = false) -> Vector2i:
@@ -215,4 +217,124 @@ func test_title_shows_upkeep() -> bool:
 			Recruitment.upkeep_limit(grid, c["r"])], "miejsca i utrzymanie")
 	var limit := RecruitPanel.limit_rect(Hud.CORNER_INSET, 320 - Hud.CORNER_INSET)
 	assert_true(PixelFont.text_width("Wojsko 100/100 Ży 999/999 (?)") <= limit.size.x, "długi tytuł się mieści")
+	return true
+
+
+## Wyszkolona armia je: bilans żywności to produkcja minus utrzymanie (szkoleni jeszcze nie jedzą).
+func test_army_eats_food() -> bool:
+	var c := _castle(5)
+	var grid: BuildGrid = c["grid"]
+	var rec := Recruitment.new()
+	_fill(rec, 8)
+	assert_eq(_train(rec, c), Recruitment.Result.OK, "jeden w szkoleniu")
+	assert_eq(rec.army_upkeep(), 8, "je tylko wyszkolona armia")
+	var gross := Economy.rates(grid, c["r"])[R.FOOD]
+	assert_eq(Economy.net_rates(grid, c["r"], rec.army_upkeep())[R.FOOD], gross - 8, "bilans netto")
+	var e := Economy.new(T0)
+	e.amounts[R.FOOD] = 100
+	e.update(T0 + HOUR, Economy.net_rates(grid, c["r"], rec.army_upkeep()))
+	assert_eq(e.amounts[R.FOOD], 100 + gross - 8, "po godzinie")
+	return true
+
+
+## Ujemny bilans zjada zapas, a dopiero po jego końcu liczy się głód.
+func test_negative_balance_eats_stock_then_starves() -> bool:
+	var e := Economy.new(T0)
+	var rates: Array[int] = [0, 0, -10, 0]
+	e.amounts[R.FOOD] = 5
+	e.update(T0 + HOUR / 4, rates)
+	assert_eq(e.amounts[R.FOOD], 2, "kwadrans: zeszło 2,5, zostaje 2 i ułamek")
+	assert_eq(e.starved_ms, 0, "jeszcze bez głodu")
+	e.update(T0 + HOUR, rates)
+	assert_eq(e.amounts[R.FOOD], 0, "zapas pusty")
+	assert_eq(e.starved_ms, HOUR / 2, "głód od chwili, gdy zabrakło (po 30 min)")
+	return true
+
+
+## Kryterium: spadek produkcji poniżej utrzymania. Zapas schodzi, potem co DESERT_MS odchodzi jedna
+## jednostka z najmłodszego oddziału, aż armia mieści się w produkcji; potem głód się zeruje.
+func test_starvation_makes_units_desert() -> bool:
+	var c := _castle(5)
+	var grid: BuildGrid = c["grid"]
+	var r: Research = c["r"]
+	var gross := Recruitment.upkeep_limit(grid, r)
+	var rec := Recruitment.new()
+	rec.add_squad(U.AXE_WARRIOR, 10)
+	rec.add_squad(U.PEASANT, 10)
+	var young := rec.add_squad(U.PEASANT, 10)
+	rec.add_squad(U.RAM, 3)
+	var over := rec.army_upkeep() - gross
+	assert_true(over > 0, "armia je więcej, niż zamek produkuje")
+	var e := Economy.new(T0)
+	e.amounts[R.FOOD] = 0
+	e.update(T0 + 3 * RecruitmentConfig.DESERT_MS, Economy.net_rates(grid, r, rec.army_upkeep()))
+	var gone := rec.starve(e, grid, r)
+	assert_eq(gone.size(), mini(3, over), "jedna jednostka na każdą godzinę głodu")
+	assert_eq(rec.squad(young).count, 10 - gone.size(), "odchodzą najmłodsi")
+	assert_eq(rec.army_of(U.RAM), 3, "Taran nie je, więc nie odchodzi")
+	e.update(T0 + 100 * RecruitmentConfig.DESERT_MS, Economy.net_rates(grid, r, rec.army_upkeep()))
+	rec.starve(e, grid, r)
+	assert_eq(rec.army_upkeep(), gross, "odchodzą tylko do granicy produkcji")
+	assert_eq(e.starved_ms, 0, "po wyrównaniu głód się zeruje")
+	assert_eq(Economy.net_rates(grid, r, rec.army_upkeep())[R.FOOD], 0, "bilans zero")
+	return true
+
+
+## Bez ujemnego bilansu nie ma głodu ani dezercji, nawet przy pustym magazynie.
+func test_no_desertion_without_deficit() -> bool:
+	var c := _castle(5)
+	var rec := Recruitment.new()
+	_fill(rec, 10)
+	var e := Economy.new(T0)
+	e.amounts[R.FOOD] = 0
+	e.update(T0 + 10 * HOUR, Economy.net_rates(c["grid"], c["r"], rec.army_upkeep()))
+	assert_eq(rec.starve(e, c["grid"], c["r"]).size(), 0, "nikt nie odchodzi")
+	assert_eq(rec.army_size(), 10, "armia cała")
+	return true
+
+
+## Determinizm: głód i dezercja wychodzą tak samo przy naliczaniu co minutę i jednym skokiem.
+func test_starvation_same_in_steps_and_jump() -> bool:
+	var results: Array = []
+	for step: int in [60 * 1000, 10 * HOUR]:
+		var c := _castle(5)
+		var grid: BuildGrid = c["grid"]
+		var rec := Recruitment.new()
+		rec.add_squad(U.RIDER, 10)
+		rec.add_squad(U.RIDER, 10)
+		var e := Economy.new(T0)
+		e.amounts[R.FOOD] = 7
+		var t := T0
+		while t < T0 + 10 * HOUR:
+			t += step
+			e.update(t, Economy.net_rates(grid, c["r"], rec.army_upkeep()))
+			rec.starve(e, grid, c["r"])
+		results.append([rec.army_size(), e.amounts[R.FOOD], e.starved_ms])
+	assert_eq(results[0], results[1], "co minutę i jednym skokiem")
+	return true
+
+
+## Głód przetrwa zapis i odczyt.
+func test_starvation_saved() -> bool:
+	var e := Economy.new(T0)
+	e.starved_ms = 1234
+	var loaded := Economy.new(T0)
+	loaded.load_data(e.save_data())
+	assert_eq(loaded.starved_ms, 1234, "głód w zapisie")
+	return true
+
+
+## Okienko żywności pokazuje utrzymanie armii, bilans i ostrzeżenie o głodzie.
+func test_food_popup_shows_upkeep() -> bool:
+	var c := _castle(5)
+	var grid: BuildGrid = c["grid"]
+	var amounts: Array[int] = [0, 0, 50, 0]
+	var gross := Economy.rates(grid, c["r"])[R.FOOD]
+	var text := " | ".join(InfoText.resource(R.FOOD, grid, c["r"], amounts, gross + 10))
+	assert_true(text.contains("Produkcja: -10 na godzinę"), "bilans ujemny: %s" % text)
+	assert_true(text.contains("- utrzymanie armii: -%d" % (gross + 10)), "utrzymanie w rozbiciu")
+	assert_true(text.contains("Zapas skończy się za") and text.contains("odchodzą"), "ostrzeżenie")
+	amounts[R.FOOD] = 0
+	text = " | ".join(InfoText.resource(R.FOOD, grid, c["r"], amounts, gross + 10))
+	assert_true(text.contains("Brak żywności"), "pusty zapas: %s" % text)
 	return true

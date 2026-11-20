@@ -32,6 +32,9 @@ const TRAIN_TIME_S: Array[int] = [20, 20, 25, 40, 30, 30, 45, 25, 50, 35, 60, 90
 ## TYMCZASOWE.
 const ARMY_PER_MANOR_LEVEL := 10
 const ARMY_PER_BARRACKS_LEVEL := 2
+## Głód (#214): co tyle ms na zerze żywności przy ujemnym bilansie odchodzi jedna jednostka.
+## TYMCZASOWE, decyzja balansowa właścicielki.
+const DESERT_MS := 3600 * 1000
 ## Najwięcej jednostek w jednym oddziale (oddział ma jeden rodzaj jednostek). TYMCZASOWE.
 const SQUAD_SIZE := 10
 

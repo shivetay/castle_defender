@@ -9,7 +9,10 @@ const LOOT_LINE := "Też: łup z Wypraw i nagrody za fale Oblężenia"
 
 ## Okienko surowca `res`: zapas i magazyn, produkcja na godzinę z rozbiciem (gród, budynki, badania),
 ## kiedy magazyn się zapełni, skąd jest pojemność (Dwór i Magazyny) i jak zdobyć więcej.
-static func resource(res: int, grid: BuildGrid, research: Research, amounts: Array[int]) -> PackedStringArray:
+## Przy żywności `upkeep` to utrzymanie armii (#214): odejmuje się od produkcji, a przy ujemnym
+## bilansie okienko mówi, kiedy zapas się skończy i że potem armia zacznie odchodzić.
+static func resource(res: int, grid: BuildGrid, research: Research, amounts: Array[int],
+		upkeep: int = 0) -> PackedStringArray:
 	var out: PackedStringArray = []
 	var have := amounts[res] if res < amounts.size() else 0
 	var cap := Economy.capacities_for(grid)[res]
@@ -17,8 +20,9 @@ static func resource(res: int, grid: BuildGrid, research: Research, amounts: Arr
 		out.append("Zapas: %d z %d (magazyn)" % [have, cap])
 	else:
 		out.append("Zapas: %d, bez limitu magazynu" % have)
-	var rate := Economy.rates(grid, research)[res]
-	out.append("Produkcja: +%d na godzinę" % rate)
+	var army := upkeep if res == EconomyConfig.Res.FOOD else 0
+	var rate := Economy.net_rates(grid, research, army)[res]
+	out.append("Produkcja: %+d na godzinę" % rate)
 	if EconomyConfig.BASE_PER_HOUR[res] > 0:
 		out.append("- gród: +%d" % EconomyConfig.BASE_PER_HOUR[res])
 	for kind: int in producers(res):
@@ -34,6 +38,14 @@ static func resource(res: int, grid: BuildGrid, research: Research, amounts: Arr
 	var percent := research.production_percent(res) if research != null else 100
 	if percent != 100:
 		out.append("- badania: %+d%%" % (percent - 100))
+	if army > 0:
+		out.append("- utrzymanie armii: -%d" % army)
+	if rate < 0 and have <= 0:
+		out.append("Brak żywności: z głodu odchodzą jednostki")
+	elif rate < 0:
+		@warning_ignore("integer_division")
+		out.append("Zapas skończy się za %s" % Hud.format_time(have * Economy.MS_PER_HOUR / -rate))
+		out.append("Potem z głodu odchodzą jednostki")
 	if EconomyConfig.is_capped(res):
 		var room := cap - have
 		if room <= 0:
@@ -110,7 +122,8 @@ static func upkeep(grid: BuildGrid, recruitment: Recruitment, research: Research
 	var limit := Recruitment.upkeep_limit(grid, research)
 	out.append("Utrzymanie: %d z %d Ży/h produkcji" % [used, limit])
 	if used > limit:
-		out.append("Za mało żywności: armia zostaje, ale nikogo nie wyszkolisz")
+		out.append("Za mało żywności: nie wyszkolisz nikogo, armia")
+		out.append("je zapas, a gdy go zabraknie, odchodzi")
 	elif used >= limit:
 		out.append("Utrzymanie pełne: nikogo więcej nie wyszkolisz")
 	out.append("Jednostka je %d Ży/h, konna %d, taran %d" % [UnitTypes.upkeep(UnitTypes.Unit.AXE_WARRIOR),
