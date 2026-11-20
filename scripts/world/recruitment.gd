@@ -238,6 +238,26 @@ static func upkeep_limit(grid: BuildGrid, research: Research) -> int:
 	return Economy.rates(grid, research)[EconomyConfig.Res.FOOD]
 
 
+## Armia ataku (oddziały [rodzaj, liczba]) w limicie miejsc i utrzymania zamku (#249): najdłuższy
+## początek listy, którego jednostki mieszczą się w army_limit, a ich utrzymanie w upkeep_limit.
+## Obcina całe oddziały od końca, bo oddział bitwy i to battle_ids()[i]. Te same limity sprawdza
+## serwer przy starcie ataku (`public.begin_attack`, migracja `*_army_limits.sql`).
+static func fit_attack(army: Array, grid: BuildGrid, research: Research) -> Array:
+	var slots := army_limit(grid)
+	var food := upkeep_limit(grid, research)
+	var out: Array = []
+	var units := 0
+	var upkeep := 0
+	for entry: Variant in army:
+		var e := entry as Array
+		units += int(e[1])
+		upkeep += int(e[1]) * UnitTypes.upkeep(int(e[0]))
+		if units > slots or upkeep > food:
+			break
+		out.append(e)
+	return out
+
+
 ## Ile żywności na godzinę zostaje na nowe jednostki (0, gdy utrzymanie przekracza produkcję).
 func free_upkeep(grid: BuildGrid, research: Research) -> int:
 	return maxi(0, upkeep_limit(grid, research) - upkeep_used())

@@ -15,10 +15,11 @@ insert into wagon_ids values
 insert into auth.users (id) select id from wagon_ids;
 update public.players set rating = 70000, age = 0 where id in (select id from wagon_ids);
 
--- oddziały [id, rodzaj, liczba]: toporniki (0) po 10, Wóz to rodzaj 15
+-- oddziały [id, rodzaj, liczba]: toporniki (0) po 10, Wóz to rodzaj 15. W ma Dwór 2 (20 miejsc, #249)
 insert into public.castles (player_id, map_seed, save_version, data)
   values ('00000000-0000-0000-0000-0000000000e1', 11, 8, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Tabor'),
+    'grid', jsonb_build_object('buildings', '[[1, 5, 2, 30, 30, 4, 4]]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 0, 10], [2, 15, 2]]'::jsonb)));
 insert into public.castles (player_id, map_seed, save_version, data)
   values ('00000000-0000-0000-0000-0000000000e2', 12, 8, jsonb_build_object(
