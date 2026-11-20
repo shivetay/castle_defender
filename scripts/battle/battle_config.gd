@@ -125,6 +125,9 @@ const ESCORT_RADIUS := 3
 ## Wieża drewniana strzela do atakujących (łucznicy na wieży). TYMCZASOWE.
 const TOWER_ATTACK := 6
 const TOWER_RANGE := 6
+## Donżon strzela jak wieża tylko z załogą strzelców (#232): żywy, niewycofany strzelec obrońcy
+## (zasięg od RANGED_MIN_RANGE) najwyżej tyle kratek od obrysu donżonu. Liczba tymczasowa.
+const KEEP_GARRISON_CELLS := 2
 
 
 static func building_hp(kind: int, level: int) -> int:

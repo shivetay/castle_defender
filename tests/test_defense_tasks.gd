@@ -263,3 +263,78 @@ func test_panel_edits_tasks() -> bool:
 		assert_true(PixelFont.text_width(DefensePanel.tower_text(i)) <= Hud.MESSAGE_MAX_WIDTH, "komunikat wież mieści się")
 	panel.free()
 	return true
+
+
+
+## Donżon strzela jak wieża tylko z załogą strzelców (#232): bez wieży drewnianej rani atakującego
+## w zasięgu, trzyma priorytet celów wież, a bez strzał ze zbrojowni strzela wolniej. Bez strzelca
+## przy donżonie (sama piechota, łucznik daleko albo wycofany) nie strzela.
+func test_keep_shoots_with_ranged_garrison() -> bool:
+	var grid := _castle()
+	var spawn := BotCastle.edge_road(grid.terrain)
+	for id: int in grid.kinds:
+		assert_true(grid.kinds[id] != K.TOWER, "bez wieży drewnianej")
+	var shots := {}
+	for priority: int in [DefensePlan.TowerPriority.NEAREST, DefensePlan.TowerPriority.RAM]:
+		var b := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 1], [U.RAM, 1]], [[U.ARCHER, 1]], spawn,
+				5, null, [] as Array[DefensePlan.Order], priority)
+		var keep := b.structures[b.objective]
+		assert_eq(keep.kind, K.KEEP, "cel to donżon")
+		var r := keep.rect
+		_put(b, _side(b, Battle.Side.DEFENDER)[0], r.position + Vector2i(0, r.size.y))
+		assert_true(b.keep_manned(keep), "łucznik przy donżonie to załoga")
+		var axe := _side(b, Battle.Side.ATTACKER)[0]
+		var ram := _side(b, Battle.Side.ATTACKER)[1]
+		_put(b, axe, r.position + Vector2i(-2, 0))
+		_put(b, ram, r.position + Vector2i(-5, 0))
+		keep.cooldown = 0
+		b.record_fx = true
+		b._tower_act(keep)
+		shots[priority] = "taran" if ram.hp < UnitTypes.hp(U.RAM) else ("topór" if axe.hp < UnitTypes.hp(U.AXE_WARRIOR) else "nic")
+		var tower_shot := false
+		for e in b.take_fx():
+			tower_shot = tower_shot or (e[1] == Battle.Fx.SHOT and e[2] == Battle.FX_TOWER)
+		assert_true(tower_shot, "efekt strzału wieży")
+	assert_eq(shots[DefensePlan.TowerPriority.NEAREST], "topór", "donżon: najbliższy")
+	assert_eq(shots[DefensePlan.TowerPriority.RAM], "taran", "donżon: priorytet taran")
+	# tempo: bez strzał ze zbrojowni dłuższy odpoczynek między strzałami
+	var cooldowns: Array[int] = []
+	for percent: int in [100, GoodsConfig.NO_ARROWS_FIRE_PERCENT]:
+		var b := Battle.for_castle_squads(grid, [[U.AXE_WARRIOR, 1]], [[U.ARCHER, 1]], spawn, 5)
+		b.tower_fire_percent = percent
+		var keep := b.structures[b.objective]
+		_put(b, _side(b, Battle.Side.ATTACKER)[0], keep.rect.position + Vector2i(-2, 0))
+		keep.cooldown = 0
+		b._tower_act(keep)
+		cooldowns.append(keep.cooldown)
+	assert_true(cooldowns[0] > 0 and cooldowns[1] > cooldowns[0], "bez strzał wolniej (%s)" % str(cooldowns))
+	# kto nie jest załogą: piechota, łucznik daleko od donżonu, łucznik wycofany, atakujący łucznik
+	var melee := Battle.for_castle_squads(grid, [[U.ARCHER, 1]], [[U.AXE_WARRIOR, 2]], spawn, 5)
+	var mk := melee.structures[melee.objective]
+	for f in _side(melee, Battle.Side.DEFENDER):
+		_put(melee, f, mk.rect.position + Vector2i(0, mk.rect.size.y))
+	_put(melee, _side(melee, Battle.Side.ATTACKER)[0], mk.rect.position + Vector2i(-1, 0))
+	assert_true(not melee.keep_manned(mk), "sama piechota i obcy łucznik to nie załoga")
+	var far := Battle.for_castle_squads(grid, [], [[U.ARCHER, 1]], spawn, 5)
+	var fk := far.structures[far.objective]
+	var archer := _side(far, Battle.Side.DEFENDER)[0]
+	_put(far, archer, fk.rect.position + Vector2i(0, fk.rect.size.y + BattleConfig.KEEP_GARRISON_CELLS))
+	assert_true(not far.keep_manned(fk), "łucznik za daleko")
+	_put(far, archer, fk.rect.position + Vector2i(0, fk.rect.size.y + BattleConfig.KEEP_GARRISON_CELLS - 1))
+	assert_true(far.keep_manned(fk), "łucznik na skraju strefy")
+	archer.retreating = true
+	assert_true(not far.keep_manned(fk), "wycofany łucznik nie obsadza donżonu")
+	# w zwykłym przebiegu: z łucznikami przy donżonie atakujący tracą więcej niż z tą samą piechotą
+	var hp_with := _attackers_hp(Battle.for_castle_squads(grid, [[U.DIGGER, 6]], [[U.ARCHER, 2]], spawn, 5))
+	var unmanned := Battle.for_castle_squads(grid, [[U.DIGGER, 6]], [], spawn, 5)
+	assert_eq(_attackers_hp(unmanned), 6 * UnitTypes.hp(U.DIGGER), "bez załogi donżon nie rani")
+	assert_true(hp_with < 6 * UnitTypes.hp(U.DIGGER), "z załogą atakujący tracą HP")
+	return true
+
+
+func _attackers_hp(b: Battle) -> int:
+	b.run(2400)
+	var hp := 0
+	for f in _side(b, Battle.Side.ATTACKER):
+		hp += maxi(0, f.hp)
+	return hp
