@@ -493,7 +493,6 @@ func _tick() -> void:
 	var done := queue.update(now, grid, economy, research, goods, recruitment.army_upkeep())
 	var deserted := recruitment.starve(economy, grid, research)
 	if not deserted.is_empty():
-		hud.message = "Głód: z armii odeszło %d (brak żywności)" % deserted.size()
 		_save()
 	for o in done:
 		hud.message = "Ukończono: %s, poziom %d" % [BuildingTypes.NAMES[o.kind], o.level]
@@ -509,6 +508,9 @@ func _tick() -> void:
 	var trained := recruitment.update(now)
 	for unit in trained:
 		hud.message = "Wyszkolono: %s" % UnitTypes.unit_name(unit)
+	# głód na końcu, żeby „Ukończono” ani „Wyszkolono” z tej samej klatki go nie przykryły
+	if not deserted.is_empty():
+		hud.message = "Głód: z armii odeszło %d (brak żywności)" % deserted.size()
 	if not trained.is_empty():
 		_save()
 	var checked := false

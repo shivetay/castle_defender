@@ -121,9 +121,12 @@ static func upkeep(grid: BuildGrid, recruitment: Recruitment, research: Research
 	var used := recruitment.upkeep_used()
 	var limit := Recruitment.upkeep_limit(grid, research)
 	out.append("Utrzymanie: %d z %d Ży/h produkcji" % [used, limit])
-	if used > limit:
+	# jedzenie i dezercja zależą tylko od wyszkolonej armii; szkoleni tylko rezerwują limit
+	if recruitment.army_upkeep() > limit:
 		out.append("Za mało żywności: nie wyszkolisz nikogo, armia")
 		out.append("je zapas, a gdy go zabraknie, odchodzi")
+	elif used > limit:
+		out.append("Za mało żywności: nikogo więcej nie wyszkolisz")
 	elif used >= limit:
 		out.append("Utrzymanie pełne: nikogo więcej nie wyszkolisz")
 	out.append("Jednostka je %d Ży/h, konna %d, taran %d" % [UnitTypes.upkeep(UnitTypes.Unit.AXE_WARRIOR),

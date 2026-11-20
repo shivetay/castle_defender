@@ -137,8 +137,9 @@ func test_limit_grows_with_fisher() -> bool:
 	return true
 
 
-## Kryterium: spadek produkcji poniżej utrzymania (rozbiórka Rybaka). Armia zostaje (bez
-## dezercji w MVP), szkolenie jest zablokowane, a ekran i okienko limitu to pokazują.
+## Kryterium: spadek produkcji poniżej utrzymania (rozbiórka Rybaka). Tuż po rozbiórce armia
+## jeszcze zostaje (dezercja przychodzi dopiero z głodem, test_starvation_makes_units_desert),
+## szkolenie jest zablokowane, a ekran i okienko limitu to pokazują.
 func test_production_drop_blocks_recruitment() -> bool:
 	var c := _castle(5)
 	var grid: BuildGrid = c["grid"]
@@ -337,4 +338,25 @@ func test_food_popup_shows_upkeep() -> bool:
 	amounts[R.FOOD] = 0
 	text = " | ".join(InfoText.resource(R.FOOD, grid, c["r"], amounts, gross + 10))
 	assert_true(text.contains("Brak żywności"), "pusty zapas: %s" % text)
+	return true
+
+
+## Okienko limitu rozróżnia: szkoleni ponad produkcją tylko blokują szkolenie, a głód (zapas
+## i dezercja) grozi dopiero, gdy wyszkolona armia je więcej, niż zamek produkuje.
+func test_army_popup_tells_block_from_hunger() -> bool:
+	var c := _castle(5)
+	var grid: BuildGrid = c["grid"]
+	var r: Research = c["r"]
+	var fisher := grid.place_kind(_free_cell(grid, K.FISHER, true), K.FISHER, 1)
+	var rec := Recruitment.new()
+	var base := Recruitment.upkeep_limit(grid, r) - (EconomyConfig.BUILDING_PRODUCTION[K.FISHER] as Array)[1][0] as int
+	_fill(rec, base)
+	assert_eq(_train(rec, c), Recruitment.Result.OK, "jeden w szkoleniu ponad produkcję grodu")
+	grid.remove(fisher)
+	var text := " | ".join(InfoText.army(grid, rec, r))
+	assert_true(text.contains("nikogo więcej nie wyszkolisz") and not text.contains("odchodzi"),
+			"sami szkoleni ponad limitem: bez głodu: %s" % text)
+	rec.add_squad(U.PEASANT, 1)
+	text = " | ".join(InfoText.army(grid, rec, r))
+	assert_true(text.contains("odchodzi"), "jedząca armia ponad produkcją: głód: %s" % text)
 	return true
