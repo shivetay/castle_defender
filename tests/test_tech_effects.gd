@@ -158,9 +158,10 @@ func test_research_effects_are_deterministic() -> bool:
 	return true
 
 
-## A7 Strzemię: konnica strony +25% szybkości (w całych podjednostkach), piechota bez zmian.
+## A7 Strzemię: konnica strony (klasa FAST: Jeździec, Kopijnik) +25% szybkości, w całych podjednostkach.
+## Piechota i Zwiadowca (klasa SPECIAL) bez zmian.
 func test_a7_stirrup_cavalry_speed() -> bool:
-	var b := _battle([[U.RIDER, 1], [U.AXE_WARRIOR, 1]], [[U.RIDER, 1]])
+	var b := _battle([[U.RIDER, 1], [U.AXE_WARRIOR, 1], [U.LANCER, 1], [U.SCOUT, 1]], [[U.RIDER, 1]])
 	var rider := _first(b, SIDE.ATTACKER, U.RIDER)
 	var axe := _first(b, SIDE.ATTACKER, U.AXE_WARRIOR)
 	var guard := _first(b, SIDE.DEFENDER, U.RIDER)
@@ -171,6 +172,10 @@ func test_a7_stirrup_cavalry_speed() -> bool:
 	assert_true(b.step_of(rider) > base, "jeździec realnie szybszy")
 	assert_eq(b.step_of(axe), UnitTypes.speed(U.AXE_WARRIOR) * BattleConfig.SPEED_SUB_PER_TICK, "piechota bez zmian")
 	assert_eq(b.step_of(guard), base, "A7 atakującego nie działa na obrońcę")
+	var lancer := _first(b, SIDE.ATTACKER, U.LANCER)
+	var scout := _first(b, SIDE.ATTACKER, U.SCOUT)
+	assert_eq(b.step_of(lancer), UnitTypes.speed(U.LANCER) * BattleConfig.SPEED_SUB_PER_TICK * 125 / 100, "Kopijnik +25%")
+	assert_eq(b.step_of(scout), UnitTypes.speed(U.SCOUT) * BattleConfig.SPEED_SUB_PER_TICK, "Zwiadowca (SPECIAL) bez premii")
 	assert_true(Battle.battle_tech_codes().has("A7"), "A7 działa w bitwie")
 	return true
 
