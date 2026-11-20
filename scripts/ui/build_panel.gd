@@ -33,7 +33,7 @@ const DESCRIPTIONS := {
 	BuildingTypes.Kind.DRY_MOAT: "Rów: wróg idzie w nim 2× wolniej",
 	BuildingTypes.Kind.MOUND: "Wieża przy nim strzela dalej, strzelcy +1",
 	BuildingTypes.Kind.WELL: "Woda do gaszenia pożarów (zadanie obrony)",
-	BuildingTypes.Kind.SIGNAL_TOWER: "Bada Specjalne, wykrywa zwiad wroga",
+	BuildingTypes.Kind.SIGNAL_TOWER: "Bada Specjalne (wykrywanie zwiadu wkrótce)",
 }
 
 var research: Research
