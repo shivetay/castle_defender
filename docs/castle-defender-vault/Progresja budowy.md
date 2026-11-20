@@ -1,14 +1,26 @@
 # Progresja budowy
 
-Każdy typ zamku (epoka) ma 5 poziomów. Przejście do kolejnego typu twierdzy wymaga poziomu 5, zbadania technologii kluczowej i rozbudowy dwóch wskazanych budynków.
+Każdy typ zamku (epoka) ma 5 poziomów Dworu. Przejście do kolejnej epoki wymaga **Dworu na poziomie 5** oraz konkretnych technologii — preferencyjnie **dwóch**. Ticket: #34.
+
+## Zasada projektowa
+**Nie niszczymy postępu.** Gracz kontynuuje to, co już ma, i ulepsza, żeby być silniejszym. Przejście epoki nie kasuje zamku, budynków ani zebranych bonusów.
 
 ## Zasady
 - Poziom zamku = poziom Dworu (siedziba władcy, administracja, garnizon). Dwór zmienia nazwę i wygląd z epoką: Dwór grodowy (I–II) → Dom kasztelana (III–IV) → Dom komendanta (V–VI).
 - Osobno stoi **donżon**, ostatnia linia obrony i cel każdego ataku: Wieża grodowa (I) → Wieża na kopcu (II) → Donżon (III–V) → Cytadela (VI). Jego upadek albo zdobycie kończy bitwę zwycięstwem atakującego.
-- Każdy budynek ma poziomy 1–5 i nie może mieć wyższego poziomu niż zamek.
+- Każdy budynek ma poziomy 1–5 w ramach bieżącej epoki i nie może mieć wyższego poziomu niż zamek.
 - Każdy poziom zmienia wygląd budynku (wyższa wieża, więcej okien, lepszy materiał) i daje premię: wytrzymałość, zasięg, produkcja albo nowa jednostka.
 - Koszt rośnie ok. 1,6× na poziom, czas ok. 2× na poziom. Pierwsze budowle są tanie i szybkie, żeby pierwsza sesja dała kilka widocznych zmian w ciągu minut.
-- Technologie są w 5 gałęziach drzewka. Każda epoka ma 12–16 technologii, w tym jedną kluczową. Pełna lista: [[Drzewko technologiczne]].
+- Technologie są w 5 gałęziach drzewka. Przejście epoki opiera się na konkretnych techach (preferencyjnie dwóch). Pełna lista: [[Drzewko technologiczne]].
+
+## Budynki a epoka
+- Budynek przechodzi do kolejnej epoki dopiero po osiągnięciu **max poziomu** (5) w bieżącej epoce.
+- Po przejściu epoki progresja tego budynku zaczyna się znowu od **poziomu 1**.
+- Bonusy zdobyte w poprzedniej epoce **zostają** — nowa epoka dokłada kolejne ulepszenia, nie zeruje starych.
+
+## Technologie a epoka
+- Technologie następnej epoki są dostępne dopiero po odblokowaniu wcześniejszych technologii blokujących / wymaganych (prerequisites w kolumnie „Wymaga” oraz techy kluczowe przejścia).
+- Nie da się badać techów z wyższej epoki przed spełnieniem warunków przejścia.
 
 ## Przykład: Palisada w epoce I
 
@@ -33,14 +45,16 @@ Każdy typ zamku (epoka) ma 5 poziomów. Przejście do kolejnego typu twierdzy w
 
 ## Wymagania przejścia
 
-| Przejście | Poziom zamku | Technologia kluczowa | Wymagane budynki |
+Warunki wspólne dla każdego przejścia: **Dwór poziom 5** + konkretne technologie (preferencyjnie **dwie**). Dawne wymagania „rozbuduj wskazane budynki do X” nie obowiązują — budynki idą własną ścieżką max → lvl 1 w nowej epoce.
+
+| Przejście | Dwór | Technologie (preferencyjnie 2) | Uwagi |
 | --- | --- | --- | --- |
-| I → II | Gród 5 | Sypanie kopców | Wał ziemny 3, Palisada 3 |
-| II → III | Zamek drewniano-ziemny 5 | Zaprawa wapienna (murarstwo) | Kamieniołom 4, Wieża drewniana 4 |
-| III → IV | Zamek kamienny 5 | Proch strzelniczy | Kuźnia 5, Mur kurtynowy 4 |
-| IV → V | Zamek późnogotycki 5 | Szkoła włoska (bastiony) | Prochownia 5, Baszta artyleryjska 4 |
-| V → VI | Fortyfikacja bastionowa 5 | System fortów zewnętrznych | Odlewnia dział 5, Bastion 4 |
+| I → II | 5 | O1 ★ Sypanie kopców + druga tech (do dopięcia w drzewku) | MVP / #34 |
+| II → III | 5 | G6 ★ Zaprawa wapienna + druga tech (do dopięcia) | poza MVP |
+| III → IV | 5 | A12 ★ Proch strzelniczy + druga tech (do dopięcia) | poza MVP |
+| IV → V | 5 | O14 ★ Szkoła włoska + druga tech (do dopięcia) | poza MVP |
+| V → VI | 5 | O19 ★ System fortów zewnętrznych + druga tech (do dopięcia) | poza MVP |
 
-Przejście to osobna budowa budynku głównego, zakończona animacją przebudowy całego zamku. Po poziomie 5 epoki VI zostaje ranking PvP i kosmetyczne warianty zamku.
+Przejście to osobna budowa / przebudowa Dworu, zakończona animacją — bez kasowania osiągnięć. Po poziomie 5 epoki VI zostaje ranking PvP i kosmetyczne warianty zamku.
 
-Powiązane: [[Epoki]], [[Obrona]], [[Model wydania]]
+Powiązane: [[Epoki]], [[Obrona]], [[Model wydania]], [[Plan MVP]]

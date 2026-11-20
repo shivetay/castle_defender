@@ -83,6 +83,13 @@ Pełna lista etapów: [[Plan MVP]]. Pytania i braki: [[Otwarte pytania]]. Niedaw
 - Limit oddziałów w planie ataku: **3 w epoce I … 8 w epoce VI** (`AttackPlan.MAX_SQUADS_BY_AGE`) — zamyka pytanie z [[Otwarte pytania]].
 - Bitwą nikt nie steruje; plan i zadania obrony wykonują się same.
 
+### 20.11.2026 — przejście epoki (#34)
+
+- Wejście w kolejną epokę: preferencyjnie **dwie** konkretne technologie **oraz** Dwór **poziom 5** (bez starych wymagań Wał/Palisada jako warunku przejścia).
+- Techy następnej epoki tylko po odblokowaniu prerequisite / blokujących.
+- Budynki: max poziom → w nowej epoce od poziomu 1, z zachowaniem bonusów; **nie niszczymy postępu**.
+- Vault: [[Epoki]], [[Progresja budowy]]; issue: #34.
+
 ## Następne kroki
 
 1. Domknąć etap 8: komendant i pełne ustawienia obrony (#19), Gaszenie pożarów + Studnia (#20 / #35).

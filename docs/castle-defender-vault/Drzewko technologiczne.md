@@ -1,12 +1,12 @@
 # Drzewko technologiczne
 
-131 technologii w 5 gałęziach, rozłożonych na 6 epok. Technologie kluczowe (★) są warunkiem przejścia do kolejnego typu twierdzy ([[Progresja budowy]]).
+131 technologii w 5 gałęziach, rozłożonych na 6 epok. Przejście epoki wymaga konkretnych technologii — preferencyjnie **dwóch** — oraz Dworu 5 ([[Progresja budowy]], #34). Technologie kluczowe (★) to znane dziś kotwice przejść; druga tech na przejście do dopięcia w drzewku.
 
 ## Zasady badań
 - Każda gałąź ma swój budynek badań: Atak — budynek główny, od epoki I Koszary, od V Arsenał; Obrona — budynek główny; Gospodarka — budynek główny, od epoki III Targ; Użyteczne — budynek główny, od epoki II Kaplica, od IV Szpital; Specjalne — Wieża sygnałowa, od epoki II Dom zwiadowców, od VI Sztab.
 - Naraz trwa 1 badanie; drugie miejsce daje technologia U10 Kwatermistrzostwo.
 - Koszt i czas badań rosną jak budowa (ok. 1,6× koszt i 2× czas na każdą kolejną technologię w epoce).
-- Kolumna „Wymaga” podaje kody technologii, które trzeba zbadać wcześniej. Technologii z wyższej epoki nie da się badać przed przejściem do niej.
+- Kolumna „Wymaga” podaje kody technologii, które trzeba zbadać wcześniej. Technologii z wyższej epoki nie da się badać przed przejściem do niej ani bez odblokowanych prerequisite / blokujących.
 - Morale (0–100) wpływa na bitwę: przy morale poniżej 30 oddział wycofuje się sam, powyżej 80 dostaje +10% obrażeń.
 
 ## Atak (A)
