@@ -27,15 +27,16 @@ const RESEARCHERS := 1
 ## budynek główny to Dwór. Z notatki: Atak — budynek główny, od epoki I Koszary, od V Arsenał;
 ## Obrona — budynek główny; Gospodarka — budynek główny, od III Targ; Użyteczne — budynek główny,
 ## od II Kaplica, od IV Szpital; Specjalne — Wieża sygnałowa, od II Dom zwiadowców, od VI Sztab.
-## Arsenału, Targu, Kaplicy, Szpitala, Wieży sygnałowej i Sztabu jeszcze nie ma w grze, więc ich
-## wpisy dojdą razem z nimi; do tego czasu bada je poprzedni budynek z listy albo Dwór. Dom
-## zwiadowców nie bada S3, bo to S3 go odblokowuje (research_building pomija taki budynek).
+## Arsenału, Targu, Kaplicy, Szpitala i Sztabu jeszcze nie ma w grze, więc ich wpisy dojdą razem
+## z nimi; do tego czasu bada je poprzedni budynek z listy albo Dwór. Wieża sygnałowa (#35) bada
+## Specjalne od epoki I. Budynek nie bada technologii, która go odblokowuje (research_building pomija
+## taki budynek): S2 bada Dwór, a S3 (Dom zwiadowców) Wieża sygnałowa.
 const BRANCH_BUILDINGS: Array = [
 	[[0, BuildingTypes.Kind.BARRACKS]],
 	[[0, BuildingTypes.Kind.MANOR]],
 	[[0, BuildingTypes.Kind.MANOR]],
 	[[0, BuildingTypes.Kind.MANOR]],
-	[[0, BuildingTypes.Kind.MANOR], [1, BuildingTypes.Kind.SCOUT_HOUSE]],
+	[[0, BuildingTypes.Kind.SIGNAL_TOWER], [1, BuildingTypes.Kind.SCOUT_HOUSE]],
 ]
 
 

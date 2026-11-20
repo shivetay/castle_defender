@@ -18,6 +18,15 @@ enum Kind {
 	SEAL_HOUSE,
 	## Magazyn: podnosi pojemność drewna, kamienia i żywności ponad zapas Dworu.
 	WAREHOUSE,
+	## Pozostałe budynki MVP (#35): Fosa sucha (1×1, przechodnia, spowalnia), Kopiec (O1, podwyższa
+	## sąsiednie wieże), Pole i spichlerz (żywność), Studnia (gaszenie pożarów), Kamieniołom (G4, kamień)
+	## i Wieża sygnałowa (S2, budynek badań gałęzi Specjalne, wykrywanie zwiadu z #28).
+	DRY_MOAT,
+	MOUND,
+	FARM,
+	WELL,
+	QUARRY,
+	SIGNAL_TOWER,
 }
 ## Stan budynku zależny od wytrzymałości: cały, pęknięcia, wyrwa w blankach, gruz.
 enum State { INTACT, CRACKED, BREACHED, RUBBLE }
@@ -35,23 +44,28 @@ const W := 8
 const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wieża drewniana", "Chata drwala", "Dwór",
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
 		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica",
-		"Wieża grodowa", "Dom zwiadowców", "Strażnica", "Komenda umocnień", "Magazyn"]
+		"Wieża grodowa", "Dom zwiadowców", "Strażnica", "Komenda umocnień", "Magazyn",
+		"Fosa sucha", "Kopiec", "Pole i spichlerz", "Studnia", "Kamieniołom", "Wieża sygnałowa"]
 ## Napisy na kafelkach panelu budowy (BuildPanel, ok. 57–71 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
 		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
 		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica", "Donżon",
-		"Zwiadowcy", "Strażnica", "Komenda", "Magazyn"]
+		"Zwiadowcy", "Strażnica", "Komenda", "Magazyn", "Fosa", "Kopiec", "Spichlerz", "Studnia", "Kamień",
+		"Sygnałowa"]
 const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
+		Vector2i(2, 2), Vector2i(1, 1), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2)]
 ## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu): umocnienia, gospodarka (#122),
-## Magazyn, wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119) i Dom zwiadowców (#92).
-const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.SEAL_HOUSE, Kind.LUMBER_HUT,
-		Kind.FISHER, Kind.FLAX_FIELD, Kind.WAREHOUSE, Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER,
+## Magazyn, wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119), Dom zwiadowców (#92)
+## i Wieża sygnałowa (#35).
+const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.DRY_MOAT, Kind.MOUND,
+		Kind.SEAL_HOUSE, Kind.LUMBER_HUT, Kind.FARM, Kind.FISHER, Kind.FLAX_FIELD, Kind.QUARRY, Kind.WELL,
+		Kind.WAREHOUSE, Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER,
 		Kind.FLETCHER, Kind.SADDLER, Kind.STABLE, Kind.TAR_KILN, Kind.BARRACKS, Kind.WARBAND_HOUSE,
-		Kind.ARCHERY_RANGE, Kind.SCOUT_HOUSE]
+		Kind.ARCHERY_RANGE, Kind.SCOUT_HOUSE, Kind.SIGNAL_TOWER]
 
 
 ## Kategorie w panelu budowy (po teście na telefonie): zakładki zamiast jednego długiego paska.
@@ -59,11 +73,11 @@ enum Category { DEFENSE, ECONOMY, PRODUCERS, MILITARY }
 const CATEGORY_NAMES: Array[String] = ["Umocnienia", "Gospodarka", "Wytwórcy", "Wojsko"]
 ## Rodzaje w kategoriach, w kolejności kafelków (ta sama kolejność co BUILD_BAR).
 const CATEGORIES: Array = [
-	[Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.SEAL_HOUSE],
-	[Kind.LUMBER_HUT, Kind.FISHER, Kind.FLAX_FIELD, Kind.WAREHOUSE],
+	[Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.DRY_MOAT, Kind.MOUND, Kind.SEAL_HOUSE],
+	[Kind.LUMBER_HUT, Kind.FARM, Kind.FISHER, Kind.FLAX_FIELD, Kind.QUARRY, Kind.WELL, Kind.WAREHOUSE],
 	[Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER, Kind.FLETCHER,
 			Kind.SADDLER, Kind.TAR_KILN],
-	[Kind.BARRACKS, Kind.WARBAND_HOUSE, Kind.ARCHERY_RANGE, Kind.STABLE, Kind.SCOUT_HOUSE],
+	[Kind.BARRACKS, Kind.WARBAND_HOUSE, Kind.ARCHERY_RANGE, Kind.STABLE, Kind.SCOUT_HOUSE, Kind.SIGNAL_TOWER],
 ]
 
 
@@ -85,10 +99,16 @@ static func count() -> int:
 	return NAMES.size()
 
 
-## Czy budynek jest z drewna (epoka I: wszystko poza wałem ziemnym i polem). Topór i ogień
-## działają mocniej na drewno (#15).
+## Czy budynek jest z drewna (epoka I: wszystko poza wałem ziemnym, polem lnu, fosą, kopcem, studnią
+## i kamieniołomem). Topór i ogień działają mocniej na drewno (#15).
 static func is_wooden(kind: int) -> bool:
-	return kind != Kind.RAMPART and kind != Kind.FLAX_FIELD
+	return not kind in [Kind.RAMPART, Kind.FLAX_FIELD, Kind.DRY_MOAT, Kind.MOUND, Kind.WELL, Kind.QUARRY]
+
+
+## Czy przez budynek da się przejść w bitwie (#35): Fosa sucha to rów, nie przeszkoda. Nie blokuje
+## drogi i nie da się jej zburzyć, tylko spowalnia atakujących (Battle).
+static func is_passable(kind: int) -> bool:
+	return kind == Kind.DRY_MOAT
 
 
 ## Budynki, które zamek ma od startu, po jednym, i których nie da się rozebrać: Dwór, donżon (#120)

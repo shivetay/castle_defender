@@ -27,11 +27,17 @@ enum Lean { NONE, NORTH, EAST, SOUTH, WEST }
 
 
 ## Czy rodzaj rysuje się jako przybudówka, gdy przylega do muru: chata drwala i warsztaty (Dwór,
-## donżon, wieża, brama, pole lnu i umocnienia mają własny kształt).
+## donżon, wieża, brama, pole lnu, umocnienia i budynki z #35 mają własny kształt).
 static func can_lean(kind: int) -> bool:
 	return not (BuildingTypes.is_wall(kind) or kind in [
 			BuildingTypes.Kind.GATE, BuildingTypes.Kind.TOWER, BuildingTypes.Kind.MANOR, BuildingTypes.Kind.KEEP,
-			BuildingTypes.Kind.FLAX_FIELD, BuildingTypes.Kind.WATCHTOWER])
+			BuildingTypes.Kind.FLAX_FIELD, BuildingTypes.Kind.WATCHTOWER] or has_own_art(kind))
+
+
+## Pozostałe budynki MVP (#35), rysowane w MvpBuildingArt.
+static func has_own_art(kind: int) -> bool:
+	return kind in [BuildingTypes.Kind.DRY_MOAT, BuildingTypes.Kind.MOUND, BuildingTypes.Kind.FARM,
+			BuildingTypes.Kind.WELL, BuildingTypes.Kind.QUARRY, BuildingTypes.Kind.SIGNAL_TOWER]
 
 
 ## Strona przybudówki z kierunku do muru (BuildGrid.wall_side).
@@ -94,6 +100,18 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 			_draw_keep(img, lv)
 		BuildingTypes.Kind.WATCHTOWER:
 			_draw_watchtower(img)
+		BuildingTypes.Kind.DRY_MOAT:
+			MvpBuildingArt.draw_dry_moat(img, lv)
+		BuildingTypes.Kind.MOUND:
+			MvpBuildingArt.draw_mound(img, lv)
+		BuildingTypes.Kind.FARM:
+			MvpBuildingArt.draw_farm(img, lv)
+		BuildingTypes.Kind.WELL:
+			MvpBuildingArt.draw_well(img, lv)
+		BuildingTypes.Kind.QUARRY:
+			MvpBuildingArt.draw_quarry(img, lv)
+		BuildingTypes.Kind.SIGNAL_TOWER:
+			MvpBuildingArt.draw_signal_tower(img, lv)
 		_:
 			_draw_workshop(img, kind, lv, ln, mirror)
 	if mirror:
@@ -758,9 +776,11 @@ static func _draw_site(img: Image, kind: int, mask: int) -> void:
 
 
 ## Czy budynek dostaje obrys i światło (#150). Umocnienia, brama i wieża łączą się z sąsiednimi
-## odcinkami muru, więc obrys rysowałby kreskę na styku: one go nie mają.
+## odcinkami muru, więc obrys rysowałby kreskę na styku: one go nie mają. Fosa sucha (#35) też nie,
+## bo sąsiednie odcinki fosy tworzą jeden rów.
 static func has_outline(kind: int) -> bool:
-	return not (BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.GATE or kind == BuildingTypes.Kind.TOWER)
+	return not (BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.GATE or kind == BuildingTypes.Kind.TOWER
+			or kind == BuildingTypes.Kind.DRY_MOAT)
 
 
 ## Obrys i światło z lewej góry (#150): przezroczysty piksel przy sylwetce dostaje kolor cienia,
@@ -821,11 +841,15 @@ static func shadow_image(img: Image, offset: Vector2i) -> Image:
 
 
 ## Przesunięcie cienia na południowy wschód: im wyższa budowla, tym dłuższy cień. Niskie odcinki
-## muru i pole lnu rzucają krótki cień, wieże i donżon najdłuższy.
+## muru, pola, studnia i kamieniołom rzucają krótki cień, wieże i donżon najdłuższy, a fosa żadnego.
 static func shadow_offset(kind: int) -> Vector2i:
-	if BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.FLAX_FIELD:
+	if kind == BuildingTypes.Kind.DRY_MOAT:
+		return Vector2i.ZERO  # rów nie rzuca cienia (#35)
+	if BuildingTypes.is_wall(kind) or kind in [BuildingTypes.Kind.FLAX_FIELD, BuildingTypes.Kind.FARM,
+			BuildingTypes.Kind.WELL, BuildingTypes.Kind.QUARRY]:
 		return Vector2i(1, 1)
-	if kind in [BuildingTypes.Kind.TOWER, BuildingTypes.Kind.KEEP, BuildingTypes.Kind.WATCHTOWER]:
+	if kind in [BuildingTypes.Kind.TOWER, BuildingTypes.Kind.KEEP, BuildingTypes.Kind.WATCHTOWER,
+			BuildingTypes.Kind.SIGNAL_TOWER]:
 		return Vector2i(3, 3)
 	return Vector2i(2, 2)
 
