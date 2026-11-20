@@ -46,7 +46,10 @@ func test_details_fit_on_narrow_screens() -> bool:
 				if not (l[2] as String).is_empty():
 					w += 6 + PixelFont.text_width(l[2] as String)
 				assert_true(w <= width, "%s: „%s” mieści się w %d px" % [code, l[0], width])
-	var a39 := ResearchPanel.detail_lines(r, "A39", 0, 0, 296)
+	# A22 jest z epoki II: widać ją dopiero po A7
+	var with_a7 := Research.new()
+	with_a7.done["A7"] = true
+	var a39 := ResearchPanel.detail_lines(with_a7, "A39", 0, 0, 296)
 	var shows_link := false
 	for l: Array in a39:
 		if (l[0] as String).begins_with("Powiązane:") and (l[0] as String).contains("A22"):
@@ -66,7 +69,10 @@ func test_researched_tiles_look_different() -> bool:
 
 ## Gdy brakuje linii, odblokowuje i powiązane łączą się w jedną (A41: A44 i A47).
 func test_links_merge_when_short_of_lines() -> bool:
-	var lines := ResearchPanel.detail_lines(Research.new(), "A41", 0, 0, 296)
+	# A47 jest z epoki II: widać ją dopiero po A2
+	var r := Research.new()
+	r.done["A2"] = true
+	var lines := ResearchPanel.detail_lines(r, "A41", 0, 0, 296)
 	var merged := false
 	for l: Array in lines:
 		var t := l[0] as String

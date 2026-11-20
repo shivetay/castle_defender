@@ -15,9 +15,9 @@ i Dworem jako poziomem zamku (#11), zapis lokalny (#13) i losowy seed mapy dla k
 część kliencka). Z etapu 4 zostaje Dwór zmieniający się z epokami i garnizon (#81), który czeka
 na jednostki, bitwę i epokę II z późniejszych etapów.
 Etap 5 (#127) zaczyna badania z #12: 34 technologie z notatki Drzewko technologiczne z epokami,
-zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2 oraz w bitwie A1, A2 i O2, a manewry
-wymagają A3–A6; reszta efektów włączy się razem
-z budynkami, jednostkami i bitwą. Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
+zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2 oraz w bitwie A1, A2, A7 (konnica
++25% szybkości), O2 i O3, a manewry wymagają A3–A6. Jednostki i budynki MVP mają swoje technologie.
+Czekają S1 i S3 (zwiad, #28) oraz O1 i G6 jako warunki przejścia epok (#34). Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
 Do tego mechanizm towarów i łańcuchów produkcji z #88 (zbrojownia, przepisy wytwórców według notatki
 Klasy jednostek i produkcja) oraz 9 budynków wytwórców z #90, które produkują towary
 i wymagają zbadania swojej technologii. Doszły też budynki gospodarcze z #122: Pole lnu i Rybak,
@@ -550,6 +550,8 @@ w sekcji „Następny etap”.
   i wymaganiami (ramki na wymaganych kafelkach) oraz Badaj i Zamknij w miejscu Badania i Buduj.
   Szczegóły pokazują też, co technologia odblokowuje (złota ramka) i z czym łączy się przez towary
   (`TechLinks`, niebieska ramka; np. A39 Drzewcarz robi kopię dla Kopijnika z A22). Teksty zawijają się.
+  Technologie z późniejszej epoki są ukryte, dopóki nie zbadasz ich wymagań (`Research.is_visible`), także
+  w „Odblokowuje” i „Powiązane”; widoczna, a jeszcze niedostępna ma stan „Epoka II”.
   Zbadane technologie mają zielony kafelek ze znaczkiem w rogu. Ramki są tylko w bieżącej zakładce,
   a zakładki innych gałęzi z powiązaniami mają pasek w kolorze ramki.
 - `scripts/world/ages.gd` (`Ages`): epoka i rok na pasku. Epoka I zaczyna się w 550 r., a rok rośnie

@@ -40,6 +40,21 @@ func missing(code: String) -> Array[String]:
 	return out
 
 
+## Czy technologię widać na ekranie drzewka w epoce `current_age`: z bieżącej i wcześniejszych epok
+## zawsze, a z późniejszej dopiero, gdy zbadano wszystko, czego wymaga (decyzja właścicielki, #12).
+func is_visible(code: String, current_age: int) -> bool:
+	return TechTree.has(code) and (TechTree.age(code) <= current_age or missing(code).is_empty())
+
+
+## Widoczne kody z listy `codes` (is_visible), w tej samej kolejności.
+func visible_of(codes: Array[String], current_age: int) -> Array[String]:
+	var out: Array[String] = []
+	for code in codes:
+		if is_visible(code, current_age):
+			out.append(code)
+	return out
+
+
 ## Premia do produkcji surowca `res` w procentach (100 = bez premii) ze zbadanych technologii.
 func production_percent(res: int) -> int:
 	var percent := 100
