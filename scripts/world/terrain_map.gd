@@ -89,15 +89,17 @@ func land_connected() -> bool:
 
 ## Gwarancja przejścia (#248): gdy rzeka odcina część lądu, wodę w wierszu grodu przykrywa most.
 ## Ścieżka do rzeki zwykle już go daje, więc dla zwykłych seedów teren się nie zmienia (ten sam seed,
-## ten sam teren). Zwraca true, gdy most trzeba było dołożyć.
+## ten sam teren). Zwraca true tylko wtedy, gdy most został dołożony i ląd jest już spójny.
 func ensure_crossing() -> bool:
 	if land_connected():
 		return false
 	var y := center().y
+	var changed := false
 	for x in size:
 		if tiles[y * size + x] == Tile.WATER:
 			tiles[y * size + x] = Tile.BRIDGE
-	return true
+			changed = true
+	return changed and land_connected()
 
 
 ## Środek wzgórza, na którym stoi gród.

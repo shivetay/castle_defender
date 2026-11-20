@@ -1109,7 +1109,7 @@ func _walkable_near(c: Vector2i) -> Vector2i:
 
 ## Czy na kratce da się stanąć: na mapie, bez wody i bez żywego budynku.
 func _free_ground(c: Vector2i) -> bool:
-	return _terrain.in_bounds(c) and _terrain.get_tile(c) != TerrainMap.Tile.WATER and _structure_at(c) == null
+	return _terrain.is_walkable(c) and _structure_at(c) == null
 
 
 func _act_order(f: Fighter, o: AttackPlan.Order) -> void:
