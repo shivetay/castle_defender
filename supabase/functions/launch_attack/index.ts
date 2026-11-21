@@ -2,6 +2,9 @@
 // zamku i obrony obrońcy z chwili startu (bez jego stanu zwiadu), z których liczy bitwę; plan ataku
 // widział tylko zarys i to, co odsłonił zwiad. `public.launch_attack` zapisuje chwilę zatwierdzenia,
 // a `end_attack` przyjmuje wynik tylko po niej. Ponowienie dla tego samego ataku zwraca to samo.
+// #29: żądanie niesie plan ataku (rozkazy oddziałów), który serwer sprawdza i zapisuje do powtórki
+// u obrońcy, a odpowiedź oddaje zapisany plan i badania atakującego z jego zamku na serwerze. Klient
+// liczy bitwę z nich, więc obrońca w powtórce widzi ten sam przebieg.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -10,12 +13,15 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ALLOWED_KEYS = new Set(["attack_id"]);
+const ALLOWED_KEYS = new Set(["attack_id", "plan"]);
+// AttackPlan.MAX_SQUADS_BY_AGE[-1] w grze; dokładny limit (liczba oddziałów armii) sprawdza check_plan
+const MAX_ORDERS = 8;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ERRORS: Record<string, number> = {
   attack_not_found: 404,
   attack_expired: 409,
+  bad_plan: 400,
 };
 
 Deno.serve(async (req) => {
@@ -58,9 +64,17 @@ Deno.serve(async (req) => {
   if (!UUID.test(attackId)) {
     return json({ error: "bad_attack" }, 400);
   }
+  // kształt i zakresy rozkazów sprawdza check_plan w bazie; tu tylko typ i rozmiar żądania
+  if (!Array.isArray(b.plan) || b.plan.length < 1 || b.plan.length > MAX_ORDERS) {
+    return json({ error: "bad_plan" }, 400);
+  }
 
   const admin = createClient(supabaseUrl, serviceKey);
-  const { data, error } = await admin.rpc("launch_attack", { p_attacker: userData.user.id, p_attack: attackId });
+  const { data, error } = await admin.rpc("launch_attack", {
+    p_attacker: userData.user.id,
+    p_attack: attackId,
+    p_plan: b.plan,
+  });
   if (error) {
     const code = known(error);
     if (code) {
@@ -73,7 +87,13 @@ Deno.serve(async (req) => {
   if (!row) {
     return json({ error: "launch_failed" }, 500);
   }
-  return json({ id: attackId, castle: row.castle ?? {}, defense: row.defense ?? {} });
+  return json({
+    id: attackId,
+    castle: row.castle ?? {},
+    defense: row.defense ?? {},
+    plan: row.plan ?? [],
+    techs: row.techs ?? [],
+  });
 });
 
 function known(error: { code?: string; message?: string; details?: string }): string | null {

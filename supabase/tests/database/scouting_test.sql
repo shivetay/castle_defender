@@ -70,7 +70,7 @@ select throws_ok($$select * from public.scout_reports('00000000-0000-0000-0000-0
   '42501', null, 'gracz nie wywoła scout_reports');
 select throws_ok($$select * from public.attack_preview('00000000-0000-0000-0000-000000005c01', gen_random_uuid())$$,
   '42501', null, 'gracz nie wywoła attack_preview');
-select throws_ok($$select * from public.launch_attack('00000000-0000-0000-0000-000000005c01', gen_random_uuid())$$,
+select throws_ok($$select * from public.launch_attack('00000000-0000-0000-0000-000000005c01', gen_random_uuid(), '[]')$$,
   '42501', null, 'gracz nie wywoła launch_attack');
 select throws_ok($$select * from private.scout_missions$$, '42501', null, 'gracz nie czyta misji zwiadu');
 select throws_ok($$select private.scout_intel('{}', '{}', array[0, 0, 1, 1])$$, '42501', null,
@@ -186,10 +186,11 @@ select is((select count(*)::int from public.attack_preview('00000000-0000-0000-0
 select throws_ok(format($$select * from public.end_attack('00000000-0000-0000-0000-000000005c01', %L,
     '{"won": false, "percent": 0, "stars": [false, false, false]}', '[0, 0, 0, 0]', '[10]')$$,
     (select attack_id from a1)), 'P0001', 'not_launched', 'bez zatwierdzenia planu brak wyniku');
-select throws_ok(format($$select * from public.launch_attack('00000000-0000-0000-0000-000000005c08', %L)$$,
-    (select attack_id from a1)), 'P0001', 'attack_not_found', 'obcy gracz nie dostanie cudzej obrony');
+select throws_ok(format($$select * from public.launch_attack('00000000-0000-0000-0000-000000005c08', %L, %L)$$,
+    (select attack_id from a1), '[{"squad": 1, "manoeuvre": 0, "target": [-1, -1], "waypoints": [], "start": 0, "start_value": 0, "retreat": 0, "flank_left": true}]'), 'P0001', 'attack_not_found', 'obcy gracz nie dostanie cudzej obrony');
 create temp table l1 on commit drop as
-  select * from public.launch_attack('00000000-0000-0000-0000-000000005c01', (select attack_id from a1));
+  select * from public.launch_attack('00000000-0000-0000-0000-000000005c01', (select attack_id from a1),
+    '[{"squad": 1, "manoeuvre": 0, "target": [-1, -1], "waypoints": [], "start": 0, "start_value": 0, "retreat": 0, "flank_left": true}]');
 select is((select defense -> 'traps' from l1), '[[0, 12, 12, 0], [1, 25, 25, 0]]'::jsonb,
   'po zatwierdzeniu pełna obrona');
 select ok((select not (castle ? 'scout') and castle ? 'grid' from l1), 'zamek bez zwiadu obrońcy');
