@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(27);
+select plan(29);
 
 -- A atakuje B, O to obcy gracz. Ranking w paśmie 61 000 (bez prawdziwych graczy), bo testy biegną
 -- też na projekcie w chmurze, w transakcji, która się cofa.
@@ -131,6 +131,9 @@ select throws_ok(format($$select * from public.attack_replay('00000000-0000-0000
 select throws_ok(format($$select * from public.attack_replay('00000000-0000-0000-0000-0000000029c1', %L)$$,
     (select attack_id from started)), 'P0001', 'attack_not_found', 'obcy gracz nie dostanie powtórki');
 
+-- stara launch_attack (wdrożony klient przed #29) nadal działa
+select ok(exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.proname = 'launch_attack' and p.pronargs = 2), 'stara launch_attack zostaje');
 -- atak sprzed #29 (bez zapisanych badań) nie ma powtórki
 reset role;
 update public.attacks set attacker_techs = null where id = (select attack_id from started);
@@ -147,6 +150,8 @@ select throws_ok($$select * from public.attack_replay('00000000-0000-0000-0000-0
 select throws_ok($$select attacker_techs from public.attacks limit 1$$, '42501', null,
   'gracz nie czyta badań atakującego');
 select throws_ok($$select private.check_plan('[]', 1)$$, '42501', null, 'gracz nie woła check_plan');
+select throws_ok($$select * from public.launch_attack('00000000-0000-0000-0000-0000000029b1', gen_random_uuid())$$,
+  '42501', null, 'gracz nie woła też starej launch_attack');
 select is((select jsonb_array_length(orders) from public.attacks where defender_id = '00000000-0000-0000-0000-0000000029b1'),
   2, 'obrońca widzi plan ataku na siebie');
 

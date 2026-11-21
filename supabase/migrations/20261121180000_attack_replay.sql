@@ -96,7 +96,9 @@ grant execute on function private.check_plan(jsonb, integer), private.plan_cell(
 
 -- Zatwierdzenie planu (#28) z planem (#29). Przy pierwszym wywołaniu zapisuje plan, badania atakującego
 -- z jego zamku na serwerze i chwilę zatwierdzenia; ponowienie zwraca to samo, z zapisanym planem.
-drop function public.launch_attack(uuid, uuid);
+-- Stara `launch_attack(uuid, uuid)` zostaje: woła ją wdrożona Edge Function starego klienta, więc migracja
+-- nie psuje ataków przed wydaniem nowej gry. Ataki zatwierdzone przez nią nie mają planu ani badań, więc
+-- nie mają powtórki (`replay_missing`). Usunie ją osobna migracja, gdy stary klient zniknie.
 create function public.launch_attack(p_attacker uuid, p_attack uuid, p_plan jsonb)
 returns table (
   castle jsonb,
