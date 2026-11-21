@@ -46,7 +46,7 @@ var content_right := 320.0 - Hud.CORNER_INSET
 
 var _pressed: int = Target.NONE
 var _drag := 0.0
-## Tabele obu rodzajów z tego otwarcia: przełączenie widoku nie czeka drugi raz na serwer.
+## Tabele trzech widoków (Atak, Obrona, PvE) z tego otwarcia: przełączenie widoku nie czeka drugi raz na serwer.
 var _cache: Dictionary[int, Array] = {}
 
 
@@ -98,7 +98,7 @@ func _show(new_kind: int, online: bool) -> void:
 	scroll = 0
 	_drag = 0.0
 	if _cache.has(kind):
-		# nowa lista: `rows` bywa tą samą tablicą co tabela drugiego widoku w pamięci
+		# nowa lista: `rows` bywa tą samą tablicą co tabela innego widoku w pamięci
 		var cached: Array[RankingBoard.Row] = []
 		cached.assign(_cache[kind])
 		rows = cached
