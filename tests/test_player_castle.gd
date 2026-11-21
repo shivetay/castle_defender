@@ -1,6 +1,7 @@
 extends TestCase
-## Atak na gracza (#240): cel z odpowiedzi `start_attack` (kopia zamku i obrony), bitwa z seedem
-## z serwera, łup z surowych zapasów z kopii i treść `finish_attack`; klient Supabase bez sieci.
+## Atak na gracza (#240): cel z odpowiedzi `start_attack` (zarys, donżon i zwiad, #28), pełna kopia
+## zamku i obrony z `launch_attack`, bitwa z seedem z serwera, łup z surowych zapasów z kopii i treść
+## `finish_attack`; klient Supabase bez sieci.
 
 const MAIN := preload("res://scripts/main.gd")
 const K := BuildingTypes.Kind
@@ -28,12 +29,33 @@ static func _castle(map_seed: int) -> Dictionary:
 	return castle
 
 
-static func _start(battle_seed: int = 77) -> Dictionary:
+## Odpowiedź `start_attack` jak z serwera (#28): zarys [x, y, szer., wys.] i donżon z kopii zamku.
+static func _raw_start(battle_seed: int = 77) -> Dictionary:
 	var map_seed := WorldSeed.first_playable(4242)
-	return AttackStart.parse_response({
-		"id": ATTACK, "map_seed": map_seed, "battle_seed": battle_seed, "defender_id": DEFENDER,
-		"castle": _castle(map_seed), "defense": {},
-	})
+	var footprint: Array = []
+	var keep: Array = []
+	for e: Variant in ((_castle(map_seed)["grid"] as Dictionary)["buildings"] as Array):
+		var a := e as Array
+		footprint.append([a[3], a[4], a[5], a[6]])
+		if int(a[1]) == K.KEEP:
+			keep = [a[3], a[4], a[5], a[6]]
+	return {"id": ATTACK, "map_seed": map_seed, "battle_seed": battle_seed, "defender_id": DEFENDER,
+			"footprint": footprint, "keep": keep, "intel": {}}
+
+
+static func _start(battle_seed: int = 77) -> Dictionary:
+	return AttackStart.parse_response(_raw_start(battle_seed))
+
+
+static func _launch() -> Dictionary:
+	return {"id": ATTACK, "castle": _castle(WorldSeed.first_playable(4242)), "defense": {}}
+
+
+## Cel po zatwierdzeniu planu (pełna kopia z `launch_attack`).
+static func _launched(battle_seed: int = 77) -> PlayerCastle:
+	var pc := PlayerCastle.from_start(_start(battle_seed), ARMY, 0)
+	pc.apply_launch(_launch())
+	return pc
 
 
 static func _fight(pc: PlayerCastle) -> Battle:
@@ -44,12 +66,20 @@ static func _fight(pc: PlayerCastle) -> Battle:
 
 func test_target_from_start_response() -> bool:
 	var pc := PlayerCastle.from_start(_start(), ARMY, 1000)
-	assert_true(pc != null, "cel z kopii zamku")
+	assert_true(pc != null, "cel z zarysu i donżonu")
 	assert_eq(pc.attack_id, ATTACK, "id ataku")
 	assert_eq(pc.defender_id, DEFENDER, "obrońca")
 	assert_eq(pc.battle_seed, 77, "seed bitwy z serwera")
 	assert_eq(pc.target.objective, pc.target.grid.keep_id(), "cel to donżon")
 	assert_true(pc.target.objective != 0, "donżon jest")
+	assert_eq(pc.target.grid.buildings.size(), 2, "plan zna cały zarys")
+	assert_true(not pc.is_launched() and pc.target.defenders.is_empty(), "przed zatwierdzeniem bez załogi (#28)")
+	assert_true(pc.intel.is_empty(), "bez zwiadu nic odsłonięte")
+	var keep := pc.target.grid.buildings[pc.target.objective]
+	assert_true(not pc.apply_launch({"id": "inny", "castle": _castle(4242)}), "kopia innego ataku odrzucona")
+	assert_true(pc.apply_launch(_launch()), "pełna kopia po zatwierdzeniu")
+	assert_true(pc.is_launched(), "zatwierdzony")
+	assert_eq(pc.target.grid.buildings[pc.target.objective], keep, "ten sam donżon: cele planu zostają")
 	assert_eq(pc.target.defenders, [[U.AXE_WARRIOR, 6]], "załoga z kopii")
 	assert_eq(pc.stash, STASH, "zapasy z kopii bez zmian (jak serwer)")
 	assert_eq(pc.army, ARMY, "armia ze startu")
@@ -62,12 +92,16 @@ func test_bad_start_is_rejected() -> bool:
 	assert_true(PlayerCastle.from_start(bot, ARMY, 0) == null, "atak na bota to nie cel-gracz")
 	var start := _start()
 	assert_true(PlayerCastle.from_start(start, [], 0) == null, "bez armii")
-	var no_keep := start.duplicate(true)
-	(no_keep["castle"] as Dictionary)["grid"] = {}
-	assert_true(PlayerCastle.from_start(no_keep, ARMY, 0) == null, "bez donżonu nie ma celu")
-	var broken := start.duplicate(true)
-	broken["castle"] = "zamek"
-	assert_true(PlayerCastle.from_start(broken, ARMY, 0) == null, "kopia nie jest obiektem")
+	var no_keep := _raw_start()
+	no_keep.erase("keep")
+	assert_true(AttackStart.parse_response(no_keep).is_empty(), "bez donżonu nie ma celu")
+	var pc := PlayerCastle.from_start(start, ARMY, 0)
+	assert_true(not pc.apply_launch({"id": ATTACK, "castle": "zamek"}), "kopia nie jest obiektem")
+	var empty_grid := _launch()
+	(empty_grid["castle"] as Dictionary)["grid"] = {}
+	assert_true(not pc.apply_launch(empty_grid), "kopia bez donżonu")
+	assert_true(not pc.is_launched(), "zła kopia nie zatwierdza")
+	assert_true(AttackLaunch.parse_response({"castle": {}}).is_empty(), "pusta kopia to odmowa")
 	return true
 
 
@@ -83,12 +117,12 @@ func test_stash_reads_like_server() -> bool:
 
 ## Ten sam start daje zawsze ten sam przebieg (powtórka na serwerze, #29), inny seed bitwy inny.
 func test_battle_is_deterministic() -> bool:
-	var a := _fight(PlayerCastle.from_start(_start(), ARMY, 0))
-	var b := _fight(PlayerCastle.from_start(_start(), ARMY, 0))
+	var a := _fight(_launched())
+	var b := _fight(_launched())
 	assert_true(a.winner != Battle.Winner.NONE, "bitwa się kończy")
 	assert_eq(a.checksum(), b.checksum(), "ta sama kopia i seed, ta sama bitwa")
 	assert_eq(a.tick, b.tick, "ten sam czas")
-	var c := _fight(PlayerCastle.from_start(_start(78), ARMY, 0))
+	var c := _fight(_launched(78))
 	assert_true(c.checksum() != a.checksum(), "inny seed bitwy, inny przebieg")
 	return true
 
@@ -96,7 +130,7 @@ func test_battle_is_deterministic() -> bool:
 ## Łup w limitach serwera: na surowiec niechroniona część × 20 procent × procent łupu, razem
 ## najwyżej capacity ocalałych; treść żądania z ocalałymi na każdy oddział startu.
 func test_result_within_server_limits() -> bool:
-	var pc := PlayerCastle.from_start(_start(), ARMY, 0)
+	var pc := _launched()
 	var b := _fight(pc)
 	var r := pc.result_of(b)
 	var alive := b.survivors(Battle.Side.ATTACKER)
@@ -154,12 +188,12 @@ func test_client_start_attack() -> bool:
 	assert_eq(sent["path"], AttackStart.PATH, "ścieżka start_attack")
 	assert_eq(sent["body"], {"defender_id": DEFENDER, "army": ARMY}, "treść bez id atakującego")
 	var map_seed := WorldSeed.first_playable(4242)
-	c.handle_attack(SupabaseClient.AttackCall.START, HTTPRequest.RESULT_SUCCESS, 200, JSON.stringify({
-		"id": ATTACK, "map_seed": map_seed, "battle_seed": 5, "defender_id": DEFENDER,
-		"castle": _castle(map_seed), "defense": {},
-	}))
+	var raw := _raw_start(5)
+	raw["map_seed"] = map_seed
+	c.handle_attack(SupabaseClient.AttackCall.START, HTTPRequest.RESULT_SUCCESS, 200, JSON.stringify(raw))
 	assert_eq(got[0][1], "", "bez błędu")
-	assert_eq((got[0][0] as Dictionary)["id"], ATTACK, "odpowiedź z kopią")
+	assert_eq((got[0][0] as Dictionary)["id"], ATTACK, "odpowiedź z zarysem i donżonem")
+	assert_true(not (got[0][0] as Dictionary).has("castle"), "bez kopii zamku przed zatwierdzeniem (#28)")
 	assert_true(not c.is_attack_pending(), "po odpowiedzi wolne")
 	c.start_attack(DEFENDER, ARMY)
 	c.handle_attack(SupabaseClient.AttackCall.START, HTTPRequest.RESULT_SUCCESS, 409, '{"error":"target_busy"}')

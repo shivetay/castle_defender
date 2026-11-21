@@ -67,6 +67,8 @@ set local role service_role;
 create temp table s1 on commit drop as
   select * from public.begin_attack('00000000-0000-0000-0000-0000000000e1',
     '00000000-0000-0000-0000-0000000000f1', null, '[[0, 10]]', 11);
+-- #28: wynik ataku na gracza tylko po zatwierdzeniu planu (launch_attack)
+update public.attacks set launched_at = now() where id = (select attack_id from s1);
 select is((select defense_games from public.players where id = '00000000-0000-0000-0000-0000000000f1'),
   0, 'atak w toku nie zmienia rankingu');
 select is((select status from public.end_attack('00000000-0000-0000-0000-0000000000e1', (select attack_id from s1),
@@ -94,6 +96,8 @@ select is((select defense_games from public.players where id = '00000000-0000-00
 create temp table s2 on commit drop as
   select * from public.begin_attack('00000000-0000-0000-0000-0000000000e2',
     '00000000-0000-0000-0000-0000000000f1', null, '[[0, 10]]', 12);
+-- #28: wynik ataku na gracza tylko po zatwierdzeniu planu (launch_attack)
+update public.attacks set launched_at = now() where id = (select attack_id from s2);
 select is((select status from public.end_attack('00000000-0000-0000-0000-0000000000e2', (select attack_id from s2),
   '{"won": false, "percent": 10, "stars": [false, false, false]}', '[0, 0, 0, 0]', '[3]')), 'finished', 'C kończy atak na B');
 select is((select attack_rating from public.players where id = '00000000-0000-0000-0000-0000000000e2'),
@@ -107,6 +111,8 @@ select is((select defense_games from public.players where id = '00000000-0000-00
 create temp table s3 on commit drop as
   select * from public.begin_attack('00000000-0000-0000-0000-0000000000e1',
     '00000000-0000-0000-0000-0000000000f2', null, '[[0, 10]]', 13);
+-- #28: wynik ataku na gracza tylko po zatwierdzeniu planu (launch_attack)
+update public.attacks set launched_at = now() where id = (select attack_id from s3);
 -- A zaczyna atak na zamek-bota: poprzedni atak (na D) jest porzucony
 create temp table s4 on commit drop as
   select * from public.begin_attack('00000000-0000-0000-0000-0000000000e1', null, 0::smallint,
@@ -133,6 +139,8 @@ update public.players set attack_rating = 10 where id = '00000000-0000-0000-0000
 create temp table s5 on commit drop as
   select * from public.begin_attack('00000000-0000-0000-0000-0000000000e2',
     '00000000-0000-0000-0000-0000000000f2', null, '[[0, 10]]', 15);
+-- #28: wynik ataku na gracza tylko po zatwierdzeniu planu (launch_attack)
+update public.attacks set launched_at = now() where id = (select attack_id from s5);
 select is((select status from public.end_attack('00000000-0000-0000-0000-0000000000e2', (select attack_id from s5),
   '{"won": false, "percent": 10, "stars": [false, false, false]}', '[0, 0, 0, 0]', '[3]')), 'finished',
   'C kończy atak na D');

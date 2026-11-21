@@ -22,7 +22,7 @@ func test_parse_keeps_map_seed_apart_from_battle_seed() -> bool:
 func test_parse_ignores_json_null_target_fields() -> bool:
 	var player := AttackStart.parse_response({
 		"id": "p1", "map_seed": 42, "battle_seed": 7,
-		"defender_id": "00000000-0000-0000-0000-00000000000b", "bot_idx": null,
+		"defender_id": "00000000-0000-0000-0000-00000000000b", "bot_idx": null, "keep": [10, 10, 2, 2],
 	})
 	assert_eq(player["defender_id"], "00000000-0000-0000-0000-00000000000b", "gracz-cel")
 	assert_true(not player.has("bot_idx"), "null bot_idx nie daje fałszywego 0")
@@ -32,7 +32,7 @@ func test_parse_ignores_json_null_target_fields() -> bool:
 	assert_eq(bot["bot_idx"], 3, "bot-cel")
 	assert_true(not bot.has("defender_id"), "null defender_id pominięty")
 	var from_json: Variant = JSON.parse_string(
-			'{"id":"j","map_seed":42,"battle_seed":7,"defender_id":"u","bot_idx":null}')
+			'{"id":"j","map_seed":42,"battle_seed":7,"defender_id":"u","bot_idx":null,"keep":[10,10,2,2]}')
 	var parsed := AttackStart.parse_response(from_json)
 	assert_eq(parsed.get("defender_id", ""), "u", "JSON string")
 	assert_true(not parsed.has("bot_idx"), "JSON null bot_idx pominięty")

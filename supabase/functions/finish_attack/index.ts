@@ -25,6 +25,8 @@ const ERRORS: Record<string, number> = {
   bad_survivors: 400,
   bad_loot: 400,
   loot_too_high: 422,
+  // #28: wynik ataku na gracza tylko po zatwierdzeniu planu (launch_attack)
+  not_launched: 409,
 };
 
 Deno.serve(async (req) => {

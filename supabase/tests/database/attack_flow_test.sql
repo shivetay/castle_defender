@@ -59,6 +59,8 @@ set local role service_role;
 create temp table started on commit drop as
   select * from public.begin_attack('00000000-0000-0000-0000-0000000000c1',
     '00000000-0000-0000-0000-0000000000d1', null, '[[0, 10], [0, 10], [6, 10]]', 77);
+-- #28: wynik ataku na gracza tylko po zatwierdzeniu planu (launch_attack)
+update public.attacks set launched_at = now() where id = (select attack_id from started);
 select is((select count(*)::int from started), 1, 'A zaczyna atak na B');
 select is((select map_seed from started), 4242::bigint, 'seed terenu B');
 select is((select battle_seed from started), 77::bigint, 'seed bitwy z Edge Function');
@@ -188,6 +190,7 @@ create temp table y (attack_id uuid, map_seed bigint, battle_seed bigint, castle
 update public.players set age = 0 where id = '00000000-0000-0000-0000-0000000000d4';
 insert into y select * from public.begin_attack('00000000-0000-0000-0000-0000000000c2',
   '00000000-0000-0000-0000-0000000000d4', null, '[[0, 10]]', 9);
+update public.attacks set launched_at = now() where id = (select attack_id from y);
 select is(
   (select status from public.end_attack('00000000-0000-0000-0000-0000000000c2', (select attack_id from y),
     '{"won": false, "percent": 29, "stars": [true, false, false]}', '[0, 0, 0, 0]', '[0]')),

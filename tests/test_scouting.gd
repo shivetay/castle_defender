@@ -279,7 +279,10 @@ func test_picker_lines_and_buttons() -> bool:
 	assert_eq(lines[1], "2 zwiad., 40% zamku, koszt 20 Ży 20 Zł", "co da zwiad")
 	var player := TargetSearch.Target.new()
 	player.player_id = "00000000-0000-0000-0000-000000000001"
-	assert_eq(MAIN.scout_lines(player, s, RES.OK, units, 1, false, T0)[1], "Zwiad na gracza: wkrótce", "gracz: serwer")
+	assert_eq(MAIN.scout_lines(player, s, RES.OK, units, 1, false, T0)[1], "Zwiad na gracza: wymaga sieci",
+			"gracz bez sieci")
+	assert_eq(MAIN.scout_lines(player, s, RES.OK, units, 1, false, T0, true)[1], "2 zwiad., 40% zamku, koszt 20 Ży 20 Zł",
+			"gracz online: zwiad przez serwer")
 	var c := _castle()
 	_send(s, c, bot.key(), 0)
 	assert_true((MAIN.scout_lines(bot, s, RES.BUSY, units, 0, false, T0 + 1000)[0] as String).begins_with("Zwiad w drodze"),
