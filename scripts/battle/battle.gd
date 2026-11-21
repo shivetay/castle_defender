@@ -59,6 +59,8 @@ class Fighter:
 	var wp := 0
 	var climb := 0
 	var climbed := false
+	## Generał (#31): rodzaj (Generals.Kind) albo -1 dla zwykłej jednostki. Generał ma oddział 0.
+	var general := -1
 
 	func cell() -> Vector2i:
 		@warning_ignore("integer_division")
@@ -156,6 +158,14 @@ var _sq_route: Dictionary[int, Array] = {}
 var _sq_goal: Dictionary[int, int] = {}
 ## Ostrzał: jedna kratka postoju na oddział (ustalana raz); stąd oddział strzela, bez dalszego marszu.
 var _sq_fire: Dictionary[int, Vector2i] = {}
+## Generałowie (#31): strona → generał (kopia z Generals) i jego postać na siatce. Strona bez wpisu
+## walczy bez generała. `_general_squad`: oddział, przy którym generał idzie (0: atakujący przy
+## pierwszym walczącym oddziale, obrońca przy donżonie). `_aura_morale`: oddziały, które już dostały
+## jednorazowe +10 morale od Wodza drużyny.
+var generals: Dictionary[int, Generals.General] = {}
+var _general_fighter: Dictionary[int, Fighter] = {}
+var _general_squad: Dictionary[int, int] = {}
+var _aura_morale: Dictionary[int, bool] = {}
 var _spawn := Vector2i.ZERO
 ## Zdarzenie: [tick, Fx, jednostka albo FX_TOWER, x0, y0, x1, y1]. SHOT i HIT w podjednostkach
 ## (HIT: x1, y1 to punkt trafienia), COLLAPSE w kratkach (pozycja i rozmiar budynku).
@@ -270,15 +280,27 @@ func apply_research(side: int, research: Research) -> void:
 				known[code] = true
 	techs[side] = known
 	if side == Side.DEFENDER:
-		# od bazowej wytrzymałości, więc ponowne wywołanie nie mnoży premii drugi raz (review #187)
-		for id: int in structures:
-			var st := structures[id]
-			if st.kind == BuildingTypes.Kind.PALISADE:
-				st.max_hp = st.base_hp
-				if known.has("O2"):
-					@warning_ignore("integer_division")
-					st.max_hp = st.base_hp * BattleConfig.O2_PALISADE_HP_PERCENT / 100
-				st.hp = st.max_hp
+		_fortify()
+
+
+## Wytrzymałość umocnień obrońcy przed startem bitwy: palisada z O2 Zaostrzone pale (#12), a wał,
+## palisada i Kopiec z komendantem Budowniczym kopców (#31). Zawsze od bazowej wytrzymałości, więc
+## ponowne wywołanie nie mnoży premii drugi raz (review #187).
+func _fortify() -> void:
+	var mounds := _commander_is(Generals.Kind.MOUND_BUILDER)
+	for id: int in structures:
+		var st := structures[id]
+		var wall := BuildingTypes.is_wall(st.kind) or st.kind == BuildingTypes.Kind.MOUND
+		if not wall:
+			continue
+		st.max_hp = st.base_hp
+		if st.kind == BuildingTypes.Kind.PALISADE and has_tech(Side.DEFENDER, "O2"):
+			@warning_ignore("integer_division")
+			st.max_hp = st.max_hp * BattleConfig.O2_PALISADE_HP_PERCENT / 100
+		if mounds:
+			@warning_ignore("integer_division")
+			st.max_hp = st.max_hp * Generals.MOUND_BUILDER_HP_PERCENT / 100
+		st.hp = st.max_hp
 
 
 ## Kody technologii, które coś zmieniają w bitwie.
@@ -293,10 +315,19 @@ func has_tech(side: int, code: String) -> bool:
 ## Krok ruchu jednostki na tick w podjednostkach: z UnitTypes, a konnica strony z A7 Strzemię
 ## +25% (#12), w całych podjednostkach w dół. Spowolnienia (kolczatka, fosa) liczą się od tej wartości.
 func step_of(f: Fighter) -> int:
-	var step_len := UnitTypes.speed(f.unit) * BattleConfig.SPEED_SUB_PER_TICK
+	var speed := UnitTypes.speed(f.unit)
+	if in_aura(f, -1, Generals.Perk.FAST_MARCH):
+		speed += Generals.FAST_MARCH_SPEED  # Szybki marsz (#31): w aurze +1 szybkości
+	var step_len := speed * BattleConfig.SPEED_SUB_PER_TICK
 	if UnitTypes.unit_class(f.unit) == RecruitmentConfig.UnitClass.FAST and has_tech(f.side, "A7"):
 		@warning_ignore("integer_division")
 		step_len = step_len * BattleConfig.A7_CAVALRY_SPEED_PERCENT / 100
+	if f.side == Side.ATTACKER and _general_alive(Side.ATTACKER, Generals.Kind.HUNTSMAN):
+		var o := _order(f)
+		if o != null and o.manoeuvre == AttackPlan.Manoeuvre.FLANK:
+			# Łowczy (#31): oddziały Oskrzydlenia 20% szybciej, póki generał żyje
+			@warning_ignore("integer_division")
+			step_len = step_len * Generals.HUNTSMAN_FLANK_SPEED_PERCENT / 100
 	return step_len
 
 
@@ -322,6 +353,8 @@ func step() -> void:
 	if winner != Winner.NONE:
 		return
 	tick += 1
+	if not _general_fighter.is_empty() and tick % BattleConfig.TICK_HZ == 1:
+		_chief_morale()
 	for f in fighters:
 		if f.alive():
 			_act(f)
@@ -356,7 +389,7 @@ func _record(kind: int, who: int, x0: int, y0: int, x1: int, y1: int) -> void:
 func fighting_count(side: int) -> int:
 	var n := 0
 	for f in fighters:
-		if f.side == side and f.alive() and not routed(f) and f.unit != UnitTypes.Unit.WAGON:
+		if f.side == side and f.alive() and not routed(f) and f.unit != UnitTypes.Unit.WAGON and f.general < 0:
 			n += 1
 	return n
 
@@ -404,6 +437,10 @@ func _hurt(f: Fighter, dmg: int) -> void:
 		return
 	f.hp -= dmg
 	if not f.alive():
+		if f.general >= 0:
+			# śmierć generała (#31, notatka): wszystkie oddziały jego strony tracą 20 morale
+			add_side_morale(f.side, BattleConfig.MORALE_GENERAL_DEATH)
+			return
 		add_squad_morale(f.side, f.squad, -loss_morale(f.side, f.squad))
 		_count_loss(f)
 
@@ -414,10 +451,11 @@ func loss_morale(side: int, squad: int) -> int:
 	return maxi(1, BattleConfig.MORALE_SQUAD_LOSS / maxi(1, int(squad_size.get(_squad_key(side, squad), 1))))
 
 
+## Żywi po stronie `side` bez generała (#31): sam generał nie przedłuża bitwy.
 func alive_count(side: int) -> int:
 	var n := 0
 	for f in fighters:
-		if f.side == side and f.alive():
+		if f.side == side and f.alive() and f.general < 0:
 			n += 1
 	return n
 
@@ -428,7 +466,7 @@ func squads_view(side: int) -> Array[Dictionary]:
 	var by_squad := {}
 	var order: Array[int] = []
 	for f in fighters:
-		if f.side != side:
+		if f.side != side or f.general >= 0:
 			continue
 		if not by_squad.has(f.squad):
 			by_squad[f.squad] = {"squad": f.squad, "unit": f.unit, "alive": 0, "hp": 0, "max_hp": 0, "x": 0, "y": 0,
@@ -471,7 +509,7 @@ func squads_view(side: int) -> Array[Dictionary]:
 func survivors(side: int) -> Array[int]:
 	var out: Array[int] = []
 	for f in fighters:
-		if f.side != side:
+		if f.side != side or f.general >= 0:
 			continue
 		while out.size() < f.squad:
 			out.append(0)
@@ -717,6 +755,9 @@ func _act(f: Fighter) -> void:
 	if f.stun > 0:
 		f.stun -= 1  # w wilczym dole (#100): ani kroku, ani ciosu
 		return
+	if f.general >= 0:
+		_general_act(f)
+		return
 	if routed(f):
 		# wycofanie (#98): bez walki na swoją kratkę wycofania, drogą omijającą żywe budynki
 		f.target = 0
@@ -938,6 +979,10 @@ func unit_damage(f: Fighter, enemy: Fighter) -> int:
 		dmg = dmg * BattleConfig.WALL_ARROW_PERCENT / 100
 	if not ranged and enemy.unit == UnitTypes.Unit.GAMBESON_WARRIOR:
 		dmg = dmg * BattleConfig.GAMBESON_MELEE_PERCENT / 100
+	if _infantry(f.unit) and in_aura(f, Generals.Kind.CHIEF):
+		dmg = dmg * Generals.CHIEF_DAMAGE_PERCENT / 100  # Wódz drużyny (#31): piechota w aurze +10%
+	if ranged and in_aura(enemy, -1, Generals.Perk.CAREFUL):
+		dmg = dmg * Generals.CAREFUL_ARROW_PERCENT / 100  # Ostrożny (#31): w aurze −15% od strzał
 	return morale_damage(f, dmg)
 
 
@@ -1079,6 +1124,158 @@ func _destroy(s: Structure) -> void:
 			_retreat_astar.set_point_solid(Vector2i(x, y), false)
 	for f in fighters:
 		f.repath_in = 0  # wyłom zmienia najkrótszą drogę
+
+
+# --- Generałowie (#31) ------------------------------------------------------------------------------
+
+## Generał strony `side` w bitwie (kopia `g`; null: bez generała). Wołać po create i przed pierwszym
+## krokiem. Generał staje na siatce jak jednostka z Generals.GENERAL_HP życia (Twardy ×2), bez własnego
+## oddziału (oddział 0): idzie przy oddziale `squad` (numer w bitwie, od 1), a bez niego atakujący przy
+## pierwszym walczącym oddziale, obrońca przy donżonie. Bije tylko wroga w zasięgu, nie burzy umocnień
+## i nie zdobywa celu. Okrutny od razu zabiera własnym oddziałom 5 morale, a Budowniczy kopców jako
+## komendant wzmacnia wał, palisadę i Kopiec. Bez wywołania bitwa jest taka jak bez generałów.
+func set_general(side: int, g: Generals.General, squad: int = 0) -> void:
+	if g == null or generals.has(side):
+		return
+	var copy := g.duplicate_general()
+	generals[side] = copy
+	_general_squad[side] = maxi(0, squad)
+	var f := Fighter.new()
+	f.id = _next_id
+	_next_id += 1
+	f.side = side
+	f.unit = GENERAL_BODY
+	f.general = copy.kind
+	f.hp = copy.max_hp()
+	var at := _spawn if side == Side.ATTACKER else _general_home()
+	var lead := _general_leader(f)
+	if lead != null:
+		at = lead.cell()
+	var cell := _free_cell_near(at, 0)
+	var taken: Dictionary[Vector2i, bool] = {}
+	for o in fighters:
+		taken[o.cell()] = true
+	var n := 0
+	while taken.has(cell) and n < BattleConfig.SPAWN_RETRIES:
+		n += 1
+		cell = _free_cell_near(at, n)
+	f.x = cell.x * BattleConfig.SUB + BattleConfig.SUB / 2
+	f.y = cell.y * BattleConfig.SUB + BattleConfig.SUB / 2
+	f.post = cell
+	f.rally = cell
+	fighters.append(f)
+	_general_fighter[side] = f
+	if copy.has_perk(Generals.Perk.CRUEL):
+		add_side_morale(side, Generals.CRUEL_MORALE)
+	if side == Side.DEFENDER:
+		_fortify()
+
+
+## Ciało generała w rachunku walki: lekka piechota z toporem (przewagi klas jak u piechoty).
+const GENERAL_BODY := UnitTypes.Unit.AXE_WARRIOR
+
+
+## Postać generała strony `side` albo null.
+func general_fighter(side: int) -> Fighter:
+	return _general_fighter.get(side, null)
+
+
+## Kratka obrońcy przy donżonie (jak w create_squads).
+func _general_home() -> Vector2i:
+	if not structures.has(objective):
+		return _spawn
+	return Vector2i(structures[objective].rect.get_center()) + Vector2i(0, 2)
+
+
+## Czy generał rodzaju `kind` strony `side` żyje.
+func _general_alive(side: int, kind: int) -> bool:
+	var f: Fighter = _general_fighter.get(side, null)
+	return f != null and f.alive() and f.general == kind
+
+
+## Czy komendant obrony to generał rodzaju `kind` (premie od startu, bez względu na życie).
+func _commander_is(kind: int) -> bool:
+	return generals.has(Side.DEFENDER) and generals[Side.DEFENDER].kind == kind
+
+
+## Czy `f` stoi w aurze żywego generała swojej strony, który jest rodzaju `kind` (-1: dowolny) i ma
+## perk `perk` (-1: bez warunku). Generał sam nie jest w swojej aurze.
+func in_aura(f: Fighter, kind: int, perk: int = -1) -> bool:
+	if f.general >= 0 or _general_fighter.is_empty():
+		return false
+	var gf: Fighter = _general_fighter.get(f.side, null)
+	if gf == null or not gf.alive() or (kind >= 0 and gf.general != kind):
+		return false
+	var g := generals[f.side]
+	if perk >= 0 and not g.has_perk(perk):
+		return false
+	var r := g.aura_cells() * BattleConfig.SUB
+	return _dist2(f.x, f.y, gf.x, gf.y) <= r * r
+
+
+static func _infantry(unit: int) -> bool:
+	var c := UnitTypes.unit_class(unit)
+	return c == RecruitmentConfig.UnitClass.LIGHT or c == RecruitmentConfig.UnitClass.HEAVY
+
+
+## Wódz drużyny (#31): oddział, który pierwszy raz ma żywą jednostkę w aurze, dostaje jednorazowo +10 morale.
+## Sprawdzane raz na sekundę bitwy.
+func _chief_morale() -> void:
+	for side: int in _general_fighter:
+		var gf := _general_fighter[side]
+		if not gf.alive() or gf.general != Generals.Kind.CHIEF:
+			continue
+		for f in fighters:
+			if f.side != side or f.general >= 0 or not f.alive():
+				continue
+			var key := _squad_key(side, f.squad)
+			if _aura_morale.has(key) or not in_aura(f, Generals.Kind.CHIEF):
+				continue
+			_aura_morale[key] = true
+			add_squad_morale(side, f.squad, Generals.CHIEF_MORALE)
+
+
+## Jednostka, przy której idzie generał: pierwsza żywa i walcząca z wybranego oddziału, a bez niego
+## (albo gdy wybrany już nie walczy) u atakującego pierwsza walcząca jednostka bez Taranu i Wozu.
+## Obrońca bez wybranego oddziału zostaje przy donżonie (null).
+func _general_leader(g: Fighter) -> Fighter:
+	var squad: int = _general_squad.get(g.side, 0)
+	var any: Fighter = null
+	for f in fighters:
+		if f.side != g.side or f.general >= 0 or not f.alive() or routed(f):
+			continue
+		if squad > 0 and f.squad == squad:
+			return f
+		if any == null and f.unit != UnitTypes.Unit.WAGON and f.unit != UnitTypes.Unit.RAM:
+			any = f
+	return any if g.side == Side.ATTACKER else null
+
+
+## Ruch generała: bije wroga w zasięgu, inaczej idzie za swoim oddziałem (do kratki obok). Bez oddziału
+## atakujący wraca na swoją kratkę startu, a obrońca stoi przy donżonie.
+func _general_act(f: Fighter) -> void:
+	var enemy := _enemy_for(f)
+	if enemy != null and _in_range(f, enemy.x, enemy.y, range_of(f)):
+		f.target = enemy.id
+		_strike_unit(f, enemy)
+		return
+	f.target = 0
+	var lead := _general_leader(f)
+	if lead == null:
+		var home := f.rally if f.side == Side.ATTACKER else f.post
+		_walk(f, home, home.x * BattleConfig.SUB + BattleConfig.SUB / 2, home.y * BattleConfig.SUB + BattleConfig.SUB / 2, false)
+		return
+	if _in_range(f, lead.x, lead.y, 1):
+		return
+	_walk(f, lead.cell(), lead.x, lead.y, false)
+
+
+## Generał strony do rysowania: {kind, x, y, hp, max_hp} żywego generała albo pusty słownik.
+func general_view(side: int) -> Dictionary:
+	var f: Fighter = _general_fighter.get(side, null)
+	if f == null or not f.alive():
+		return {}
+	return {"kind": f.general, "x": f.x, "y": f.y, "hp": f.hp, "max_hp": generals[side].max_hp()}
 
 
 # --- Plan ataku (#18) --------------------------------------------------------------------------------
@@ -1962,6 +2159,9 @@ func _tower_act(s: Structure) -> void:
 		@warning_ignore("integer_division")
 		dmg = dmg * TrapConfig.FIRE_ARROWS_PERCENT / 100
 		_ignite_arrow_target(best)
+	if in_aura(best, -1, Generals.Perk.CAREFUL):
+		@warning_ignore("integer_division")
+		dmg = dmg * Generals.CAREFUL_ARROW_PERCENT / 100  # Ostrożny (#31): wieże też strzelają strzałami
 	_hurt(best, _roll(dmg))
 	_record(Fx.SHOT, FX_TOWER, cx, cy, best.x, best.y)
 
@@ -2102,6 +2302,8 @@ func _update_capture() -> void:
 		if f.side == Side.DEFENDER:
 			capture_ticks = 0
 			return
+		if f.general >= 0:
+			continue  # generał (#31) dowodzi, nie zdobywa celu
 		var unit_class := UnitTypes.unit_class(f.unit)
 		if unit_class == RecruitmentConfig.UnitClass.LIGHT or unit_class == RecruitmentConfig.UnitClass.HEAVY:
 			holders += 1

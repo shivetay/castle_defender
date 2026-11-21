@@ -20,7 +20,8 @@ extends RefCounted
 ## plan zatwierdzony przez właściciela): strzelcy na mur przy bramie, piechota przy bramie, konnica
 ## na wypad, specjalni przy donżonie. Bez bramy i murów wszyscy stoją przy donżonie. Priorytet celów
 ## wież to jedno ustawienie na cały zamek. Pułapki (#100, TrapConfig) stoją na kratkach strefy obrony
-## i są częścią tego samego układu. Komendant dojdzie z generałami (#31).
+## i są częścią tego samego układu. Komendant obrony (#31) to generał gracza (Generals): staje przy
+## donżonie albo przy wybranym oddziale załogi; gracz wybiera go na ekranie Obrona.
 ##
 ## Zadania są przypisane do id oddziału z rekrutacji (nie do jego miejsca w armii), więc nowy oddział
 ## nie przejmuje cudzego zadania. Układ to same liczby całkowite, więc ten sam układ i ten sam seed
@@ -72,6 +73,10 @@ var orders: Dictionary[int, Order] = {}
 ## Pułapki (#100) w kolejności postawienia (ta kolejność to kolejność sprawdzania w bitwie).
 var traps: Array[Trap] = []
 var tower_priority := 0
+## Komendant obrony (#31): rodzaj generała (Generals.Kind) albo -1 i id oddziału z rekrutacji, przy
+## którym stoi (0: przy donżonie).
+var commander := -1
+var commander_squad := 0
 
 
 func order_for(squad_id: int) -> Order:
@@ -123,11 +128,39 @@ func squad_at(cell: Vector2i) -> int:
 	return best
 
 
-## Usuwa zadania oddziałów, których nie ma już w armii (rozwiązane po stratach, #164).
+## Komendant do bitwy: generał z `generals` (kopia) albo null, gdy komendanta nie ma albo gracz go
+## nie ma w swoich generałach.
+func commander_general(generals: Generals) -> Generals.General:
+	if commander < 0 or generals == null:
+		return null
+	var g := generals.get_general(commander)
+	return g.duplicate_general() if g != null else null
+
+
+## Numer oddziału komendanta w bitwie (od 1, kolejność `ids` z Recruitment.battle_ids) albo 0, gdy stoi
+## przy donżonie albo jego oddziału nie ma w bitwie.
+func commander_battle_squad(ids: Array[int]) -> int:
+	return ids.find(commander_squad) + 1 if commander_squad > 0 else 0
+
+
+## Kolejny komendant przy przełączaniu: brak → generałowie po kolei, bez generała ataku (`attack_kind`).
+func next_commander(generals: Generals, attack_kind: int = -1) -> int:
+	var options: Array[int] = [-1]
+	for g in generals.roster:
+		if g.kind != attack_kind:
+			options.append(g.kind)
+	commander = options[(options.find(commander) + 1) % options.size()]
+	return commander
+
+
+## Usuwa zadania oddziałów, których nie ma już w armii (rozwiązane po stratach, #164); komendant takiego
+## oddziału wraca pod donżon.
 func prune(recruitment: Recruitment) -> void:
 	for id: int in orders.keys():
 		if recruitment.squad(id) == null:
 			orders.erase(id)
+	if commander_squad > 0 and recruitment.squad(commander_squad) == null:
+		commander_squad = 0
 
 
 ## Zadania oddziałów bitwy w kolejności `ids` (Recruitment.battle_ids()); null to oddział przy
@@ -380,7 +413,8 @@ func to_dict() -> Dictionary:
 	var trap_list: Array = []
 	for t in traps:
 		trap_list.append([t.kind, t.cell.x, t.cell.y, 1 if t.revealed else 0])
-	return {"orders": list, "tower_priority": tower_priority, "traps": trap_list}
+	return {"orders": list, "tower_priority": tower_priority, "traps": trap_list, "commander": commander,
+			"commander_squad": commander_squad}
 
 
 ## Układ z danych zapisu (JSON daje liczby jako float, więc wszystko idzie przez int()). Złe wpisy
@@ -397,6 +431,9 @@ static func from_dict(d: Dictionary) -> DefensePlan:
 			continue
 		p.add_trap(kind, cell).revealed = a.size() > 3 and int(a[3]) != 0
 	p.tower_priority = clampi(int(d.get("tower_priority", 0)), 0, TOWER_PRIORITY_NAMES.size() - 1)
+	var cmd := Generals._int_of(d.get("commander"), -1)
+	p.commander = cmd if cmd >= 0 and cmd < Generals.count() else -1
+	p.commander_squad = maxi(0, Generals._int_of(d.get("commander_squad"), 0))
 	for e: Variant in d.get("orders", []) as Array:
 		if not e is Array:
 			continue
