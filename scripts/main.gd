@@ -1062,10 +1062,11 @@ func _scout_intel(bot: BotCastle, player: PlayerCastle, army: Array) -> ScoutInt
 		return ScoutIntel.new()
 	var area := ScoutIntel.region_of(ScoutIntel.castle_rect(bot.grid), rep.percent, rep.region_seed)
 	var b := player.create_battle(attack_plan, research) if player != null else _bot_battle(bot, army)
-	var defense_copy := player.defense if player != null else null
-	if defense_copy != null:
-		ScoutIntel.mark_traps(defense_copy, area)
-	return ScoutIntel.build(area, ScoutIntel.defender_posts(b), defense_copy)
+	# pole „odsłonięta” (#100) na osobnej kopii, żeby nie zmieniać kopii obrony ze `start_attack`
+	var seen := DefensePlan.from_dict(player.defense.to_dict()) if player != null else null
+	if seen != null:
+		ScoutIntel.mark_traps(seen, area)
+	return ScoutIntel.build(area, ScoutIntel.defender_posts(b), seen)
 
 
 func _on_plan_changed(message: String) -> void:

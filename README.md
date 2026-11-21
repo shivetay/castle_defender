@@ -491,8 +491,9 @@ w sekcji „Następny etap”.
     w limicie utrzymania przy starcie ataku (migracja `farm_food` jest na projekcie).
   - **Studnia** (Gospodarka, 2×2): woda dla zadania obrony Gaszenie pożarów.
   - **Wieża sygnałowa** (Wojsko, 2×2, S2): budynek badań gałęzi Specjalne od epoki I (S2 bada Dwór,
-    S3 już Wieża sygnałowa). Wykrywanie zwiadu wroga i −20% jego zasięgu włączą się ze zwiadem (#28).
-    Tropiciel się w niej nie szkoli (decyzja właścicielki): czeka na swój budynek zwiadu.
+    a S3 Chata tropicieli, #28). Wykrywa zwiad wroga: −20 punktów szansy sukcesu zwiadu na zamek
+    z Wieżą (`ScoutConfig.SIGNAL_TOWER_PENALTY`); działa przy zwiadzie na gracza (część serwerowa #28).
+    Tropiciel się w niej nie szkoli (decyzja właścicielki): szkoli się w Chacie tropicieli.
 - `scripts/world/economy.gd` (`Economy`): naliczanie produkcji w liczbach całkowitych (ten sam wynik
   co klatkę i jednym skokiem), limity magazynów (`capacities_for` z siatki: Dwór plus Magazyny,
   przeliczane w kolejce budowy, po rozbiórce i przed odczytem zapisu), łup (`add`) i wydawanie (`spend`). Produkcja liczy
