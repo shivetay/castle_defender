@@ -741,9 +741,10 @@ wynik z seeda serwera, raport po końcu misji. Plan ataku na gracza dostaje ze `
 donżon i to, co odsłonił zwiad; pełną kopię zamku i obrony daje dopiero zatwierdzenie planu
 (`launch_attack`), a bez niego serwer nie przyjmie wyniku. Migracja `scouting` i Edge Functions `scout`,
 `scout_reports`, `launch_attack`, `start_attack`, `finish_attack` są na projekcie. Liczby zwiadu są tymczasowe.
-Raport i powtórka obrony (#29) są w kodzie: migracja `attack_replay`, nowa wersja `launch_attack` (z planem)
-i nowa Edge Function `attack_replay` czekają na wgranie na projekt. Trzeba je wgrać razem z wydaniem klienta,
-bo nowe `launch_attack` wymaga planu, a nowy klient wymaga planu w odpowiedzi. Powtórkę ma tylko obrońca
+Raport i powtórka obrony (#29) są w kodzie. Migracja `attack_replay` jest na projekcie (stara
+`launch_attack(uuid, uuid)` zostaje dla wdrożonego klienta). Nowa wersja Edge Function `launch_attack`
+(z planem) i nowa `attack_replay` czekają na wgranie razem z wydaniem klienta: nowe `launch_attack` wymaga
+planu, a nowy klient wymaga planu w odpowiedzi. Powtórkę ma tylko obrońca
 (atakujący widział bitwę na żywo); powiadomienia o ataku (#30) zostają na osobny ticket.
 Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa Dworu z poziomu 5
 z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoką gracza na serwerze
