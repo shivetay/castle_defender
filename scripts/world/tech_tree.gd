@@ -2,11 +2,11 @@ class_name TechTree
 extends RefCounted
 ## Drzewko technologii MVP (#12): 34 z 131 technologii z notatki Drzewko technologiczne
 ## (docs/castle-defender-vault), w pięciu gałęziach, z epoką, oznaczeniem technologii kluczowej
-## (★, warunek przejścia do następnej epoki, #34), efektem i zależnościami.
+## (★, warunek przejścia do następnej epoki, #34: O1, G1 i A7 dla I → II, G6 dla II → III), efektem i zależnościami.
 ## Zależności są według notatki, łącznie z jej sekcją „Zmienione zależności”
 ## (A21 ← A38, A3 ← G24, a A7 Strzemię wymaga A2 i A43).
 ## Działają już efekty, które mają w grze na co wpłynąć (PRODUCTION_BONUS, bitwa, jednostki, budynki).
-## O1 jest warunkiem przejścia I → II (Ages.TRANSITION_TECHS, #34); G6 czeka na epokę III.
+## O1, G1 i A7 są warunkami przejścia I → II (Ages.TRANSITION_TECHS, #34); G6 czeka na epokę III.
 ## Zwiad S1/S3 działa od #28 (Scouting).
 
 enum Branch { ATTACK, DEFENSE, ECONOMY, UTILITY, SPECIAL }
@@ -22,7 +22,7 @@ const TECHS: Array = [
 	["A2", "Łuk kompozytowy", Branch.ATTACK, 0, false, [], "łucznicy +20% zasięgu"],
 	["A3", "Pochodnie smolne", Branch.ATTACK, 0, false, ["G24"], "jednostka Podpalacz, manewr Podpalenie"],
 	["A4", "Taktyka oskrzydlenia", Branch.ATTACK, 0, false, ["A1"], "manewr Oskrzydlenie"],
-	["A7", "Strzemię", Branch.ATTACK, 0, false, ["A2", "A43"], "jednostka Jeździec, konnica +25% szybkości"],
+	["A7", "Strzemię", Branch.ATTACK, 0, true, ["A2", "A43"], "jednostka Jeździec, konnica +25% szybkości, warunek przejścia I → II"],
 	["A21", "Ściana tarcz", Branch.ATTACK, 0, false, ["A38"], "jednostka Tarczownik"],
 	["A38", "Wyroby skórzane", Branch.ATTACK, 0, false, ["G19"], "budynek Wytwórca zbroi skórzanych"],
 	["A39", "Drzewcarstwo", Branch.ATTACK, 0, false, [], "budynek Drzewcarz"],
@@ -40,7 +40,7 @@ const TECHS: Array = [
 	["O1", "Sypanie kopców", Branch.DEFENSE, 0, true, [], "budynek Kopiec, warunek przejścia I → II"],
 	["O2", "Zaostrzone pale", Branch.DEFENSE, 0, false, [], "palisada +20% wytrzymałości, budynek Komenda umocnień"],
 	["O3", "Fosa z kolcami", Branch.DEFENSE, 0, false, ["O2"], "sucha fosa rani wrogów"],
-	["G1", "Karczowanie lasu", Branch.ECONOMY, 0, false, [], "+20% drewna"],
+	["G1", "Karczowanie lasu", Branch.ECONOMY, 0, true, [], "+20% drewna, warunek przejścia I → II"],
 	["G2", "Żarna", Branch.ECONOMY, 0, false, [], "+15% żywności"],
 	["G18", "Łowiectwo", Branch.ECONOMY, 0, false, [], "budynek Chata myśliwego"],
 	["G19", "Garbarstwo", Branch.ECONOMY, 0, false, ["G18"], "budynek Garbarnia"],

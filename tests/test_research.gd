@@ -59,10 +59,11 @@ func test_dependencies_and_ages_from_note() -> bool:
 	for code in TechTree.codes():
 		assert_eq(TechTree.age(code), 1 if age_two.has(code) else 0, "%s: epoka" % code)
 	assert_true(TechTree.is_key("O1") and TechTree.is_key("G6"), "O1 i G6 kluczowe (★)")
+	assert_true(TechTree.is_key("G1") and TechTree.is_key("A7"), "G1 i A7 kluczowe (★, przejście I → II, #34)")
 	var keys := 0
 	for code in TechTree.codes():
 		keys += int(TechTree.is_key(code))
-	assert_eq(keys, 2, "tylko dwie kluczowe w MVP")
+	assert_eq(keys, 4, "kluczowe w MVP: O1, G1, A7 (I → II) i G6 (II → III)")
 	return true
 
 

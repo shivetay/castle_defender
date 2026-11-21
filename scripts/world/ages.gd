@@ -19,10 +19,10 @@ const LEVELS_PER_AGE := 5
 const MAX_TOTAL_LEVEL := LEVELS_PER_AGE * COUNT
 ## Rok dla poziomów Dworu 1–5 w każdej epoce. Epoka II to zamek drewniano-ziemny (1050–1200).
 const YEARS: Array = [[550, 600, 650, 700, 750], [1050, 1090, 1120, 1160, 1200]]
-## Technologie kluczowe (★) wymagane do przejścia z epoki `i` do `i + 1`. Notatka Progresja budowy
-## chce preferencyjnie dwóch; druga technologia I → II nie jest jeszcze nazwana w drzewku (#34),
-## więc na razie jest tylko O1. G6 (II → III) czeka na epokę III, która jest poza MVP.
-const TRANSITION_TECHS: Array = [["O1"], ["G6"]]
+## Technologie kluczowe (★) wymagane do przejścia z epoki `i` do `i + 1`. I → II (decyzja właścicielki,
+## #34): trzy technologie, po jednej z Obrony, Gospodarki i Ataku: O1 Sypanie kopców, G1 Karczowanie
+## lasu i A7 Strzemię. G6 (II → III) czeka na epokę III, która jest poza MVP.
+const TRANSITION_TECHS: Array = [["O1", "G1", "A7"], ["G6"]]
 
 
 ## Epoka poziomu narastającego (0 = epoka I). Plac budowy (poziom 0) liczy się jako epoka I.

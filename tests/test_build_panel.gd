@@ -97,8 +97,16 @@ func test_card_shows_requirements_in_full() -> bool:
 	assert_eq(main.upgrade_needs(K.TOWER, 1, 3, false), "Wymaga: Dwór poz. 2 (masz 3)", "spełnione")
 	assert_eq(main.upgrade_needs(K.MANOR, 1, 1, false), "Wymaga: tylko surowców", "Dwór")
 	assert_eq(main.upgrade_needs(K.TOWER, 5, 5, false), "Wymaga: Dwór poz. II.1 (masz 5)", "epoka II po przebudowie Dworu")
-	assert_eq(main.upgrade_needs(K.MANOR, 5, 5, false), "Wymaga: O1 Sypanie kopców", "przebudowa Dworu (#34)")
-	assert_true(not main.upgrade_needs_ok(K.MANOR, 5, 5, false), "bez O1 na czerwono")
+	assert_eq(main.upgrade_needs(K.MANOR, 5, 5, false), "Wymaga: O1 Sypanie kopców, G1 Karczowanie lasu, A7 Strzemię",
+			"przebudowa Dworu (#34)")
+	assert_true(not main.upgrade_needs_ok(K.MANOR, 5, 5, false), "bez technologii na czerwono")
+	var r := Research.new()
+	r.done["O1"] = true
+	r.done["G1"] = true
+	assert_eq(main.upgrade_needs(K.MANOR, 5, 5, false, r), "Wymaga: A7 Strzemię", "tylko brakujące")
+	r.done["A7"] = true
+	assert_eq(main.upgrade_needs(K.MANOR, 5, 5, false, r), "Wymaga: O1, G1, A7 (zbadane)", "wszystkie zbadane")
+	assert_true(main.upgrade_needs_ok(K.MANOR, 5, 5, false, r), "z technologiami na zielono")
 	assert_eq(main.upgrade_needs(K.TOWER, 10, 10, false), "", "najwyższy poziom: bez linii")
 	assert_eq(main.upgrade_needs(K.TOWER, 1, 3, true), "", "w budowie: bez linii")
 	assert_true(main.upgrade_needs_ok(K.TOWER, 1, 3, false), "wieża 1 przy Dworze 3: zielona")

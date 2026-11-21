@@ -85,11 +85,11 @@ Pełna lista etapów: [[Plan MVP]]. Pytania i braki: [[Otwarte pytania]]. Niedaw
 
 ### 20.11.2026 — przejście epoki (#34)
 
-- Wejście w kolejną epokę: preferencyjnie **dwie** konkretne technologie **oraz** Dwór **poziom 5** (bez starych wymagań Wał/Palisada jako warunku przejścia).
+- Wejście w kolejną epokę: konkretne technologie (I → II od 21.11.2026: **O1, G1, A7**) **oraz** Dwór **poziom 5** (bez starych wymagań Wał/Palisada jako warunku przejścia).
 - Techy następnej epoki tylko po odblokowaniu prerequisite / blokujących.
 - Budynki: max poziom → w nowej epoce od poziomu 1, z zachowaniem bonusów; **nie niszczymy postępu**.
 - Vault: [[Epoki]], [[Progresja budowy]]; issue: #34.
-- W kodzie (21.11.2026): poziomy liczone narastająco (6–10 = epoka II), przejście to przebudowa Dworu 5 z O1 ★, budynki wchodzą w epokę II z poziomu 5 od poziomu 1, premie liczą się od poziomu 5. Druga technologia przejścia i `players.age` na serwerze — do dopięcia.
+- W kodzie (21.11.2026): poziomy liczone narastająco (6–10 = epoka II), przejście to przebudowa Dworu 5 z O1 ★, budynki wchodzą w epokę II z poziomu 5 od poziomu 1, premie liczą się od poziomu 5. Warunek I → II: O1 + G1 + A7 (decyzja właścicielki 21.11.2026). `players.age` na serwerze — do dopięcia.
 
 ## Następne kroki
 

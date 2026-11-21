@@ -1,6 +1,6 @@
 extends TestCase
 ## Epoka II i przejście I → II (#34): poziomy narastająco przez epoki, warunki przejścia
-## (Dwór 5 i technologia kluczowa O1), budynek z poziomu 5 wchodzi w epokę II od poziomu 1,
+## (Dwór 5 i technologie kluczowe O1, G1, A7), budynek z poziomu 5 wchodzi w epokę II od poziomu 1,
 ## premie z epoki I zostają, technologie epoki II czekają na epokę i wymagania, zapis i wygląd.
 
 const HOUR := 3600 * 1000
@@ -68,14 +68,23 @@ func test_levels_count_through_ages() -> bool:
 
 
 func test_transition_needs_manor_5_and_key_technology() -> bool:
-	assert_eq(Ages.transition_techs(0), ["O1"] as Array[String], "I → II: O1 Sypanie kopców")
-	assert_true(TechTree.is_key("O1"), "O1 jest technologią kluczową")
+	assert_eq(Ages.transition_techs(0), ["O1", "G1", "A7"] as Array[String], "I → II: Obrona, Gospodarka, Atak")
+	var branches: Array[int] = []
+	for code in Ages.transition_techs(0):
+		assert_true(TechTree.is_key(code), "%s jest technologią kluczową" % code)
+		assert_eq(TechTree.age(code), 0, "%s z epoki I" % code)
+		branches.append(TechTree.branch(code))
+	assert_eq(branches, [TechTree.Branch.DEFENSE, TechTree.Branch.ECONOMY, TechTree.Branch.ATTACK] as Array[int],
+			"po jednej z Obrony, Gospodarki i Ataku")
 	var none := Research.new()
-	var o1 := _research(["O1"] as Array[String])
+	var o1 := _research(["O1", "G1", "A7"] as Array[String])
 	assert_true(not Ages.can_advance(4, o1), "Dwór 4 nie wystarcza")
-	assert_true(not Ages.can_advance(5, none), "bez O1 nie wolno")
-	assert_true(Ages.can_advance(5, o1), "Dwór 5 i O1: można przebudować")
-	assert_eq(Ages.transition_missing(4, none).size(), 2, "brak Dworu 5 i O1")
+	assert_true(not Ages.can_advance(5, none), "bez technologii nie wolno")
+	assert_true(not Ages.can_advance(5, _research(["O1", "G1"] as Array[String])), "bez A7 nie wolno")
+	assert_true(not Ages.can_advance(5, _research(["O1", "A7"] as Array[String])), "bez G1 nie wolno")
+	assert_true(not Ages.can_advance(5, _research(["G1", "A7"] as Array[String])), "bez O1 nie wolno")
+	assert_true(Ages.can_advance(5, o1), "Dwór 5 i trzy technologie: można przebudować")
+	assert_eq(Ages.transition_missing(4, none).size(), 4, "brak Dworu 5 i trzech technologii")
 	assert_true(not Ages.can_advance(6, o1), "epoka II to ostatnia epoka MVP")
 	var c := _castle(5, 1)
 	var grid: BuildGrid = c[0]
@@ -83,9 +92,13 @@ func test_transition_needs_manor_5_and_key_technology() -> bool:
 	var q := BuildQueue.new()
 	assert_eq(q.order_upgrade(grid, economy, grid.manor_id(), T0), BuildQueue.Result.NEEDS_TECH, "bez badań")
 	assert_eq(q.order_upgrade(grid, economy, grid.manor_id(), T0, none), BuildQueue.Result.NEEDS_TECH, "bez O1")
-	assert_true(q.upgrade_hint(grid, grid.manor_id(), none).contains("O1"), "podpowiedź mówi o O1")
+	assert_true(q.upgrade_hint(grid, grid.manor_id(), none).contains("O1, G1, A7"), "podpowiedź mówi o technologiach")
+	assert_true(PixelFont.text_width(q.upgrade_hint(grid, grid.manor_id(), none)) <= Hud.MESSAGE_MAX_WIDTH,
+			"podpowiedź mieści się w komunikacie")
+	assert_eq(q.order_upgrade(grid, economy, grid.manor_id(), T0, _research(["O1", "G1"] as Array[String])),
+			BuildQueue.Result.NEEDS_TECH, "bez A7")
 	assert_eq(economy.amounts, [1000, 1000, 1000, 1000] as Array[int], "odmowa nic nie kosztuje")
-	assert_eq(q.order_upgrade(grid, economy, grid.manor_id(), T0, o1), BuildQueue.Result.OK, "z O1 przebudowa rusza")
+	assert_eq(q.order_upgrade(grid, economy, grid.manor_id(), T0, o1), BuildQueue.Result.OK, "z O1, G1 i A7 przebudowa rusza")
 	assert_eq(economy.amounts, [0, 0, 0, 1000] as Array[int], "przebudowa mieści się w magazynie grodu")
 	q.update(T0 + DAY, grid, economy, o1)
 	assert_eq(grid.manor_level(), 6, "Dwór na poziomie 1 epoki II")
@@ -122,7 +135,7 @@ func test_age_ii_costs_and_times() -> bool:
 	assert_eq(BuildConfig.cost(K.TOWER, 6), [240, 80, 80, 0] as Array[int], "wieża II.1: koszt poz. 1 ×2")
 	assert_eq(BuildConfig.time_ms(K.TOWER, 6), BuildConfig.time_ms(K.TOWER, 1) * 2, "wieża II.1: czas poz. 1 ×2")
 	assert_eq(BuildConfig.cost(K.MANOR, 6), [1000, 1000, 1000, 0] as Array[int], "przebudowa Dworu")
-	assert_eq(BuildConfig.level_techs(K.MANOR, 6), ["O1"] as Array[String], "przebudowa wymaga O1")
+	assert_eq(BuildConfig.level_techs(K.MANOR, 6), ["O1", "G1", "A7"] as Array[String], "przebudowa wymaga trzech technologii")
 	assert_true(BuildConfig.level_techs(K.MANOR, 7).is_empty(), "dalsze poziomy już nie")
 	assert_true(BuildConfig.level_techs(K.TOWER, 6).is_empty(), "inne budynki bez technologii przejścia")
 	for kind in BuildingTypes.count():
@@ -176,7 +189,7 @@ func test_transition_keeps_castle_and_survives_save() -> bool:
 	var c := _castle(5, 5)
 	var grid: BuildGrid = c[0]
 	var hut: int = c[1]
-	var o1 := _research(["O1"] as Array[String])
+	var o1 := _research(["O1", "G1", "A7"] as Array[String])
 	var before := grid.buildings.duplicate()
 	var economy := _rich_economy()
 	var q := BuildQueue.new()

@@ -1,6 +1,6 @@
 # Drzewko technologiczne
 
-131 technologii w 5 gałęziach, rozłożonych na 6 epok. Przejście epoki wymaga konkretnych technologii — preferencyjnie **dwóch** — oraz Dworu 5 ([[Progresja budowy]], #34). Technologie kluczowe (★) to znane dziś kotwice przejść; druga tech na przejście do dopięcia w drzewku.
+131 technologii w 5 gałęziach, rozłożonych na 6 epok. Przejście epoki wymaga konkretnych technologii oraz Dworu 5 ([[Progresja budowy]], #34). Technologie kluczowe (★) to warunki przejść: I → II to O1, G1 i A7 (po jednej z Obrony, Gospodarki i Ataku); dla dalszych przejść pozostałe techy do dopięcia w drzewku.
 
 ## Zasady badań
 - Każda gałąź ma swój budynek badań: Atak — budynek główny, od epoki I Koszary, od V Arsenał; Obrona — budynek główny; Gospodarka — budynek główny, od epoki III Targ; Użyteczne — budynek główny, od epoki II Kaplica, od IV Szpital; Specjalne — Wieża sygnałowa, od epoki II Dom zwiadowców, od VI Sztab.
@@ -20,7 +20,7 @@
 | A4 | Taktyka oskrzydlenia | I | manewr Oskrzydlenie | A1 |
 | A5 | Drabiny oblężnicze | II | manewr Szturm z drabinami | A4 |
 | A6 | Taran okuty | II | jednostka Taran, manewr Taranowanie bramy | A1 |
-| A7 | Strzemię | I | jednostka Jeździec, konnica +25% szybkości | A2 |
+| A7 | ★ Strzemię | I | jednostka Jeździec, konnica +25% szybkości, warunek przejścia I → II | A2 |
 | A22 | Kopia rycerska | II | jednostka Kopijnik | A7 |
 | A8 | Kusza z korbą | III | jednostka Kusznik | A2 |
 | A9 | Machiny przeciwwagowe | III | jednostka Trebusz, manewr Wybicie wyłomu | A6 |
@@ -118,7 +118,7 @@ Zmienione zależności: A21 Ściana tarcz wymaga A38, A7 Strzemię wymaga A43, A
 
 | Kod | Technologia | Epoka | Efekt | Wymaga |
 | --- | --- | --- | --- | --- |
-| G1 | Karczowanie lasu | I | +20% drewna | — |
+| G1 | ★ Karczowanie lasu | I | +20% drewna, warunek przejścia I → II | — |
 | G2 | Żarna | I | +15% żywności | — |
 | G3 | Studnia głębinowa | I | studnia gasi pożary 2× szybciej | — |
 | G4 | Kamieniarstwo | II | budynek Kamieniołom | G1 |

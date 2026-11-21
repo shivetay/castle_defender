@@ -1673,8 +1673,12 @@ static func upgrade_needs(kind: int, level: int, manor_level: int, pending: bool
 		var techs := BuildConfig.level_techs(kind, level + 1)
 		if techs.is_empty():
 			return "Wymaga: tylko surowców"
+		# przebudowa na nową epokę: brakujące technologie z nazwą, a gdy wszystkie są, same kody
+		var missing := BuildQueue.missing_techs(kind, level + 1, research)
+		if missing.is_empty():
+			return "Wymaga: %s (zbadane)" % ", ".join(techs)
 		var names: PackedStringArray = []
-		for code in techs:
+		for code in missing:
 			names.append("%s %s" % [code, TechTree.tech_name(code)])
 		return "Wymaga: %s" % ", ".join(names)
 	return "Wymaga: Dwór poz. %s (masz %s)" % [Ages.short_level(level + 1), Ages.short_level(manor_level)]
