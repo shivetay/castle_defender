@@ -699,8 +699,8 @@ zwiadu tylko zarys budynków, a w odsłoniętym fragmencie (20–80% zabudowy) b
 i pułapki. Zwiad na zamek-bota liczy gra, a zwiad na gracza serwer (`scout`, `scout_reports`, migracja `scouting`):
 wynik z seeda serwera, raport po końcu misji. Plan ataku na gracza dostaje ze `start_attack` tylko zarys,
 donżon i to, co odsłonił zwiad; pełną kopię zamku i obrony daje dopiero zatwierdzenie planu
-(`launch_attack`), a bez niego serwer nie przyjmie wyniku. Migracja `scouting` czeka na wgranie na projekt
-(za zgodą właścicielki). Liczby zwiadu są tymczasowe.
+(`launch_attack`), a bez niego serwer nie przyjmie wyniku. Migracja `scouting` i Edge Functions `scout`,
+`scout_reports`, `launch_attack`, `start_attack`, `finish_attack` są na projekcie. Liczby zwiadu są tymczasowe.
 Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
 Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
