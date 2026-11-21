@@ -1,6 +1,6 @@
 extends TestCase
 ## Generałowie (#31): rekrutacja za złoto w Dworze, poziomy 1–3 z doświadczenia i złota, perk
-## dodatkowy na poziomie 3, zapis oraz generał w bitwie (aura, perki, śmierć) z determinizmem.
+## dodatkowy na poziomie 3, zapis oraz generał w bitwie (perki na całą stronę) z determinizmem.
 
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
@@ -38,7 +38,7 @@ func _battle(attackers: Array, defenders: Array = [], seed_value: int = 1) -> Ba
 
 func _first(b: Battle, side: int, squad: int = 1) -> Battle.Fighter:
 	for f in b.fighters:
-		if f.side == side and f.squad == squad and f.general < 0:
+		if f.side == side and f.squad == squad:
 			return f
 	return null
 
@@ -74,18 +74,18 @@ func test_promote_needs_xp_and_gold_up_to_level_3() -> bool:
 	var gold := e.amounts[EconomyConfig.Res.GOLD]
 	assert_eq(gs.promote(G.CHIEF, e), RES.OK, "awans na 2")
 	assert_eq(e.amounts[EconomyConfig.Res.GOLD], gold - Generals.LEVEL_GOLD[2], "za złoto")
-	assert_eq(gs.choose_perk(G.CHIEF, P.VETERAN, 0), RES.NO_PERK_YET, "perk dopiero na poziomie 3")
+	assert_eq(gs.choose_perk(G.CHIEF, P.FAST_MARCH, 0), RES.NO_PERK_YET, "perk dopiero na poziomie 3")
 	assert_eq(gs.promote(G.CHIEF, e), RES.NO_XP, "na 3 trzeba więcej doświadczenia")
 	gs.get_general(G.CHIEF).xp = Generals.LEVEL_XP[3]
 	var poor := Economy.new(0)
 	assert_eq(gs.promote(G.CHIEF, poor), RES.NO_GOLD, "bez złota nie awansuje")
 	assert_eq(gs.promote(G.CHIEF, e), RES.OK, "awans na 3")
 	assert_eq(gs.promote(G.CHIEF, e), RES.MAX_LEVEL, "MVP kończy się na 3")
-	assert_eq(gs.choose_perk(G.CHIEF, P.CRUEL, 0), RES.PERK_LOCKED, "Okrutny od epoki II")
-	assert_eq(gs.choose_perk(G.CHIEF, P.VETERAN, 0), RES.OK, "Weteran")
-	assert_eq(gs.choose_perk(G.CHIEF, P.TOUGH, 0), RES.PERK_SET, "perk dodatkowy tylko jeden")
-	assert_eq(Generals.perks_for(0).size(), 3, "w epoce I trzy perki")
-	assert_eq(Generals.perks_for(1).size(), 5, "w epoce II pięć")
+	assert_eq(gs.choose_perk(G.CHIEF, P.CAREFUL, 0), RES.PERK_LOCKED, "Ostrożny od epoki II")
+	assert_eq(gs.choose_perk(G.CHIEF, P.FAST_MARCH, 0), RES.OK, "Szybki marsz")
+	assert_eq(gs.choose_perk(G.CHIEF, P.FAST_MARCH, 1), RES.PERK_SET, "perk dodatkowy tylko jeden")
+	assert_eq(Generals.perks_for(0).size(), 1, "w epoce I jeden perk")
+	assert_eq(Generals.perks_for(1).size(), 2, "w epoce II dwa")
 	for i in 30:
 		gs.add_battle_xp(G.CHIEF, true)
 	assert_eq(gs.get_general(G.CHIEF).xp, Generals.XP_MAX, "doświadczenie ma górną granicę")
@@ -113,13 +113,13 @@ func test_save_round_trip_and_bad_entries() -> bool:
 	gs.recruit(G.HUNTSMAN, 0, e)
 	gs.get_general(G.HUNTSMAN).level = 3
 	gs.get_general(G.HUNTSMAN).xp = 250
-	gs.choose_perk(G.HUNTSMAN, P.TOUGH, 0)
+	gs.choose_perk(G.HUNTSMAN, P.FAST_MARCH, 0)
 	gs.set_attack(G.HUNTSMAN)
 	var back := Generals.new()
 	assert_eq(back.load_data(JSON.parse_string(JSON.stringify(gs.save_data())) as Dictionary), 0, "nic nie pominięto")
 	assert_eq(back.save_data(), gs.save_data(), "ten sam stan po JSON")
 	assert_eq(back.attack_kind, G.HUNTSMAN, "generał ataku")
-	var raw := {"roster": [{"kind": 0, "level": 9, "xp": 99999, "perk": 3}, {"kind": 0}, {"kind": 7}, "x",
+	var raw := {"roster": [{"kind": 0, "level": 9, "xp": 99999, "perk": 1}, {"kind": 0}, {"kind": 7}, "x",
 			{"kind": 2, "level": 2, "perk": 1}], "attack": 1}
 	assert_eq(back.load_data(raw), 3, "powtórzony, nieznany i zły wpis pominięte")
 	assert_eq(back.get_general(G.CHIEF).level, Generals.MAX_LEVEL, "poziom przycięty do MVP")
@@ -139,12 +139,10 @@ func test_save_game_keeps_generals() -> bool:
 	gs.set_attack(G.HUNTSMAN)
 	var defense := DefensePlan.new()
 	defense.commander = G.CHIEF
-	defense.commander_squad = 5
 	var d := SaveGame.to_dict(1337, grid, e, BuildQueue.new(), null, null, null, 0, null, 0, defense, 0, null, null, gs)
 	var s := SaveGame.from_dict(JSON.parse_string(JSON.stringify(d)) as Dictionary, 0)
 	assert_eq(s.generals.save_data(), gs.save_data(), "generałowie z zapisu")
 	assert_eq(s.defense.commander, G.CHIEF, "komendant obrony")
-	assert_eq(s.defense.commander_squad, 0, "oddziału, którego nie ma w armii, komendant wraca pod donżon")
 	var old := d.duplicate(true)
 	old["version"] = 10
 	old.erase("generals")
@@ -160,14 +158,15 @@ func test_attack_general_changes_the_battle() -> bool:
 	var plain := _battle(army, crew, 5)
 	var led := _battle(army, crew, 5)
 	led.set_general(SIDE.ATTACKER, _general(G.CHIEF))
+	var n := led.fighters.size()
 	plain.run()
 	led.run()
 	assert_true(plain.checksum() != led.checksum(), "inny przebieg z generałem")
+	assert_eq(n, plain.fighters.size(), "generał nie staje na siatce")
 	var again := _battle(army, crew, 5)
 	again.set_general(SIDE.ATTACKER, _general(G.CHIEF))
 	again.run()
 	assert_eq(again.checksum(), led.checksum(), "ten sam seed i generał: ten sam przebieg")
-	assert_eq(led.survivors(SIDE.ATTACKER).size(), 2, "generał nie jest oddziałem w ocalałych")
 	return true
 
 
@@ -181,11 +180,10 @@ func test_defense_commander_changes_the_battle() -> bool:
 	plain.run()
 	led.run()
 	assert_true(plain.checksum() != led.checksum(), "inny przebieg z komendantem")
-	assert_true(led.general_fighter(SIDE.DEFENDER) != null, "komendant stoi na siatce")
 	return true
 
 
-func test_chief_aura_damage_and_morale() -> bool:
+func test_chief_boosts_whole_side() -> bool:
 	var b := _battle([[U.AXE_WARRIOR, 2], [U.ARCHER, 2]], [[U.AXE_WARRIOR, 1]])
 	var axe := _first(b, SIDE.ATTACKER, 1)
 	var archer := _first(b, SIDE.ATTACKER, 2)
@@ -193,67 +191,35 @@ func test_chief_aura_damage_and_morale() -> bool:
 	var before := b.unit_damage(axe, enemy)
 	var archer_before := b.unit_damage(archer, enemy)
 	b.set_general(SIDE.ATTACKER, _general(G.CHIEF))
-	var gf := b.general_fighter(SIDE.ATTACKER)
-	assert_eq(gf.hp, Generals.GENERAL_HP, "HP 150")
-	gf.x = axe.x
-	gf.y = axe.y
-	assert_true(b.in_aura(axe, G.CHIEF), "topornik w aurze")
 	assert_eq(b.unit_damage(axe, enemy), before * Generals.CHIEF_DAMAGE_PERCENT / 100, "piechota +10%")
 	assert_eq(b.unit_damage(archer, enemy), archer_before, "strzelcy bez premii Wodza")
-	gf.x += (Generals.AURA_CELLS + 1) * BattleConfig.SUB
-	assert_true(not b.in_aura(axe, G.CHIEF), "poza aurą")
-	assert_eq(b.unit_damage(axe, enemy), before, "poza aurą bez premii")
-	gf.x = axe.x
-	b._chief_morale()
-	b._chief_morale()
-	assert_eq(b.squad_morale(SIDE.ATTACKER, 1), BattleConfig.MORALE_START + Generals.CHIEF_MORALE, "+10 morale raz")
-	return true
-
-
-func test_general_death_costs_morale_and_he_alone_does_not_fight_on() -> bool:
-	var b := _battle([[U.AXE_WARRIOR, 2], [U.ARCHER, 2]])
-	b.set_general(SIDE.ATTACKER, _general(G.HUNTSMAN))
-	var gf := b.general_fighter(SIDE.ATTACKER)
-	b._hurt(gf, gf.hp)
-	assert_eq(b.squad_morale(SIDE.ATTACKER, 1), BattleConfig.MORALE_START + BattleConfig.MORALE_GENERAL_DEATH,
-			"oddział 1: −20")
-	assert_eq(b.squad_morale(SIDE.ATTACKER, 2), BattleConfig.MORALE_START + BattleConfig.MORALE_GENERAL_DEATH,
-			"oddział 2: −20")
-	assert_true(b.general_view(SIDE.ATTACKER).is_empty(), "poległy generał nie jest rysowany")
-	var lone := _battle([[U.AXE_WARRIOR, 1]])
-	lone.set_general(SIDE.ATTACKER, _general(G.CHIEF))
-	lone._hurt(_first(lone, SIDE.ATTACKER), 9999)
-	lone.step()
-	assert_eq(lone.winner, Battle.Winner.DEFENDER, "sam generał nie przedłuża bitwy")
+	assert_eq(b.squad_morale(SIDE.ATTACKER, 1), BattleConfig.MORALE_START + Generals.CHIEF_MORALE, "oddział 1: +10 morale")
+	assert_eq(b.squad_morale(SIDE.ATTACKER, 2), BattleConfig.MORALE_START + Generals.CHIEF_MORALE, "oddział 2: +10 morale")
+	assert_eq(b.squad_morale(SIDE.DEFENDER, 1), BattleConfig.MORALE_START, "wróg bez premii")
+	b.set_general(SIDE.ATTACKER, _general(G.CHIEF))
+	assert_eq(b.squad_morale(SIDE.ATTACKER, 1), BattleConfig.MORALE_START + Generals.CHIEF_MORALE, "jeden generał na stronę")
 	return true
 
 
 func test_extra_perks() -> bool:
-	var tough := _general(G.CHIEF, 3, P.TOUGH)
-	assert_eq(tough.max_hp(), Generals.GENERAL_HP * 2, "Twardy: +100% HP")
-	assert_eq(_general(G.CHIEF, 3, P.VETERAN).aura_cells(), Generals.AURA_CELLS + 2, "Weteran: aura +2")
-	assert_eq(_general(G.CHIEF, 2, P.VETERAN).aura_cells(), Generals.AURA_CELLS, "perk działa od poziomu 3")
-	# Szybki marsz: +1 szybkości w aurze
+	assert_true(not _general(G.CHIEF, 2, P.FAST_MARCH).has_perk(P.FAST_MARCH), "perk działa od poziomu 3")
+	# Szybki marsz: +1 szybkości całej armii
 	var b := _battle([[U.AXE_WARRIOR, 1]], [[U.ARCHER, 1]])
 	var axe := _first(b, SIDE.ATTACKER)
 	var slow := b.step_of(axe)
 	b.set_general(SIDE.ATTACKER, _general(G.CHIEF, 3, P.FAST_MARCH))
-	b.general_fighter(SIDE.ATTACKER).x = axe.x
-	b.general_fighter(SIDE.ATTACKER).y = axe.y
 	assert_eq(b.step_of(axe), slow + Generals.FAST_MARCH_SPEED * BattleConfig.SPEED_SUB_PER_TICK, "Szybki marsz")
-	# Ostrożny: −15% od strzał w aurze
+	assert_eq(b.step_of(_first(b, SIDE.DEFENDER)), UnitTypes.speed(U.ARCHER) * BattleConfig.SPEED_SUB_PER_TICK,
+			"wróg bez premii")
+	# Ostrożny: −15% od strzał dla całej armii
 	var c := _battle([[U.AXE_WARRIOR, 1]], [[U.ARCHER, 1]])
 	var target := _first(c, SIDE.ATTACKER)
 	var archer := _first(c, SIDE.DEFENDER)
 	var arrow := c.unit_damage(archer, target)
+	var melee := c.unit_damage(target, archer)
 	c.set_general(SIDE.ATTACKER, _general(G.HUNTSMAN, 3, P.CAREFUL))
-	c.general_fighter(SIDE.ATTACKER).x = target.x
-	c.general_fighter(SIDE.ATTACKER).y = target.y
 	assert_eq(c.unit_damage(archer, target), arrow * Generals.CAREFUL_ARROW_PERCENT / 100, "Ostrożny")
-	# Okrutny: −5 morale własnych oddziałów od startu
-	var d := _battle([[U.AXE_WARRIOR, 1], [U.ARCHER, 1]])
-	d.set_general(SIDE.ATTACKER, _general(G.CHIEF, 3, P.CRUEL))
-	assert_eq(d.squad_morale(SIDE.ATTACKER, 2), BattleConfig.MORALE_START + Generals.CRUEL_MORALE, "Okrutny")
+	assert_eq(c.unit_damage(target, archer), melee, "w zwarciu bez zmian")
 	return true
 
 
@@ -268,8 +234,6 @@ func test_huntsman_speeds_up_flanking() -> bool:
 	b.set_general(SIDE.ATTACKER, _general(G.HUNTSMAN))
 	assert_eq(b.step_of(flank), base * Generals.HUNTSMAN_FLANK_SPEED_PERCENT / 100, "Oskrzydlenie 20% szybciej")
 	assert_eq(b.step_of(front), base, "inne manewry bez zmian")
-	b._hurt(b.general_fighter(SIDE.ATTACKER), 9999)
-	assert_eq(b.step_of(flank), base, "po śmierci Łowczego premia znika")
 	return true
 
 
@@ -294,12 +258,90 @@ func test_mound_builder_strengthens_fortifications() -> bool:
 	return true
 
 
-func test_defender_general_follows_chosen_squad() -> bool:
-	var b := _battle([[U.AXE_WARRIOR, 1]], [[U.AXE_WARRIOR, 2], [U.ARCHER, 2]])
-	b.set_general(SIDE.DEFENDER, _general(G.CHIEF), 2)
-	var gf := b.general_fighter(SIDE.DEFENDER)
-	assert_true(b._general_leader(gf) == _first(b, SIDE.DEFENDER, 2), "idzie przy oddziale 2")
-	var keep_side := _battle([[U.AXE_WARRIOR, 1]], [[U.AXE_WARRIOR, 2]])
-	keep_side.set_general(SIDE.DEFENDER, _general(G.CHIEF))
-	assert_true(keep_side._general_leader(keep_side.general_fighter(SIDE.DEFENDER)) == null, "bez oddziału: przy donżonie")
+func test_commander_choice_skips_attack_general() -> bool:
+	var gs := Generals.new()
+	var e := _rich()
+	var plan := DefensePlan.new()
+	assert_eq(DefensePanel.next_commander(plan, gs), "Najpierw zwerbuj generała w Dworze", "bez generałów")
+	gs.recruit(G.CHIEF, 0, e)
+	gs.recruit(G.HUNTSMAN, 0, e)
+	gs.set_attack(G.HUNTSMAN)
+	assert_eq(DefensePanel.next_commander(plan, gs), "Komendant: Wódz drużyny, poz. 1", "Wódz")
+	assert_eq(DefensePanel.next_commander(plan, gs), "Komendant: brak", "Łowczy dowodzi atakiem, więc znów brak")
+	assert_eq(DefensePanel.commander_label(plan, gs), DefensePanel.COMMANDER_LABEL, "przycisk bez komendanta")
+	var view := Vector2(320, 180)
+	var b := Hud.content_bounds(view, Rect2())
+	assert_eq(DefensePanel.target_at(AttackPanel.general_rect(b.x).get_center(), view, b.x, b.y, 3, 0),
+			DefensePanel.Target.COMMANDER, "przycisk komendanta w lewym górnym rogu")
+	assert_eq(AttackPanel.target_at(AttackPanel.general_rect(b.x).get_center(), view, b.x, b.y, 3),
+			AttackPanel.Target.GENERAL, "przycisk generała ataku")
+	for label: String in [DefensePanel.COMMANDER_LABEL, AttackPanel.GENERAL_LABEL] + Generals.SHORT_NAMES:
+		assert_true(PixelFont.text_width(label) <= Hud.BUTTON_SIZE.x - 2, "„%s” mieści się na przycisku" % label)
+	return true
+
+
+const REPLAY := preload("res://tests/test_replay.gd")
+
+
+## Kopia zamku obrońcy z generałami (Wódz drużyny, poziom 2) i obrona z Wodzem jako komendantem.
+static func _defender_castle() -> Dictionary:
+	var castle := REPLAY._castle(REPLAY._map_seed())
+	castle["generals"] = {"roster": [{"kind": G.CHIEF, "level": 2, "xp": 120, "perk": -1}], "attack": -1}
+	return castle
+
+
+## Bitwa atakującego na graczu i powtórka obrońcy z tych samych danych z serwera, z generałami obu stron.
+func _pvp(general: Variant, defense: Dictionary) -> Array:
+	var plan := REPLAY._plan(REPLAY._keep_cell())
+	var castle := _defender_castle()
+	var footprint: Array = []
+	var keep: Array = []
+	for e: Variant in (castle["grid"] as Dictionary)["buildings"] as Array:
+		var a := e as Array
+		footprint.append([a[3], a[4], a[5], a[6]])
+		if int(a[1]) == K.KEEP:
+			keep = [a[3], a[4], a[5], a[6]]
+	var start := AttackStart.parse_response({"id": REPLAY.ATTACK, "map_seed": REPLAY._map_seed(), "battle_seed": 4141,
+			"defender_id": REPLAY.DEFENDER, "footprint": footprint, "keep": keep, "intel": {}})
+	var pc := PlayerCastle.from_start(start, REPLAY.ARMY, 0, 1)
+	var launch := AttackLaunch.parse_response(REPLAY._wire({"id": REPLAY.ATTACK, "castle": castle, "defense": defense,
+			"plan": plan.to_server(), "techs": ["A1"], "general": general}))
+	assert_true(pc.apply_launch(launch), "kopia z launch_attack")
+	var live := pc.create_battle()
+	var trace := REPLAY._trace(live)
+	var result := pc.result_of(live)
+	var replay := BattleReplay.from_response(AttackReplay.parse_response(REPLAY._wire({"id": REPLAY.ATTACK,
+			"map_seed": REPLAY._map_seed(), "battle_seed": 4141, "castle": castle, "defense": defense, "army": REPLAY.ARMY,
+			"plan": plan.to_server(), "techs": ["A1"], "general": general, "result": result.to_server(),
+			"loot": [0, 0, 0, 0], "finished_at": "2026-11-21T10:15:00+00:00"})))
+	assert_true(replay != null, "powtórka z odpowiedzi")
+	return [live, trace, replay.create_battle()]
+
+
+## Kryterium #31 w PvP: generał ataku z serwera i komendant z kopii obrony wchodzą do bitwy u atakującego
+## i w powtórce u obrońcy, a powtórka idzie krok po kroku tak samo.
+func test_pvp_generals_match_in_replay() -> bool:
+	var defense := {"orders": [], "tower_priority": 0, "traps": [], "commander": G.CHIEF}
+	var general := {"kind": G.HUNTSMAN, "level": 3, "perk": P.FAST_MARCH}
+	var led := _pvp(general, defense)
+	var live: Battle = led[0]
+	assert_eq(live.generals[SIDE.ATTACKER].kind, G.HUNTSMAN, "generał ataku z serwera")
+	assert_true(live.general_perk(SIDE.ATTACKER, P.FAST_MARCH), "z perkiem z serwera")
+	assert_eq(live.generals[SIDE.DEFENDER].level, 2, "komendant z kopii zamku obrońcy")
+	assert_eq(REPLAY._trace(led[2]), led[1], "powtórka z generałami: ten sam przebieg")
+	var plain := _pvp(null, {})
+	assert_true(plain[1] != led[1], "bez generałów inny przebieg")
+	assert_true((plain[0] as Battle).generals.is_empty(), "bez generałów nikogo nie ma")
+	return true
+
+
+func test_launch_request_has_general_only_when_chosen() -> bool:
+	var plan := AttackPlan.new()
+	plan.add(1, AttackPlan.Manoeuvre.FRONTAL)
+	assert_true(not AttackLaunch.request("x", plan).has("general"), "bez generała bez klucza (stary serwer)")
+	assert_eq(AttackLaunch.request("x", plan, G.HUNTSMAN)["general"], G.HUNTSMAN, "rodzaj generała")
+	assert_true(not AttackLaunch.request("x", plan, 9).has("general"), "nieznany rodzaj nie idzie")
+	assert_true(Generals.general_from({"kind": 1.0, "level": 2.5}) != null, "liczby z JSON")
+	assert_eq(Generals.general_from({"kind": 1.0, "level": 2.5}).level, 1, "ułamek poziomu: poziom 1 jak na serwerze")
+	assert_eq(Generals.general_from(null), null, "null: bez generała")
 	return true

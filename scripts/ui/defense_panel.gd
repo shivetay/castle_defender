@@ -13,7 +13,8 @@ extends Control
 ## rysuje main; ten węzeł rysuje tylko przyciski. Pułapki (#100) przełączają pasek na rodzaje pułapek:
 ## dotknięcie kratki stawia wybraną (koszt schodzi od razu), dotknięcie pułapki ją usuwa (bez zwrotu),
 ## a Załoga wraca do oddziałów. Powtórki (#29) otwierają listę ostatnich obron: po obejrzeniu ataku
-## gracz wraca tu i od razu poprawia obronę.
+## gracz wraca tu i od razu poprawia obronę. Komendant (#31) przełącza komendanta obrony: brak, a potem
+## każdy generał gracza poza generałem ataku. Komendant dowodzi całą obroną, nie stoi na mapie.
 ## Dotknięcia poza przyciskami idą do mapy (kamera i tap()).
 
 ## Układ albo wybór zmienił się (mapa ma się przerysować, a gra zapisać).
@@ -22,9 +23,11 @@ signal back_requested
 ## Powtórki (#29): lista ostatnich obron.
 signal replays_requested
 
-enum Target { NONE = -1, CLEAR, BACK, TASK, TOWERS, TRAPS, CREW, REPLAYS, MORE = 50, SQUAD = 100 }
+enum Target { NONE = -1, CLEAR, BACK, TASK, TOWERS, TRAPS, CREW, REPLAYS, COMMANDER, MORE = 50, SQUAD = 100 }
 const COLUMN: Array[int] = [Target.TASK, Target.TOWERS, Target.TRAPS, Target.CLEAR, Target.REPLAYS, Target.BACK]
 const LABELS: Array[String] = ["Zadanie", "Wieże", "Pułapki", "Zdejmij", "Powtórki", "Gotowe"]
+## Przycisk komendanta (#31) w lewym górnym rogu (AttackPanel.general_rect), poza trybem pułapek.
+const COMMANDER_LABEL := "Komend."
 ## Kolumna w trybie pułapek (#100).
 const TRAP_COLUMN: Array[int] = [Target.CREW, Target.BACK]
 const TRAP_LABELS: Array[String] = ["Załoga", "Gotowe"]
@@ -37,6 +40,8 @@ const SQUAD_TILE := AttackPanel.SQUAD_TILE
 const INFO_H := AttackPanel.INFO_H
 
 var plan: DefensePlan
+## Generałowie gracza (#31) do wyboru komendanta; ustawia je main.gd.
+var generals: Generals
 ## Zamek i epoka: do zadań domyślnych w opisie i do Wypadu konnicy (od epoki II).
 var castle: BuildGrid
 var age := 0
@@ -133,6 +138,8 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, coun
 	for i in col.size():
 		if Hud.column_rect(right, i).has_point(p):
 			return col[i]
+	if not traps_shown and AttackPanel.general_rect(left).has_point(p):
+		return Target.COMMANDER
 	var fit := tiles_fit(left, right)
 	var shown := visible_squads(count, fit, start)
 	for slot in shown.size():
@@ -144,6 +151,29 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, coun
 
 
 # --- Edycja ---------------------------------------------------------------------------------------
+
+## Kolejny komendant obrony (#31): brak → generałowie gracza po kolei (bez generała ataku) → brak.
+## Zwraca komunikat.
+static func next_commander(p: DefensePlan, g: Generals) -> String:
+	if g == null or g.roster.is_empty():
+		return "Najpierw zwerbuj generała w Dworze"
+	p.next_commander(g, g.attack_kind)
+	return commander_text(p, g)
+
+
+## Napis przycisku komendanta: krótka nazwa generała albo „Komend.”.
+static func commander_label(p: DefensePlan, g: Generals) -> String:
+	if p == null or p.commander < 0 or g == null or not g.has_general(p.commander):
+		return COMMANDER_LABEL
+	return Generals.SHORT_NAMES[p.commander]
+
+
+## Opis komendanta: „Komendant: brak” albo „Komendant: Wódz drużyny, poz. 2”.
+static func commander_text(p: DefensePlan, g: Generals) -> String:
+	if p.commander < 0 or g == null or not g.has_general(p.commander):
+		return "Komendant: brak"
+	return "Komendant: %s" % Generals.label(g.get_general(p.commander))
+
 
 ## Zadanie oddziału jako tekst: „przy donżonie”, „Obrona odcinka”, „Patrol 2/3 pkt”; bez miejsca
 ## z prośbą o dotknięcie mapy.
@@ -392,6 +422,8 @@ func activate(t: int) -> void:
 			back_requested.emit()
 		Target.REPLAYS:
 			replays_requested.emit()
+		Target.COMMANDER:
+			changed.emit(next_commander(plan, generals))
 		Target.TOWERS:
 			plan.tower_priority = (plan.tower_priority + 1) % DefensePlan.TOWER_PRIORITY_NAMES.size()
 			changed.emit(tower_text(plan.tower_priority))
@@ -420,6 +452,8 @@ func _draw() -> void:
 	if trap_mode:
 		_draw_traps_bar(view)
 		return
+	Hud.paint_button(self, AttackPanel.general_rect(content_left), commander_label(plan, generals),
+			_pressed == Target.COMMANDER, false)
 	if not squads.is_empty():
 		var info := AttackPanel.info_rect(view, content_left, content_right)
 		draw_rect(info, Color(Palette.SHADOW, 0.8))

@@ -6,7 +6,7 @@ extends Control
 ## strzałki (domyślnie donżon) przeciąga się na inny budynek bez ruszania kamery.
 ## Manewr otwiera listę wszystkich manewrów: dostępne z krótkim opisem, niedostępne wyszarzone
 ## z tym, czego brakuje (jednostka, epoka, badanie). Lista łapie wszystkie dotknięcia, a dotknięcie
-## poza nią ją zamyka.
+## poza nią ją zamyka. Generał ataku (#31) przełącza się przyciskiem w lewym górnym rogu, pod górnym paskiem.
 
 signal attack_requested
 signal back_requested
@@ -15,9 +15,10 @@ signal changed(message: String)
 ## Sam komunikat dla paska, bez zmiany planu (bez zapisu gry).
 signal hint(message: String)
 
-enum Target { NONE = -1, MANOEUVRE, START, RETREAT, CLEAR, ATTACK, BACK, SQUAD = 100, PICK = 200 }
+enum Target { NONE = -1, MANOEUVRE, START, RETREAT, CLEAR, ATTACK, BACK, GENERAL, SQUAD = 100, PICK = 200 }
 const COLUMN: Array[int] = [Target.MANOEUVRE, Target.START, Target.RETREAT, Target.CLEAR, Target.ATTACK, Target.BACK]
 const LABELS: Array[String] = ["Manewr", "Start", "Odwrót", "Wyczyść", "Atakuj", "Wróć"]
+const GENERAL_LABEL := "Generał"
 const SQUAD_TILE := Vector2(44, 16)
 ## Pasek opisu rozkazu nad oddziałami.
 const INFO_H := 10
@@ -28,6 +29,9 @@ const PICK_GAP := 2
 const PICK_ROWS := 6
 
 var planner: AttackPlanner
+## Generałowie gracza (#31) i komendant obrony (nie dowodzi też atakiem); ustawia je main.gd.
+var generals: Generals
+var commander := -1
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
 var _pressed := Target.NONE
@@ -70,6 +74,26 @@ static func squad_rect(view: Vector2, left: float, i: int) -> Rect2:
 
 static func info_rect(view: Vector2, left: float, right: float) -> Rect2:
 	return Rect2(left, Hud.row_y(view) - INFO_H - 2, right - left, INFO_H)
+
+
+## Przycisk generała (#31): lewy górny róg pod górnym paskiem (ten sam na ekranie Obrona).
+static func general_rect(left: float) -> Rect2:
+	return Rect2(Vector2(left, Hud.BAR_H + 4), Hud.BUTTON_SIZE)
+
+
+## Napis przycisku generała ataku: krótka nazwa wybranego albo „Generał”.
+static func general_label(g: Generals) -> String:
+	if g == null or g.attack_kind < 0:
+		return GENERAL_LABEL
+	return Generals.SHORT_NAMES[g.attack_kind]
+
+
+## Komunikat po zmianie generała ataku.
+static func general_message(g: Generals) -> String:
+	if g.roster.is_empty():
+		return "Najpierw zwerbuj generała w Dworze"
+	var gen := g.get_general(g.attack_kind)
+	return "Generał ataku: %s" % Generals.label(gen) if gen != null else "Atak bez generała"
 
 
 ## Wiersz `i` listy manewrów: od lewej granicy treści do kolumny przycisków, od górnego paska.
@@ -140,6 +164,8 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, squa
 	for i in squad_count:
 		if squad_rect(view, left, i).has_point(p):
 			return Target.SQUAD + i
+	if general_rect(left).has_point(p):
+		return Target.GENERAL
 	return Target.NONE
 
 
@@ -262,6 +288,11 @@ func activate(t: int) -> void:
 		Target.BACK:
 			back_requested.emit()
 			return
+		Target.GENERAL:
+			if generals != null:
+				generals.next_attack(commander)
+				changed.emit(general_message(generals))
+			return
 	if o == null:
 		return
 	match t:
@@ -308,6 +339,8 @@ func _draw() -> void:
 	var view := get_viewport_rect().size
 	for i in COLUMN.size():
 		Hud.paint_button(self, Hud.column_rect(content_right, i), LABELS[i], _pressed == COLUMN[i], false)
+	if not picking:
+		Hud.paint_button(self, general_rect(content_left), general_label(generals), _pressed == Target.GENERAL, false)
 	var o := planner.order()
 	if o != null:
 		var info := info_rect(view, content_left, content_right)

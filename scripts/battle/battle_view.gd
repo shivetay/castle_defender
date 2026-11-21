@@ -26,9 +26,6 @@ const ROW := BAR_H + BADGE + BAR_H + 1
 const SETTLE_FRAMES := 20
 ## Kropka jednostki: 2×2 px w kolorze strony.
 const DOT := 2
-## Generał (#31): drzewce proporca nad kropką i pasek zdrowia pod nią.
-const GENERAL_POLE := 5
-const GENERAL_BAR := 4
 
 var battle: Battle
 var running := true
@@ -100,10 +97,6 @@ func _draw() -> void:
 	var origins := layout(squads, _rows, _free)
 	for i in squads.size():
 		draw_squad(self, squads[i], sides[i], origins[i])
-	for side: int in [Battle.Side.DEFENDER, Battle.Side.ATTACKER]:
-		var gv := battle.general_view(side)
-		if not gv.is_empty():
-			draw_general(self, gv, side)
 
 
 ## Lewy górny róg kropki jednostki w pozycji (`x`, `y`) w podjednostkach (całe piksele).
@@ -197,19 +190,6 @@ static func hp_fill(sq: Dictionary) -> int:
 
 static func side_color(side: int) -> Color:
 	return Palette.SIDE_ATTACKER if side == Battle.Side.ATTACKER else Palette.SIDE_DEFENDER
-
-
-## Generał (#31): złoty proporzec na drzewcu nad kropką postaci i pod nią pasek zdrowia (całe piksele).
-static func draw_general(ci: CanvasItem, gv: Dictionary, side: int) -> void:
-	var p := dot_origin(int(gv["x"]), int(gv["y"]))
-	ci.draw_rect(Rect2(p.x, p.y - GENERAL_POLE, 1, GENERAL_POLE), Palette.WOOD[0])
-	ci.draw_rect(Rect2(p.x + 1, p.y - GENERAL_POLE, 3, 2), Palette.THATCH[2])
-	ci.draw_rect(Rect2(p.x + 1, p.y - GENERAL_POLE + 2, 3, 1), side_color(side))
-	var max_hp := maxi(1, int(gv["max_hp"]))
-	@warning_ignore("integer_division")
-	var fill := clampi(maxi(1, GENERAL_BAR * int(gv["hp"]) / max_hp), 1, GENERAL_BAR)
-	ci.draw_rect(Rect2(p.x - 1, p.y + DOT + 1, GENERAL_BAR, BAR_H), Palette.SHADOW)
-	ci.draw_rect(Rect2(p.x - 1, p.y + DOT + 1, fill, BAR_H), Palette.VALID)
 
 
 static func draw_squad(ci: CanvasItem, sq: Dictionary, side: int, top: Vector2i) -> void:

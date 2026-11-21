@@ -86,7 +86,7 @@ static func defender_posts(b: Battle) -> Array:
 	var out: Array = []
 	var seen: Dictionary[int, bool] = {}
 	for f in b.fighters:
-		if f.side != Battle.Side.DEFENDER or f.general >= 0 or seen.has(f.squad):
+		if f.side != Battle.Side.DEFENDER or seen.has(f.squad):
 			continue
 		seen[f.squad] = true
 		@warning_ignore("integer_division")

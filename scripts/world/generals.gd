@@ -7,16 +7,18 @@ extends RefCounted
 ## w epoce I nie byłoby komendanta obrony), poziomy 1–3 i jeden perk dodatkowy na poziomie 3.
 ##
 ## Jeden generał dowodzi atakiem (`attack_kind`, wybór na ekranie planu ataku), a drugi, inny, jest
-## komendantem obrony (DefensePlan.commander, ekran Obrona). W bitwie generał stoi na siatce jak
-## jednostka (Battle.set_general): ma GENERAL_HP życia i aurę AURA_CELLS kratek, a gdy zginie, oddziały
-## jego strony tracą 20 morale (BattleConfig.MORALE_GENERAL_DEATH).
+## komendantem obrony (DefensePlan.commander, ekran Obrona). Generał nie stoi na siatce i nie da się
+## go wystawić w bitwie (decyzja właścicielki z 21.11.2026): dowodzi całym atakiem albo całą obroną,
+## a jego perki działają na wszystkie oddziały strony (Battle.set_general). Dlatego z puli perków
+## dodatkowych odpadają Weteran (aura) i Twardy (życie generała), a Ostrożny działa na całą armię.
 ##
 ## Koszty, progi doświadczenia i liczby z perków bez wartości w notatce są TYMCZASOWE (decyzja
 ## właścicielki z 21.11.2026).
 
 enum Kind { CHIEF, HUNTSMAN, MOUND_BUILDER }
-## Perki dodatkowe z puli epok I–II (poziom 3).
-enum Perk { NONE = -1, VETERAN, TOUGH, FAST_MARCH, CAREFUL, CRUEL }
+## Perki dodatkowe z puli epok I–II (poziom 3). Okrutny (+10% łupu, −5 morale) czeka, aż serwer będzie
+## liczył limit łupu z generałem (także przy zamkach-botach); bez tego odrzuciłby wyższy łup.
+enum Perk { NONE = -1, FAST_MARCH, CAREFUL }
 enum Result { OK, FULL, TAKEN, NO_GOLD, UNKNOWN, MAX_LEVEL, NO_XP, NO_PERK_YET, PERK_SET, PERK_LOCKED, NO_MANOR }
 
 const R := EconomyConfig.Res
@@ -27,16 +29,15 @@ const SHORT_NAMES: Array[String] = ["Wódz", "Łowczy", "Budown."]
 ## W czym generał jest najlepszy (notatka); tylko opis, przypisać można każdego.
 const BEST_IN: Array[String] = ["atak", "atak", "obrona"]
 ## Perk główny (poziom 1).
-const MAIN_PERKS: Array[String] = ["Piechota w aurze +10% obr., +10 morale", "Oskrzydlenie 20% szybciej",
+const MAIN_PERKS: Array[String] = ["Piechota +10% obrażeń, +10 morale", "Oskrzydlenie 20% szybciej",
 		"Wał, palisada, kopiec +15% wytrz."]
 ## Od której epoki generała da się zrekrutować (0 = I).
 const KIND_AGE: Array[int] = [0, 0, 0]
 
-const PERK_NAMES: Array[String] = ["Weteran", "Twardy", "Szybki marsz", "Ostrożny", "Okrutny"]
-const PERK_DESC: Array[String] = ["Aura +2 kratki", "Generał +100% HP", "W aurze +1 szybkości",
-		"W aurze −15% obrażeń od strzał", "+10% łupu, −5 morale własnych"]
-## Od której epoki perk da się wybrać (notatka): Ostrożny i Okrutny od epoki II.
-const PERK_AGE: Array[int] = [0, 0, 0, 1, 1]
+const PERK_NAMES: Array[String] = ["Szybki marsz", "Ostrożny"]
+const PERK_DESC: Array[String] = ["Wszyscy +1 szybkości", "Wszyscy -15% od strzał"]
+## Od której epoki perk da się wybrać (notatka): Ostrożny od epoki II.
+const PERK_AGE: Array[int] = [0, 1]
 
 const MAX := 3
 ## MVP: poziomy 1–3 (4–5 dojdą później).
@@ -55,15 +56,9 @@ const XP_WIN := 20
 ## Doświadczenie rośnie najwyżej do progu ostatniego poziomu (dalej nic nie daje w MVP).
 const XP_MAX := 300
 
-# --- Liczby do bitwy (notatka; liczby bez wartości w notatce TYMCZASOWE) -----------------------------
-const GENERAL_HP := 150
-const AURA_CELLS := 4
-const VETERAN_AURA_CELLS := 2
-const TOUGH_HP_PERCENT := 200
+# --- Liczby do bitwy (z notatki) ---------------------------------------------------------------------
 const FAST_MARCH_SPEED := 1
 const CAREFUL_ARROW_PERCENT := 85
-const CRUEL_LOOT_PERCENT := 110
-const CRUEL_MORALE := -5
 const CHIEF_DAMAGE_PERCENT := 110
 const CHIEF_MORALE := 10
 const HUNTSMAN_FLANK_SPEED_PERCENT := 120
@@ -85,15 +80,6 @@ class General:
 
 	func has_perk(p: int) -> bool:
 		return perk == p and level >= PERK_LEVEL
-
-	## Promień aury w kratkach (Weteran +2).
-	func aura_cells() -> int:
-		return AURA_CELLS + (VETERAN_AURA_CELLS if has_perk(Perk.VETERAN) else 0)
-
-	## Życie w bitwie (Twardy +100%).
-	func max_hp() -> int:
-		@warning_ignore("integer_division")
-		return GENERAL_HP * TOUGH_HP_PERCENT / 100 if has_perk(Perk.TOUGH) else GENERAL_HP
 
 	func to_dict() -> Dictionary:
 		return {"kind": kind, "level": level, "xp": xp, "perk": perk}

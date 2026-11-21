@@ -33,7 +33,7 @@ Gracz jest władcą zamku i ma własne perki. Do tego dowodzą generałowie: jed
 ## Generałowie
 
 - Masz do 3 generałów (4 z perkiem Mecenas). Do bitwy wysyłasz jednego jako dowódcę ataku, a jednego ustawiasz jako komendanta obrony.
-- Generał stoi na siatce jak jednostka (HP 150) i daje aurę w promieniu 4 kratek. Jeśli zginie, wszystkie jego oddziały tracą 20 morale.
+- Generał nie stoi na siatce i nie da się go wystawić w bitwie (decyzja z 21.11.2026, #31). Przypisany do ataku albo obrony dowodzi całą stroną, a jego perki działają na wszystkie jej oddziały. Wcześniejszy pomysł z postacią na siatce (HP 150, aura 4 kratek, −20 morale po śmierci) odpadł.
 - Generałów rekrutuje się za złoto w budynku głównym. Dostępni są tylko ci z bieżącej i wcześniejszych epok.
 - Generał zdobywa doświadczenie w bitwach i ma poziomy 1–5. Na poziomie 1 ma perk główny, na poziomie 3 wybiera drugi perk, a na poziomie 5 trzeci, z puli poniżej.
 
@@ -42,7 +42,7 @@ Gracz jest władcą zamku i ma własne perki. Do tego dowodzą generałowie: jed
 | Wódz drużyny | I | atak | piechota +10% obrażeń, +10 morale w aurze |
 | Łowczy | I | atak, zwiad | zwiad +20%, Oskrzydlenie 20% szybciej |
 | Mistrz konnicy | II | atak | szarża konnicy +15% obrażeń |
-| Budowniczy kopców | II | obrona | wał, palisada i kopiec +15% wytrzymałości |
+| Budowniczy kopców | I (w MVP; było II) | obrona | wał, palisada i kopiec +15% wytrzymałości |
 | Mistrz oblężniczy | III | atak | artyleria +20% obrażeń przeciw murom |
 | Kasztelan | III | obrona | mury +10% wytrzymałości, morale załogi nie spada poniżej 50 |
 | Puszkarz | IV | atak, obrona | artyleria i działa w basztach +15% zasięgu |
@@ -53,6 +53,8 @@ Gracz jest władcą zamku i ma własne perki. Do tego dowodzą generałowie: jed
 | Komendant twierdzy | VI | obrona | bastiony, kazamaty i reduty +15% obrażeń |
 
 **Pula perków dodatkowych (poziom 3 i 5)**
+
+W MVP (#31) z puli epok I–II działają Szybki marsz (wszyscy +1 szybkości) i Ostrożny (wszyscy −15% od strzał). Weteran i Twardy nie mają sensu bez postaci na siatce, a Okrutny czeka na łup z generałem liczony na serwerze. Wódz drużyny: piechota +10% obrażeń i +10 morale całej armii. Koszty MVP (tymczasowe): rekrutacja 300 zł, poziom 2: 100 PD i 400 zł, poziom 3: 300 PD i 1000 zł; 20 PD za bitwę, +20 za wygraną.
 
 | Perk | Od epoki | Efekt |
 | --- | --- | --- |

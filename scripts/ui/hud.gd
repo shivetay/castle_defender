@@ -76,6 +76,8 @@ const RANKING_LABEL := "Ranking"
 const ARMY_LABEL := "Wojsko"
 const CANCEL_LABEL := "Anuluj"
 const SIEGE_LABEL := "Oblężenie"
+## Przycisk karty Dworu (#31): ekran generałów.
+const GENERALS_LABEL := "Generał."
 const ATTACK_LABEL := "Atak"
 const DEFENCE_LABEL := "Obrona"
 const QUEUE_LABEL := "Kolejka"
@@ -114,6 +116,8 @@ var card_cancel := false
 var card_middle_enabled := true
 ## Karta budynku rekrutacji (z przyciskiem Szkol).
 var card_recruit := false
+## Karta Dworu (#31): przycisk rekrutacji to Generałowie (z card_recruit).
+var card_generals := false
 ## Karta Strażnicy (z Oblężeniem i Wyprawą, #177).
 var card_pve := false
 ## Karta Komendy umocnień (#199): Sprawdź i Domknij.
@@ -679,6 +683,8 @@ func _draw_card(view: Vector2) -> void:
 	for i in rects.size():
 		var button := buttons[i]
 		var label := CANCEL_LABEL if button == CardButton.DEMOLISH and card_cancel else card_label(button)
+		if button == CardButton.RECRUIT and card_generals:
+			label = GENERALS_LABEL
 		var disabled := (button == CardButton.UPGRADE and not card_can_upgrade) \
 				or (button == CardButton.DEMOLISH and not card_middle_enabled) \
 				or (button == CardButton.CHECK and card_check_disabled) \
