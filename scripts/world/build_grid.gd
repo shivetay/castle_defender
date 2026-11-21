@@ -128,6 +128,26 @@ func place_on_any_ground(rect: Rect2i, kind: int, level: int = 1) -> int:
 	return id
 
 
+## Stawia zarys budynku z serwera (#28, plan ataku na gracza przed zatwierdzeniem): dowolny rodzaj
+## i prostokąt bez reguł budowy, byle na mapie i na wolnych kratkach. Siatka planu ma tylko zarys
+## i odsłonięte przez zwiad budynki; bitwa idzie z pełną kopią zamku (PlayerCastle.apply_launch).
+## Zwraca id albo 0.
+func place_outline(rect: Rect2i, kind: int, level: int = 1) -> int:
+	if not rect.has_area() or kind < 0 or kind >= BuildingTypes.count():
+		return 0
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			if not terrain.in_bounds(Vector2i(x, y)) or cells[y * terrain.size + x] != 0:
+				return 0
+	var id := _next_id
+	_next_id += 1
+	buildings[id] = rect
+	kinds[id] = kind
+	levels[id] = clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	_fill(rect, id)
+	return id
+
+
 ## Stawia budynek danego rodzaju na dotkniętej kratce `c`. Zwykle `c` to lewy górny róg.
 ## Brama (3×1) staje środkiem na dotkniętej kratce, a gdy tam się nie mieści, dosuwa się tak,
 ## żeby dotknięta kratka była jej końcem. Staje pionowo (1×3), gdy obok jest pionowa palisada.

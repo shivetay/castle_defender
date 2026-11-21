@@ -696,8 +696,11 @@ Tropicieli i po S3 staje się Domem zwiadowców. Zwiad wysyła się z ekranu wyb
 złoto i żywność za zwiadowcę). Wynik z seeda misji: sukces, częściowy, wykryci albo porażka;
 zwiadowcy wracają wszyscy, część albo nikt. Raport jest na karcie budynku i celu. Plan ataku pokazuje bez
 zwiadu tylko zarys budynków, a w odsłoniętym fragmencie (20–80% zabudowy) budynki, załogę, patrole
-i pułapki. Działa na zamki-boty; zwiad na gracza (wynik i odsłonięte dane z serwera, plan dostaje tylko
-odsłoniętą obronę, a pełną dopiero po zatwierdzeniu planu) to następny PR. Liczby zwiadu są tymczasowe.
+i pułapki. Zwiad na zamek-bota liczy gra, a zwiad na gracza serwer (`scout`, `scout_reports`, migracja `scouting`):
+wynik z seeda serwera, raport po końcu misji. Plan ataku na gracza dostaje ze `start_attack` tylko zarys,
+donżon i to, co odsłonił zwiad; pełną kopię zamku i obrony daje dopiero zatwierdzenie planu
+(`launch_attack`), a bez niego serwer nie przyjmie wyniku. Migracja `scouting` i Edge Functions `scout`,
+`scout_reports`, `launch_attack`, `start_attack`, `finish_attack` są na projekcie. Liczby zwiadu są tymczasowe.
 Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
 Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).

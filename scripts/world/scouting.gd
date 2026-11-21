@@ -8,7 +8,9 @@ extends RefCounted
 ##
 ## Naraz idzie jedna misja. Wynik wynika z seeda misji (PixelCanvas.hash2 i RandomNumberGenerator
 ## z jawnym seedem), więc ta sama misja zawsze kończy się tak samo, także po wczytaniu zapisu.
-## Na razie zwiad działa na zamki-boty; zwiad na gracza liczy serwer (osobny PR, #28).
+## Zwiad na zamek-bota liczy klient. Zwiad na gracza liczy serwer (`public.begin_scout`): misja ma
+## wtedy `remote_id`, klient jej nie rozstrzyga, a wynik, ocalałych i odsłonięte dane bierze z raportu
+## serwera po końcu misji (apply_reports, ScoutNet).
 ## Stan (misja i raporty) jest w zapisie gry (SaveGame, klucz "scout").
 
 enum Result { OK, NO_BUILDING, NO_TECH, NO_SCOUTS, BUSY, NO_RESOURCES, BAD_TARGET }
@@ -21,6 +23,8 @@ const BASE_TECH := "S1"
 const BETTER_TECH := "S3"
 ## Najwięcej raportów w pamięci (najstarsze wypadają).
 const MAX_REPORTS := 10
+## Misja na gracza, której raportu serwer nie zna tyle po jej końcu, przepada (zwiadowcy wracają).
+const LOST_MISSION_MS := 24 * 3600 * 1000
 
 
 class Mission:
@@ -35,6 +39,11 @@ class Mission:
 	## Czy przy wysłaniu było S3 i ile Wież sygnałowych ma cel.
 	var s3 := false
 	var towers := 0
+	## Id misji na serwerze (zwiad na gracza); pusty: misję rozstrzyga klient (zamek-bot).
+	var remote_id := ""
+
+	func is_remote() -> bool:
+		return not remote_id.is_empty()
 
 	func sent() -> int:
 		var n := 0
@@ -58,6 +67,8 @@ class Report:
 	var finished_ms := 0
 	## Seed obszaru odsłonięcia (ScoutIntel.region).
 	var region_seed := 0
+	## Odsłonięte dane z serwera (zwiad na gracza, ScoutIntel.from_server); przy bocie puste.
+	var intel: Dictionary = {}
 
 	func has_intel() -> bool:
 		return percent > 0
@@ -156,6 +167,69 @@ func send(target_key: String, target_name: String, duration: int, world_seed: in
 	return Result.OK
 
 
+## Zwiad na gracza przyjęty przez serwer (#28): zwiadowcy `units` z odpowiedzi wychodzą z armii,
+## koszt schodzi z magazynu, a misja kończy się za `remaining_ms` i czeka na raport serwera.
+func start_remote(remote_id: String, target_key: String, target_name: String, duration: int, units: Dictionary[int, int],
+		remaining_ms: int, now_ms: int, recruitment: Recruitment, economy: Economy) -> void:
+	var taken: Dictionary[int, int] = {}
+	for u: int in units:
+		var n := mini(units[u], recruitment.army_of(u))
+		if n > 0:
+			_take(recruitment, u, n)
+			taken[u] = n
+	if economy != null:
+		var cost := ScoutConfig.cost(count_of(taken))
+		for res in cost.size():
+			economy.amounts[res] = maxi(0, economy.amounts[res] - cost[res])
+	var m := Mission.new()
+	m.remote_id = remote_id
+	m.target_key = target_key
+	m.target_name = target_name
+	m.units = taken
+	m.duration = clampi(duration, 0, ScoutConfig.duration_count() - 1)
+	m.start_ms = now_ms + maxi(0, remaining_ms) - ScoutConfig.duration_ms(m.duration)
+	missions_sent += 1
+	mission = m
+
+
+## Czy misja na gracza już się skończyła i czeka na raport serwera.
+func remote_due(now_ms: int) -> bool:
+	return mission != null and mission.is_remote() and now_ms >= mission.finish_ms()
+
+
+## Raporty z serwera (ScoutNet.parse_reports): kończy misję na gracza, gdy jej raport jest gotowy.
+## Ocaleli według serwera wracają do armii. Zwraca raport właśnie skończonej misji albo null.
+func apply_reports(rows: Array[Dictionary], recruitment: Recruitment, now_ms: int) -> Report:
+	if mission == null or not mission.is_remote():
+		return null
+	for row in rows:
+		if str(row.get("id", "")) != mission.remote_id:
+			continue
+		if not bool(row.get("finished", false)):
+			return null
+		var rep := Report.new()
+		rep.target_key = mission.target_key
+		rep.target_name = mission.target_name
+		rep.outcome = int(row["outcome"])
+		rep.sent = mission.sent()
+		rep.returned = mini(int(row["returned"]), rep.sent)
+		rep.percent = int(row["percent"])
+		rep.finished_ms = mini(mission.finish_ms(), now_ms)
+		rep.intel = row.get("intel", {}) as Dictionary
+		if ScoutIntel.from_server(rep.intel).is_empty():
+			rep.percent = 0
+			rep.intel = {}
+		_return_units(recruitment, mission.units, rep.returned)
+		mission = null
+		_store(rep)
+		return rep
+	if now_ms > mission.finish_ms() + LOST_MISSION_MS:
+		# serwer nie zna już tej misji (np. po dobie): zwiadowcy wracają bez raportu
+		_return_units(recruitment, mission.units, mission.sent())
+		mission = null
+	return null
+
+
 ## Seed misji: świat gracza, numer misji i cel.
 static func mission_seed(world_seed: int, number: int, target_key: String) -> int:
 	return PixelCanvas.hash2(world_seed, number, target_key.hash() & 0xffff) & 0x7fffffff
@@ -182,7 +256,7 @@ static func resolve(m: Mission) -> Report:
 ## Kończy misję, gdy minął jej czas: ocaleli wracają do armii, raport trafia do listy.
 ## Zwraca raport właśnie skończonej misji albo null.
 func update(now_ms: int, recruitment: Recruitment) -> Report:
-	if mission == null or now_ms < mission.finish_ms():
+	if mission == null or mission.is_remote() or now_ms < mission.finish_ms():
 		return null
 	var rep := resolve(mission)
 	_return_units(recruitment, mission.units, rep.returned)
@@ -261,7 +335,8 @@ func save_data() -> Dictionary:
 	var reps: Array = []
 	for r in reports:
 		reps.append({"key": r.target_key, "name": r.target_name, "outcome": r.outcome, "percent": r.percent,
-				"sent": r.sent, "returned": r.returned, "at": r.finished_ms, "region": r.region_seed})
+				"sent": r.sent, "returned": r.returned, "at": r.finished_ms, "region": r.region_seed,
+				"intel": r.intel})
 	var d := {"sent": missions_sent, "reports": reps}
 	if mission != null:
 		var units: Array = []
@@ -269,7 +344,7 @@ func save_data() -> Dictionary:
 			units.append([u, mission.units[u]])
 		d["mission"] = {"key": mission.target_key, "name": mission.target_name, "units": units,
 				"duration": mission.duration, "start_ms": mission.start_ms, "seed": mission.seed_value,
-				"s3": mission.s3, "towers": mission.towers}
+				"s3": mission.s3, "towers": mission.towers, "remote": mission.remote_id}
 	return d
 
 
@@ -315,6 +390,8 @@ static func _report_from(e: Variant) -> Report:
 	rep.returned = clampi(int(d.get("returned", 0)), 0, rep.sent)
 	rep.finished_ms = int(d.get("at", 0))
 	rep.region_seed = int(d.get("region", 0)) & 0x7fffffff
+	var intel: Variant = d.get("intel", {})
+	rep.intel = intel as Dictionary if intel is Dictionary else {}
 	return rep
 
 
@@ -341,4 +418,5 @@ static func _mission_from(d: Dictionary, now_ms: int) -> Mission:
 	m.seed_value = int(d.get("seed", 0)) & 0x7fffffff
 	m.s3 = bool(d.get("s3", false))
 	m.towers = maxi(0, int(d.get("towers", 0)))
+	m.remote_id = str(d.get("remote", ""))
 	return m

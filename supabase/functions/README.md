@@ -4,9 +4,12 @@ Edge Functions (Deno / TypeScript) wywoływane z klienta lub crona.
 
 | Funkcja | Rola |
 |---|---|
-| `start_attack/` | Start ataku (#25): woła `begin_attack` (blokada celu, tarcza, limit startów, armia z zamku w limicie miejsc i utrzymania żywności, #249); zwraca seedy i kopie zamku i obrony |
+| `start_attack/` | Start ataku (#25): woła `begin_attack` (blokada celu, tarcza, limit startów, armia z zamku w limicie miejsc i utrzymania żywności, #249); zwraca seedy, a przy graczu tylko zarys, donżon i zwiad (`attack_preview`, #28) |
 | `finish_attack/` | Koniec ataku (#25): woła `end_attack` (wynik i łup w limitach zapasów i capacity ocalałych, tarcza 8 h od 30%); ponowienie zwraca zapisany wynik; potem `record_destroyed` zapisuje zniszczone budynki obrońcy (#99) |
 | `find_targets/` | Dobór przeciwnika (#24): woła `match_targets` z id gracza z tokenu, zwraca do 3 celów |
+| `scout/` | Zwiad na gracza (#28): woła `begin_scout` (Chata tropicieli, S1 i zwiadowcy z zamku na serwerze, naraz jedna misja, 30 na dobę); wynik z seeda serwera, w odpowiedzi tylko czas misji |
+| `scout_reports/` | Raporty zwiadu (#28): `scout_reports`, wynik i odsłonięte dane dopiero po końcu misji |
+| `launch_attack/` | Zatwierdzenie planu ataku na gracza (#28): pełne kopie zamku i obrony dopiero teraz; `finish_attack` przyjmuje wynik tylko po nim |
 | `ranking/` | Ranking PvP (#27): woła `pvp_ranking` z id gracza z tokenu, zwraca 20 najlepszych z jego epoki (atak albo obrona) i jego wiersz |
 
 Nowe funkcje: bez sekretów w repo; wynik/łup/ranking nie ufaj payloadom z klienta

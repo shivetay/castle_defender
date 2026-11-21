@@ -109,14 +109,24 @@ func test_request_and_response() -> bool:
 
 ## Kopie zamku i obrony z `start_attack` trafiają do klienta tylko przy ataku na gracza.
 func test_start_response_snapshots() -> bool:
+	# #28: plan na gracza dostaje zarys, donżon i zwiad; kopie zamku i obrony daje AttackLaunch
 	var p := AttackStart.parse_response({"id": "p", "map_seed": 42, "battle_seed": 7, "defender_id": "u",
+			"footprint": [[10, 10, 2, 2], [1, 1, 99, 1]], "keep": [10, 10, 2, 2],
 			"castle": {"economy": {"amounts": [1, 2, 3, 4]}}, "defense": {"traps": []}})
-	assert_eq((p["castle"] as Dictionary)["economy"], {"amounts": [1, 2, 3, 4]}, "kopia zamku")
-	assert_eq(p["defense"], {"traps": []}, "kopia obrony")
-	var bad := AttackStart.parse_response({"map_seed": 42, "battle_seed": 7, "defender_id": "u", "castle": 5})
-	assert_eq(bad["castle"], {}, "zły typ kopii to pusty słownik")
+	assert_eq(p["keep"], Rect2i(10, 10, 2, 2), "donżon")
+	assert_eq(p["footprint"], [Rect2i(10, 10, 2, 2)] as Array[Rect2i], "zarys w mapie")
+	assert_true(not p.has("castle") and not p.has("defense"), "kopie z odpowiedzi nie przechodzą")
+	assert_true((p["intel"] as ScoutIntel).is_empty(), "bez zwiadu nic odsłonięte")
+	var bad := AttackStart.parse_response({"map_seed": 42, "battle_seed": 7, "defender_id": "u", "keep": 5})
+	assert_true(bad.is_empty(), "zły donżon to odmowa")
 	var bot := AttackStart.parse_response({"map_seed": 42, "battle_seed": 7, "bot_idx": 1})
-	assert_true(not bot.has("castle"), "bot bez kopii")
+	assert_true(not bot.has("keep"), "bot bez zarysu")
+	var launch := AttackLaunch.parse_response({"id": "p", "castle": {"economy": {"amounts": [1, 2, 3, 4]}},
+			"defense": {"traps": []}})
+	assert_eq((launch["castle"] as Dictionary)["economy"], {"amounts": [1, 2, 3, 4]}, "kopia zamku po zatwierdzeniu")
+	assert_eq(launch["defense"], {"traps": []}, "kopia obrony po zatwierdzeniu")
+	assert_eq(AttackLaunch.parse_response({"id": "p", "castle": {"grid": {}}, "defense": 5})["defense"], {},
+			"zły typ obrony to pusty słownik")
 	return true
 
 

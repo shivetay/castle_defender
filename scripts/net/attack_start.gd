@@ -2,8 +2,9 @@ class_name AttackStart
 extends RefCounted
 ## Odpowiedź `start_attack` (#166 / #25): seed terenu obrońcy osobno od seeda bitwy.
 ## Atakujący buduje teren z `map_seed` (`terrain_map`), a bitwę losuje z `battle_seed`.
-## Serwer (#25, `public.begin_attack`) blokuje cel na czas ataku, sprawdza tarczę i limit startów,
-## a przy ataku na gracza zwraca kopie jego zamku (`castle`) i obrony (`defense`) z chwili startu.
+## Serwer (#25, `public.begin_attack`) blokuje cel na czas ataku, sprawdza tarczę i limit startów.
+## Przy ataku na gracza (#28, pełne ukrycie obrony) zwraca tylko zarys budynków (`footprint`), donżon
+## (`keep`) i to, co odsłonił zwiad (`intel`); kopie zamku i obrony daje AttackLaunch po zatwierdzeniu planu.
 ## Wynik wysyła `AttackFinish`.
 
 const PATH := "/functions/v1/start_attack"
@@ -50,10 +51,13 @@ static func parse_response(data: Variant) -> Dictionary:
 	var defender: Variant = d.get("defender_id")
 	if defender is String and not (defender as String).is_empty():
 		out["defender_id"] = defender as String
-		var castle: Variant = d.get("castle")
-		var defense: Variant = d.get("defense")
-		out["castle"] = castle as Dictionary if castle is Dictionary else {}
-		out["defense"] = defense as Dictionary if defense is Dictionary else {}
+		# #28: plan dostaje zarys, donżon i odsłonięte przez zwiad; pełną obronę daje AttackLaunch
+		out["footprint"] = TargetSearch.parse_footprint(d.get("footprint", []))
+		var keep := TargetSearch.parse_footprint([d.get("keep")])
+		if keep.is_empty():
+			return {}  # bez donżonu nie ma celu ataku
+		out["keep"] = keep[0]
+		out["intel"] = ScoutIntel.from_server(d.get("intel"))
 	return out
 
 
@@ -85,6 +89,10 @@ static func error_message(code: String) -> String:
 			return "Armia zje więcej, niż daje żywność. Postaw Rybaka"
 		"bad_army":
 			return "Serwer nie przyjął tej armii. Sprawdź oddziały"
+		"attack_expired":
+			return "Plan trwał za długo: wybierz cel jeszcze raz"
+		"not_launched":
+			return "Serwer nie zatwierdził planu. Spróbuj jeszcze raz"
 		SupabaseClient.NETWORK_ERROR:
 			return "Brak połączenia z serwerem. Spróbuj później"
 	return "Serwer nie przyjął ataku. Spróbuj później"

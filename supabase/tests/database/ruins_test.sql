@@ -32,6 +32,8 @@ set local role service_role;
 create temp table started on commit drop as
   select * from public.begin_attack('00000000-0000-0000-0000-0000000000e1',
     '00000000-0000-0000-0000-0000000000e2', null, '[[0, 10]]', 5);
+-- #28: wynik ataku na gracza tylko po zatwierdzeniu planu (launch_attack)
+update public.attacks set launched_at = now() where id = (select attack_id from started);
 
 select throws_ok(
   format($$select public.record_destroyed('00000000-0000-0000-0000-0000000000e1', %L, '[1]')$$,

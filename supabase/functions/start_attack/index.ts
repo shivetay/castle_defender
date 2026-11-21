@@ -3,8 +3,9 @@
 // i *_army_limits.sql): limit 10 startów na 10 minut, armia nie większa niż w zamku atakującego
 // i w jego limicie miejsc oraz utrzymania żywności (#249), cel bez tarczy, w zasięgu epoki
 // i rankingu, nieatakowany przez niego w 24 h i bez innego ataku w toku (blokada celu).
-// Odpowiedź: id ataku, seed terenu obrońcy (`map_seed`) osobno od seeda bitwy (`battle_seed`) i przy
-// ataku na gracza kopie jego zamku i obrony, z których klient liczy bitwę.
+// Odpowiedź: id ataku, seed terenu obrońcy (`map_seed`) osobno od seeda bitwy (`battle_seed`). Przy
+// ataku na gracza (#28, pełne ukrycie obrony) tylko zarys budynków, donżon i to, co odsłonił ostatni
+// udany zwiad (`public.attack_preview`); pełne kopie zamku i obrony daje dopiero `launch_attack`.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -126,8 +127,18 @@ Deno.serve(async (req) => {
   };
   if (defenderId != null) {
     payload.defender_id = defenderId;
-    payload.castle = row.castle ?? {};
-    payload.defense = row.defense ?? {};
+    const { data: prev, error: prevErr } = await admin.rpc("attack_preview", {
+      p_attacker: attackerId,
+      p_attack: row.attack_id,
+    });
+    const view = Array.isArray(prev) ? prev[0] : null;
+    if (prevErr || !view || !Array.isArray(view.keep)) {
+      console.error("start_attack preview", prevErr?.code ?? "no_keep");
+      return json({ error: "start_failed" }, 500);
+    }
+    payload.footprint = view.footprint ?? [];
+    payload.keep = view.keep;
+    payload.intel = view.intel ?? {};
   } else {
     payload.bot_idx = botIdx;
   }

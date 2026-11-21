@@ -24,6 +24,13 @@ signal attack_started(start: Dictionary, error: String)
 ## Odpowiedź `finish_attack` (#240): łup przyjęty przez serwer (EconomyConfig.Res) albo pusta lista
 ## i kod błędu. Błąd `NETWORK_ERROR` można ponowić tym samym żądaniem (serwer jest idempotentny).
 signal attack_finished(loot: Array[int], error: String)
+## Odpowiedź `launch_attack` (#28): pełne kopie zamku i obrony celu (AttackLaunch.parse_response)
+## albo pusty słownik z kodem błędu.
+signal attack_launched(launch: Dictionary, error: String)
+## Odpowiedź `scout` (#28): ScoutNet.parse_send albo pusty słownik z kodem błędu.
+signal scout_sent(send: Dictionary, error: String)
+## Raporty zwiadu (#28, ScoutNet.parse_reports); `ok` = serwer odpowiedział.
+signal scout_reports_loaded(rows: Array[Dictionary], ok: bool)
 ## Odpowiedź `ranking` (#27): wiersze tabeli rodzaju `kind` (RankingBoard.Kind). `ok` false: błąd sieci
 ## albo serwera.
 signal ranking_loaded(kind: int, rows: Array[RankingBoard.Row], ok: bool)
@@ -38,7 +45,9 @@ enum Call { NONE, SIGNUP, REFRESH }
 ## Kroki synchronizacji zamku (#23): odczyt, założenie, zapis z rewizją, obrona i nick.
 enum CastleCall { NONE, GET, INSERT, PUSH, DEFENSE_PATCH, DEFENSE_INSERT, NICKNAME }
 ## Żądanie ataku na gracza w toku (#240).
-enum AttackCall { NONE, START, FINISH }
+enum AttackCall { NONE, START, FINISH, LAUNCH }
+## Żądanie zwiadu w toku (#28).
+enum ScoutCall { NONE, SEND, REPORTS }
 
 ## Kod błędu bez odpowiedzi serwera (brak sieci, przekroczony czas, 408, 5xx): żądanie można ponowić.
 const NETWORK_ERROR := "network"
@@ -85,6 +94,9 @@ var _ranking_next := -1
 ## Ostatnie obrony (#99) idą osobnym połączeniem, naraz jedno żądanie.
 var _defenses: HTTPRequest
 var _defenses_pending := false
+## Zwiad (#28) idzie osobnym połączeniem, naraz jedno żądanie.
+var _scout: HTTPRequest
+var _scout_call: int = ScoutCall.NONE
 var _castle_call: int = CastleCall.NONE
 var _castle_map_seed := 0
 var _castle_save_version := 0
@@ -157,6 +169,10 @@ func _ready() -> void:
 	_defenses.timeout = TIMEOUT_S
 	add_child(_defenses)
 	_defenses.request_completed.connect(_on_defenses_completed)
+	_scout = HTTPRequest.new()
+	_scout.timeout = TIMEOUT_S
+	add_child(_scout)
+	_scout.request_completed.connect(_on_scout_completed)
 	session = SupabaseSession.load_from(session_path)
 	connect_now()
 
@@ -338,6 +354,64 @@ func finish_attack(body: Dictionary) -> bool:
 	return _attack_send(AttackCall.FINISH, AttackFinish.PATH, body)
 
 
+## Zatwierdzenie planu ataku na gracza (#28); pełne kopie przychodzą w `attack_launched`.
+## Ponowienie po błędzie sieci jest bezpieczne: serwer zwraca te same kopie.
+func launch_attack(attack_id: String) -> bool:
+	return _attack_send(AttackCall.LAUNCH, AttackLaunch.PATH, AttackLaunch.request(attack_id))
+
+
+## Zwiad na gracza `defender_id` (#28); odpowiedź w `scout_sent`. False: brak sieci albo inne
+## żądanie zwiadu w toku.
+func send_scout(defender_id: String, duration: int) -> bool:
+	return _scout_send(ScoutCall.SEND, ScoutNet.SEND_PATH, ScoutNet.request(defender_id, duration))
+
+
+## Raporty zwiadu (#28); odpowiedź w `scout_reports_loaded`.
+func load_scout_reports() -> bool:
+	return _scout_send(ScoutCall.REPORTS, ScoutNet.REPORTS_PATH, {})
+
+
+func is_scout_pending() -> bool:
+	return _scout_call != ScoutCall.NONE
+
+
+## Obsługa odpowiedzi `scout` / `scout_reports` (bez sieci, wołana też z testów).
+func handle_scout(call: int, result: int, code: int, body: String) -> void:
+	_scout_call = ScoutCall.NONE
+	var error := edge_error(result, code, body)
+	match call:
+		ScoutCall.SEND:
+			var send := ScoutNet.parse_send(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
+			if error.is_empty() and send.is_empty():
+				error = REJECTED_ERROR
+			scout_sent.emit(send, error)
+		ScoutCall.REPORTS:
+			if not error.is_empty():
+				scout_reports_loaded.emit([] as Array[Dictionary], false)
+			else:
+				scout_reports_loaded.emit(ScoutNet.parse_reports(SupabaseConfig.parse_json(body)), true)
+
+
+func _scout_send(call: int, path: String, body: Dictionary) -> bool:
+	if _scout_call != ScoutCall.NONE or not is_online() or user_id().is_empty():
+		return false
+	_scout_call = call
+	if fake_transport:
+		sent_requests.append({"call": call, "path": path, "body": body})
+		return true
+	if _scout == null:
+		_scout_call = ScoutCall.NONE
+		return false
+	var err := _scout.request(config.url + path, rest_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		handle_scout(call, HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	return true
+
+
+func _on_scout_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_scout(_scout_call, result, code, body.get_string_from_utf8())
+
+
 func is_attack_pending() -> bool:
 	return _attack_call != AttackCall.NONE
 
@@ -360,6 +434,11 @@ func handle_attack(call: int, result: int, code: int, body: String) -> void:
 			if error.is_empty():
 				loot = finish["loot"] as Array[int]
 			attack_finished.emit(loot, error)
+		AttackCall.LAUNCH:
+			var launch := AttackLaunch.parse_response(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
+			if error.is_empty() and launch.is_empty():
+				error = NETWORK_ERROR  # niepełna odpowiedź: ponowienie zwróci te same kopie
+			attack_launched.emit(launch, error)
 
 
 ## Wysyła zaległy zapis od razu (przy wyjściu z gry), bez czekania na `PUSH_INTERVAL_S`.

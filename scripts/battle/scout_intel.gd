@@ -19,6 +19,12 @@ var squads: Array = []
 var patrols: Array = []
 ## Odsłonięte pułapki: [rodzaj, kratka].
 var traps: Array = []
+## Odsłonięte budynki z serwera (zwiad na gracza): [prostokąt, rodzaj, poziom]. Przy zamku-bocie
+## puste, bo plan ma cały zamek w siatce.
+var buildings: Array = []
+
+## Najwięcej wpisów z serwera w każdej liście (zamek ma ich mniej).
+const MAX_ENTRIES := 400
 
 
 func is_empty() -> bool:
@@ -127,3 +133,69 @@ static func mark_traps(defense: DefensePlan, area: Rect2i) -> int:
 		if t.revealed:
 			n += 1
 	return n
+
+
+## Intel z odpowiedzi serwera (`intel` z `scout_reports` albo `start_attack`, #28): {region,
+## buildings, squads, patrols, traps}. Dane pochodzą od innego gracza, więc są niezaufane: wszystko
+## musi leżeć na mapie i w obszarze, rodzaje w zakresie, listy ograniczone; zły wpis odpada, a zły
+## obszar daje pusty intel.
+static func from_server(raw: Variant) -> ScoutIntel:
+	var intel := ScoutIntel.new()
+	if not raw is Dictionary:
+		return intel
+	var d := raw as Dictionary
+	var map := Rect2i(0, 0, TerrainMap.SIZE, TerrainMap.SIZE)
+	var r := _ints(d.get("region"), 4)
+	if r.is_empty():
+		return intel
+	var area := Rect2i(r[0], r[1], r[2], r[3])
+	if area.size.x < 1 or area.size.y < 1 or not map.encloses(area):
+		return intel
+	intel.region = area
+	for e: Variant in _list(d.get("buildings")):
+		var b := _ints(e, 6)
+		if b.is_empty():
+			continue
+		var rect := Rect2i(b[0], b[1], b[2], b[3])
+		if rect.size.x >= 1 and rect.size.y >= 1 and map.encloses(rect) and area.intersects(rect) \
+				and b[4] >= 0 and b[4] < BuildingTypes.count():
+			intel.buildings.append([rect, b[4], clampi(b[5], 0, BuildingTypes.MAX_LEVEL)])
+	for e: Variant in _list(d.get("squads")):
+		var q := _ints(e, 3)
+		if not q.is_empty() and q[0] >= UnitTypes.ENGINEERING and q[0] < RecruitmentConfig.CLASS_NAMES.size() \
+				and intel.covers(Vector2i(q[1], q[2])):
+			intel.squads.append([q[0], Vector2i(q[1], q[2])])
+	for e: Variant in _list(d.get("patrols")):
+		var points: Array[Vector2i] = []
+		var seen := false
+		for p: Variant in _list(e):
+			var c := _ints(p, 2)
+			if c.is_empty() or not map.has_point(Vector2i(c[0], c[1])) or points.size() > DefensePlan.MAX_ROUTE:
+				points.clear()
+				break
+			points.append(Vector2i(c[0], c[1]))
+			seen = seen or intel.covers(points[-1])
+		if points.size() >= 2 and seen:
+			intel.patrols.append(points)
+	for e: Variant in _list(d.get("traps")):
+		var t := _ints(e, 3)
+		if not t.is_empty() and t[0] >= 0 and t[0] < TrapConfig.count() and intel.covers(Vector2i(t[1], t[2])):
+			intel.traps.append([t[0], Vector2i(t[1], t[2])])
+	return intel
+
+
+## Lista z serwera najwyżej MAX_ENTRIES wpisów (zła wartość: pusta).
+static func _list(v: Variant) -> Array:
+	return (v as Array).slice(0, MAX_ENTRIES) if v is Array else []
+
+
+## Dokładnie `n` liczb całkowitych z tablicy JSON albo pusta lista.
+static func _ints(v: Variant, n: int) -> Array[int]:
+	var out: Array[int] = []
+	if not v is Array or (v as Array).size() != n:
+		return out
+	for x: Variant in v as Array:
+		if not (x is int or (x is float and float(x) == floorf(float(x)))):
+			return [] as Array[int]
+		out.append(int(x))
+	return out

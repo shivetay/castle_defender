@@ -120,6 +120,15 @@ var _attacking := false
 ## i wynik czekający na przyjęcie przez `finish_attack` (treść żądania, wynik, polegli, próby).
 var _player: PlayerCastle
 var _starting := false
+## Zatwierdzenie planu na gracza czeka na `launch_attack` (#28).
+var _launching := false
+## Zwiad na gracza czeka na odpowiedź `scout` (#28): cel i długość z ekranu celów.
+var _scout_target: TargetSearch.Target
+var _scout_duration := 0
+## Do kolejnego pytania serwera o raport zwiadu na gracza (s).
+var _scout_poll_s := 0.0
+## Co ile sekund pytać serwer o raport skończonej misji na gracza.
+const SCOUT_POLL_S := 20.0
 ## Armia wysłana w ostatnim `start_attack` (do kopii celu, gdy serwer odpowie).
 var _player_army: Array = []
 var _finish_body: Dictionary = {}
@@ -331,6 +340,9 @@ func _ready() -> void:
 	net.ranking_loaded.connect(ranking_panel.set_rows)
 	net.attack_started.connect(_on_player_attack_started)
 	net.attack_finished.connect(_on_player_attack_finished)
+	net.attack_launched.connect(_on_player_launched)
+	net.scout_sent.connect(_on_scout_sent)
+	net.scout_reports_loaded.connect(_on_scout_reports)
 	net.defenses_loaded.connect(_on_defenses_loaded)
 	add_child(net)
 	if saved != null:
@@ -553,6 +565,7 @@ func _tick() -> void:
 	if not trained.is_empty():
 		_save()
 	var scouted := scouting.update(now, recruitment)
+	_poll_scout_reports(now)
 	if scouted != null:
 		hud.message = Scouting.report_text(scouted)
 		_save()
@@ -904,8 +917,9 @@ func _refresh_scout_lines() -> void:
 		return
 	var check := scouting.check(grid, research, recruitment, economy)
 	var lines := scout_lines(t, scouting, check, Scouting.available(recruitment), target_picker.scout_duration,
-			research.is_done(Scouting.BETTER_TECH), _now_ms())
-	var enabled := t.is_bot and check == Scouting.Result.OK
+			research.is_done(Scouting.BETTER_TECH), _now_ms(), net != null and identity != null and net.is_online())
+	var online := net != null and identity != null and net.is_online()
+	var enabled := (t.is_bot or online) and check == Scouting.Result.OK
 	if lines != target_picker.scout_lines or enabled != target_picker.scout_enabled:
 		target_picker.scout_lines = lines
 		target_picker.scout_enabled = enabled
@@ -915,18 +929,19 @@ func _refresh_scout_lines() -> void:
 ## Dwie linie stanu zwiadu (#28) dla celu `t`: co wiadomo (misja w drodze, raport albo nic) i co
 ## da zwiad teraz (zwiadowcy, procent zamku i koszt) albo czemu się nie da.
 static func scout_lines(t: TargetSearch.Target, s: Scouting, check: Scouting.Result, units: Dictionary[int, int],
-		duration: int, s3: bool, now_ms: int) -> Array[String]:
+		duration: int, s3: bool, now_ms: int, online: bool = false) -> Array[String]:
 	var out: Array[String] = []
 	var rep := s.report_for(t.key())
 	if s.is_busy() and s.mission.target_key == t.key():
-		out.append("Zwiad w drodze: %s" % Hud.format_time(s.remaining_ms(now_ms)))
+		var left := s.remaining_ms(now_ms)
+		out.append("Zwiad w drodze: %s" % Hud.format_time(left) if left > 0 else "Zwiad wrócił: czekam na raport")
 	elif rep != null:
 		out.append(Scouting.report_text(rep))
 	else:
 		out.append("Bez zwiadu: plan pokaże tylko zarys budynków")
-	if not t.is_bot:
-		# zwiad na gracza liczy serwer (osobny PR, #28)
-		out.append("Zwiad na gracza: wkrótce")
+	if not t.is_bot and not online:
+		# zwiad na gracza liczy serwer (#28)
+		out.append("Zwiad na gracza: wymaga sieci")
 	elif check != Scouting.Result.OK:
 		if s.is_busy() and s.mission.target_key != t.key():
 			out.append("Zwiadowcy w drodze: %s" % s.mission.target_name)
@@ -943,7 +958,7 @@ static func scout_lines(t: TargetSearch.Target, s: Scouting, check: Scouting.Res
 func _on_scout_requested(t: TargetSearch.Target, duration: int) -> void:
 	_tick()
 	if not t.is_bot:
-		hud.message = "Zwiad na gracza: wkrótce"
+		_send_player_scout(t, duration)
 		return
 	var r := scouting.send(t.key(), t.castle_name, duration, world_seed, _now_ms(), grid, research, recruitment,
 			economy)
@@ -953,6 +968,65 @@ func _on_scout_requested(t: TargetSearch.Target, duration: int) -> void:
 	else:
 		hud.message = Scouting.MESSAGES[r]
 	_refresh_scout_lines()
+
+
+## Zwiad na gracza (#28): te same warunki co lokalnie, a wynik losuje i trzyma serwer. Serwer
+## sprawdza Chatę, S1 i zwiadowców z zamku na serwerze, więc najpierw idzie zaległy zapis.
+func _send_player_scout(t: TargetSearch.Target, duration: int) -> void:
+	var check := scouting.check(grid, research, recruitment, economy)
+	if check != Scouting.Result.OK:
+		hud.message = Scouting.MESSAGES[check]
+		return
+	if net == null or identity == null or not net.is_online():
+		hud.message = ScoutNet.error_message(SupabaseClient.NETWORK_ERROR)
+		return
+	net.flush()
+	if not net.send_scout(t.player_id, duration):
+		hud.message = "Poczekaj chwilę na serwer"
+		return
+	_scout_target = t
+	_scout_duration = duration
+	hud.message = "Wysyłam zwiad: %s" % t.castle_name
+
+
+func _on_scout_sent(send: Dictionary, error: String) -> void:
+	var t := _scout_target
+	_scout_target = null
+	if t == null:
+		return
+	if not error.is_empty():
+		hud.message = ScoutNet.error_message(error)
+		return
+	_tick()
+	scouting.start_remote(str(send["id"]), t.key(), t.castle_name, _scout_duration,
+			send["units"] as Dictionary[int, int], int(send["remaining_s"]) * 1000, _now_ms(), recruitment, economy)
+	hud.message = "Zwiad wyruszył: %s, %s" % [t.castle_name, Hud.format_time(int(send["remaining_s"]) * 1000)]
+	_save()
+	_refresh_scout_lines()
+
+
+## Misja na gracza skończona: co SCOUT_POLL_S pytamy serwer o raport.
+func _poll_scout_reports(now_ms: int) -> void:
+	if not scouting.remote_due(now_ms) or net == null or not net.is_online() or net.is_scout_pending():
+		return
+	var t := Time.get_ticks_msec() / 1000.0
+	if t < _scout_poll_s:
+		return
+	_scout_poll_s = t + SCOUT_POLL_S
+	net.load_scout_reports()
+
+
+func _on_scout_reports(rows: Array[Dictionary], ok: bool) -> void:
+	if not ok:
+		return
+	var rep := scouting.apply_reports(rows, recruitment, _now_ms())
+	if rep != null:
+		hud.message = Scouting.report_text(rep)
+		_save()
+		if _selected_id != 0:
+			_refresh_card()
+		if target_picker.visible:
+			_refresh_scout_lines()
 
 
 ## Boty (ekran 3 celów): pełna lista 20 zamków-botów (#26).
@@ -1056,17 +1130,14 @@ func _bot_battle(bot: BotCastle, army: Array) -> Battle:
 ## z początku bitwy (te same, z których ruszy bitwa), patrolami i pułapkami obrońcy. Bez raportu
 ## z danymi: sam zarys budynków.
 func _scout_intel(bot: BotCastle, player: PlayerCastle, army: Array) -> ScoutIntel:
-	var key := "gracz:" + player.defender_id if player != null else "bot:%d" % bot.index
-	var rep := scouting.report_for(key)
+	if player != null:
+		# zamek gracza (#28): odsłonięte przez zwiad podaje serwer w `start_attack`
+		return player.intel
+	var rep := scouting.report_for("bot:%d" % bot.index)
 	if rep == null or not rep.has_intel():
 		return ScoutIntel.new()
 	var area := ScoutIntel.region_of(ScoutIntel.castle_rect(bot.grid), rep.percent, rep.region_seed)
-	var b := player.create_battle(attack_plan, research) if player != null else _bot_battle(bot, army)
-	# pole „odsłonięta” (#100) na osobnej kopii, żeby nie zmieniać kopii obrony ze `start_attack`
-	var seen := DefensePlan.from_dict(player.defense.to_dict()) if player != null else null
-	if seen != null:
-		ScoutIntel.mark_traps(seen, area)
-	return ScoutIntel.build(area, ScoutIntel.defender_posts(b), seen)
+	return ScoutIntel.build(area, ScoutIntel.defender_posts(_bot_battle(bot, army)), null)
 
 
 func _on_plan_changed(message: String) -> void:
@@ -1119,6 +1190,16 @@ func _on_attack_launched() -> void:
 	if not problem.is_empty():
 		hud.message = problem
 		return
+	if _player != null and not _player.is_launched():
+		# pełne ukrycie obrony (#28): kopie zamku i obrony dopiero po zatwierdzeniu planu
+		if _launching:
+			return
+		if net == null or not net.launch_attack(_player.attack_id):
+			hud.message = AttackStart.error_message(SupabaseClient.NETWORK_ERROR)
+			return
+		_launching = true
+		hud.message = "Zatwierdzam plan na serwerze"
+		return
 	var bot := planner.bot
 	_battle_ids = recruitment.battle_ids().slice(0, army.size())
 	_battle_army = army
@@ -1142,6 +1223,23 @@ func _on_attack_launched() -> void:
 	hud.speed_label = speed_label(battle_view.speed)
 	hud.message = "Atak: %d oddziały ruszają" % army.size() if army.size() > 1 else "Atak: oddział rusza"
 	_save()
+
+
+## Odpowiedź `launch_attack` (#28): pełna kopia zamku i obrony celu, potem bitwa z planu.
+func _on_player_launched(launch: Dictionary, error: String) -> void:
+	_launching = false
+	if _player == null or not planner.visible:
+		return
+	if not error.is_empty():
+		hud.message = AttackStart.error_message(error)
+		return
+	if not _player.apply_launch(launch):
+		hud.message = "Zamek gracza jest nieczytelny. Wybierz inny cel"
+		return
+	# ten sam teren i te same kratki: cele i trasy planu zostają, bitwa rysuje prawdziwy zamek
+	planner.bot = _player.target
+	planner.intel = ScoutIntel.new()
+	_on_attack_launched()
 
 
 ## Czemu atak na gracza nie może ruszyć, albo pusty tekst: armia musi być ta sama co w `start_attack`
