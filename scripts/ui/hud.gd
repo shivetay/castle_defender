@@ -27,7 +27,7 @@ signal research_pressed
 signal army_pressed
 signal recruit_pressed
 signal attack_pressed
-## Ranking PvP (#27) z karty Strażnicy.
+## Rankingi z karty Strażnicy: PvP (#27) i PvE (#242).
 signal ranking_pressed
 signal defence_pressed
 signal queue_pressed

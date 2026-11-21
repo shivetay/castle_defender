@@ -1,8 +1,8 @@
 class_name RankingPanel
 extends Node2D
-## Ranking PvP (#27) z karty Strażnicy, na przyciemnionym zamku. Dwa widoki o tym samym układzie:
-## Atak (punkty za ataki na graczy) i Obrona (punkty za obronę przed nimi), tylko gracze z epoki
-## gracza. Wiersz: miejsce, portret władcy, imię gracza, nazwa zamku i punkty; własny wiersz jest
+## Rankingi z karty Strażnicy, na przyciemnionym zamku. Trzy widoki o tym samym układzie: PvP (#27)
+## Atak (punkty za ataki na graczy) i Obrona (punkty za obronę przed nimi) oraz osobny ranking PvE
+## (#242, punkty za zdobyte zamki-boty), zawsze tylko gracze z epoki gracza. Wiersz: miejsce, portret władcy, imię gracza, nazwa zamku i punkty; własny wiersz jest
 ## podświetlony, a gdy gracz jest poza 20 najlepszymi, stoi pod nimi. Punkty liczy serwer
 ## (RankingBoard), panel tylko je pokazuje. Lista przewija się przeciąganiem o całe wiersze.
 ## Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
@@ -14,16 +14,19 @@ signal kind_changed(kind: int)
 signal message_changed(text: String)
 signal closed
 
-enum Target { NONE = -1, ATTACK, DEFENSE, CLOSE }
+enum Target { NONE = -1, ATTACK, DEFENSE, PVE, CLOSE }
 enum Load { OFFLINE, LOADING, DONE, FAILED }
 
-const TITLE := "Ranking PvP"
+## Tytuł według RankingBoard.Kind.
+const TITLES: Array[String] = ["Ranking PvP", "Ranking PvP", "Ranking PvE"]
 const LOAD_TEXTS: Array[String] = ["Bez sieci", "Wczytuję...", "", "Brak odpowiedzi"]
 const OFFLINE_MESSAGE := "Ranking wymaga połączenia z serwerem"
 const LOADING_MESSAGE := "Wczytuję ranking"
 const FAILED_MESSAGE := "Serwer nie odpowiada, spróbuj później"
-const EMPTY_TEXTS: Array[String] = ["Nikt w tej epoce nie atakował graczy", "Nikt w tej epoce nie bronił się przed graczem"]
-const TAB_LABELS: Array[String] = ["Atak", "Obrona"]
+const EMPTY_TEXTS: Array[String] = ["Nikt w tej epoce nie atakował graczy",
+	"Nikt w tej epoce nie bronił się przed graczem", "Nikt w tej epoce nie zdobył zamku-bota"]
+## Przyciski widoków w kolejności RankingBoard.Kind (i Target).
+const TAB_LABELS: Array[String] = ["Atak", "Obrona", "PvE"]
 const CLOSE_LABEL := "Wróć"
 const LIST_Y := Hud.BAR_H + 11
 ## Wysokość wiersza: portret i odstęp.
@@ -127,8 +130,8 @@ func _process(_delta: float) -> void:
 
 # --- Układ (bez stanu, testy) ------------------------------------------------------------------
 
-static func title_text(player_age: int) -> String:
-	return "%s: %s" % [TITLE, TargetSearch.age_label(player_age)]
+static func title_text(player_age: int, for_kind: int = RankingBoard.Kind.ATTACK) -> String:
+	return "%s: %s" % [TITLES[clampi(for_kind, 0, TITLES.size() - 1)], TargetSearch.age_label(player_age)]
 
 
 ## Ile całych wierszy mieści się między tytułem a rzędem przycisków.
@@ -162,10 +165,9 @@ static func close_rect(view: Vector2, right: float) -> Rect2:
 
 
 static func target_at(p: Vector2, view: Vector2, left: float, right: float) -> int:
-	if tab_rect(RankingBoard.Kind.ATTACK, view, left).has_point(p):
-		return Target.ATTACK
-	if tab_rect(RankingBoard.Kind.DEFENSE, view, left).has_point(p):
-		return Target.DEFENSE
+	for k in TAB_LABELS.size():
+		if tab_rect(k, view, left).has_point(p):
+			return k  # Target.ATTACK, DEFENSE i PVE mają numery RankingBoard.Kind
 	if close_rect(view, right).has_point(p):
 		return Target.CLOSE
 	return Target.NONE
@@ -195,10 +197,9 @@ static func drag_scroll(current: int, acc: float, dy: float, count: int, shown: 
 
 func _activate(t: int) -> void:
 	match t:
-		Target.ATTACK, Target.DEFENSE:
-			var k := RankingBoard.Kind.ATTACK if t == Target.ATTACK else RankingBoard.Kind.DEFENSE
-			if k != kind:
-				_show(k, load != Load.OFFLINE)
+		Target.ATTACK, Target.DEFENSE, Target.PVE:
+			if t != kind:
+				_show(t, load != Load.OFFLINE)
 		Target.CLOSE:
 			close()
 	queue_redraw()
@@ -243,7 +244,7 @@ func _input(event: InputEvent) -> void:
 func _draw() -> void:
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(0, Hud.BAR_H, view.x, view.y - 2 * Hud.BAR_H), Color(Palette.SHADOW, 0.92))
-	PixelFont.draw_text(self, Vector2(content_left, Hud.BAR_H + 2), title_text(age), Palette.THATCH[2])
+	PixelFont.draw_text(self, Vector2(content_left, Hud.BAR_H + 2), title_text(age, kind), Palette.THATCH[2])
 	var status := status_text()
 	if not status.is_empty():
 		PixelFont.draw_right(self, content_right, Hud.BAR_H + 2, status, Palette.WOOD[3])

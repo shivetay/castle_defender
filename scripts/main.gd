@@ -31,7 +31,7 @@ const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 ## Linia karty Strażnicy (#177): jeden poziom, więc zamiast kosztu ulepszenia krótki opis.
-const WATCHTOWER_INFO := "Fale, wyprawy i ranking PvP"
+const WATCHTOWER_INFO := "Fale, wyprawy i rankingi"
 ## Linia karty donżonu (#232): bez ulepszeń i rozbiórki, strzela jak wieża.
 const KEEP_INFO := "Cel ataku, strzela ze strzelcem"
 ## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
@@ -97,7 +97,7 @@ var attack_target := 0
 var bot_picker: BotPicker
 ## Wybór 3 celów Wyprawy (#24): gracze z serwera i zamki-boty.
 var target_picker: TargetPicker
-## Ranking PvP (#27) z karty Strażnicy: tabele ataku i obrony z serwera.
+## Rankingi z karty Strażnicy: PvP ataku i obrony (#27) oraz PvE (#242), tabele z serwera.
 var ranking_panel: RankingPanel
 ## Okno wyniku ataku (#99).
 var result_panel: ResultPanel
@@ -135,6 +135,10 @@ var _finish_body: Dictionary = {}
 var _finish_result: BattleResult
 var _finish_fallen := 0
 var _finish_tries := 0
+## Ranking PvE (#242): wyprawa na zamek-bota zgłoszona serwerowi (start i wynik), gdy gra jest połączona.
+var _pve := PveReport.new()
+## Wynik wyprawy do rankingu PvE czeka na odpowiedź `finish_attack`.
+var _pve_sending := false
 
 var _terrain_tex: ImageTexture
 ## Dym z kominów i błyski na wodzie (#150), nad budynkami.
@@ -1083,6 +1087,9 @@ func _on_player_target(target: TargetSearch.Target) -> void:
 
 
 func _on_player_attack_started(start: Dictionary, error: String) -> void:
+	if _pve.state == PveReport.State.STARTING:
+		_pve_send(_pve.on_started(start, error))
+		return
 	_starting = false
 	if not target_picker.visible:
 		# gracz wyszedł z Wyprawy przed odpowiedzią: atak na serwerze wygaśnie sam, ale cel i tak
@@ -1226,6 +1233,7 @@ func _on_attack_launched() -> void:
 		b = _bot_battle(bot, army)
 		b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
 		b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
+		_pve_begin(army)
 	_attacking = true
 	attack_panel.visible = false
 	planner.show_plan = false
@@ -1284,11 +1292,14 @@ func _finish_attack(b: Battle) -> void:
 	result.compute_loot(attack_target, BotRoster.is_beaten(attack_target, bots_beaten))
 	result.limit_to_capacity(BattleResult.carry_capacity(army, alive))  # łup unoszą ocaleli (#25)
 	var got := result.apply_loot(economy)
+	_pve_send(_pve.finish(result, alive))  # ranking PvE (#242): punkty doda serwer
 	var first := won and attack_target == bots_beaten and bots_beaten < BotRoster.COUNT
 	var unlock := ""
 	if first:
 		unlock = "Wszystkie zamki zdobyte!" if bots_beaten + 1 >= BotRoster.COUNT \
 				else "Odblokowany: %d. %s" % [bots_beaten + 2, BotRoster.NAMES[bots_beaten + 1]]
+	elif _pve.failed():
+		unlock = PveReport.FAILED_MESSAGE  # serwer odrzucił start wyprawy
 	if first:
 		bots_beaten += 1
 		if bots_beaten < BotRoster.COUNT:
@@ -1339,6 +1350,9 @@ func _send_finish() -> void:
 ## Odpowiedź `finish_attack`: łup z serwera do magazynu i okno wyniku. Błąd sieci ponawia to samo
 ## żądanie (serwer zwraca zapisany wynik), a po RETRIES próbach albo odrzuceniu wynik jest bez łupu.
 func _on_player_attack_finished(loot: Array[int], error: String) -> void:
+	if _pve_sending:
+		_on_pve_finished(error)
+		return
 	if _finish_result == null:
 		return
 	if error == SupabaseClient.NETWORK_ERROR and _finish_tries < AttackFinish.RETRIES:
@@ -1362,6 +1376,44 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	hud.overlay = true
 	result_panel.show_result(r, got, _finish_fallen, note)
 	_save()
+
+
+# --- Ranking PvE (#242) -----------------------------------------------------------------------------
+
+## Start bitwy z zamkiem-botem: gdy gra jest połączona, ten sam atak zaczyna się na serwerze
+## (`start_attack` z `bot_idx`), żeby wynik mógł dać punkty PvE. Bez sieci bitwa idzie jak dotąd.
+## Wynik ataku na gracza czekający na serwer albo poprzednia wyprawa w drodze mają pierwszeństwo.
+func _pve_begin(army: Array) -> void:
+	if not _pve.is_idle() or _pve_sending or _finish_result != null:
+		return
+	_pve.clear()  # nowa wyprawa: bez znacznika porażki poprzedniej
+	if net == null or identity == null or not net.is_online():
+		return
+	net.flush()  # serwer sprawdza armię z kopii zamku (#23)
+	if net.start_bot_attack(attack_target, army):
+		_pve.begin(attack_target, army)
+
+
+## Wysyła wynik wyprawy (pusta treść: nie ma czego wysyłać albo czekamy na start).
+func _pve_send(body: Dictionary) -> void:
+	if body.is_empty():
+		return
+	if net != null and net.finish_attack(body):
+		_pve_sending = true
+		return
+	_on_pve_finished(SupabaseClient.NETWORK_ERROR)
+
+
+## Odpowiedź `finish_attack` na wynik wyprawy: łup jest już w magazynie z gry, więc odpowiedź tylko
+## kończy zgłoszenie. Błąd sieci ponawia tę samą treść, a odrzucony wynik pokazuje komunikat.
+func _on_pve_finished(error: String) -> void:
+	_pve_sending = false
+	if _pve.on_finished(error):
+		get_tree().create_timer(AttackFinish.RETRY_S).timeout.connect(
+				func() -> void: _pve_send(_pve.retry_body()))
+		return
+	if _pve.failed():
+		hud.message = PveReport.FAILED_MESSAGE
 
 
 # --- Ustawienia obrony (#19) -------------------------------------------------------------------------

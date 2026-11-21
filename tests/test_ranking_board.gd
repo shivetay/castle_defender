@@ -215,7 +215,8 @@ func test_matches_migration() -> bool:
 	assert_true(sql.contains("RANKING_TOP = %d" % RankingBoard.TOP), "20 najlepszych")
 	assert_true(sql.contains("r.ord <= %d" % RankingBoard.TOP), "limit w zapytaniu")
 	assert_true(sql.contains("ELO_K = 32") and sql.contains("round(32 *"), "K w opisie i w funkcji")
-	for key: String in RankingBoard.KIND_KEYS:
+	for kind: int in [RankingBoard.Kind.ATTACK, RankingBoard.Kind.DEFENSE]:
+		var key := RankingBoard.KIND_KEYS[kind]
 		assert_true(sql.contains("'%s'" % key), "rodzaj „%s”" % key)
 	var fn := FileAccess.get_file_as_string("res://supabase/functions/ranking/index.ts")
 	assert_true(fn.contains("MAX_ROWS = %d" % RankingBoard.MAX_ROWS), "Edge Function: 20 i własny wiersz")

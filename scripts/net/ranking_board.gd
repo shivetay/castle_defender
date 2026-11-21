@@ -1,15 +1,16 @@
 class_name RankingBoard
 extends RefCounted
-## Ranking PvP (#27): kontrakt Edge Function `ranking` i wiersze tabeli. Punkty liczy wyłącznie
-## serwer (Elo po każdej bitwie PvP, migracja `*_pvp_ranking.sql`): osobno za atak i za obronę,
-## w puli tej samej epoki. Serwer zwraca 20 najlepszych i własny wiersz gracza, gdy jest niżej.
+## Ranking PvP (#27) i PvE (#242): kontrakt Edge Function `ranking` i wiersze tabeli. Punkty liczy
+## wyłącznie serwer: PvP to Elo po każdej bitwie PvP (migracja `*_pvp_ranking.sql`), osobno za atak
+## i za obronę, a PvE to punkty za wygrane z zamkami-botami (migracja `*_pve_ranking.sql`). Każda tabela
+## jest w puli tej samej epoki. Serwer zwraca 20 najlepszych i własny wiersz gracza, gdy jest niżej.
 ## Wiersze opisują innych graczy, więc są niezaufane: nazwy przechodzą przez te same reguły co
 ## w onboardingu (TargetSearch.safe_name), liczby są przycinane, a nieznany władca daje domyślny portret.
 
 const PATH := "/functions/v1/ranking"
-enum Kind { ATTACK, DEFENSE }
+enum Kind { ATTACK, DEFENSE, PVE }
 ## Rodzaj rankingu w żądaniu i odpowiedzi, w kolejności Kind.
-const KIND_KEYS: Array[String] = ["attack", "defense"]
+const KIND_KEYS: Array[String] = ["attack", "defense", "pve"]
 ## Tyle najlepszych pokazuje tabela (RANKING_TOP w migracji), plus własny wiersz.
 const TOP := 20
 const MAX_ROWS := TOP + 1
@@ -84,7 +85,7 @@ static func parse_response(data: Variant, kind: int) -> Array[Row]:
 	return out
 
 
-## Własny wiersz albo null (gracz nie ma jeszcze bitew w tej roli).
+## Własny wiersz albo null (gracz nie ma jeszcze bitew w tej roli albo wygranej z botem).
 static func my_row(rows: Array[Row]) -> Row:
 	for r in rows:
 		if r.is_me:
@@ -99,6 +100,8 @@ static func summary(rows: Array[Row], kind: int) -> String:
 		return "Twoje miejsce: %d., punkty: %d" % [me.place, me.points]
 	if kind == Kind.ATTACK:
 		return "Zaatakuj gracza, żeby wejść do rankingu"
+	if kind == Kind.PVE:
+		return "Zdobądź zamek-bota, żeby wejść do rankingu"
 	return "Wejdziesz po pierwszym ataku na Twój zamek"
 
 
