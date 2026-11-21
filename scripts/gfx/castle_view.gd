@@ -9,16 +9,21 @@ extends RefCounted
 ## `states` (id → BuildingTypes.State) to stan zniszczeń w trwającej bitwie (BattleView.states_of);
 ## budynek spoza słownika jest cały. Bez tego zburzony odcinek muru wyglądał w bitwie na cały,
 ## a jednostki przechodziły przez wyłom, którego nie było widać.
+## `hidden` (id → true) to budynki pominięte, np. zakryte mgłą w planie ataku (#28).
 static func draw_buildings(ci: CanvasItem, grid: BuildGrid, textures: BuildingTextures,
-		states: Dictionary = {}) -> void:
+		states: Dictionary = {}, hidden: Dictionary = {}) -> void:
 	for id in grid.draw_order():
+		if hidden.has(id):
+			continue
 		var kind := grid.kinds[id]
 		var sh := textures.shadow(kind, grid.levels[id], int(states.get(id, BuildingTypes.State.INTACT)),
 				grid.wall_mask(id), grid.is_vertical(id), lean_of(grid, id))
 		ci.draw_texture(sh, Vector2(texture_origin(grid.buildings[id].position, kind) + attach_offset(grid, textures, id)))
 	for id in grid.draw_order():
+		if hidden.has(id):
+			continue
 		var kind := grid.kinds[id]
-		draw_wall_stubs(ci, grid, textures, id, states)
+		draw_wall_stubs(ci, grid, textures, id, states, hidden)
 		var tex := textures.draw_building(kind, grid.levels[id], int(states.get(id, BuildingTypes.State.INTACT)),
 				grid.wall_mask(id), grid.is_vertical(id), lean_of(grid, id))
 		ci.draw_texture(tex, Vector2(texture_origin(grid.buildings[id].position, kind) + attach_offset(grid, textures, id)))
@@ -72,10 +77,12 @@ static func texture_origin(cell: Vector2i, _kind: int) -> Vector2i:
 ## do środka kratki), a budynek przykrywa go zaraz potem. Linia dochodzi wtedy do korpusu.
 ## Wpust zburzonego odcinka ma jego stan (`states`), żeby przy wyłomie nie sterczał cały kawałek muru.
 static func draw_wall_stubs(ci: CanvasItem, grid: BuildGrid, textures: BuildingTextures, id: int,
-		states: Dictionary = {}) -> void:
+		states: Dictionary = {}, hidden: Dictionary = {}) -> void:
 	for stub in grid.wall_stubs(id):
 		var c := Vector2i(stub.x, stub.y)
 		var wall := grid.building_at(c + dir_of(stub.z))
+		if hidden.has(wall):
+			continue  # wpust zdradziłby rodzaj ukrytego muru (#28)
 		var kind := grid.kinds[wall]
 		var tex := textures.draw_building(kind, grid.levels[wall], int(states.get(wall, BuildingTypes.State.INTACT)), stub.z)
 		ci.draw_texture(tex, Vector2(texture_origin(c, kind)))

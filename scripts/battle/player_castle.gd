@@ -54,6 +54,8 @@ static func from_start(start: Dictionary, sent_army: Array, now_s: int, age: int
 	})
 	if save.is_empty():
 		return null
+	# zwiad obrońcy (#28) nie dotyczy tej bitwy: kopia go nie czyta
+	save.erase("scout")
 	var defense_copy: Variant = start.get("defense")
 	save["defense"] = defense_copy if defense_copy is Dictionary else {}
 	var state := SaveGame.from_dict(save, READ_MS)

@@ -584,7 +584,7 @@ func _draw() -> void:
 	var full := limit_warning(recruitment, grid, research)
 	PixelFont.draw_text(self, Vector2(content_left, TITLE_Y), title_text(recruitment, grid, research),
 			Palette.ACCENT if full else Palette.INK)
-	var mode := BuildingTypes.NAMES[building_kind] if building_kind >= 0 else "wszystkie jednostki"
+	var mode := BuildingTypes.name_of(building_kind, research) if building_kind >= 0 else "wszystkie jednostki"
 	PixelFont.draw_right(self, content_right, TITLE_Y, mode, Palette.THATCH[2])
 	var list := units()
 	var tiles := tile_rects(content_left, content_right, list.size())

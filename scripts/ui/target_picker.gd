@@ -6,15 +6,21 @@ extends Node2D
 ## puste miejsca, a bez sieci wszystkie trzy, zajmują zamki-boty. Boty otwiera dotychczasową listę
 ## 20 zamków-botów (BotPicker), Planuj plan ataku na wybranym celu, a Wróć wraca do mapy.
 ## Planuj na karcie gracza zaczyna atak na serwerze (`start_attack`, #240) i otwiera plan na kopii
-## jego zamku. Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
+## jego zamku. Zwiad (#28) wysyła Tropicieli na wybrany cel na czas z przycisku obok (2, 10 albo
+## 30 min); pod kartami są stan i koszt zwiadu, które podaje main (scout_lines). Panel sam obsługuje
+## dotyk, więc nic nie trafia do kamery ani do HUD.
 @warning_ignore_start("integer_division")
 
 signal bot_chosen(index: int)
 signal player_chosen(target: TargetSearch.Target)
 signal bots_pressed
 signal closed
+## Zwiad (#28) na cel `target` na `duration` (indeks ScoutConfig.DURATION_S).
+signal scout_requested(target: TargetSearch.Target, duration: int)
+## Zmienił się wybrany cel albo długość zwiadu: main odświeża scout_lines.
+signal scout_changed
 
-enum Target { NONE = -1, PLAN = 1, CLOSE = 2, BOTS = 3, CARD = 100 }
+enum Target { NONE = -1, PLAN = 1, CLOSE = 2, BOTS = 3, SCOUT = 4, SCOUT_TIME = 5, CARD = 100 }
 ## Stan szukania graczy (napis z prawej od tytułu).
 enum Search { OFFLINE, SEARCHING, DONE, FAILED, LIMITED }
 
@@ -25,6 +31,7 @@ const NO_PLAYERS_TEXT := "Brak graczy: boty"
 const PLAN_LABEL := "Planuj"
 const CLOSE_LABEL := "Wróć"
 const BOTS_LABEL := "Boty"
+const SCOUT_LABEL := "Zwiad"
 ## Karta gracza: jego punkty rankingu obrony (#27).
 const DEFENSE_RATING_LABEL := "Obrona"
 const CARD_Y := Hud.BAR_H + 12
@@ -34,11 +41,18 @@ const CARD_H := 90
 const PAD := 2
 const MINI_Y := 36
 const LOOT_Y := 70
+## Pierwsza linia stanu zwiadu (#28) pod kartami.
+const SCOUT_Y := CARD_Y + CARD_H + 3
 
 var targets: Array[TargetSearch.Target] = []
 var selected := 0
 var search: int = Search.OFFLINE
 var beaten := 0
+## Zwiad (#28): długość wybrana przyciskiem obok Zwiadu, czy da się go wysłać na wybrany cel
+## i dwie linie stanu pod kartami (ustawia main).
+var scout_duration := 1
+var scout_enabled := false
+var scout_lines: Array[String] = []
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
 
@@ -121,6 +135,16 @@ static func bots_rect(view: Vector2, left: float) -> Rect2:
 	return Rect2(Vector2(left, Hud.row_y(view)), Hud.BUTTON_SIZE)
 
 
+## Długość zwiadu (#28): na prawo od Botów.
+static func scout_time_rect(view: Vector2, left: float) -> Rect2:
+	return Rect2(Vector2(left + Hud.BUTTON_SIZE.x + Hud.BUTTON_GAP, Hud.row_y(view)), Hud.BUTTON_SIZE)
+
+
+## Zwiad (#28): na prawo od długości zwiadu, z dala od Planuj.
+static func scout_rect(view: Vector2, left: float) -> Rect2:
+	return Rect2(Vector2(left + 2 * (Hud.BUTTON_SIZE.x + Hud.BUTTON_GAP), Hud.row_y(view)), Hud.BUTTON_SIZE)
+
+
 static func target_at(p: Vector2, view: Vector2, left: float, right: float) -> int:
 	if plan_rect(view, right).has_point(p):
 		return Target.PLAN
@@ -128,6 +152,10 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float) -> i
 		return Target.CLOSE
 	if bots_rect(view, left).has_point(p):
 		return Target.BOTS
+	if scout_time_rect(view, left).has_point(p):
+		return Target.SCOUT_TIME
+	if scout_rect(view, left).has_point(p):
+		return Target.SCOUT
 	var cards := card_rects(left, right)
 	for i in cards.size():
 		if cards[i].has_point(p):
@@ -174,6 +202,14 @@ static func loot_pos(res: int, w: int) -> Vector2:
 func _activate(t: int) -> void:
 	if t >= Target.CARD:
 		selected = t - Target.CARD
+		scout_changed.emit()
+	elif t == Target.SCOUT_TIME:
+		scout_duration = (scout_duration + 1) % ScoutConfig.duration_count()
+		scout_changed.emit()
+	elif t == Target.SCOUT:
+		var target := selected_target()
+		if target != null and scout_enabled:
+			scout_requested.emit(target, scout_duration)
 	elif t == Target.PLAN:
 		var target := selected_target()
 		if target == null:
@@ -233,6 +269,13 @@ func _draw() -> void:
 			target == null or not target.is_bot)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
 	Hud.paint_button(self, bots_rect(view, content_left), BOTS_LABEL, _pressed == Target.BOTS, false)
+	Hud.paint_button(self, scout_time_rect(view, content_left), ScoutConfig.DURATION_LABELS[scout_duration],
+			_pressed == Target.SCOUT_TIME, false)
+	Hud.paint_button(self, scout_rect(view, content_left), SCOUT_LABEL, _pressed == Target.SCOUT, not scout_enabled)
+	var w := int(content_right - content_left)
+	for i in mini(scout_lines.size(), 2):
+		PixelFont.draw_text(self, Vector2(content_left, SCOUT_Y + i * (PixelFont.LINE + 1)), fit(scout_lines[i], w),
+				Palette.THATCH[2] if i == 0 else Palette.THATCH[1])
 
 
 func _draw_card(r: Rect2, t: TargetSearch.Target, i: int) -> void:

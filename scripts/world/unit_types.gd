@@ -36,7 +36,8 @@ const UNITS: Array = [
 	["Tarczownik", C.HEAVY, 0, 90, 5, 1, 2, "A21", K.WARBAND_HOUSE, {R.FOOD: 10},
 			{G.SHIELD: 1, G.LEATHER_ARMOR: 1}],
 	["Podpalacz", C.SPECIAL, 0, 35, 4, 3, 3, "A3", K.TAR_KILN, {R.FOOD: 10}, {G.PITCH: 2}],
-	["Tropiciel", C.SPECIAL, 0, 25, 0, 0, 5, "S1", -1, {R.FOOD: 15}, {G.RAW_HIDE: 2}],
+	# Tropiciel szkoli się w Chacie tropicieli (#28) i chodzi na zwiad (Scouting).
+	["Tropiciel", C.SPECIAL, 0, 25, 0, 0, 5, "S1", K.SCOUT_HOUSE, {R.FOOD: 15}, {G.RAW_HIDE: 2}],
 	["Jeździec", C.FAST, 0, 90, 12, 1, 6, "A7", K.STABLE, {R.FOOD: 15}, {G.HORSE: 1, G.SADDLE: 1}],
 	["Włócznik", C.LIGHT, 1, 70, 9, 2, 3, "", K.BARRACKS, {R.FOOD: 10}, {G.SPEAR: 1}],
 	["Drużynnik w przeszywanicy", C.HEAVY, 1, 110, 11, 1, 2, "A46", K.WARBAND_HOUSE, {R.FOOD: 15},
@@ -85,7 +86,7 @@ const ROLES: Array[String] = [
 	"Strzela z łuku z 6 kratek. Słaby wręcz.",
 	"Ściana tarcz: −40% obrażeń od strzał dla siebie i sąsiadów.",
 	"Podpala drewniane budynki; płoną 10 s.",
-	"Tropiciel. Nie walczy, szybko dociera daleko.",
+	"Tropiciel. Nie walczy, chodzi na zwiad z Chaty tropicieli.",
 	"Szybki jeździec. Omija wolną piechotę i dopada strzelców.",
 	"Włócznia z 2 kratek, ×2 obrażeń przeciw konnicy.",
 	"Ciężka piechota w przeszywanicy: −25% obrażeń wręcz, trzyma wyłom.",

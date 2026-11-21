@@ -3,9 +3,9 @@ extends RefCounted
 ## Budynki rekrutacji według klas (#119), według notatek Klasy jednostek i produkcja oraz Załoga
 ## i administracja. Każda klasa szkoli się we własnym budynku: Koszary (lekka), Dom drużyny (ciężka),
 ## Strzelnica (strzelecka), Stajnia (szybka). Jednostki specjalne mają własne budynki (Podpalacz
-## w Smolarni, Zwiadowca w Domu zwiadowców), przypisane jednostce, a nie klasie (UnitTypes.building).
-## Tropiciel czeka na swój budynek zwiadu: Wieża sygnałowa tylko wykrywa zwiad wroga (decyzja
-## właścicielki w #35). Dwór nie rekrutuje.
+## w Smolarni, Tropiciel w Chacie tropicieli, Zwiadowca w niej po S3, gdy staje się Domem
+## zwiadowców), przypisane jednostce, a nie klasie (UnitTypes.building). Wieża sygnałowa tylko
+## wykrywa zwiad wroga (decyzja właścicielki w #35 i #28). Dwór nie rekrutuje.
 ##
 ## Poziom budynku podnosi limit szkolenia i tempo. Liczby są tymczasowe (notatka zostawia je
 ## balansowi) i czekają na rekrutację (#89).

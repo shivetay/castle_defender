@@ -154,7 +154,8 @@ static func revision_from_rows(rows: Variant) -> int:
 
 ## Dane zamku wysyłane do `castles.data`: ten sam kształt co lokalny zapis, bez pola world_seed
 ## (seed stoi w osobnej kolumnie `map_seed`), bez wersji (kolumna `save_version`) i bez lokalnego
-## stanu Sprawdź (`seal`). Z tożsamością z onboardingu w `profile`, żeby wróciła po reinstalacji.
+## stanu Sprawdź (`seal`). Zwiad (`scout`, #28) idzie na serwer, żeby misja i zwiadowcy w drodze
+## przetrwali reinstalację; jego raporty dotyczą na razie tylko zamków-botów. Z tożsamością z onboardingu w `profile`, żeby wróciła po reinstalacji.
 static func castle_data(save: Dictionary, identity: PlayerProfile.Identity = null) -> Dictionary:
 	var out := save.duplicate(true)
 	out.erase("world_seed")

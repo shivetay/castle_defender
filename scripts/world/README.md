@@ -20,6 +20,7 @@ Dane i logika świata zamku (poza bitwą i UI). Tu żyje **ekonomia**, budowa i 
 | `ages.gd` | Epoki |
 | `recruitment.gd` / `recruitment_config.gd` | Kolejki szkolenia, limity armii |
 | `unit_types.gd` | Klasy jednostek, statystyki, koszty |
+| `scouting.gd` / `scout_config.gd` | Zwiad (#28): misja z Chaty tropicieli, wynik z seeda, raporty |
 | `save_game.gd` | Zapis/odczyt stanu zamku |
 | `tutorial_goals.gd` | Cele samouczka |
 

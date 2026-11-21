@@ -12,6 +12,8 @@ enum Kind {
 	FLAX_FIELD, FISHER, STABLE,
 	BARRACKS, WARBAND_HOUSE, ARCHERY_RANGE,
 	KEEP,
+	## Chata tropicieli (#28, od S1): szkoli Tropicieli i wysyła zwiad. Po S3 Dom zwiadowców (#92),
+	## w którym szkolą się też Zwiadowcy. Jeden rodzaj, więc stare zapisy Domu zwiadowców zostają.
 	SCOUT_HOUSE,
 	WATCHTOWER,
 	## Komenda umocnień (#199): Sprawdź szczelność pierścienia i uszczelnij luki.
@@ -31,6 +33,9 @@ enum Kind {
 ## Stan budynku zależny od wytrzymałości: cały, pęknięcia, wyrwa w blankach, gruz.
 enum State { INTACT, CRACKED, BREACHED, RUBBLE }
 
+## Chata tropicieli po zbadaniu S3 (BuildingTypes.name_of).
+const SCOUT_HOUSE_S3_NAME := "Dom zwiadowców"
+
 const MAX_LEVEL := 5
 ## Najniższy procent wytrzymałości, przy którym budynek jest jeszcze w danym stanie
 ## (cały, pęknięcia, wyrwa). Przy 0% zostaje gruz.
@@ -44,13 +49,13 @@ const W := 8
 const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wieża drewniana", "Chata drwala", "Dwór",
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
 		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica",
-		"Wieża grodowa", "Dom zwiadowców", "Strażnica", "Komenda umocnień", "Magazyn",
+		"Wieża grodowa", "Chata tropicieli", "Strażnica", "Komenda umocnień", "Magazyn",
 		"Fosa sucha", "Kopiec", "Pole i spichlerz", "Studnia", "Kamieniołom", "Wieża sygnałowa"]
 ## Napisy na kafelkach panelu budowy (BuildPanel, ok. 57–71 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
 		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
 		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica", "Donżon",
-		"Zwiadowcy", "Strażnica", "Komenda", "Magazyn", "Fosa", "Kopiec", "Spichlerz", "Studnia", "Kamień",
+		"Tropiciele", "Strażnica", "Komenda", "Magazyn", "Fosa", "Kopiec", "Spichlerz", "Studnia", "Kamień",
 		"Sygnałowa"]
 const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
@@ -59,7 +64,7 @@ const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), 
 		Vector2i(2, 2), Vector2i(1, 1), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2)]
 ## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu): umocnienia, gospodarka (#122),
-## Magazyn, wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119), Dom zwiadowców (#92)
+## Magazyn, wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119), Chata tropicieli (#28, #92)
 ## i Wieża sygnałowa (#35).
 const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.DRY_MOAT, Kind.MOUND,
 		Kind.SEAL_HOUSE, Kind.LUMBER_HUT, Kind.FARM, Kind.FISHER, Kind.FLAX_FIELD, Kind.QUARRY, Kind.WELL,
@@ -97,6 +102,14 @@ static func category(kind: int) -> int:
 
 static func count() -> int:
 	return NAMES.size()
+
+
+## Nazwa budynku w UI z uwzględnieniem badań: Chata tropicieli (#28) po S3 staje się Domem
+## zwiadowców (#92), w którym szkolą się też Zwiadowcy. Bez `research` nazwa z NAMES.
+static func name_of(kind: int, research: Research = null) -> String:
+	if kind == Kind.SCOUT_HOUSE and research != null and research.is_done("S3"):
+		return SCOUT_HOUSE_S3_NAME
+	return NAMES[kind]
 
 
 ## Czy budynek jest z drewna (epoka I: wszystko poza wałem ziemnym, polem lnu, fosą, kopcem, studnią
