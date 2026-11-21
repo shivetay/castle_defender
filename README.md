@@ -720,7 +720,7 @@ Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa
 z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoką gracza na serwerze
 (`players.age`, ranking i dobór przeciwnika) zajmuje się migracja `castle_age`: po każdym zapisie zamku
 serwer podnosi epokę do II, gdy zapis ma Dwór na poziomie 6+ i zbadane O1, G1, A7. Epoka tylko
-rośnie, a klient nadal nie ma do niej uprawnień. Nowe premie epoki II i balans kosztów i czasów epoki II czekają na osobny ticket.
+rośnie, a klient nadal nie ma do niej uprawnień. Migracja `castle_age` jest na projekcie. Nowe premie epoki II i balans kosztów i czasów epoki II czekają na osobny ticket.
 Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
 Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
