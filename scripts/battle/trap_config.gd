@@ -61,7 +61,8 @@ static func count() -> int:
 
 
 static func limit(manor_level: int) -> int:
-	return LIMIT_PER_MANOR_LEVEL * maxi(1, manor_level)
+	# epoka II trzyma limit Dworu 5 (Ages.bonus_level, #34)
+	return LIMIT_PER_MANOR_LEVEL * maxi(1, Ages.bonus_level(manor_level))
 
 
 ## Pusty napis, gdy pułapkę `kind` można postawić (epoka, technologia, budynki); inaczej powód.

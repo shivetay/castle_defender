@@ -12,7 +12,7 @@ Gra jest darmowa, a jedyne reklamy to reklamy z nagrodą, które gracz włącza 
 | Ochrona magazynu | +10% surowców chronionych przed łupem na 8 h | 1 |
 
 ## Zasady uczciwości
-- Reklamy przyspieszają, ale nie omijają wymagań: nie da się przeskoczyć poziomu, wymaganych technologii przejścia (preferencyjnie dwóch) ani przejścia epoki (#34).
+- Reklamy przyspieszają, ale nie omijają wymagań: nie da się przeskoczyć poziomu, wymaganych technologii przejścia ani przejścia epoki (#34).
 - Sabotaż nie działa na donżon (w VI cytadelę). Kontrwywiad obrońcy zmniejsza jego efekt o połowę, a raport pokazuje obrońcy, że sabotaż był użyty.
 - Nagroda jest przyznawana dopiero po potwierdzeniu obejrzenia przez serwer ([[Backend PvP]]).
 - W MVP tylko przyspieszenie budowy i surowców; nagrody PvP dochodzą razem z PvP.

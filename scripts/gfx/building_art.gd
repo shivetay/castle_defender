@@ -76,6 +76,8 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 		_draw_site(img, kind, mask)
 		return img
 	var lv := clampi(level, 1, BuildingTypes.MAX_LEVEL)
+	# epoka II (#34): budynek z poziomu 5 epoki I, a na nim znaki nowej epoki (Dwór ma własny rysunek)
+	var age_ii := level > BuildingTypes.MAX_LEVEL
 	var ln := lean if can_lean(kind) else Lean.NONE
 	# przy murze z prawej: rysunek jak przy murze z lewej, odbity w poziomie
 	var mirror := ln == Lean.EAST
@@ -93,7 +95,10 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 		BuildingTypes.Kind.LUMBER_HUT:
 			_draw_hut(img, lv, ln)
 		BuildingTypes.Kind.MANOR:
-			_draw_manor(img, lv)
+			if age_ii:
+				_draw_manor_age_ii(img)
+			else:
+				_draw_manor(img, lv)
 		BuildingTypes.Kind.FLAX_FIELD:
 			_draw_flax_field(img, lv)
 		BuildingTypes.Kind.KEEP:
@@ -118,6 +123,8 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 		img.flip_x()
 		if _mono_roof_when_leaning(kind, lv):
 			_relight_mirrored(img)
+	if age_ii and kind != BuildingTypes.Kind.MANOR:
+		_age_ii_marks(img, kind)
 	_apply_state(img, kind, state, mask)
 	if has_outline(kind):
 		_outline_and_light(img)
@@ -452,6 +459,41 @@ static func _draw_manor(img: Image, level: int) -> void:
 		PixelCanvas.pennant(img, Vector2i(body.position.x + 1, body.position.y + body.size.y / 2), Palette.ACCENT)
 		for x: int in [3, 11]:
 			PixelCanvas.rect(img, Rect2i(x, body.end.y, 2, 2), Palette.ACCENT)
+
+
+## Dwór epoki II (#34) po przebudowie: dach z gontu na kamiennej podmurówce, daszek nad wejściem,
+## dwa błękitne proporce na kalenicy i tarcze pana na kopcu pod okapem.
+static func _draw_manor_age_ii(img: Image) -> void:
+	var body := Rect2i(1, 1, 14, 10)
+	PixelCanvas.roof_gable(img, body, true, Palette.SHINGLE, Palette.WOOD[0], 15)
+	PixelCanvas.chimney(img, chimney_at(body))
+	for x in range(body.position.x, body.end.x):
+		for y in range(body.end.y, body.end.y + 2):
+			PixelCanvas.px(img, x, y, Palette.STONE[2] if (x + y * 3) % 4 == 0 else Palette.STONE[1])
+		PixelCanvas.px(img, x, body.end.y + 1, Palette.STONE[0] if x % 3 == 0 else Palette.STONE[1])
+	PixelCanvas.roof_gable(img, Rect2i(6, body.end.y, 4, 3), false, Palette.SHINGLE, Palette.WOOD[1], 16)
+	@warning_ignore("integer_division")
+	var ridge_y := body.position.y + body.size.y / 2
+	PixelCanvas.pennant(img, Vector2i(body.position.x + 1, ridge_y), Palette.AGE_II_ACCENT)
+	PixelCanvas.pennant(img, Vector2i(body.end.x - 5, ridge_y), Palette.AGE_II_ACCENT)
+	for x: int in [3, 11]:
+		PixelCanvas.rect(img, Rect2i(x, body.end.y, 2, 2), Palette.AGE_II_ACCENT)
+
+
+## Znaki epoki II (#34) na budynku z poziomu 5: kamienna podmurówka pod sylwetką budynków z obrysem
+## (dolny piksel każdej kolumny) i błękitny proporzec na wieży. Wał, palisada, brama i fosa łączą się
+## z sąsiadami, więc zostają bez zmian.
+static func _age_ii_marks(img: Image, kind: int) -> void:
+	if kind == BuildingTypes.Kind.TOWER or kind == BuildingTypes.Kind.KEEP:
+		PixelCanvas.pennant(img, Vector2i(2, 1), Palette.AGE_II_ACCENT)
+		return
+	if not has_outline(kind):
+		return
+	for x in img.get_width():
+		for y in range(img.get_height() - 1, -1, -1):
+			if _opaque(img, x, y):
+				PixelCanvas.px(img, x, y, Palette.STONE[0] if x % 3 == 0 else Palette.STONE[1])
+				break
 
 
 # --- Wytwórcy (#90) ---------------------------------------------------------------------------
@@ -818,6 +860,8 @@ static func _lighter_map() -> Dictionary:
 		[Palette.WOOD[0], Palette.WOOD[1]], [Palette.WOOD[1], Palette.WOOD[2]], [Palette.WOOD[2], Palette.WOOD[3]],
 		[Palette.THATCH[0], Palette.THATCH[1]], [Palette.THATCH[1], Palette.THATCH[2]],
 		[Palette.WATER[0], Palette.WATER[1]], [Palette.WATER[1], Palette.WATER[2]],
+		[Palette.SHINGLE[0], Palette.SHINGLE[1]], [Palette.SHINGLE[1], Palette.SHINGLE[2]],
+		[Palette.STONE[0], Palette.STONE[1]], [Palette.STONE[1], Palette.STONE[2]],
 		[Palette.SHADOW, Palette.WOOD[0]],
 	]
 	var out := {}

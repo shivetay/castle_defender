@@ -22,6 +22,21 @@ const WATER: Array[Color] = [AGE_I[11], AGE_I[12], AGE_I[13]]
 const SHADOW: Color = AGE_I[14]
 const ACCENT: Color = AGE_I[15]
 
+## Paleta epoki II (Zamek drewniano-ziemny, #34): 16 kolorów. Trawa, drewno, ziemia i cień są
+## wspólne z epoką I (zamek się nie zmienia, tylko rośnie), strzechę zastępuje gont, dochodzi kamień
+## podmurówki, a sztandar pana na kopcu jest błękitny. Woda zostaje z AGE_I (teren się nie zmienia).
+const AGE_II: Array[Color] = [
+	AGE_I[0], AGE_I[1], AGE_I[2], AGE_I[3],  # 0–3 trawa
+	AGE_I[4], AGE_I[5], AGE_I[6], AGE_I[7],  # 4–7 drewno i ziemia
+	AGE_I[8],  # 8 jasna ziemia
+	Color("5b4a3c"), Color("75614d"), Color("917b62"),  # 9–11 gont
+	Color("6f6c66"), Color("9a958a"), Color("c2bcae"),  # 12–14 kamień i wapno
+	Color("2f5f8f"),  # 15 sztandar epoki II
+]
+const SHINGLE: Array[Color] = [AGE_II[9], AGE_II[10], AGE_II[11]]
+const STONE: Array[Color] = [AGE_II[12], AGE_II[13], AGE_II[14]]
+const AGE_II_ACCENT: Color = AGE_II[15]
+
 ## Kolory interfejsu, wspólne dla wszystkich epok.
 const UI: Array[Color] = [Color("f2e8cf"), Color("9bd06a"), Color("7fb0e0"), Color("dca67c"), Color("6e6b66"),
 		Color("8f8b84")]

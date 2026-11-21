@@ -25,6 +25,6 @@ Postęp w budowie: [[Progresja budowy]]. Zarabianie: [[Model wydania]].
 Drewno, kamień, żywność, złoto; od epoki III żelazo (Kopalnia rudy), od IV proch. Wyposażenie wojska to towary z budynków produkcyjnych: [[Klasy jednostek i produkcja]].
 
 ## Kluczowa zasada
-Nowe zagrożenia epoki sprawiają, że stara obrona przestaje wystarczać — trzeba ulepszać i przebudowywać, żeby być silniejszym. **Nie niszczymy postępu gracza:** Dwór 5 + wymagane technologie (preferencyjnie dwie) otwierają kolejną epokę; budynki po max poziomie startują w niej od poziomu 1 z zachowanymi bonusami ([[Progresja budowy]], #34).
+Nowe zagrożenia epoki sprawiają, że stara obrona przestaje wystarczać — trzeba ulepszać i przebudowywać, żeby być silniejszym. **Nie niszczymy postępu gracza:** Dwór 5 + wymagane technologie (I → II: trzy, z Obrony, Gospodarki i Ataku) otwierają kolejną epokę; budynki po max poziomie startują w niej od poziomu 1 z zachowanymi bonusami ([[Progresja budowy]], #34).
 
 Powiązane: [[Epoki]], [[Obrona]], [[Backend PvP]]

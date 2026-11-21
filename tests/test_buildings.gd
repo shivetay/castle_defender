@@ -222,7 +222,11 @@ func test_grid_upgrade_and_wall_masks() -> bool:
 	for i in 4:
 		assert_true(grid.upgrade(corner), "ulepszenie %d" % (i + 2))
 	assert_eq(grid.levels[corner], BuildingTypes.MAX_LEVEL, "poziom 5")
-	assert_true(not grid.upgrade(corner), "powyżej poziomu 5 nie można")
+	# dalej poziomy epoki II (#34), do 5 epoki II
+	for i in Ages.LEVELS_PER_AGE:
+		assert_true(grid.upgrade(corner), "epoka II: ulepszenie %d" % (i + 1))
+	assert_eq(grid.levels[corner], Ages.MAX_TOTAL_LEVEL, "poziom 5 epoki II")
+	assert_true(not grid.upgrade(corner), "powyżej poziomu 5 epoki II nie można")
 	assert_true(not grid.upgrade(9999), "nieistniejący budynek")
 	return true
 

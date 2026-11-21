@@ -4,7 +4,7 @@ Pierwsza grywalna wersja obejmuje epoki I i II z okrojoną zawartością, pełn�
 
 | Obszar | W MVP | Później |
 | --- | --- | --- |
-| Epoki | I i II, z przejściem I → II (Dwór 5 + preferencyjnie 2 techy; budynki max→lvl1 z bonusami; bez niszczenia postępu — #34) | III–VI |
+| Epoki | I i II, z przejściem I → II (Dwór 5 + O1, G1, A7; budynki max→lvl1 z bonusami; bez niszczenia postępu — #34) | III–VI |
 | Budynki | 29: Wał ziemny, Fosa sucha, Palisada, Brama drewniana, Wieża drewniana, Kopiec, Chata drwala, Pole i spichlerz, Studnia, Kamieniołom, Dwór grodowy, Koszary (od epoki I), Stajnia (od epoki I), Wieża sygnałowa, Dom drużyny, Strzelnica, Chata myśliwego, Garbarnia, Wytwórca zbroi skórzanych, Drzewcarz, Cięciwiarz, Łukmistrz, Strzałmistrz, Rymarz, Smolarnia, Pole lnu, Rybak, Wieża grodowa i Wieża na kopcu (donżon) | Pomost strzelecki, Częstokół, Młyn, Kaplica, Dom zwiadowców i budynki epok III–VI |
 | Poziomy | budynki i zamek poziomy 1–5 | bez zmian |
 | Jednostki | 13 w 5 klasach: Wojownik z toporem, Oszczepnik, Łucznik, Tarczownik, Podpalacz, Tropiciel, Jeździec (epoka I), Włócznik, Drużynnik w przeszywanicy, Strzelec z łukiem refleksyjnym, Kopijnik (epoka II), Taran, Kopacz | pozostałe 50, w tym cała artyleria |

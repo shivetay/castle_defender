@@ -1,6 +1,6 @@
 # Progresja budowy
 
-Każdy typ zamku (epoka) ma 5 poziomów Dworu. Przejście do kolejnej epoki wymaga **Dworu na poziomie 5** oraz konkretnych technologii — preferencyjnie **dwóch**. Ticket: #34.
+Każdy typ zamku (epoka) ma 5 poziomów Dworu. Przejście do kolejnej epoki wymaga **Dworu na poziomie 5** oraz konkretnych technologii (I → II: **trzy**, po jednej z Obrony, Gospodarki i Ataku). Ticket: #34.
 
 ## Zasada projektowa
 **Nie niszczymy postępu.** Gracz kontynuuje to, co już ma, i ulepsza, żeby być silniejszym. Przejście epoki nie kasuje zamku, budynków ani zebranych bonusów.
@@ -11,7 +11,7 @@ Każdy typ zamku (epoka) ma 5 poziomów Dworu. Przejście do kolejnej epoki wyma
 - Każdy budynek ma poziomy 1–5 w ramach bieżącej epoki i nie może mieć wyższego poziomu niż zamek.
 - Każdy poziom zmienia wygląd budynku (wyższa wieża, więcej okien, lepszy materiał) i daje premię: wytrzymałość, zasięg, produkcja albo nowa jednostka.
 - Koszt rośnie ok. 1,6× na poziom, czas ok. 2× na poziom. Pierwsze budowle są tanie i szybkie, żeby pierwsza sesja dała kilka widocznych zmian w ciągu minut.
-- Technologie są w 5 gałęziach drzewka. Przejście epoki opiera się na konkretnych techach (preferencyjnie dwóch). Pełna lista: [[Drzewko technologiczne]].
+- Technologie są w 5 gałęziach drzewka. Przejście epoki opiera się na konkretnych techach kluczowych ★ (I → II: O1, G1, A7). Pełna lista: [[Drzewko technologiczne]].
 
 ## Budynki a epoka
 - Budynek przechodzi do kolejnej epoki dopiero po osiągnięciu **max poziomu** (5) w bieżącej epoce.
@@ -45,11 +45,11 @@ Każdy typ zamku (epoka) ma 5 poziomów Dworu. Przejście do kolejnej epoki wyma
 
 ## Wymagania przejścia
 
-Warunki wspólne dla każdego przejścia: **Dwór poziom 5** + konkretne technologie (preferencyjnie **dwie**). Dawne wymagania „rozbuduj wskazane budynki do X” nie obowiązują — budynki idą własną ścieżką max → lvl 1 w nowej epoce.
+Warunki wspólne dla każdego przejścia: **Dwór poziom 5** + konkretne technologie kluczowe ★ (I → II: **trzy**, po jednej z Obrony, Gospodarki i Ataku). Dawne wymagania „rozbuduj wskazane budynki do X” nie obowiązują — budynki idą własną ścieżką max → lvl 1 w nowej epoce.
 
-| Przejście | Dwór | Technologie (preferencyjnie 2) | Uwagi |
+| Przejście | Dwór | Technologie | Uwagi |
 | --- | --- | --- | --- |
-| I → II | 5 | O1 ★ Sypanie kopców + druga tech (do dopięcia w drzewku) | MVP / #34 |
+| I → II | 5 | O1 ★ Sypanie kopców + G1 ★ Karczowanie lasu + A7 ★ Strzemię (Obrona, Gospodarka, Atak) | MVP / #34 |
 | II → III | 5 | G6 ★ Zaprawa wapienna + druga tech (do dopięcia) | poza MVP |
 | III → IV | 5 | A12 ★ Proch strzelniczy + druga tech (do dopięcia) | poza MVP |
 | IV → V | 5 | O14 ★ Szkoła włoska + druga tech (do dopięcia) | poza MVP |

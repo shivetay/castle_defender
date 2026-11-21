@@ -10,7 +10,7 @@ właścicielki. Skill: `.claude/skills/supabase-security/`.
 | `config.toml` | Konfiguracja lokalnego stosu Supabase CLI |
 | `migrations/` | Migracje SQL (schemat, RLS, granty) |
 | `functions/` | Edge Functions (np. `start_attack/`) |
-| `tests/database/` | Testy pgTAP: RLS (`rls_test.sql`), dobór, atak, ranking (`ranking_test.sql`), zwiad (`scouting_test.sql`) |
+| `tests/database/` | Testy pgTAP: RLS (`rls_test.sql`), dobór, atak, ranking (`ranking_test.sql`), zwiad (`scouting_test.sql`), epoka z zamku (`castle_age_test.sql`) |
 | `seed.sql` | Dane startowe lokalne |
 
 ## Lokalnie
