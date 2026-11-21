@@ -17,7 +17,7 @@ na jednostki, bitwę i epokę II z późniejszych etapów.
 Etap 5 (#127) zaczyna badania z #12: 34 technologie z notatki Drzewko technologiczne z epokami,
 zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2 oraz w bitwie A1, A2, A7 (konnica
 +25% szybkości), O2 i O3, a manewry wymagają A3–A6. Jednostki i budynki MVP mają swoje technologie.
-S1 i S3 działają w zwiadzie (#28), a O1 i G6 czekają jako warunki przejścia epok (#34). Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
+S1 i S3 działają w zwiadzie (#28), O1 jest warunkiem przejścia do epoki II (#34), a G6 czeka na epokę III. Bazowe koszty badań są tymczasowe (notatka ich nie podaje).
 Do tego mechanizm towarów i łańcuchów produkcji z #88 (zbrojownia, przepisy wytwórców według notatki
 Klasy jednostek i produkcja) oraz 9 budynków wytwórców z #90, które produkują towary
 i wymagają zbadania swojej technologii. Doszły też budynki gospodarcze z #122: Pole lnu i Rybak,
@@ -37,6 +37,21 @@ w sekcji „Następny etap”.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
+  Epoka II (#34) ma własne 16 kolorów w `AGE_II`: trawa, drewno, ziemia i cień jak w epoce I, a do tego
+  gont (`SHINGLE`), kamień podmurówki (`STONE`) i błękitny sztandar (`AGE_II_ACCENT`).
+- Epoka II i przejście I → II (#34, `scripts/world/ages.gd`, `Ages`): poziomy budynków liczą się
+  narastająco, 1–5 to epoka I, a 6–10 to poziomy 1–5 epoki II (karta: „poziom 1/5, epoka II”, kolejka:
+  „poz. 5→II.1”). Epoka zamku to epoka Dworu (`BuildGrid.age`). Przejście to przebudowa Dworu z poziomu 5
+  na poziom 1 epoki II: wymaga zbadanej technologii kluczowej O1 Sypanie kopców (druga technologia
+  z notatki Progresja budowy nie jest jeszcze nazwana, `Ages.TRANSITION_TECHS`), kosztuje 1000 Dr 1000 Ka
+  1000 Ży i trwa 12 h. Po przebudowie gra pokazuje komunikat i animację pyłu wokół Dworu, a ekrany badań
+  i wojska przechodzą na epokę II. Inny budynek wchodzi w epokę II tylko ze swojego poziomu 5 i dopiero po
+  przebudowie Dworu (nie może przerosnąć zamku); w nowej epoce zaczyna od poziomu 1, z ceną ×2 i czasem ×2
+  względem epoki I. Nic nie ginie: zamek, budynki i ich poziomy zostają, a premie liczą się od poziomu 5
+  (`Ages.bonus_level`, epoka II nie dokłada jeszcze nowych), tak samo jak na serwerze, który obcina poziom
+  do 5. Technologie epoki II są dostępne dopiero w epoce II i po swoich wymaganiach. Dwór epoki II ma dach
+  z gontu na kamiennej podmurówce i błękitne proporce, inne budynki z poziomów epoki II kamienną podmurówkę,
+  a wieża i donżon błękitny proporzec. Koszty i czasy epoki II są tymczasowe.
 
 - `scripts/gfx/pixel_canvas.gd` (`PixelCanvas`): prymitywy rysowania w rzucie z góry: dach dwuspadowy,
   jednospadowy, namiotowy i czterospadowy (stóg), pomost z desek, stos bali, komin, proporzec, obwódka
@@ -69,7 +84,7 @@ w sekcji „Następny etap”.
   z murem), a pod nimi półprzezroczysty cień na trawie (`BuildingTextures.shadow`).
 - `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska,
   pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 222 całe warianty i place budowy
-  (ok. 19 ms na komputerze, headless).
+  (ok. 19 ms na komputerze, headless). Rysunki epoki II (#34) powstają przy pierwszym użyciu.
 - `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (3×1),
   Wieża drewniana, Chata drwala i Dwór (2×2). Wał i palisada łączą się ze sobą nawzajem
   oraz z bramą i wieżą, więc mieszana linia nie ma szpar. Przy wybranym wale lub palisadzie dotknięcie
@@ -135,8 +150,8 @@ w sekcji „Następny etap”.
   7 → 8), O2 (palisady obrońcy +20% wytrzymałości) i O3 (kolce w Fosie suchej, #35). Manewry wymagają technologii: Podpalenie A3,
   Oskrzydlenie A4, Drabiny A5, Taranowanie A6 (na liście Manewr są wyszarzone z tym, czego brakuje).
   Jednostki i budynki wymagają swoich technologii już wcześniej, także O1 Kopiec, G4 Kamieniołom
-  i S2 Wieża sygnałowa (#35). Bez efektu zostają technologie, których rzecz jeszcze nie istnieje: S1 zwiad
-  (#28), O1 jako przejście do epoki II (#34) i G6 przejście do epoki III.
+  i S2 Wieża sygnałowa (#35). O1 jest warunkiem przejścia do epoki II (#34). Bez efektu zostaje G6,
+  przejście do epoki III, która jest poza MVP.
 - `scripts/world/research_config.gd` (`ResearchConfig`): koszt i czas badań. Każda kolejna technologia
   w epoce ×1,6 kosztu i ×2 czasu (#12). Bazowe liczby (epoka I: 100 Dr 50 Ka 50 Ży, 1 min) są tymczasowe.
 - `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga
@@ -701,6 +716,10 @@ wynik z seeda serwera, raport po końcu misji. Plan ataku na gracza dostaje ze `
 donżon i to, co odsłonił zwiad; pełną kopię zamku i obrony daje dopiero zatwierdzenie planu
 (`launch_attack`), a bez niego serwer nie przyjmie wyniku. Migracja `scouting` i Edge Functions `scout`,
 `scout_reports`, `launch_attack`, `start_attack`, `finish_attack` są na projekcie. Liczby zwiadu są tymczasowe.
+Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa Dworu z poziomu 5
+z technologią O1, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoka gracza na serwerze
+(`players.age`, ranking i dobór przeciwnika) zostaje na razie 0: jej liczenie z zamku po stronie serwera
+to osobna zmiana z migracją. Druga technologia przejścia i nowe premie epoki II czekają na drzewko.
 Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
 Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).

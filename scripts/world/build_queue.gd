@@ -80,18 +80,22 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 	return Result.OK
 
 
-## Zleca ulepszenie budynku o 1 poziom. Budynek nie może przerosnąć Dworu.
-func order_upgrade(grid: BuildGrid, economy: Economy, building_id: int, now_ms: int) -> Result:
+## Zleca ulepszenie budynku o 1 poziom. Budynek nie może przerosnąć Dworu. Przebudowa Dworu
+## na nową epokę (#34) wymaga technologii kluczowych zbadanych w `research`.
+func order_upgrade(grid: BuildGrid, economy: Economy, building_id: int, now_ms: int,
+		research: Research = null) -> Result:
 	if not grid.buildings.has(building_id):
 		return Result.NOT_FOUND
 	if has_order(building_id):
 		return Result.ALREADY_QUEUED
 	var kind := grid.kinds[building_id]
 	var level := grid.levels[building_id] + 1
-	if level > BuildingTypes.MAX_LEVEL:
+	if level > BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL):
 		return Result.MAX_LEVEL
 	if level > BuildConfig.max_level(kind, grid.manor_level()):
 		return Result.NEEDS_MANOR
+	if not missing_techs(kind, level, research).is_empty():
+		return Result.NEEDS_TECH
 	if is_full():
 		return Result.QUEUE_FULL
 	var cost := BuildConfig.cost(kind, level)
@@ -99,6 +103,15 @@ func order_upgrade(grid: BuildGrid, economy: Economy, building_id: int, now_ms: 
 		return Result.NO_RESOURCES
 	_append(building_id, kind, level, cost, now_ms)
 	return Result.OK
+
+
+## Technologie z BuildConfig.level_techs, których brakuje do poziomu `level`.
+static func missing_techs(kind: int, level: int, research: Research) -> Array[String]:
+	var out: Array[String] = []
+	for code in BuildConfig.level_techs(kind, level):
+		if research == null or not research.is_done(code):
+			out.append(code)
+	return out
 
 
 func _append(building_id: int, kind: int, level: int, cost: Array[int], now_ms: int) -> void:
@@ -214,22 +227,28 @@ const NO_LEVELS_HINT := "Wybierz Oblężenie albo Wyprawę"
 const KEEP_HINT := "Donżonu nie ulepszysz ani nie rozbierzesz"
 
 
-## Co pokazać o ulepszeniu budynku: stan zlecenia, najwyższy poziom, brak poziomu Dworu
-## albo koszt i czas następnego poziomu.
-func upgrade_hint(grid: BuildGrid, building_id: int) -> String:
+## Co pokazać o ulepszeniu budynku: stan zlecenia, najwyższy poziom, brak poziomu Dworu,
+## brak technologii przejścia epoki albo koszt i czas następnego poziomu.
+func upgrade_hint(grid: BuildGrid, building_id: int, research: Research = null) -> String:
 	var kind := grid.kinds[building_id]
 	var next := grid.levels[building_id] + 1
 	if has_order(building_id):
-		return "W kolejce: poziom %d" % order_for(building_id).level
+		return "W kolejce: poziom %s" % Ages.short_level(order_for(building_id).level)
 	if kind == BuildingTypes.Kind.KEEP:
 		return KEEP_HINT
 	if not BuildingTypes.has_levels(kind):
 		return NO_LEVELS_HINT
-	if next > BuildingTypes.MAX_LEVEL:
+	if next > BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL):
 		return MESSAGES[Result.MAX_LEVEL]
 	if next > BuildConfig.max_level(kind, grid.manor_level()):
-		return "Poziom %d wymaga Dworu na poziomie %d" % [next, next]
-	return "Ulepszenie: %s, %s%s" % [Hud.cost_text(BuildConfig.cost(kind, next)),
+		if Ages.is_age_step(next):
+			return "Epoka II: najpierw przebuduj Dwór" if Ages.of_level(next) == 1 else MESSAGES[Result.NEEDS_MANOR]
+		return "Poziom %s wymaga Dworu na poziomie %s" % [Ages.short_level(next), Ages.short_level(next)]
+	var techs := missing_techs(kind, next, research)
+	if not techs.is_empty():
+		return "%s wymaga technologii %s" % [Ages.age_name(Ages.of_level(next)), ", ".join(techs)]
+	var title := Ages.age_name(Ages.of_level(next)) if Ages.is_age_step(next) else "Ulepszenie"
+	return "%s: %s, %s%s" % [title, Hud.cost_text(BuildConfig.cost(kind, next)),
 			Hud.format_time(BuildConfig.time_ms(kind, next)), capacity_gain_text(kind, next)]
 
 
@@ -275,7 +294,7 @@ func load_data(d: Dictionary, grid: BuildGrid, now_ms: int) -> int:
 		var o := Order.new()
 		o.building_id = int(e["building_id"])
 		o.kind = grid.kinds[o.building_id]
-		o.level = clampi(int(e.get("level", 1)), 1, BuildingTypes.MAX_LEVEL)
+		o.level = clampi(int(e.get("level", 1)), 1, Ages.MAX_TOTAL_LEVEL)
 		for amount: Variant in e.get("cost", []) as Array:
 			o.cost.append(maxi(0, int(amount)))
 		o.duration_ms = maxi(0, int(e.get("duration_ms", 0)))

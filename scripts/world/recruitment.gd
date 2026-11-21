@@ -170,11 +170,12 @@ func army_size() -> int:
 
 
 ## Globalny limit armii, czyli ile zamek może teraz utrzymać: Dwór i Koszary (#81, #89).
+## Poziomy epoki II trzymają premię poziomu 5 (Ages.bonus_level), tak jak liczy serwer.
 static func army_limit(grid: BuildGrid) -> int:
-	var limit := RecruitmentConfig.ARMY_PER_MANOR_LEVEL * grid.manor_level()
+	var limit := RecruitmentConfig.ARMY_PER_MANOR_LEVEL * Ages.bonus_level(grid.manor_level())
 	for id: int in grid.buildings:
 		if grid.kinds[id] == BuildingTypes.Kind.BARRACKS:
-			limit += RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL * grid.levels[id]
+			limit += RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL * Ages.bonus_level(grid.levels[id])
 	return limit
 
 

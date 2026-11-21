@@ -89,6 +89,7 @@ Pełna lista etapów: [[Plan MVP]]. Pytania i braki: [[Otwarte pytania]]. Niedaw
 - Techy następnej epoki tylko po odblokowaniu prerequisite / blokujących.
 - Budynki: max poziom → w nowej epoce od poziomu 1, z zachowaniem bonusów; **nie niszczymy postępu**.
 - Vault: [[Epoki]], [[Progresja budowy]]; issue: #34.
+- W kodzie (21.11.2026): poziomy liczone narastająco (6–10 = epoka II), przejście to przebudowa Dworu 5 z O1 ★, budynki wchodzą w epokę II z poziomu 5 od poziomu 1, premie liczą się od poziomu 5. Druga technologia przejścia i `players.age` na serwerze — do dopięcia.
 
 ## Następne kroki
 

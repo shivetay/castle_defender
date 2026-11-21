@@ -5,8 +5,9 @@ extends RefCounted
 ## (★, warunek przejścia do następnej epoki, #34), efektem i zależnościami.
 ## Zależności są według notatki, łącznie z jej sekcją „Zmienione zależności”
 ## (A21 ← A38, A3 ← G24, a A7 Strzemię wymaga A2 i A43).
-## Działają już efekty, które mają w grze na co wpłynąć (PRODUCTION_BONUS, bitwa, jednostki, budynki). Pozostałe
-## (przejście epok O1/G6 z #34) włączą się razem z tym systemem. Zwiad S1/S3 działa od #28 (Scouting).
+## Działają już efekty, które mają w grze na co wpłynąć (PRODUCTION_BONUS, bitwa, jednostki, budynki).
+## O1 jest warunkiem przejścia I → II (Ages.TRANSITION_TECHS, #34); G6 czeka na epokę III.
+## Zwiad S1/S3 działa od #28 (Scouting).
 
 enum Branch { ATTACK, DEFENSE, ECONOMY, UTILITY, SPECIAL }
 

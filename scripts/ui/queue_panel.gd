@@ -110,9 +110,9 @@ static func row_title(kind: int) -> String:
 	return name if PixelFont.text_width(name) <= TITLE_W else BuildingTypes.SHORT_NAMES[kind]
 
 
-## „nowy” dla postawienia, „poz. 1→2” dla ulepszenia.
+## „nowy” dla postawienia, „poz. 1→2” dla ulepszenia, „poz. 5→II.1” dla wejścia w epokę II (#34).
 static func level_text(level: int) -> String:
-	return "nowy" if level <= 1 else "poz. %d→%d" % [level - 1, level]
+	return "nowy" if level <= 1 else "poz. %s→%s" % [Ages.short_level(level - 1), Ages.short_level(level)]
 
 
 ## Wiersze zakładki Jednostki: nagłówek grupy {header: true, title} i zlecenia {title, squad, time,

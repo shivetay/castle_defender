@@ -104,14 +104,15 @@ static func army(grid: BuildGrid, recruitment: Recruitment, research: Research =
 	if used >= limit:
 		out.append("Limit pełny: nikogo więcej nie wyszkolisz")
 	out.append("Limit to suma:")
-	out.append("- Dwór poz. %d: +%d" % [grid.manor_level(), RecruitmentConfig.ARMY_PER_MANOR_LEVEL * grid.manor_level()])
+	out.append("- Dwór poz. %s: +%d" % [Ages.short_level(grid.manor_level()),
+			RecruitmentConfig.ARMY_PER_MANOR_LEVEL * Ages.bonus_level(grid.manor_level())])
 	# Koszary zliczone w jednej linii jak chaty w okienku surowca, więc okienko nie rośnie z ich liczbą
 	var barracks := 0
 	var levels := 0
 	for id: int in grid.buildings:
 		if grid.kinds[id] == BuildingTypes.Kind.BARRACKS and grid.levels[id] >= 1:
 			barracks += 1
-			levels += grid.levels[id]
+			levels += Ages.bonus_level(grid.levels[id])
 	if barracks == 0:
 		out.append("- Koszary: brak")
 	else:

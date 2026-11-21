@@ -59,7 +59,7 @@ func test_cost_and_time_table() -> bool:
 func test_building_cannot_outgrow_manor() -> bool:
 	assert_eq(BuildConfig.max_level(K.TOWER, 1), 1, "dwór 1: wieża najwyżej 1")
 	assert_eq(BuildConfig.max_level(K.TOWER, 3), 3, "dwór 3: wieża najwyżej 3")
-	assert_eq(BuildConfig.max_level(K.MANOR, 1), BuildingTypes.MAX_LEVEL, "dwór bez limitu")
+	assert_eq(BuildConfig.max_level(K.MANOR, 1), Ages.MAX_TOTAL_LEVEL, "dwór bez limitu (do poziomu 5 epoki II)")
 	var c := _castle()
 	var grid: BuildGrid = c[0]
 	var economy: Economy = c[1]

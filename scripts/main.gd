@@ -20,9 +20,9 @@ extends Node2D
 ## Ile pikseli od krawędzi wolnej luki w linii umocnień dotknięcie sąsiedniego odcinka
 ## w trybie budowy nadal stawia odcinek w luce (z 8 px kratki).
 const GAP_TAP_TOLERANCE := 3
+## Czas animacji przebudowy Dworu na nową epokę (#34), ms.
+const AGE_ANIM_MS := 2400
 
-## Epoka gry. Przejście do epoki II dojdzie z #34.
-const CURRENT_AGE := 0
 
 ## Komunikat, gdy Rybak nie styka się z wodą (#122).
 const FISHER_HINT := "Rybak musi stać tuż przy rzece"
@@ -140,6 +140,8 @@ var _terrain_tex: ImageTexture
 ## Dym z kominów i błyski na wodzie (#150), nad budynkami.
 var ambient: AmbientView
 var _selected_id := 0
+## Początek animacji przebudowy Dworu na nową epokę (ms) albo -1 (#34).
+var _age_anim_start_ms := -1
 var _cursor := Rect2i()
 var _cursor_ok := true
 
@@ -288,7 +290,7 @@ func _ready() -> void:
 	research_panel = ResearchPanel.new()
 	research_panel.research = research
 	research_panel.economy = economy
-	research_panel.age = CURRENT_AGE
+	research_panel.age = grid.age()
 	research_panel.grid = grid
 	research_panel.visible = false
 	layer.add_child(research_panel)
@@ -303,7 +305,7 @@ func _ready() -> void:
 	recruit_panel.economy = economy
 	recruit_panel.goods = goods
 	recruit_panel.research = research
-	recruit_panel.age = CURRENT_AGE
+	recruit_panel.age = grid.age()
 	recruit_panel.visible = false
 	layer.add_child(recruit_panel)
 	recruit_panel.train_requested.connect(_on_train_requested)
@@ -366,7 +368,7 @@ func _start_battle_preview() -> void:
 			[UnitTypes.Unit.RIDER, 4], [UnitTypes.Unit.FIRE_RAISER, 3]]
 	var view := BattleView.new()
 	view.battle = Battle.create_squads(grid, grid.keep_id(), attackers, defenders, _edge_road(), world_seed,
-			defense.battle_orders(recruitment.battle_ids(), recruitment.battle_squads(), grid, CURRENT_AGE))
+			defense.battle_orders(recruitment.battle_ids(), recruitment.battle_squads(), grid, grid.age()))
 	view.battle.tower_priority = defense.tower_priority
 	view.battle.arm_traps(defense.traps)
 	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
@@ -416,6 +418,8 @@ func _process(_delta: float) -> void:
 		queue_redraw()
 		if _selected_id != 0:
 			_refresh_card()
+	if _age_anim_start_ms >= 0:
+		queue_redraw()
 
 
 func _notification(what: int) -> void:
@@ -473,7 +477,7 @@ func _on_net_state(st: int) -> void:
 func _load_defenses() -> void:
 	if net != null and net.is_online():
 		@warning_ignore("integer_division")
-		net.load_defenses(_now_s() - Ruins.rebuild_ms(CURRENT_AGE) / 1000)
+		net.load_defenses(_now_s() - Ruins.rebuild_ms(grid.age()) / 1000)
 
 
 ## Obrony z serwera (#99): zniszczone budynki stają się ruinami w odbudowie. Komunikat tylko wtedy,
@@ -485,7 +489,7 @@ func _on_defenses_loaded(rows: Array[Dictionary], ok: bool) -> void:
 	_tick()  # produkcja do teraz po starych stawkach, kara liczy się od chwili, gdy klient wie o ruinach
 	var added := false
 	for row in rows:
-		added = ruins.add(row["ids"] as Array[int], int(row["at_ms"]), CURRENT_AGE) or added
+		added = ruins.add(row["ids"] as Array[int], int(row["at_ms"]), grid.age()) or added
 	ruins.prune(now, grid)
 	if added and not ruins.is_empty():
 		hud.message = "Zamek zaatakowany: w odbudowie %d bud." % ruins.ends.size()
@@ -546,7 +550,9 @@ func _tick() -> void:
 	if not deserted.is_empty():
 		_save()
 	for o in done:
-		hud.message = "Ukończono: %s, poziom %d" % [BuildingTypes.NAMES[o.kind], o.level]
+		hud.message = "Ukończono: %s, poziom %s" % [BuildingTypes.NAMES[o.kind], Ages.short_level(o.level)]
+		if o.kind == BuildingTypes.Kind.MANOR and Ages.is_age_step(o.level):
+			_on_new_age(now)
 	if not researching.is_empty() and research.is_done(researching):
 		hud.message = "Zbadano: %s %s" % [researching, TechTree.tech_name(researching)]
 		_save()
@@ -589,7 +595,7 @@ func _tick() -> void:
 	hud.queue_count = queue.orders.size() + recruitment.orders.size()
 	hud.goal_text = TutorialGoals.text(pve_cleared, grid, research, recruitment)
 	hud.research_text = "" if not research.is_busy() else "Bad. %s" % Hud.format_time(research.remaining_ms(now))
-	hud.age_text = Ages.label(0, grid.manor_level())
+	hud.age_text = Ages.label_for_manor(grid.manor_level())
 	if not queue.orders.is_empty():
 		hud.queue_text = Hud.format_time(queue.remaining_ms(queue.orders[0].building_id, now))
 		if queue.orders.size() > 1:
@@ -608,6 +614,16 @@ func _tick() -> void:
 			and int(grid.kinds.get(_selected_id, -1)) == BuildingTypes.Kind.SCOUT_HOUSE:
 		# odliczanie zwiadu na karcie Chaty tropicieli (#28)
 		_refresh_card()
+
+
+## Przebudowa Dworu skończona, czyli zamek wszedł w nową epokę (#34). Zamek, budynki i premie
+## zostają; panele badań i wojska dostają nową epokę, a nad Dworem gra animacja przebudowy.
+func _on_new_age(now_ms: int) -> void:
+	var age := grid.age()
+	research_panel.age = age
+	recruit_panel.age = age
+	_age_anim_start_ms = now_ms
+	hud.message = "%s! Budynki z poz. 5 wejdą w nową epokę" % Ages.age_name(age)
 
 
 ## Dotknięcie mapy. W trybie oglądania zaznacza budynek (albo zamyka kartę), w trybie budowy
@@ -721,7 +737,7 @@ func _select(id: int) -> void:
 	_selected_id = id
 	_cursor = Rect2i()
 	_refresh_card()
-	hud.message = queue.upgrade_hint(grid, id)
+	hud.message = queue.upgrade_hint(grid, id, research)
 
 
 func _deselect() -> void:
@@ -756,7 +772,7 @@ func _on_siege_pressed() -> void:
 	_battle_ids = recruitment.battle_ids()
 	var b := Battle.for_castle_squads(grid, PveWaves.squads(_battle_wave), recruitment.battle_squads(), _edge_road(),
 			PveWaves.battle_seed(world_seed, _battle_wave), research,
-			defense.battle_orders(_battle_ids, recruitment.battle_squads(), grid, CURRENT_AGE),
+			defense.battle_orders(_battle_ids, recruitment.battle_squads(), grid, grid.age()),
 			defense.tower_priority)
 	b.arm_traps(defense.traps)  # pułapki działają raz na bitwę, a w układzie zostają (odnawiają się, #100)
 	b.apply_research(Battle.Side.DEFENDER, research)  # A2 łuki i O2 palisady obrońcy (#12)
@@ -850,7 +866,7 @@ func _update_battle() -> void:
 ## zamku (#249, ten sam warunek sprawdza serwer przy starcie ataku na gracza).
 func _attack_army() -> Array:
 	var army := recruitment.battle_squads()
-	return Recruitment.fit_attack(army.slice(0, AttackPlan.max_squads(CURRENT_AGE)), grid, research)
+	return Recruitment.fit_attack(army.slice(0, AttackPlan.max_squads(grid.age())), grid, research)
 
 
 ## Zamek-bot wybrany jako cel Wyprawy (z pamięci, gdy plan pokazuje już ten zamek).
@@ -892,7 +908,7 @@ func _on_ranking_pressed() -> void:
 	hud.set_building(false)
 	_cursor = Rect2i()
 	hud.overlay = true
-	ranking_panel.open(CURRENT_AGE, net != null and identity != null and net.is_online())
+	ranking_panel.open(grid.age(), net != null and identity != null and net.is_online())
 	queue_redraw()
 
 
@@ -1077,7 +1093,7 @@ func _on_player_attack_started(start: Dictionary, error: String) -> void:
 	if not error.is_empty():
 		hud.message = AttackStart.error_message(error)
 		return
-	var pc := PlayerCastle.from_start(start, _player_army, _now_s(), CURRENT_AGE)
+	var pc := PlayerCastle.from_start(start, _player_army, _now_s(), grid.age())
 	if pc == null:
 		hud.message = "Zamek gracza jest nieczytelny. Wybierz inny cel"
 		return
@@ -1105,12 +1121,12 @@ func _open_target(bot: BotCastle, player: PlayerCastle) -> void:
 	var army := player.army if player != null else _attack_army()
 	bot_picker.visible = false
 	target_picker.visible = false
-	planner.open(bot, attack_plan, army, CURRENT_AGE, _scout_intel(bot, player, army))
+	planner.open(bot, attack_plan, army, grid.age(), _scout_intel(bot, player, army))
 	attack_panel.visible = true
 	hud.overlay = true
 	camera.look_at_world(Vector2(bot.grid.buildings[bot.objective].get_center() * TerrainMap.CELL))
 	var all := recruitment.battle_squads().size()
-	var by_age := mini(all, AttackPlan.max_squads(CURRENT_AGE))
+	var by_age := mini(all, AttackPlan.max_squads(grid.age()))
 	if all <= army.size():
 		hud.message = AttackPlanner.HINT
 	elif army.size() < by_age:
@@ -1182,7 +1198,7 @@ func _on_battle_states(states: Dictionary) -> void:
 ## Atakuj: bitwa na zamku-celu według planu. Ekran planu chowa się, a mapa celu zostaje.
 func _on_attack_launched() -> void:
 	var army := _attack_army()
-	var problem := attack_plan.problem(army.size(), CURRENT_AGE, research, AttackPlanner.unit_list(army))
+	var problem := attack_plan.problem(army.size(), grid.age(), research, AttackPlanner.unit_list(army))
 	if army.is_empty():
 		problem = "Najpierw wyszkol wojsko: Koszary i Wojsko"
 	if problem.is_empty() and _player != null:
@@ -1365,7 +1381,7 @@ func _on_defence_pressed() -> void:
 	hud.set_building(false)
 	_cursor = Rect2i()
 	defense.prune(recruitment)
-	defense_panel.open(defense, army, recruitment.battle_ids(), grid, CURRENT_AGE)
+	defense_panel.open(defense, army, recruitment.battle_ids(), grid, grid.age())
 	hud.overlay = true
 	camera.look_at_world(Vector2(DefensePlan.keep_center(grid) * TerrainMap.CELL))
 	hud.message = DefensePanel.HINT
@@ -1456,10 +1472,10 @@ func _on_train_requested(unit: int, squad_id: int) -> void:
 	var now := _now_ms()
 	var result: Recruitment.Result
 	if recruit_panel.building_id == 0:
-		result = recruitment.start_any(unit, squad_id, grid, economy, goods, research, CURRENT_AGE, now)
+		result = recruitment.start_any(unit, squad_id, grid, economy, goods, research, grid.age(), now)
 	else:
 		result = recruitment.start(unit, recruit_panel.building_id, squad_id, grid, economy, goods, research,
-				CURRENT_AGE, now)
+				grid.age(), now)
 	if result == Recruitment.Result.OK:
 		hud.message = "Szkolenie: %s, oddział %s (%s)" % [UnitTypes.SHORT_NAMES[unit],
 				RecruitPanel.squad_label(recruitment, unit, recruitment.last_squad),
@@ -1550,7 +1566,7 @@ func _on_overlay_closed() -> void:
 
 func _on_research_requested(code: String) -> void:
 	_tick()
-	var result := research.start(code, CURRENT_AGE, economy, _now_ms(), grid)
+	var result := research.start(code, grid.age(), economy, _now_ms(), grid)
 	if result == Research.Result.NO_BUILDING:
 		hud.message = Research.building_hint(code)
 	elif result == Research.Result.OK:
@@ -1567,12 +1583,13 @@ func _refresh_card() -> void:
 	var kind := grid.kinds[_selected_id]
 	var level := grid.levels[_selected_id]
 	var pending := queue.has_order(_selected_id)
-	var status := "poziom %d/%d" % [level, BuildingTypes.MAX_LEVEL] if BuildingTypes.has_levels(kind) else ""
+	var status := Ages.level_status(level) if BuildingTypes.has_levels(kind) else ""
 	if pending:
 		status = "budowa %s" % Hud.format_time(queue.remaining_ms(_selected_id, _now_ms()))
 	elif ruins.is_ruined(_selected_id, _now_ms()):
 		status = "odbudowa %s" % Hud.format_time(ruins.remaining_ms(_selected_id, _now_ms()))
-	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level())
+	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level()) \
+			and BuildQueue.missing_techs(kind, level + 1, research).is_empty()
 	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
 	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
@@ -1589,10 +1606,10 @@ func _refresh_card() -> void:
 		hud.card_info = scout_card_info(scouting, _now_ms())
 		hud.card_info_missing = PackedStringArray()
 	else:
-		hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, BuildingTypes.MAX_LEVEL) \
+		hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL) \
 				else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
-	hud.card_needs = upgrade_needs(kind, level, grid.manor_level(), pending)
-	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending)
+	hud.card_needs = upgrade_needs(kind, level, grid.manor_level(), pending, research)
+	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending, research)
 	hud.show_card(BuildingTypes.name_of(kind, research), status, can_upgrade, pending, middle_enabled)
 	queue_redraw()
 
@@ -1634,37 +1651,51 @@ static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool
 		return KEEP_INFO
 	if not BuildingTypes.has_levels(kind):
 		return WATCHTOWER_INFO
-	if level >= BuildingTypes.MAX_LEVEL:
+	if level >= BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL):
 		return "Najwyższy poziom"
-	return "Ulepsz: %s, %s%s" % [Hud.cost_text(BuildConfig.cost(kind, level + 1)),
+	# poziom 5 → 1 następnej epoki (#34): Dwór się przebudowuje, inne budynki wchodzą w epokę
+	var verb := "Ulepsz"
+	if Ages.is_age_step(level + 1):
+		verb = "Przebuduj" if kind == BuildingTypes.Kind.MANOR else Ages.age_name(Ages.of_level(level + 1))
+	return "%s: %s, %s%s" % [verb, Hud.cost_text(BuildConfig.cost(kind, level + 1)),
 			Hud.format_time(BuildConfig.time_ms(kind, level + 1)), BuildQueue.capacity_gain_text(kind, level + 1)]
 
 
 ## Linia karty z wymaganiami następnego poziomu (po teście na telefonie), np. „Wymaga: Dwór poz. 3
 ## (masz 2)”; pusta, gdy budynek nie ma następnego poziomu albo jest w budowie. Dwór wymaga tylko
-## surowców, a inne budynki Dworu co najmniej na poziomie, do którego rosną.
-static func upgrade_needs(kind: int, level: int, manor_level: int, pending: bool) -> String:
-	if pending or not BuildingTypes.has_levels(kind) or level >= BuildingTypes.MAX_LEVEL:
+## surowców, a przebudowa Dworu na nową epokę (#34) technologii kluczowych. Inne budynki wymagają
+## Dworu co najmniej na poziomie, do którego rosną (poziomy epoki II: „II.1”).
+static func upgrade_needs(kind: int, level: int, manor_level: int, pending: bool,
+		research: Research = null) -> String:
+	if pending or not BuildingTypes.has_levels(kind) or level >= BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL):
 		return ""
 	if kind == BuildingTypes.Kind.MANOR:
-		return "Wymaga: tylko surowców"
-	return "Wymaga: Dwór poz. %d (masz %d)" % [level + 1, manor_level]
+		var techs := BuildConfig.level_techs(kind, level + 1)
+		if techs.is_empty():
+			return "Wymaga: tylko surowców"
+		var names: PackedStringArray = []
+		for code in techs:
+			names.append("%s %s" % [code, TechTree.tech_name(code)])
+		return "Wymaga: %s" % ", ".join(names)
+	return "Wymaga: Dwór poz. %s (masz %s)" % [Ages.short_level(level + 1), Ages.short_level(manor_level)]
 
 
 ## Czy wymagania następnego poziomu są spełnione (kolor linii „Wymaga:”: zielony albo czerwony).
-static func upgrade_needs_ok(kind: int, level: int, manor_level: int, pending: bool) -> bool:
-	return pending or level < BuildConfig.max_level(kind, manor_level)
+static func upgrade_needs_ok(kind: int, level: int, manor_level: int, pending: bool,
+		research: Research = null) -> bool:
+	return pending or (level < BuildConfig.max_level(kind, manor_level)
+			and BuildQueue.missing_techs(kind, level + 1, research).is_empty())
 
 
 func _on_upgrade() -> void:
 	_tick()
-	var result := queue.order_upgrade(grid, economy, _selected_id, _now_ms())
+	var result := queue.order_upgrade(grid, economy, _selected_id, _now_ms(), research)
 	if result == BuildQueue.Result.OK:
 		var o := queue.order_for(_selected_id)
-		hud.message = "Ulepszanie do poziomu %d, %s" % [o.level, Hud.format_time(o.duration_ms)]
+		hud.message = "Ulepszanie do poziomu %s, %s" % [Ages.short_level(o.level), Hud.format_time(o.duration_ms)]
 		_save()
-	elif result == BuildQueue.Result.NEEDS_MANOR:
-		hud.message = queue.upgrade_hint(grid, _selected_id)
+	elif result == BuildQueue.Result.NEEDS_MANOR or result == BuildQueue.Result.NEEDS_TECH:
+		hud.message = queue.upgrade_hint(grid, _selected_id, research)
 	else:
 		hud.message = BuildQueue.MESSAGES[result]
 	_refresh_card()
@@ -1768,6 +1799,7 @@ func _draw() -> void:
 	if not queue.orders.is_empty():
 		_draw_progress(queue.orders[0].building_id)
 	_draw_seal_gaps()
+	_draw_age_rebuild()
 	var frame := grid.buildings[_selected_id] if _selected_id != 0 else _cursor
 	if frame.has_area():
 		var ok := _selected_id != 0 or _cursor_ok
@@ -1837,7 +1869,7 @@ func _draw_defence() -> void:
 		# oddział bez zadania: miejsce zadania domyślnego jego klasy, w przygaszonej ramce (#20)
 		var fallback := o == null
 		if fallback:
-			var d := DefensePlan.default_order(grid, cls, CURRENT_AGE)
+			var d := DefensePlan.default_order(grid, cls, grid.age())
 			post = d.post if d != null else DefensePlan.NO_POST
 		if post == DefensePlan.NO_POST:
 			continue
@@ -1873,6 +1905,34 @@ func _draw_patrol(o: DefensePlan.Order, col: Color) -> void:
 
 
 ## Pasek postępu 2 px nad kratkami budowanego budynku, w całych pikselach.
+## Animacja przebudowy Dworu na nową epokę (#34): od Dworu rozchodzą się 3 pierścienie pyłu
+## w kolorach kamienia i sztandaru epoki II, w całych pikselach. Tylko wizualia, bez wpływu na grę.
+func _draw_age_rebuild() -> void:
+	if _age_anim_start_ms < 0 or grid.manor_id() == 0:
+		return
+	var t := _now_ms() - _age_anim_start_ms
+	if t < 0 or t >= AGE_ANIM_MS:
+		_age_anim_start_ms = -1
+		return
+	var r := grid.buildings[grid.manor_id()]
+	var px_rect := Rect2i(r.position * TerrainMap.CELL, r.size * TerrainMap.CELL)
+	for ring in 3:
+		@warning_ignore("integer_division")
+		var grow := (t - ring * 300) / 60
+		if grow < 0:
+			continue
+		var fade := 1.0 - float(t) / AGE_ANIM_MS
+		var col := Palette.AGE_II_ACCENT if ring == 1 else Palette.STONE[1]
+		var g := px_rect.grow(grow)
+		var a := Color(col, fade)
+		for x in range(g.position.x, g.end.x, 3):
+			draw_rect(Rect2(x, g.position.y, 1, 1), a)
+			draw_rect(Rect2(x, g.end.y - 1, 1, 1), a)
+		for y in range(g.position.y, g.end.y, 3):
+			draw_rect(Rect2(g.position.x, y, 1, 1), a)
+			draw_rect(Rect2(g.end.x - 1, y, 1, 1), a)
+
+
 func _draw_progress(id: int) -> void:
 	if not grid.buildings.has(id):
 		return

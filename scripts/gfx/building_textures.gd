@@ -10,6 +10,12 @@ var _used: Dictionary[int, Rect2i] = {}
 var _shadows: Dictionary[int, ImageTexture] = {}
 
 
+## Poziom rysunku: 0–5 jak poziom w epoce I, a wszystkie poziomy epoki II (6–10) to jeden
+## rysunek 6 (#34): budynek z poziomu 5 ze znakami nowej epoki.
+static func art_level(level: int) -> int:
+	return clampi(level, 0, BuildingTypes.MAX_LEVEL + 1)
+
+
 static func key(kind: int, level: int, state: int, mask: int, vertical: bool = false, lean: int = 0) -> int:
 	return ((((kind * 8 + level) * 4 + state) * 16 + mask) * 2 + (1 if vertical else 0)) * 5 + lean
 
@@ -20,7 +26,7 @@ func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTAC
 		vertical: bool = false, lean: int = 0) -> ImageTexture:
 	var m := mask if BuildingTypes.is_wall(kind) else 0
 	var v := vertical and kind == BuildingTypes.Kind.GATE
-	var lv := clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	var lv := art_level(level)
 	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
 	var k := key(kind, lv, state, m, v, ln)
 	var tex: ImageTexture = _cache.get(k)
@@ -58,7 +64,7 @@ func used_rect(kind: int, level: int, state: int = BuildingTypes.State.INTACT, m
 	draw_building(kind, level, state, mask, vertical, lean)
 	var m := mask if BuildingTypes.is_wall(kind) else 0
 	var v := vertical and kind == BuildingTypes.Kind.GATE
-	var lv := clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	var lv := art_level(level)
 	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
 	return _used[key(kind, lv, state, m, v, ln)]
 
@@ -70,7 +76,7 @@ func shadow(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask
 	var tex := draw_building(kind, level, state, mask, vertical, lean)
 	var m := mask if BuildingTypes.is_wall(kind) else 0
 	var v := vertical and kind == BuildingTypes.Kind.GATE
-	var lv := clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	var lv := art_level(level)
 	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
 	var k := key(kind, lv, state, m, v, ln)
 	var sh: ImageTexture = _shadows.get(k)

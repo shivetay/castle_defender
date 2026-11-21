@@ -1,7 +1,8 @@
 class_name BuildGrid
 extends RefCounted
 ## Zajętość kratek: który budynek stoi na której kratce. Budynek zajmuje prostokąt kratek,
-## ma rodzaj (`BuildingTypes.Kind`) i poziom 1..MAX_LEVEL. Poziom 0 to plac budowy: budynek
+## ma rodzaj (`BuildingTypes.Kind`) i poziom 1..Ages.MAX_TOTAL_LEVEL, liczony narastająco przez epoki
+## (6 to poziom 1 epoki II, #34). Poziom 0 to plac budowy: budynek
 ## zajmuje już kratki, ale jeszcze nie działa (nie produkuje, rysuje się jako rusztowanie).
 ## Identyfikatory rosną od 1 (0 oznacza wolną kratkę) i nie są używane ponownie.
 
@@ -101,7 +102,7 @@ func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int =
 	_next_id += 1
 	buildings[id] = rect
 	kinds[id] = kind
-	levels[id] = clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	levels[id] = clampi(level, 0, Ages.MAX_TOTAL_LEVEL)
 	_fill(rect, id)
 	return id
 
@@ -123,7 +124,7 @@ func place_on_any_ground(rect: Rect2i, kind: int, level: int = 1) -> int:
 	_next_id += 1
 	buildings[id] = rect
 	kinds[id] = kind
-	levels[id] = clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	levels[id] = clampi(level, 0, Ages.MAX_TOTAL_LEVEL)
 	_fill(rect, id)
 	return id
 
@@ -143,7 +144,7 @@ func place_outline(rect: Rect2i, kind: int, level: int = 1) -> int:
 	_next_id += 1
 	buildings[id] = rect
 	kinds[id] = kind
-	levels[id] = clampi(level, 0, BuildingTypes.MAX_LEVEL)
+	levels[id] = clampi(level, 0, Ages.MAX_TOTAL_LEVEL)
 	_fill(rect, id)
 	return id
 
@@ -299,6 +300,11 @@ func has_built(kind: int) -> bool:
 func manor_level() -> int:
 	var id := manor_id()
 	return maxi(1, levels[id]) if id != 0 else 1
+
+
+## Epoka zamku (0 = epoka I): epoka Dworu, bo przejście to przebudowa Dworu (#34).
+func age() -> int:
+	return Ages.of_level(manor_level())
 
 
 ## Prostokąty, które place_kind() próbuje po kolei dla dotkniętej kratki.
@@ -747,7 +753,7 @@ func walls_under(rect: Rect2i) -> Array[int]:
 
 ## Podnosi poziom o 1. Zwraca false, gdy budynku nie ma albo ma już najwyższy poziom.
 func upgrade(id: int) -> bool:
-	if not buildings.has(id) or levels[id] >= BuildingTypes.MAX_LEVEL:
+	if not buildings.has(id) or levels[id] >= Ages.MAX_TOTAL_LEVEL:
 		return false
 	levels[id] += 1
 	return true
@@ -862,7 +868,7 @@ func load_data(d: Dictionary) -> int:
 			continue
 		buildings[id] = rect
 		kinds[id] = kind
-		levels[id] = clampi(int(e[2]), 0, BuildingTypes.MAX_LEVEL)
+		levels[id] = clampi(int(e[2]), 0, Ages.MAX_TOTAL_LEVEL)
 		_fill(rect, id)
 		max_id = maxi(max_id, id)
 	_next_id = maxi(int(d.get("next_id", 1)), max_id + 1)
