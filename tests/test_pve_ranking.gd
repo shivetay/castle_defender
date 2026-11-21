@@ -2,7 +2,7 @@ extends TestCase
 ## Ranking PvE (#242): zgłoszenie wyprawy na zamek-bota serwerowi (start, wynik, kolejność odpowiedzi,
 ## ponowienia), żądania klienta, trzeci widok panelu rankingu na 320 px i zgodność z migracją.
 
-const MIGRATION := "res://supabase/migrations/20261121160000_pve_ranking.sql"
+const MIGRATION := "res://supabase/migrations/20261121161439_pve_ranking.sql"
 const VIEW := Vector2(320, 180)
 const UID := "00000000-0000-0000-0000-0000000000b1"
 const ATTACK_ID := "00000000-0000-0000-0000-0000000000c1"
