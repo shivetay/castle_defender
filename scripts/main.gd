@@ -99,8 +99,13 @@ var bot_picker: BotPicker
 var target_picker: TargetPicker
 ## Rankingi z karty Strażnicy: PvP ataku i obrony (#27) oraz PvE (#242), tabele z serwera.
 var ranking_panel: RankingPanel
-## Okno wyniku ataku (#99).
+## Okno wyniku ataku (#99), a po powtórce raport obrony (#29).
 var result_panel: ResultPanel
+## Powtórki (#29): lista ostatnich obron, wczytywanie powtórki z serwera i trwająca powtórka.
+var replay_panel: ReplayPanel
+var _replay: BattleReplay
+var _replaying := false
+var _replay_loading := false
 var planner: AttackPlanner
 var attack_panel: AttackPanel
 ## Okienko z informacją (produkcja surowca, limit armii).
@@ -259,7 +264,12 @@ func _ready() -> void:
 	result_panel = ResultPanel.new()
 	result_panel.visible = false
 	layer.add_child(result_panel)
-	result_panel.closed.connect(_on_overlay_closed)
+	result_panel.closed.connect(_on_result_closed)
+	replay_panel = ReplayPanel.new()
+	replay_panel.visible = false
+	layer.add_child(replay_panel)
+	replay_panel.closed.connect(_on_replays_closed)
+	replay_panel.replay_requested.connect(_on_replay_requested)
 
 	defense_panel = DefensePanel.new()
 	defense_panel.research = research
@@ -269,6 +279,7 @@ func _ready() -> void:
 	layer.add_child(defense_panel)
 	defense_panel.changed.connect(_on_defence_changed)
 	defense_panel.back_requested.connect(_close_defence)
+	defense_panel.replays_requested.connect(_on_replays_pressed)
 
 	build_panel = BuildPanel.new()
 	build_panel.research = research
@@ -350,6 +361,8 @@ func _ready() -> void:
 	net.scout_sent.connect(_on_scout_sent)
 	net.scout_reports_loaded.connect(_on_scout_reports)
 	net.defenses_loaded.connect(_on_defenses_loaded)
+	net.defense_reports_loaded.connect(_on_defense_reports)
+	net.replay_loaded.connect(_on_replay_loaded)
 	add_child(net)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
@@ -834,8 +847,14 @@ static func wave_end_message(wave: int, won: bool, reward: Array[int], fallen: i
 func _update_battle() -> void:
 	var b := battle_view.battle
 	var left_ms := (BattleConfig.time_limit_ticks() - b.tick) * 1000 / BattleConfig.TICK_HZ
-	hud.queue_text = "%s %s" % ["Atak" if _attacking else "Fala %d" % (_battle_wave + 1), Hud.format_time(left_ms)]
+	var label := "Atak" if _attacking else "Fala %d" % (_battle_wave + 1)
+	if _replaying:
+		label = "Powtórka"
+	hud.queue_text = "%s %s" % [label, Hud.format_time(left_ms)]
 	if b.winner == Battle.Winner.NONE:
+		return
+	if _replaying:
+		_finish_replay(b)
 		return
 	if _attacking:
 		_finish_attack(b)
@@ -1191,9 +1210,15 @@ func _close_attack() -> void:
 	queue_redraw()
 
 
-## Stan zniszczeń z bitwy: przy Wyprawie rysuje go mapa celu (AttackPlanner), w obronie własny zamek.
+## Czy trwająca bitwa toczy się na mapie celu (AttackPlanner): atak albo powtórka obrony (#29) na kopii
+## zamku z chwili ataku. Fala PvE idzie na własnym zamku.
+func _on_target_map() -> bool:
+	return _attacking or _replaying
+
+
+## Stan zniszczeń z bitwy: przy Wyprawie i powtórce rysuje go mapa celu (AttackPlanner), w obronie własny zamek.
 func _on_battle_states(states: Dictionary) -> void:
-	if _attacking:
+	if _on_target_map():
 		planner.states = states
 		planner.queue_redraw()
 	else:
@@ -1217,7 +1242,8 @@ func _on_attack_launched() -> void:
 		# pełne ukrycie obrony (#28): kopie zamku i obrony dopiero po zatwierdzeniu planu
 		if _launching:
 			return
-		if net == null or not net.launch_attack(_player.attack_id):
+		# plan idzie na serwer (#29): bitwa i powtórka u obrońcy liczą się z planu, który serwer zapisze
+		if net == null or not net.launch_attack(_player.attack_id, attack_plan):
 			hud.message = AttackStart.error_message(SupabaseClient.NETWORK_ERROR)
 			return
 		_launching = true
@@ -1228,7 +1254,8 @@ func _on_attack_launched() -> void:
 	_battle_army = army
 	var b: Battle
 	if _player != null:
-		b = _player.create_battle(attack_plan, research)  # seed bitwy i obrona z serwera (#240)
+		# seed bitwy, obrona, plan i badania z serwera (#240, #29): ta sama bitwa co powtórka u obrońcy
+		b = _player.create_battle()
 	else:
 		b = _bot_battle(bot, army)
 		b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
@@ -1444,6 +1471,106 @@ func _on_defence_changed(message: String) -> void:
 	hud.message = message
 	queue_redraw()
 	_save()
+
+
+## Powtórki (#29) z ustawień obrony: lista ostatnich obron z serwera. Bez sieci lista pokazuje błąd.
+func _on_replays_pressed() -> void:
+	defense_panel.visible = false
+	_save()
+	replay_panel.open()
+	hud.overlay = true
+	hud.message = "Wybierz obronę do obejrzenia"
+	if net == null or not net.is_online() or not net.load_defense_reports():
+		replay_panel.show_reports([] as Array[DefenseLog.Report], false)
+
+
+func _on_defense_reports(reports: Array[DefenseLog.Report], ok: bool) -> void:
+	if replay_panel.visible:
+		replay_panel.show_reports(reports, ok)
+
+
+## Wróć z listy powtórek: z powrotem do ustawień obrony.
+func _on_replays_closed() -> void:
+	_replay_loading = false
+	_on_overlay_closed()
+	_on_defence_pressed()
+
+
+func _on_replay_requested(attack_id: String) -> void:
+	if _replay_loading or battle_view != null:
+		return
+	if net == null or not net.load_replay(attack_id):
+		hud.message = "Poczekaj chwilę na serwer"
+		return
+	_replay_loading = true
+	hud.message = "Wczytuję powtórkę..."
+
+
+## Dane powtórki z serwera: bitwa liczy się od nowa na kopii zamku z chwili ataku, na mapie celu
+## (jak przy Wyprawie), bez sterowania; gracz zmienia tylko tempo (x1, x2, x4).
+func _on_replay_loaded(data: Dictionary, error: String) -> void:
+	if not _replay_loading:
+		return
+	_replay_loading = false
+	if not replay_panel.visible or battle_view != null:
+		return
+	if not error.is_empty():
+		hud.message = AttackReplay.error_message(error)
+		return
+	var r := BattleReplay.from_response(data)
+	if r == null:
+		hud.message = "Powtórka jest nieczytelna"
+		return
+	_replay = r
+	_replaying = true
+	replay_panel.visible = false
+	planner.open(r.target(), AttackPlan.new(), r.castle.army, grid.age(), ScoutIntel.new())
+	planner.show_plan = false
+	camera.look_at_world(Vector2(r.target().grid.buildings[r.target().objective].get_center() * TerrainMap.CELL))
+	battle_view = BattleView.new()
+	battle_view.battle = r.create_battle()
+	battle_view.states_changed.connect(_on_battle_states)
+	add_child(battle_view)
+	hud.overlay = false
+	hud.battle = true
+	hud.speed_label = speed_label(battle_view.speed)
+	hud.message = "Powtórka: atak na twój zamek"
+	queue_redraw()
+
+
+## Koniec powtórki: raport obrony z wynikiem i łupem z serwera, a z niego od razu ustawienia obrony.
+## Gdy powtórka dała inny wynik niż serwer (np. inna wersja gry u atakującego), raport to mówi.
+func _finish_replay(b: Battle) -> void:
+	var r := _replay
+	_replay = null
+	_replaying = false
+	battle_view.queue_free()
+	battle_view = null
+	_on_battle_states({})
+	planner.visible = false
+	hud.battle = false
+	camera.look_at_world(Vector2(DefensePlan.keep_center(grid) * TerrainMap.CELL))
+	var note := "" if replay_matches(BattleResult.of(b), r.result) else REPLAY_MISMATCH
+	hud.message = ""
+	hud.overlay = true
+	result_panel.show_defense(r.result, r.loot, note)
+	queue_redraw()
+
+
+## Dopisek w raporcie, gdy powtórka skończyła się inaczej, niż zapisał serwer.
+const REPLAY_MISMATCH := "Powtórka różni się od wyniku"
+
+
+## Czy wynik powtórki zgadza się z wynikiem zapisanym na serwerze (wygrana, procent i gwiazdki).
+static func replay_matches(local: BattleResult, server: BattleResult) -> bool:
+	return local.won == server.won and local.percent == server.percent and local.stars == server.stars
+
+
+## Okno wyniku zamknięte: po raporcie obrony (#29) od razu ustawienia obrony, inaczej widok zamku.
+func _on_result_closed() -> void:
+	_on_overlay_closed()
+	if result_panel.defender:
+		_on_defence_pressed()
 
 
 ## Gotowe: koniec edycji obrony, układ zostaje zapisany.
@@ -1851,7 +1978,7 @@ func _refresh_ruins(now: int) -> void:
 func _draw() -> void:
 	draw_texture(_terrain_tex, Vector2.ZERO)
 	# w bitwie stany z bitwy; poza nią ruiny po ataku PvP (#99)
-	CastleView.draw_buildings(self, grid, textures, battle_states if battle_view != null and not _attacking else _ruin_states)
+	CastleView.draw_buildings(self, grid, textures, battle_states if battle_view != null and not _on_target_map() else _ruin_states)
 	if not queue.orders.is_empty():
 		_draw_progress(queue.orders[0].building_id)
 	_draw_seal_gaps()

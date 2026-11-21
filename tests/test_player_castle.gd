@@ -47,8 +47,16 @@ static func _start(battle_seed: int = 77) -> Dictionary:
 	return AttackStart.parse_response(_raw_start(battle_seed))
 
 
+## Plan zapisany na serwerze przy zatwierdzeniu (#29): Szturm frontalny dla każdego oddziału ARMY.
+static func _server_plan() -> Array:
+	var p := AttackPlan.new()
+	AttackPlanner.fit_plan(p, ARMY.size(), AttackPlanner.unit_list(ARMY))
+	return p.to_server()
+
+
 static func _launch() -> Dictionary:
-	return {"id": ATTACK, "castle": _castle(WorldSeed.first_playable(4242)), "defense": {}}
+	return {"id": ATTACK, "castle": _castle(WorldSeed.first_playable(4242)), "defense": {},
+			"plan": _server_plan(), "techs": [] as Array[String]}
 
 
 ## Cel po zatwierdzeniu planu (pełna kopia z `launch_attack`).
@@ -59,7 +67,7 @@ static func _launched(battle_seed: int = 77) -> PlayerCastle:
 
 
 static func _fight(pc: PlayerCastle) -> Battle:
-	var b := pc.create_battle(AttackPlan.new(), null)
+	var b := pc.create_battle()
 	b.run()
 	return b
 

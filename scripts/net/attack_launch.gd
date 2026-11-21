@@ -4,12 +4,35 @@ extends RefCounted
 ## zamku i to, co odsłonił zwiad; dopiero po zatwierdzeniu serwer oddaje pełne kopie zamku (`castle`)
 ## i obrony (`defense`) obrońcy z chwili startu, z których klient liczy bitwę. Serwer przyjmuje wynik
 ## (`finish_attack`) tylko po zatwierdzeniu. Ponowienie dla tego samego ataku zwraca to samo.
+## Powtórka (#29): żądanie niesie plan ataku, a odpowiedź oddaje plan zapisany na serwerze (`plan`,
+## surowy, sprawdza go PlayerCastle.apply_launch) i badania atakującego działające w bitwie (`techs`)
+## z jego zamku na serwerze. Bitwa liczy się z nich, tak jak powtórka u obrońcy.
 
 const PATH := "/functions/v1/launch_attack"
 
 
-static func request(attack_id: String) -> Dictionary:
-	return {"attack_id": attack_id}
+static func request(attack_id: String, plan: AttackPlan) -> Dictionary:
+	return {"attack_id": attack_id, "plan": plan.to_server() if plan != null else []}
+
+
+## Badania z odpowiedzi serwera: tylko kody, które działają w bitwie po stronie atakującego, bez powtórek.
+static func parse_techs(raw: Variant) -> Array[String]:
+	var out: Array[String] = []
+	if not raw is Array:
+		return out
+	for v: Variant in raw as Array:
+		var code := str(v) if v is String else ""
+		if code in ["A1", "A2", "A7"] and not out.has(code):
+			out.append(code)
+	return out
+
+
+## Badania atakującego jako Research z samymi zbadanymi kodami (do Battle.apply_research).
+static func research_of(techs: Array[String]) -> Research:
+	var r := Research.new()
+	for code in techs:
+		r.done[code] = true
+	return r
 
 
 ## Parsuje JSON odpowiedzi. Pusty słownik = odrzucona / niepełna odpowiedź (kopia zamku musi być obiektem).
@@ -22,4 +45,5 @@ static func parse_response(data: Variant) -> Dictionary:
 	if not castle is Dictionary or (castle as Dictionary).is_empty():
 		return {}
 	return {"id": str(d.get("id", "")), "castle": castle as Dictionary,
-			"defense": defense as Dictionary if defense is Dictionary else {}}
+			"defense": defense as Dictionary if defense is Dictionary else {},
+			"plan": d.get("plan"), "techs": parse_techs(d.get("techs"))}

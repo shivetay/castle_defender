@@ -9,7 +9,8 @@ Edge Functions (Deno / TypeScript) wywoływane z klienta lub crona.
 | `find_targets/` | Dobór przeciwnika (#24): woła `match_targets` z id gracza z tokenu, zwraca do 3 celów |
 | `scout/` | Zwiad na gracza (#28): woła `begin_scout` (Chata tropicieli, S1 i zwiadowcy z zamku na serwerze, naraz jedna misja, 30 na dobę); wynik z seeda serwera, w odpowiedzi tylko czas misji |
 | `scout_reports/` | Raporty zwiadu (#28): `scout_reports`, wynik i odsłonięte dane dopiero po końcu misji |
-| `launch_attack/` | Zatwierdzenie planu ataku na gracza (#28): pełne kopie zamku i obrony dopiero teraz; `finish_attack` przyjmuje wynik tylko po nim |
+| `launch_attack/` | Zatwierdzenie planu ataku na gracza (#28): pełne kopie zamku i obrony dopiero teraz; `finish_attack` przyjmuje wynik tylko po nim. Zapisuje plan ataku (sprawdzony w `check_plan`) i badania atakującego z jego zamku na serwerze do powtórki (#29) i oddaje je klientowi |
+| `attack_replay/` | Powtórka obrony (#29): woła `attack_replay` z id gracza z tokenu; tylko obrońca zakończonego ataku dostaje seedy, kopie z chwili startu, armię, plan i badania atakującego |
 | `ranking/` | Ranking PvP (#27) i PvE (#242): woła `pvp_ranking` (atak albo obrona) albo `pve_ranking` (`pve`) z id gracza z tokenu, zwraca 20 najlepszych z jego epoki i jego wiersz |
 
 Nowe funkcje: bez sekretów w repo; wynik/łup/ranking nie ufaj payloadom z klienta

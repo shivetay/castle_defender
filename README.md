@@ -31,7 +31,8 @@ ataku z #120 (Wieża grodowa obok Dworu; wygrana po jej upadku albo zdobyciu).
 Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#130) ustawienia obrony
 z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#100). Trwa etap 9 (#131): backend
 Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22), synchronizacja zamku
-z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25), atak na gracza w kliencie (#240), ranking PvP ataku i obrony (#27), osobny ranking PvE za zamki-boty (#242) oraz odbudowa zamku obrońcy po ataku (#99). Z etapu 13 (#135) są już pozostałe budynki MVP (#35):
+z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25), atak na gracza w kliencie (#240), ranking PvP ataku i obrony (#27), osobny ranking PvE za zamki-boty (#242) oraz odbudowa zamku obrońcy po ataku (#99). Z etapu 10 (#132) jest
+zwiad (#28) oraz raport i powtórka obrony (#29). Z etapu 13 (#135) są już pozostałe budynki MVP (#35):
 Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom i Wieża sygnałowa. Stan i kolejne kroki są
 w sekcji „Następny etap”.
 
@@ -481,6 +482,20 @@ w sekcji „Następny etap”.
   - **Okno wyniku:** tytuł, gwiazdki, procent, spełnione warunki, łup, polegli i odblokowany zamek.
   - **Odbudowa:** bitwa działa na kopii budynków, więc zamek obrońcy po bitwie jest w pełnym stanie.
     Ranking PvP (#27) i tarcza obrońcy (#25) są na serwerze.
+- Powtórka obrony (#29, `scripts/battle/battle_replay.gd`, `scripts/net/attack_replay.gd`, lista
+  `scripts/ui/replay_panel.gd`): to nie wideo, tylko ta sama bitwa policzona jeszcze raz.
+  - **Dane:** atakujący wysyła plan przy zatwierdzeniu (`launch_attack`), a serwer zapisuje go razem
+    z badaniami atakującego działającymi w bitwie (A1, A2, A7), wziętymi z jego zamku na serwerze.
+    Atakujący liczy bitwę z planu i badań, które oddał serwer, a obrońca dostaje z `attack_replay`
+    te same seedy, kopie zamku i obrony z chwili startu, armię, plan i badania. Obie strony budują bitwę
+    tą samą drogą (`PlayerCastle`), więc przebieg jest identyczny (test krok po kroku w `test_replay.gd`).
+    Domyślne zadania załogi liczą się z epoki obrońcy z kopii, a nie z epoki atakującego.
+  - **Ekran:** Obrona → Powtórki pokazuje 5 ostatnich obron (data, odparty albo zdobyty, procent,
+    gwiazdki atakującego). Dotknięcie wiersza odtwarza bitwę na zamku z chwili ataku, bez sterowania,
+    z tempem x1, x2 i x4. Na końcu raport obrony: wynik i gwiazdki atakującego, stracony łup (z serwera)
+    i Do obrony, które od razu otwiera ustawienia obrony. Gdy powtórka da inny wynik niż serwer, raport to mówi.
+  - **Dostęp:** powtórkę dostaje tylko obrońca zakończonego ataku; ataki sprzed #29 nie mają zapisanego
+    planu, więc powtórki nie mają.
 - Efekty bitwy (#101, `scripts/battle/battle_effects.gd`):
   - strzały to kreska 1 px, a oszczepy i garnki smoły Podpalacza lecą łukiem z cieniem na ziemi;
   - uderzenia w budynki wzbijają pył, a zawalony budynek chmurę pyłu;
@@ -726,6 +741,11 @@ wynik z seeda serwera, raport po końcu misji. Plan ataku na gracza dostaje ze `
 donżon i to, co odsłonił zwiad; pełną kopię zamku i obrony daje dopiero zatwierdzenie planu
 (`launch_attack`), a bez niego serwer nie przyjmie wyniku. Migracja `scouting` i Edge Functions `scout`,
 `scout_reports`, `launch_attack`, `start_attack`, `finish_attack` są na projekcie. Liczby zwiadu są tymczasowe.
+Raport i powtórka obrony (#29) są w kodzie. Migracja `attack_replay` jest na projekcie (stara
+`launch_attack(uuid, uuid)` zostaje dla wdrożonego klienta). Nowa wersja Edge Function `launch_attack`
+(z planem) i nowa `attack_replay` czekają na wgranie razem z wydaniem klienta: nowe `launch_attack` wymaga
+planu, a nowy klient wymaga planu w odpowiedzi. Powtórkę ma tylko obrońca
+(atakujący widział bitwę na żywo); powiadomienia o ataku (#30) zostają na osobny ticket.
 Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa Dworu z poziomu 5
 z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoką gracza na serwerze
 (`players.age`, ranking i dobór przeciwnika) zajmuje się migracja `castle_age`: po każdym zapisie zamku

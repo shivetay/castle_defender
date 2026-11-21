@@ -12,16 +12,19 @@ extends Control
 ## to podaje. Wieże zmieniają priorytet celów wież, Zdejmij wraca do zadania domyślnego. Mapę i zadania
 ## rysuje main; ten węzeł rysuje tylko przyciski. Pułapki (#100) przełączają pasek na rodzaje pułapek:
 ## dotknięcie kratki stawia wybraną (koszt schodzi od razu), dotknięcie pułapki ją usuwa (bez zwrotu),
-## a Załoga wraca do oddziałów.
+## a Załoga wraca do oddziałów. Powtórki (#29) otwierają listę ostatnich obron: po obejrzeniu ataku
+## gracz wraca tu i od razu poprawia obronę.
 ## Dotknięcia poza przyciskami idą do mapy (kamera i tap()).
 
 ## Układ albo wybór zmienił się (mapa ma się przerysować, a gra zapisać).
 signal changed(message: String)
 signal back_requested
+## Powtórki (#29): lista ostatnich obron.
+signal replays_requested
 
-enum Target { NONE = -1, CLEAR, BACK, TASK, TOWERS, TRAPS, CREW, MORE = 50, SQUAD = 100 }
-const COLUMN: Array[int] = [Target.TASK, Target.TOWERS, Target.TRAPS, Target.CLEAR, Target.BACK]
-const LABELS: Array[String] = ["Zadanie", "Wieże", "Pułapki", "Zdejmij", "Gotowe"]
+enum Target { NONE = -1, CLEAR, BACK, TASK, TOWERS, TRAPS, CREW, REPLAYS, MORE = 50, SQUAD = 100 }
+const COLUMN: Array[int] = [Target.TASK, Target.TOWERS, Target.TRAPS, Target.CLEAR, Target.REPLAYS, Target.BACK]
+const LABELS: Array[String] = ["Zadanie", "Wieże", "Pułapki", "Zdejmij", "Powtórki", "Gotowe"]
 ## Kolumna w trybie pułapek (#100).
 const TRAP_COLUMN: Array[int] = [Target.CREW, Target.BACK]
 const TRAP_LABELS: Array[String] = ["Załoga", "Gotowe"]
@@ -387,6 +390,8 @@ func activate(t: int) -> void:
 			changed.emit(HINT)
 		Target.BACK:
 			back_requested.emit()
+		Target.REPLAYS:
+			replays_requested.emit()
 		Target.TOWERS:
 			plan.tower_priority = (plan.tower_priority + 1) % DefensePlan.TOWER_PRIORITY_NAMES.size()
 			changed.emit(tower_text(plan.tower_priority))

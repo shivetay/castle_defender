@@ -16,6 +16,7 @@ Ten sam seed + dane → ten sam przebieg (ważne dla weryfikacji PvP).
 | `attack_plan.gd` | Plan ataku i manewry |
 | `defense_plan.gd` | Posterunki i zadania obrony |
 | `trap_config.gd` | Pułapki |
+| `battle_replay.gd` | Powtórka obrony (#29): bitwa z danych `attack_replay` tą samą drogą co u atakującego (`PlayerCastle`) |
 | `scout_intel.gd` | Mgła wojny w planie ataku (#28): fragment zamku odsłonięty przez zwiad |
 | `bot_castle.gd` / `bot_roster.gd` | Generator zamku i składu bota |
 | `pve_waves.gd` | Fale PvE |
