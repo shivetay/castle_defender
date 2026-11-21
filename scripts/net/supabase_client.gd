@@ -348,6 +348,12 @@ func start_attack(defender_id: String, army: Array) -> bool:
 	return _attack_send(AttackCall.START, AttackStart.PATH, AttackStart.request_player(defender_id, army))
 
 
+## Start ataku na zamek-bota `bot_idx` (#242, ranking PvE) armią `army`; odpowiedź w `attack_started`
+## (z `bot_idx`). False: brak sieci albo inne żądanie ataku jeszcze trwa.
+func start_bot_attack(bot_idx: int, army: Array) -> bool:
+	return _attack_send(AttackCall.START, AttackStart.PATH, AttackStart.request_bot(bot_idx, army))
+
+
 ## Wynik ataku (`AttackFinish.request` / `PlayerCastle.finish_request`); odpowiedź w `attack_finished`.
 ## Ponowienie tej samej treści po błędzie sieci jest bezpieczne: serwer zwraca zapisany wynik.
 func finish_attack(body: Dictionary) -> bool:

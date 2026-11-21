@@ -1,7 +1,9 @@
-// ranking (#27): tabela rankingu PvP w epoce gracza, osobno za atak i za obronę. Id gracza idzie
-// wyłącznie z tokenu, nigdy z treści żądania. Treść: {"kind": "attack" | "defense"}.
+// ranking (#27, #242): tabela rankingu w epoce gracza: PvP osobno za atak i za obronę albo PvE (punkty
+// za zamki-boty). Id gracza idzie wyłącznie z tokenu, nigdy z treści żądania.
+// Treść: {"kind": "attack" | "defense" | "pve"}.
 // Odpowiedź: {"kind", "rows": [{place, nickname, castle_name, ruler, points, is_me}]}: 20 najlepszych
-// z `pvp_ranking` i własny wiersz gracza, gdy jest niżej. Bez id innych graczy. Niczego nie zapisuje.
+// z `pvp_ranking` albo `pve_ranking` i własny wiersz gracza, gdy jest niżej. Bez id innych graczy.
+// Niczego nie zapisuje.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -10,7 +12,7 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const KINDS = new Set(["attack", "defense"]);
+const KINDS = new Set(["attack", "defense", "pve"]);
 // RANKING_TOP = 20 i własny wiersz
 const MAX_ROWS = 21;
 
@@ -57,7 +59,9 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
-  const { data, error } = await admin.rpc("pvp_ranking", { p_player: userData.user.id, p_kind: b.kind });
+  const { data, error } = b.kind === "pve"
+    ? await admin.rpc("pve_ranking", { p_player: userData.user.id })
+    : await admin.rpc("pvp_ranking", { p_player: userData.user.id, p_kind: b.kind });
   if (error || !Array.isArray(data)) {
     console.error("ranking rpc", error?.code);
     return json({ error: "ranking_failed" }, 500);
