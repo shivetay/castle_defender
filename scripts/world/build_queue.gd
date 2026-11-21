@@ -255,9 +255,11 @@ func upgrade_hint(grid: BuildGrid, building_id: int, research: Research = null) 
 ## Dopisek do ulepszenia Magazynu: ile więcej zmieści poziom `level` (np. „, +250 miejsca”).
 ## Dla innych budynków pusty, żeby gracz widział, po co ulepszać Magazyn (review PR 238).
 static func capacity_gain_text(kind: int, level: int) -> String:
-	if kind != BuildingTypes.Kind.WAREHOUSE:
+	var gain := EconomyConfig.warehouse_gain(level)
+	# poziomy epoki II (#34) nie dokładają jeszcze miejsca (balans w #262), więc bez „+0 miejsca”
+	if kind != BuildingTypes.Kind.WAREHOUSE or gain <= 0:
 		return ""
-	return ", +%d miejsca" % EconomyConfig.warehouse_gain(level)
+	return ", +%d miejsca" % gain
 
 
 ## Postęp zlecenia w budowie, 0..1000 (‰). 0 dla czekających i budynków bez zlecenia.

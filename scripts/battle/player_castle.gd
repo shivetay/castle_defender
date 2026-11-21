@@ -40,8 +40,9 @@ var stash: Array[int] = []
 var army: Array = []
 ## Kiedy serwer przyjął start (s, zegar telefonu), do PLAN_LIMIT_S.
 var started_s := 0
-## Epoka do domyślnych zadań załogi (DefensePlan.default_order). Na razie epoka gry (main.CURRENT_AGE),
-## bo `start_attack` nie zwraca epoki obrońcy; przed PvP w epoce II+ trzeba ją brać z serwera.
+## Epoka do domyślnych zadań załogi (DefensePlan.default_order). Na razie epoka zamku atakującego
+## (`grid.age()` w main, #34), bo `start_attack` nie zwraca epoki obrońcy; przed PvP w epoce II+ trzeba
+## ją brać z serwera.
 var _age := 0
 
 

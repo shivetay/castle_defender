@@ -168,6 +168,8 @@ func test_bonuses_from_age_i_are_kept() -> bool:
 	for kind in [K.PALISADE, K.TOWER, K.GATE, K.MANOR]:
 		assert_eq(BattleConfig.building_hp(kind, 6), BattleConfig.building_hp(kind, 5), "wytrzymałość %d zostaje" % kind)
 	assert_eq(Ages.bonus_level(10), 5, "premie z poziomu 5 epoki I")
+	assert_eq(BuildQueue.capacity_gain_text(K.WAREHOUSE, 6), "", "Magazyn II.1 bez „+0 miejsca” (review #261)")
+	assert_true(BuildQueue.capacity_gain_text(K.WAREHOUSE, 2).begins_with(", +"), "epoka I z dopiskiem")
 	return true
 
 
