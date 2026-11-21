@@ -235,6 +235,7 @@ func test_defense_reports() -> bool:
 	var path := DefenseLog.reports_path(UID)
 	assert_true(path.contains("defender_id=eq.%s" % UID) and path.contains("status=eq.finished"), "tylko obrony")
 	assert_true(path.contains("select=id,result,loot,finished_at"), "bez kopii i bez danych atakującego")
+	assert_true(path.contains("orders=neq.%5B%5D"), "bez ataków sprzed #29 (bez planu nie ma powtórki)")
 	var rows := DefenseLog.parse_reports(_wire([
 		{"id": ATTACK, "result": {"won": true, "percent": 66, "stars": [false, true, true]}, "loot": [5, 0, 1.0, 0],
 			"finished_at": "2026-11-21T10:15:00+01:00"},

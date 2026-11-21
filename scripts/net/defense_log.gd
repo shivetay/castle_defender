@@ -87,11 +87,12 @@ class Report:
 
 
 ## Ścieżka zapytania: ostatnie zakończone obrony gracza `user_id`, od najnowszej (RLS: gracz widzi tylko
-## ataki, w których brał udział). Pusty tekst, gdy id nie wygląda jak UUID.
+## ataki, w których brał udział). Tylko z zapisanym planem (`orders` różne od `[]`): ataki sprzed #29
+## nie mają powtórki, więc nie zajmują miejsc na liście (review #266). Pusty tekst, gdy id nie wygląda jak UUID.
 static func reports_path(user_id: String) -> String:
 	if not _is_uuid(user_id):
 		return ""
-	return "%s?select=id,result,loot,finished_at&defender_id=eq.%s&status=eq.finished&order=finished_at.desc&limit=%d" \
+	return "%s?select=id,result,loot,finished_at&defender_id=eq.%s&status=eq.finished&orders=neq.%%5B%%5D&order=finished_at.desc&limit=%d" \
 			% [PATH, user_id, REPORTS_LIMIT]
 
 
