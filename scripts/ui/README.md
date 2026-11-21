@@ -16,7 +16,8 @@ Wejście: dotyk (`InputEventScreenTouch` / `ScreenDrag`); mysz tylko przez emula
 | `defense_panel.gd` | Ustawienia obrony |
 | `target_picker.gd` | Wyprawa: 3 karty celów, gracze z serwera i boty (#24) |
 | `bot_picker.gd` | Pełna lista 20 zamków-botów (#26) |
-| `result_panel.gd` | Podsumowanie bitwy |
+| `result_panel.gd` | Podsumowanie bitwy; po powtórce raport obrony (#29) |
+| `replay_panel.gd` | Powtórki: 5 ostatnich obron z serwera (#29) |
 | `info_popup.gd` / `info_text.gd` | Karty info i teksty |
 | `settings_panel.gd` | Ustawienia (m.in. tryb offline) |
 | `onboarding_panel.gd` | Pierwsze uruchomienie: imię gracza, nazwa zamku, domyślny władca (#228) |

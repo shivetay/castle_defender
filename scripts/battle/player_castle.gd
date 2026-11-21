@@ -31,6 +31,10 @@ var target: BotCastle
 ## Ustawienia obrony i badania obrońcy z kopii; null do zatwierdzenia planu (apply_launch, #28).
 var defense: DefensePlan
 var research: Research
+## Plan ataku i badania atakującego zapisane na serwerze przy zatwierdzeniu (#29, apply_launch). Bitwa
+## liczy się z nich, a nie z planu na telefonie, więc obrońca w powtórce (BattleReplay) widzi to samo.
+var plan: AttackPlan
+var attacker_research: Research
 ## Id oddziałów załogi w kolejności `target.defenders` (do zadań z DefensePlan).
 var defender_ids: Array[int] = []
 ## Zapasy obrońcy z kopii, w kolejności EconomyConfig.Res (podstawa łupu jak na serwerze).
@@ -40,9 +44,9 @@ var stash: Array[int] = []
 var army: Array = []
 ## Kiedy serwer przyjął start (s, zegar telefonu), do PLAN_LIMIT_S.
 var started_s := 0
-## Epoka do domyślnych zadań załogi (DefensePlan.default_order). Na razie epoka zamku atakującego
-## (`grid.age()` w main, #34), bo `start_attack` nie zwraca epoki obrońcy; przed PvP w epoce II+ trzeba
-## ją brać z serwera.
+## Epoka do domyślnych zadań załogi (DefensePlan.default_order). Przed zatwierdzeniem epoka zamku
+## atakującego (`grid.age()` w main), a po apply_launch epoka zamku obrońcy z kopii (#29): powtórka
+## u obrońcy nie zna epoki atakującego, a obie strony muszą liczyć to samo.
 var _age := 0
 
 
@@ -103,11 +107,16 @@ func is_launched() -> bool:
 
 ## Pełne kopie zamku i obrony z `launch_attack` (#28, AttackLaunch.parse_response): siatka planu
 ## zmienia się na prawdziwy zamek (ten sam teren, więc cele i trasy planu zostają), a bitwa ma
-## załogę, zadania, pułapki i badania obrońcy. False, gdy kopia jest nieczytelna albo bez donżonu.
+## załogę, zadania, pułapki i badania obrońcy oraz plan i badania atakującego zapisane na serwerze (#29).
+## False, gdy kopia jest nieczytelna, bez donżonu albo bez poprawnego planu dla armii ze startu.
 func apply_launch(launch: Dictionary) -> bool:
 	var castle: Variant = launch.get("castle")
 	if not castle is Dictionary or str(launch.get("id", attack_id)) != attack_id:
 		return false
+	var server_plan := AttackPlan.from_server(launch.get("plan"), army.size())
+	if server_plan == null:
+		return false
+	var techs := AttackLaunch.parse_techs(launch.get("techs"))
 	var save := CastleSync.save_from_row({
 		"map_seed": map_seed,
 		"save_version": SaveGame.FORMAT_VERSION,
@@ -124,6 +133,9 @@ func apply_launch(launch: Dictionary) -> bool:
 		return false
 	defense = state.defense
 	research = state.research
+	plan = server_plan
+	attacker_research = AttackLaunch.research_of(techs)
+	_age = state.grid.age()
 	defender_ids = state.recruitment.battle_ids()
 	stash = stash_of(castle as Dictionary)
 	var t := BotCastle.new()
@@ -156,16 +168,17 @@ func can_launch(now_s: int) -> bool:
 	return now_s - started_s <= PLAN_LIMIT_S
 
 
-## Bitwa na zamku gracza: armia ze startu, plan ataku i badania atakującego; obrońca z kopii (załoga
-## z zadaniami, priorytet wież, pułapki i badania). Ten sam cel i plan dają zawsze ten sam przebieg.
-func create_battle(plan: AttackPlan, attacker_research: Research) -> Battle:
+## Bitwa na zamku gracza: armia ze startu, plan ataku i badania atakującego z serwera; obrońca z kopii
+## (załoga z zadaniami, priorytet wież, pułapki i badania). Ten sam cel i plan dają zawsze ten sam
+## przebieg, więc ta sama funkcja liczy bitwę u atakującego i powtórkę u obrońcy (#29).
+func create_battle() -> Battle:
 	var grid := target.grid
 	var orders := defense.battle_orders(defender_ids, target.defenders, grid, _age)
 	var b := Battle.for_castle_squads(grid, army, target.defenders, target.spawn, battle_seed, research,
 			orders, defense.tower_priority)
 	b.arm_traps(defense.traps)
 	b.apply_research(Battle.Side.DEFENDER, research)
-	b.set_plan(AttackPlan.from_dict(plan.to_dict()))
+	b.set_plan(AttackPlan.from_dict(plan.to_dict()))  # kopia: bitwa nie zmienia zapisanego planu
 	b.apply_research(Battle.Side.ATTACKER, attacker_research)
 	return b
 

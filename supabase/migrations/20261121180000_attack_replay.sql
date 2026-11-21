@@ -24,7 +24,8 @@ comment on column public.attacks.orders is
   'Plan ataku (AttackPlan.to_dict()["orders"]) zapisany przy zatwierdzeniu (launch_attack, #29); z niego powtórka odtwarza bitwę.';
 
 -- Plan z klienta: tablica rozkazów, po jednym na oddział armii ze startu (oddziały 1..n bez powtórek),
--- same liczby całkowite w zakresach gry. Klucze spoza listy, złe typy i za duże wartości → `bad_plan`.
+-- same liczby całkowite w zakresach gry (AttackPlan w grze: START_VALUE_MAX = 600, RETREAT_MAX = 100,
+-- CELL_MAX = 63, manewry 0..6, start 0..2, do 3 punktów trasy; test_replay.gd pilnuje zgodności). Klucze spoza listy, złe typy i za duże wartości → `bad_plan`.
 -- Zwraca plan bez zmian (tylko sprawdza), żeby nie zgubić niczego, co klient policzył.
 create function private.check_plan(p_plan jsonb, p_squads integer)
 returns jsonb

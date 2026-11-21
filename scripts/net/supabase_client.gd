@@ -37,6 +37,10 @@ signal ranking_loaded(kind: int, rows: Array[RankingBoard.Row], ok: bool)
 ## Ostatnie obrony gracza (#99, DefenseLog.parse_response): zniszczone budynki i koniec ataku.
 ## `ok` false: błąd sieci albo serwera.
 signal defenses_loaded(rows: Array[Dictionary], ok: bool)
+## Raporty ostatnich obron (#29, DefenseLog.parse_reports). `ok` false: błąd sieci albo serwera.
+signal defense_reports_loaded(reports: Array[DefenseLog.Report], ok: bool)
+## Odpowiedź `attack_replay` (#29): AttackReplay.parse_response albo pusty słownik z kodem błędu.
+signal replay_loaded(replay: Dictionary, error: String)
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -45,7 +49,7 @@ enum Call { NONE, SIGNUP, REFRESH }
 ## Kroki synchronizacji zamku (#23): odczyt, założenie, zapis z rewizją, obrona i nick.
 enum CastleCall { NONE, GET, INSERT, PUSH, DEFENSE_PATCH, DEFENSE_INSERT, NICKNAME }
 ## Żądanie ataku na gracza w toku (#240).
-enum AttackCall { NONE, START, FINISH, LAUNCH }
+enum AttackCall { NONE, START, FINISH, LAUNCH, REPLAY }
 ## Żądanie zwiadu w toku (#28).
 enum ScoutCall { NONE, SEND, REPORTS }
 
@@ -94,6 +98,9 @@ var _ranking_next := -1
 ## Ostatnie obrony (#99) idą osobnym połączeniem, naraz jedno żądanie.
 var _defenses: HTTPRequest
 var _defenses_pending := false
+## Raporty obron (#29) idą osobnym połączeniem, naraz jedno żądanie.
+var _reports: HTTPRequest
+var _reports_pending := false
 ## Zwiad (#28) idzie osobnym połączeniem, naraz jedno żądanie.
 var _scout: HTTPRequest
 var _scout_call: int = ScoutCall.NONE
@@ -169,6 +176,10 @@ func _ready() -> void:
 	_defenses.timeout = TIMEOUT_S
 	add_child(_defenses)
 	_defenses.request_completed.connect(_on_defenses_completed)
+	_reports = HTTPRequest.new()
+	_reports.timeout = TIMEOUT_S
+	add_child(_reports)
+	_reports.request_completed.connect(_on_reports_completed)
 	_scout = HTTPRequest.new()
 	_scout.timeout = TIMEOUT_S
 	add_child(_scout)
@@ -342,6 +353,42 @@ func handle_defenses(result: int, code: int, body: String) -> void:
 	defenses_loaded.emit(DefenseLog.parse_response(SupabaseConfig.parse_json(body)), true)
 
 
+## Raporty ostatnich obron gracza (#29); odpowiedź w `defense_reports_loaded`. False: brak sieci albo
+## poprzednie żądanie jeszcze trwa.
+func load_defense_reports() -> bool:
+	if _reports_pending or not is_online():
+		return false
+	var p := DefenseLog.reports_path(user_id())
+	if p.is_empty():
+		return false
+	_reports_pending = true
+	if fake_transport:
+		sent_requests.append({"path": p})
+		return true
+	if _reports == null:
+		_reports_pending = false
+		return false
+	var err := _reports.request(config.url + p, rest_headers(), HTTPClient.METHOD_GET)
+	if err != OK:
+		handle_reports(HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	return true
+
+
+## Obsługa odpowiedzi z raportami obron (bez sieci, wołana też z testów).
+func handle_reports(result: int, code: int, body: String) -> void:
+	_reports_pending = false
+	if outcome_of(result, code) != Outcome.OK:
+		defense_reports_loaded.emit([] as Array[DefenseLog.Report], false)
+		return
+	defense_reports_loaded.emit(DefenseLog.parse_reports(SupabaseConfig.parse_json(body)), true)
+
+
+## Dane powtórki obrony `attack_id` (#29); odpowiedź w `replay_loaded`. False: brak sieci albo inne
+## żądanie ataku jeszcze trwa.
+func load_replay(attack_id: String) -> bool:
+	return _attack_send(AttackCall.REPLAY, AttackReplay.PATH, AttackReplay.request(attack_id))
+
+
 ## Start ataku na gracza `defender_id` armią `army` (oddziały [rodzaj, liczba]); odpowiedź przychodzi
 ## w `attack_started`. False: brak sieci albo inne żądanie ataku jeszcze trwa (wtedy nic nie idzie).
 func start_attack(defender_id: String, army: Array) -> bool:
@@ -360,10 +407,11 @@ func finish_attack(body: Dictionary) -> bool:
 	return _attack_send(AttackCall.FINISH, AttackFinish.PATH, body)
 
 
-## Zatwierdzenie planu ataku na gracza (#28); pełne kopie przychodzą w `attack_launched`.
-## Ponowienie po błędzie sieci jest bezpieczne: serwer zwraca te same kopie.
-func launch_attack(attack_id: String) -> bool:
-	return _attack_send(AttackCall.LAUNCH, AttackLaunch.PATH, AttackLaunch.request(attack_id))
+## Zatwierdzenie planu ataku na gracza (#28) z planem `plan` (#29); pełne kopie, zapisany plan i badania
+## przychodzą w `attack_launched`. Ponowienie po błędzie sieci jest bezpieczne: serwer zwraca te same
+## kopie i plan z pierwszego zatwierdzenia.
+func launch_attack(attack_id: String, plan: AttackPlan) -> bool:
+	return _attack_send(AttackCall.LAUNCH, AttackLaunch.PATH, AttackLaunch.request(attack_id, plan))
 
 
 ## Zwiad na gracza `defender_id` (#28); odpowiedź w `scout_sent`. False: brak sieci albo inne
@@ -445,6 +493,11 @@ func handle_attack(call: int, result: int, code: int, body: String) -> void:
 			if error.is_empty() and launch.is_empty():
 				error = NETWORK_ERROR  # niepełna odpowiedź: ponowienie zwróci te same kopie
 			attack_launched.emit(launch, error)
+		AttackCall.REPLAY:
+			var replay := AttackReplay.parse_response(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
+			if error.is_empty() and replay.is_empty():
+				error = REJECTED_ERROR  # nieczytelna powtórka: ponowienie da to samo
+			replay_loaded.emit(replay, error)
 
 
 ## Wysyła zaległy zapis od razu (przy wyjściu z gry), bez czekania na `PUSH_INTERVAL_S`.
@@ -578,6 +631,10 @@ func _on_ranking_completed(result: int, code: int, _headers: PackedStringArray, 
 
 func _on_defenses_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	handle_defenses(result, code, body.get_string_from_utf8())
+
+
+func _on_reports_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_reports(result, code, body.get_string_from_utf8())
 
 
 func _attack_send(call: int, path: String, body: Dictionary) -> bool:

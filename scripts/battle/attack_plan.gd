@@ -41,6 +41,14 @@ const MAX_WAYPOINTS := 3
 ## do 8 w epoce VI). Technologia U12 i generałowie dodadzą po +1 później.
 const MAX_SQUADS_BY_AGE: Array[int] = [3, 4, 5, 6, 7, 8]
 const NO_TARGET := Vector2i(-1, -1)
+## Zakresy planu z serwera (#29), te same co w `private.check_plan` (migracja *_attack_replay.sql):
+## START_VALUE_MAX = 600, RETREAT_MAX = 100, CELL_MAX = 63.
+const START_VALUE_MAX := 600
+const RETREAT_MAX := 100
+const CELL_MAX := 63
+## Klucze rozkazu w to_server(); innych serwer nie przyjmie.
+const ORDER_KEYS: Array[String] = ["squad", "manoeuvre", "target", "waypoints", "start", "start_value", "retreat",
+		"flank_left"]
 
 
 class Order:
@@ -208,6 +216,79 @@ func to_dict() -> Dictionary:
 				"waypoints": wps, "start": o.start, "start_value": o.start_value,
 				"retreat": o.retreat_percent, "flank_left": o.flank_left})
 	return {"orders": list}
+
+
+## Rozkazy planu do serwera (#29, `launch_attack`): tablica z to_dict()["orders"].
+func to_server() -> Array:
+	return to_dict()["orders"] as Array
+
+
+## Plan z serwera (#29): rozkazy zapisane przy zatwierdzeniu, które przyszły z klienta atakującego, więc
+## sprawdzone jak w `private.check_plan`: tablica 1..`squads` rozkazów, oddziały 1..`squads` bez powtórek,
+## liczby całkowite w zakresach gry, bez obcych kluczy. Null, gdy coś się nie zgadza (bez wyjątków
+## i bez częściowego planu: powtórka z innego planu wyglądałaby inaczej niż bitwa atakującego).
+static func from_server(raw: Variant, squads: int) -> AttackPlan:
+	if not raw is Array or (raw as Array).is_empty() or (raw as Array).size() > squads:
+		return null
+	var p := AttackPlan.new()
+	for e: Variant in raw as Array:
+		if not e is Dictionary:
+			return null
+		var d := e as Dictionary
+		for k: Variant in d.keys():
+			if not ORDER_KEYS.has(str(k)):
+				return null
+		var squad := _int_in(d.get("squad"), 1, squads)
+		var m := _int_in(d.get("manoeuvre"), 0, MANOEUVRE_NAMES.size() - 1)
+		var start_kind := _int_in(d.get("start"), 0, Start.size() - 1)
+		var start_value := _int_in(d.get("start_value"), 0, START_VALUE_MAX)
+		var retreat := _int_in(d.get("retreat"), 0, RETREAT_MAX)
+		var target := _cell(d.get("target"), true)
+		var flank: Variant = d.get("flank_left")
+		var wps: Variant = d.get("waypoints")
+		if squad < 0 or m < 0 or start_kind < 0 or start_value < 0 or retreat < 0 or target.x < -1 \
+				or not flank is bool or not wps is Array or (wps as Array).size() > MAX_WAYPOINTS \
+				or p.order_for(squad) != null:
+			return null
+		var o := p.add(squad, m, target)
+		for w: Variant in wps as Array:
+			var c := _cell(w, false)
+			if c.x < 0:
+				return null
+			o.waypoints.append(c)
+		o.start = start_kind
+		o.start_value = start_value
+		o.retreat_percent = retreat
+		o.flank_left = flank as bool
+	return p
+
+
+## Liczba całkowita z JSON (int albo float bez części ułamkowej) w [lo, hi] (lo ≥ 0), inaczej -1.
+static func _int_in(v: Variant, lo: int, hi: int) -> int:
+	if not _is_int(v):
+		return -1
+	var n := int(v)
+	return n if n >= lo and n <= hi else -1
+
+
+static func _is_int(v: Variant) -> bool:
+	return v is int or (v is float and float(v) == floorf(float(v)))
+
+
+## Kratka [x, y] na mapie; z `allow_none` także NO_TARGET (obie współrzędne -1). Zła kratka: (-2, -2).
+static func _cell(v: Variant, allow_none: bool) -> Vector2i:
+	var bad := Vector2i(-2, -2)
+	if not v is Array or (v as Array).size() != 2:
+		return bad
+	var a := v as Array
+	if not _is_int(a[0]) or not _is_int(a[1]):
+		return bad
+	var c := Vector2i(int(a[0]), int(a[1]))
+	if allow_none and c == NO_TARGET:
+		return c
+	if c.x < 0 or c.y < 0 or c.x > CELL_MAX or c.y > CELL_MAX:
+		return bad
+	return c
 
 
 ## Plan z danych zapisu (JSON daje liczby jako float, więc wszystko idzie przez int()).
