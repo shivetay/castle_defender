@@ -74,6 +74,10 @@ func test_promote_needs_xp_and_gold_up_to_level_3() -> bool:
 	var gold := e.amounts[EconomyConfig.Res.GOLD]
 	assert_eq(gs.promote(G.CHIEF, e), RES.OK, "awans na 2")
 	assert_eq(e.amounts[EconomyConfig.Res.GOLD], gold - Generals.LEVEL_GOLD[2], "za złoto")
+	assert_eq(gs.get_general(G.CHIEF).xp, 0, "Wyszkol zużywa PD")
+	assert_eq(Generals.total_xp(gs.get_general(G.CHIEF)), Generals.LEVEL_XP[2], "zebrane PD liczą też zużyte")
+	assert_eq(Generals.total_gold(gs.get_general(G.CHIEF)), Generals.RECRUIT_GOLD + Generals.LEVEL_GOLD[2],
+			"złoto na generała: rekrutacja i awans")
 	assert_eq(gs.choose_perk(G.CHIEF, P.FAST_MARCH, 0), RES.NO_PERK_YET, "perk dopiero na poziomie 3")
 	assert_eq(gs.promote(G.CHIEF, e), RES.NO_XP, "na 3 trzeba więcej doświadczenia")
 	gs.get_general(G.CHIEF).xp = Generals.LEVEL_XP[3]
@@ -344,4 +348,26 @@ func test_launch_request_has_general_only_when_chosen() -> bool:
 	assert_true(Generals.general_from({"kind": 1.0, "level": 2.5}) != null, "liczby z JSON")
 	assert_eq(Generals.general_from({"kind": 1.0, "level": 2.5}).level, 1, "ułamek poziomu: poziom 1 jak na serwerze")
 	assert_eq(Generals.general_from(null), null, "null: bez generała")
+	return true
+
+
+## Serwer (`private.checked_generals`, migracja *_general_budget.sql) liczy pokrycie generałów z tymi samymi
+## liczbami co gra: koszty, PD za bitwę, złoto startowe i nagrody fal PvE.
+func test_server_budget_constants_match_game() -> bool:
+	var sql := FileAccess.get_file_as_string("res://supabase/migrations/20261122100000_general_budget.sql")
+	assert_true(not sql.is_empty(), "migracja jest")
+	var pve_gold := 0
+	for w in PveWaves.COUNT:
+		pve_gold += PveWaves.reward(w)[EconomyConfig.Res.GOLD]
+	assert_true(sql.contains("v_gold + %d + %d" % [EconomyConfig.START[EconomyConfig.Res.GOLD], pve_gold]),
+			"złoto startowe i nagrody fal")
+	assert_true(sql.contains("(v_battles + %d) * %d" % [PveWaves.COUNT, Generals.XP_BATTLE + Generals.XP_WIN]),
+			"PD za bitwę i fale")
+	assert_true(sql.contains("v_spent + %d > v_gold" % Generals.RECRUIT_GOLD), "rekrutacja")
+	assert_true(sql.contains("v_cost + %d > v_gold" % Generals.LEVEL_GOLD[2]), "awans na 2")
+	assert_true(sql.contains("v_cost + %d > v_gold" % Generals.LEVEL_GOLD[3]), "awans na 3")
+	assert_true(sql.contains("then %d else 0 end + case when v_level >= 3 then %d" % [Generals.LEVEL_XP[2],
+			Generals.LEVEL_XP[3]]), "PD na awanse")
+	assert_true(sql.contains("private.json_int(e -> 'xp', 0, %d)" % Generals.XP_MAX), "górna granica PD")
+	assert_true(sql.contains("private.json_int(e -> 'perk', 0, %d)" % (Generals.PERK_NAMES.size() - 1)), "perki")
 	return true

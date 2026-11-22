@@ -1,8 +1,9 @@
 class_name Generals
 extends RefCounted
 ## Generałowie (#31, notatka Władca i generałowie): do MAX generałów, każdy innego rodzaju, rekrutacja
-## za złoto w Dworze. Generał zdobywa doświadczenie w bitwach, a kolejny poziom kupuje się za złoto,
-## gdy doświadczenia wystarczy. W MVP są 3 postacie (Plan MVP): Wódz drużyny, Łowczy i Budowniczy
+## za złoto w Dworze. Generał zdobywa doświadczenie (PD) w bitwach, a kolejny poziom zdobywa w Dworze
+## (Wyszkol): awans zużywa PD i złoto z zamku (decyzja właścicielki z 22.11.2026). Serwer przy zapisie
+## zamku sprawdza, czy złoto i PD generałów mają pokrycie (migracja `general_budget`). W MVP są 3 postacie (Plan MVP): Wódz drużyny, Łowczy i Budowniczy
 ## kopców, wszyscy od epoki I (decyzja właścicielki: w notatce Budowniczy jest od epoki II, ale wtedy
 ## w epoce I nie byłoby komendanta obrony), poziomy 1–3 i jeden perk dodatkowy na poziomie 3.
 ##
@@ -46,14 +47,14 @@ const MAX_LEVEL := 3
 const PERK_LEVEL := 3
 ## Rekrutacja w złocie (TYMCZASOWE).
 const RECRUIT_GOLD := 300
-## Doświadczenie potrzebne do poziomu 1, 2, 3 (TYMCZASOWE).
+## Doświadczenie zużywane na awans do poziomu 1, 2, 3 (TYMCZASOWE).
 const LEVEL_XP: Array[int] = [0, 0, 100, 300]
 ## Złoto za awans na poziom 1, 2, 3 (TYMCZASOWE).
 const LEVEL_GOLD: Array[int] = [0, 0, 400, 1000]
 ## Doświadczenie za każdą bitwę i dodatkowo za zwycięstwo (TYMCZASOWE).
 const XP_BATTLE := 20
 const XP_WIN := 20
-## Doświadczenie rośnie najwyżej do progu ostatniego poziomu (dalej nic nie daje w MVP).
+## Zebrane, jeszcze niewydane PD rosną najwyżej do kosztu najdroższego awansu.
 const XP_MAX := 300
 
 # --- Liczby do bitwy (z notatki) ---------------------------------------------------------------------
@@ -208,8 +209,25 @@ func promote(kind: int, economy: Economy) -> int:
 		return problem
 	var g := get_general(kind)
 	economy.spend(level_cost(g.level + 1))
+	g.xp -= LEVEL_XP[g.level + 1]
 	g.level += 1
 	return Result.OK
+
+
+## Wszystkie PD, które generał zebrał: niewydane i zużyte na awanse (tak liczy je serwer).
+static func total_xp(g: General) -> int:
+	var spent := 0
+	for l in range(2, g.level + 1):
+		spent += LEVEL_XP[l]
+	return g.xp + spent
+
+
+## Całe złoto wydane na generała: rekrutacja i awanse (tak liczy je serwer).
+static func total_gold(g: General) -> int:
+	var spent := RECRUIT_GOLD
+	for l in range(2, g.level + 1):
+		spent += LEVEL_GOLD[l]
+	return spent
 
 
 ## Perki dodatkowe do wyboru w epoce `age`.

@@ -18,6 +18,14 @@ insert into test_ids values
 insert into auth.users (id) select id from test_ids;
 update public.players set rating = 63100, age = 0 where id in (select id from test_ids);
 
+-- Pokrycie generałów (#31, `general_budget`): 10 zakończonych ataków A sprzed dwóch dni z łupem 200 złota
+-- (2175 złota, 600 PD), więc wyzwalacz zapisu zamku zostawia Łowczego na poziomie 3 i Wodza.
+insert into public.attacks (attacker_id, defender_id, battle_seed, status, result, loot, started_at, finished_at)
+select '00000000-0000-0000-0000-0000000031a1', '00000000-0000-0000-0000-0000000031c1', g, 'finished',
+  '{"won": true, "percent": 60, "stars": [false, true, true]}', array[0, 0, 0, 200],
+  now() - interval '2 days', now() - interval '2 days'
+from generate_series(1, 10) g;
+
 -- Łowczy (1) na poziomie 3 z Szybkim marszem; Wódz (0) z poziomem spoza MVP i perkiem poniżej poziomu 3
 insert into public.castles (player_id, map_seed, save_version, data)
 select t.id, 3131, 11, jsonb_build_object(

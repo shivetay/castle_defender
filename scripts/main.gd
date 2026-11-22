@@ -1708,7 +1708,7 @@ func _on_general_promote(kind: int) -> void:
 	_tick()
 	var r := generals.promote(kind, economy)
 	var g := generals.get_general(kind)
-	_general_done(r, "%s: poziom %d" % [Generals.NAMES[kind], g.level if g != null else 1])
+	_general_done(r, "%s wyszkolony: poziom %d" % [Generals.NAMES[kind], g.level if g != null else 1])
 
 
 func _on_general_perk(kind: int, perk: int) -> void:

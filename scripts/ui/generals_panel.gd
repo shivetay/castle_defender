@@ -1,8 +1,8 @@
 class_name GeneralsPanel
 extends Node2D
 ## Generałowie (#31) z karty Dworu, na przyciemnionym zamku: po wierszu na każdego z 3 generałów MVP
-## z poziomem, doświadczeniem i perkami. Przycisk wiersza werbuje generała za złoto, kupuje kolejny
-## poziom (gdy doświadczenia wystarczy) albo otwiera wybór perka dodatkowego na poziomie 3. Logikę
+## z poziomem, doświadczeniem i perkami. Przycisk wiersza werbuje generała za złoto, szkoli go na kolejny
+## poziom (Wyszkol: zużywa PD i złoto z zamku) albo otwiera wybór perka dodatkowego na poziomie 3. Logikę
 ## i komunikaty liczy main.gd (Generals), panel tylko rysuje i oddaje dotyk.
 
 signal closed
@@ -25,6 +25,7 @@ const GAP := 4
 const CLOSE_LABEL := "Zamknij"
 const BACK_LABEL := "Wróć"
 const DONE_LABEL := "Najwyższy poz."
+const TRAIN_LABEL := "Wyszkol"
 
 var generals: Generals
 var age := 0
@@ -76,7 +77,7 @@ static func row_label(g: Generals, kind: int) -> String:
 		return "Wybierz perk"
 	if gen.level >= Generals.MAX_LEVEL:
 		return DONE_LABEL
-	return "Awans %d Zł" % Generals.LEVEL_GOLD[gen.level + 1]
+	return TRAIN_LABEL
 
 
 ## Druga linia wiersza: poziom i doświadczenie albo „najlepszy w: …”.
@@ -84,8 +85,10 @@ static func row_status(g: Generals, kind: int) -> String:
 	var gen := g.get_general(kind)
 	if gen == null:
 		return "Najlepszy w: %s" % Generals.BEST_IN[kind]
-	var next := "max" if gen.level >= Generals.MAX_LEVEL else str(Generals.LEVEL_XP[gen.level + 1])
-	return "Poz. %d · PD %d/%s" % [gen.level, gen.xp, next]
+	if gen.level >= Generals.MAX_LEVEL:
+		return "Poz. %d · PD %d" % [gen.level, gen.xp]
+	return "Poz. %d · PD %d/%d · %d Zł" % [gen.level, gen.xp, Generals.LEVEL_XP[gen.level + 1],
+			Generals.LEVEL_GOLD[gen.level + 1]]
 
 
 ## Trzecia linia: perk główny i dodatkowy.

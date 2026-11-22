@@ -38,15 +38,18 @@ w sekcji „Następny etap”.
 
 - Generałowie (#31, etap 11 #133, `scripts/world/generals.gd`, `Generals`): Wódz drużyny, Łowczy i Budowniczy
   kopców, wszyscy od epoki I, najwyżej 3, każdy innego rodzaju. Werbuje się ich za złoto w Dworze (karta Dworu →
-  Generał.), doświadczenie dostają z bitew (20 PD, za wygraną +20), a kolejny poziom (2 i 3) kupują za złoto,
-  gdy PD wystarczy. Na poziomie 3 gracz wybiera jeden perk dodatkowy: Szybki marsz (+1 szybkości), od epoki II
+  Generał.), doświadczenie dostają z bitew (20 PD, za wygraną +20), a kolejny poziom (2 i 3) zdobywają
+  w Dworze przyciskiem Wyszkol, który zużywa PD i złoto z zamku. Na poziomie 3 gracz wybiera jeden perk dodatkowy: Szybki marsz (+1 szybkości), od epoki II
   Ostrożny (−15% od strzał). Generał nie stoi na siatce: dowodzi całym atakiem (przycisk w lewym górnym rogu
   planu ataku) albo całą obroną jako komendant (przycisk Komend. na ekranie Obrona, `DefensePlan.commander`).
   Jeden generał nie może dowodzić obiema stronami. Perki działają na całą stronę (`Battle.set_general`):
   Wódz daje piechocie +10% obrażeń i oddziałom +10 morale, Łowczy przyspiesza Oskrzydlenie o 20%, a Budowniczy
   jako komendant wzmacnia wał, palisadę i Kopiec o 15%. W ataku na gracza serwer bierze poziom i perk generała
   z zamku atakującego na serwerze (migracja `attack_general`, Edge Function `launch_attack`), a powtórka u obrońcy
-  dostaje tego samego generała. Komendant jedzie w kopii obrony. Koszty i progi PD są tymczasowe.
+  dostaje tego samego generała. Komendant jedzie w kopii obrony. Przed każdym zapisem zamku serwer sprawdza
+  pokrycie (migracja `general_budget`): złoto na rekrutację i awanse najwyżej ze złota startowego, nagród
+  fal PvE i łupów z zakończonych ataków, a PD najwyżej 40 za bitwę zapisaną na serwerze i fale PvE.
+  Generał bez pokrycia traci poziomy albo znika. Koszty i progi PD są tymczasowe.
   Z puli notatki odpadły Weteran i Twardy (bez postaci na siatce nic nie robią), a Okrutny czeka na łup
   z generałem liczony na serwerze. Zapis gry ma wersję 11.
 
@@ -768,7 +771,7 @@ rośnie, a klient nadal nie ma do niej uprawnień. Migracja `castle_age` jest na
 Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
 Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
-Etap 11 (#133) zaczynają generałowie (#31) w kodzie. Migracja `attack_general` i nowe wersje Edge Functions
+Etap 11 (#133) zaczynają generałowie (#31) w kodzie. Migracje `attack_general` i `general_budget` oraz nowe wersje Edge Functions
 `launch_attack` i `attack_replay` czekają na wgranie na projekt **przed** wydaniem klienta: wdrożona
 `launch_attack` odrzuca żądanie z generałem (`unknown_field`). Komendant zdobywa PD tylko w obronie fali PvE;
 PD z obron PvP, generałowie z poziomami 4–5 i pozostała dziewiątka postaci zostają na kolejne zadania,
