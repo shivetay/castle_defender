@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(12);
+select plan(15);
 
 create temp table test_ids (id uuid primary key) on commit drop;
 insert into test_ids values
@@ -31,6 +31,11 @@ select is(pg_temp.save('{"roster": [{"kind": 0, "level": 3, "xp": 0, "perk": 0}]
 select is(jsonb_array_length(pg_temp.save('{"roster": [{"kind": 0, "level": 2}, {"kind": 1, "level": 1},
   {"kind": 2, "level": 1}]}') -> 'roster'), 1, 'na drugiego generała brakuje złota: znika z kolejnymi');
 
+-- PD są wspólne (review #273): 200 PD z fal na trzech generałów poziomu 1 to razem 200, nie po 200
+select is((select sum((g ->> 'xp')::int)::int from jsonb_array_elements(pg_temp.save(
+  '{"roster": [{"kind": 0, "xp": 200}, {"kind": 1, "xp": 200}, {"kind": 2, "xp": 200}]}') -> 'roster') g),
+  200, 'niewydane PD trzech generałów razem najwyżej tyle, ile dały bitwy');
+
 -- 20 wygranych z botem z łupem 100 złota: złoto ogółem rośnie, ale PvP nadal zero
 insert into public.attacks (attacker_id, bot_idx, battle_seed, status, result, loot, finished_at)
 select '00000000-0000-0000-0000-0000000031d1', 0, g, 'finished',
@@ -44,7 +49,7 @@ select is(jsonb_array_length(pg_temp.save('{"roster": [{"kind": 0, "level": 2}, 
 select is(pg_temp.save('{"roster": [{"kind": 0, "level": 2, "xp": 120}]}') -> 'roster' -> 0 -> 'xp',
   '0'::jsonb, 'od poziomu 2 boty nie dają PD');
 
--- 8 ataków na gracza z łupem 30 złota: 240 złota i 320 PD z PvP
+-- 8 ataków na gracza z łupem 30 złota: 240 złota i 320 PD z PvP (oraz 1320 PD ogółem)
 insert into public.attacks (attacker_id, defender_id, battle_seed, status, result, loot, finished_at)
 select '00000000-0000-0000-0000-0000000031d1', '00000000-0000-0000-0000-0000000031e1', 100 + g, 'finished',
   '{"won": true, "percent": 60, "stars": [false, true, true]}', array[0, 0, 0, 30], now()
@@ -58,6 +63,16 @@ select is(pg_temp.save('{"roster": [{"kind": 1, "level": 3, "xp": 10, "perk": 0}
   'poziom 3 z PvP bez zmian');
 select is(pg_temp.save('{"roster": [{"kind": 0, "level": 3}, {"kind": 1, "level": 3}]}') -> 'roster' -> 1 -> 'level',
   '2'::jsonb, 'złota z PvP starcza tylko na jeden poziom 3');
+-- dużo złota z PvP (8 × 100), ale 320 PD z PvP: drugi poziom 3 (razem 600 PD) nie ma pokrycia
+update public.attacks set loot = array[0, 0, 0, 100]
+where attacker_id = '00000000-0000-0000-0000-0000000031d1' and defender_id is not null and status = 'finished';
+create temp table two_l3 on commit drop as
+  select pg_temp.save('{"roster": [{"kind": 0, "level": 3, "xp": 20}, {"kind": 1, "level": 3, "xp": 0}]}') as g;
+select is((select g -> 'roster' -> 0 from two_l3), '{"kind": 0, "level": 3, "xp": 20, "perk": -1}'::jsonb,
+  'pierwszy poziom 3: 300 PD z PvP i 20 niewydanych');
+select is((select g -> 'roster' -> 1 -> 'level' from two_l3), '2'::jsonb,
+  'drugi poziom 3 spada do 2: złota z PvP starcza, PD z PvP już nie');
+
 select is(pg_temp.save('{"roster": [{"kind": 0}, {"kind": 0}, {"kind": 7}, "x"], "attack": 2}') -> 'attack',
   '-1'::jsonb, 'generał ataku tylko spośród zostawionych');
 

@@ -10,6 +10,8 @@
 --   złoto z PvP:  tylko łupy z ataków na graczy (`defender_id` nie jest null);
 --   PD ogółem:    najwyżej 40 za bitwę (XP_BATTLE + XP_WIN) z zakończonych ataków i 5 fal PvE;
 --   PD z PvP:     najwyżej 40 za zakończony atak na gracza.
+-- Obie pule PD są wspólne dla wszystkich generałów (jak złoto): PD z jednej bitwy dostaje jeden generał,
+-- więc zużyte i niewydane PD przyjętego generała zmniejszają pulę dla kolejnych.
 -- Przed każdym zapisem zamku wyzwalacz przerabia `data -> generals`: generałowie po kolei kosztują
 -- rekrutację (50) i awanse (poziom 2: 80 złota i 100 PD, poziom 3: 150 złota z PvP i 300 PD z PvP).
 -- Generał, na którego nie starcza złota, traci poziomy albo znika (i wszyscy po nim), a poziomy bez
@@ -74,27 +76,33 @@ begin
     exit when v_spent + 50 > v_gold;
     v_cost := 50;
     v_level := coalesce(private.json_int(e -> 'level', 1, 3), 1)::integer;
+    -- v_xp_cap i v_pvp_xp_cap to PD jeszcze nieprzydzielone: każdy przyjęty generał je zmniejsza (review #273),
+    -- bo PD z jednej bitwy dostaje jeden generał. PD z PvP liczą się w obu pulach.
     -- poziom 2: złoto ogółem i 100 PD z dowolnych bitew
     if v_level >= 2 and (v_spent + v_cost + 80 > v_gold or v_xp_cap < 100) then
       v_level := 1;
     elsif v_level >= 2 then
       v_cost := v_cost + 80;
     end if;
-    -- poziom 3: 150 złota z PvP (też w złocie ogółem) i 300 PD z PvP
+    -- poziom 3: 150 złota z PvP (też w złocie ogółem) i 300 PD z PvP (też w PD ogółem, po poziomie 2)
     if v_level >= 3 and (v_spent + v_cost + 150 > v_gold or v_pvp_spent + 150 > v_pvp_gold
-        or v_pvp_xp_cap < 300) then
+        or v_pvp_xp_cap < 300 or v_xp_cap - 100 < 300) then
       v_level := 2;
     elsif v_level >= 3 then
       v_cost := v_cost + 150;
       v_pvp_spent := v_pvp_spent + 150;
     end if;
+    v_xp_cap := v_xp_cap - case when v_level >= 2 then 100 else 0 end - case when v_level >= 3 then 300 else 0 end;
+    v_pvp_xp_cap := v_pvp_xp_cap - case when v_level >= 3 then 300 else 0 end;
     -- niewydane PD: na poziomie 1 z dowolnych bitew, wyżej boty już ich nie dają (tylko PvP)
     v_xp := coalesce(private.json_int(e -> 'xp', 0, 300), 0);
     if v_level = 1 then
       v_xp := least(v_xp, v_xp_cap);
     else
-      v_xp := least(v_xp, greatest(0, v_pvp_xp_cap - case when v_level >= 3 then 300 else 0 end));
+      v_xp := least(v_xp, v_pvp_xp_cap, v_xp_cap);
+      v_pvp_xp_cap := v_pvp_xp_cap - v_xp;
     end if;
+    v_xp_cap := v_xp_cap - v_xp;
     v_perk := case when v_level >= 3 then coalesce(private.json_int(e -> 'perk', 0, 1), -1)::integer else -1 end;
     v_spent := v_spent + v_cost;
     v_seen := v_seen || v_kind;
