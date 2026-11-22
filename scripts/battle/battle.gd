@@ -156,6 +156,9 @@ var _sq_route: Dictionary[int, Array] = {}
 var _sq_goal: Dictionary[int, int] = {}
 ## Ostrzał: jedna kratka postoju na oddział (ustalana raz); stąd oddział strzela, bez dalszego marszu.
 var _sq_fire: Dictionary[int, Vector2i] = {}
+## Generałowie (#31): strona → generał (kopia z Generals). Generał nie stoi na siatce: dowodzi całą
+## stroną, a jego perki działają na wszystkie jej oddziały. Strona bez wpisu walczy bez generała.
+var generals: Dictionary[int, Generals.General] = {}
 var _spawn := Vector2i.ZERO
 ## Zdarzenie: [tick, Fx, jednostka albo FX_TOWER, x0, y0, x1, y1]. SHOT i HIT w podjednostkach
 ## (HIT: x1, y1 to punkt trafienia), COLLAPSE w kratkach (pozycja i rozmiar budynku).
@@ -270,15 +273,57 @@ func apply_research(side: int, research: Research) -> void:
 				known[code] = true
 	techs[side] = known
 	if side == Side.DEFENDER:
-		# od bazowej wytrzymałości, więc ponowne wywołanie nie mnoży premii drugi raz (review #187)
-		for id: int in structures:
-			var st := structures[id]
-			if st.kind == BuildingTypes.Kind.PALISADE:
-				st.max_hp = st.base_hp
-				if known.has("O2"):
-					@warning_ignore("integer_division")
-					st.max_hp = st.base_hp * BattleConfig.O2_PALISADE_HP_PERCENT / 100
-				st.hp = st.max_hp
+		_fortify()
+
+
+## Wytrzymałość umocnień obrońcy przed startem bitwy: palisada z O2 Zaostrzone pale (#12), a wał,
+## palisada i Kopiec z komendantem Budowniczym kopców (#31). Zawsze od bazowej wytrzymałości, więc
+## ponowne wywołanie nie mnoży premii drugi raz (review #187).
+func _fortify() -> void:
+	var mounds := general_is(Side.DEFENDER, Generals.Kind.MOUND_BUILDER)
+	for id: int in structures:
+		var st := structures[id]
+		if not (BuildingTypes.is_wall(st.kind) or st.kind == BuildingTypes.Kind.MOUND):
+			continue
+		st.max_hp = st.base_hp
+		if st.kind == BuildingTypes.Kind.PALISADE and has_tech(Side.DEFENDER, "O2"):
+			@warning_ignore("integer_division")
+			st.max_hp = st.max_hp * BattleConfig.O2_PALISADE_HP_PERCENT / 100
+		if mounds:
+			@warning_ignore("integer_division")
+			st.max_hp = st.max_hp * Generals.MOUND_BUILDER_HP_PERCENT / 100
+		st.hp = st.max_hp
+
+
+# --- Generałowie (#31) ------------------------------------------------------------------------------
+
+## Generał strony `side` (kopia `g`; null: bez generała). Wołać po create i przed pierwszym krokiem.
+## Generał nie stoi na siatce, tylko dowodzi całą stroną: Wódz drużyny od razu daje oddziałom +10 morale,
+## a Budowniczy kopców jako komendant wzmacnia wał, palisadę i Kopiec. Resztę perków liczą obrażenia
+## i ruch (unit_damage, step_of). Bez wywołania bitwa jest taka jak bez generałów.
+func set_general(side: int, g: Generals.General) -> void:
+	if g == null or generals.has(side):
+		return
+	generals[side] = g.duplicate_general()
+	if g.kind == Generals.Kind.CHIEF:
+		add_side_morale(side, Generals.CHIEF_MORALE)
+	if side == Side.DEFENDER:
+		_fortify()
+
+
+## Czy strona `side` ma generała rodzaju `kind`.
+func general_is(side: int, kind: int) -> bool:
+	return generals.has(side) and generals[side].kind == kind
+
+
+## Czy generał strony `side` ma perk dodatkowy `perk`.
+func general_perk(side: int, perk: int) -> bool:
+	return generals.has(side) and generals[side].has_perk(perk)
+
+
+static func _infantry(unit: int) -> bool:
+	var c := UnitTypes.unit_class(unit)
+	return c == RecruitmentConfig.UnitClass.LIGHT or c == RecruitmentConfig.UnitClass.HEAVY
 
 
 ## Kody technologii, które coś zmieniają w bitwie.
@@ -293,10 +338,19 @@ func has_tech(side: int, code: String) -> bool:
 ## Krok ruchu jednostki na tick w podjednostkach: z UnitTypes, a konnica strony z A7 Strzemię
 ## +25% (#12), w całych podjednostkach w dół. Spowolnienia (kolczatka, fosa) liczą się od tej wartości.
 func step_of(f: Fighter) -> int:
-	var step_len := UnitTypes.speed(f.unit) * BattleConfig.SPEED_SUB_PER_TICK
+	var speed := UnitTypes.speed(f.unit)
+	if general_perk(f.side, Generals.Perk.FAST_MARCH):
+		speed += Generals.FAST_MARCH_SPEED  # Szybki marsz (#31): +1 szybkości
+	var step_len := speed * BattleConfig.SPEED_SUB_PER_TICK
 	if UnitTypes.unit_class(f.unit) == RecruitmentConfig.UnitClass.FAST and has_tech(f.side, "A7"):
 		@warning_ignore("integer_division")
 		step_len = step_len * BattleConfig.A7_CAVALRY_SPEED_PERCENT / 100
+	if f.side == Side.ATTACKER and general_is(Side.ATTACKER, Generals.Kind.HUNTSMAN):
+		var o := _order(f)
+		if o != null and o.manoeuvre == AttackPlan.Manoeuvre.FLANK:
+			# Łowczy (#31): oddziały Oskrzydlenia 20% szybciej
+			@warning_ignore("integer_division")
+			step_len = step_len * Generals.HUNTSMAN_FLANK_SPEED_PERCENT / 100
 	return step_len
 
 
@@ -938,6 +992,10 @@ func unit_damage(f: Fighter, enemy: Fighter) -> int:
 		dmg = dmg * BattleConfig.WALL_ARROW_PERCENT / 100
 	if not ranged and enemy.unit == UnitTypes.Unit.GAMBESON_WARRIOR:
 		dmg = dmg * BattleConfig.GAMBESON_MELEE_PERCENT / 100
+	if _infantry(f.unit) and general_is(f.side, Generals.Kind.CHIEF):
+		dmg = dmg * Generals.CHIEF_DAMAGE_PERCENT / 100  # Wódz drużyny (#31): piechota +10%
+	if ranged and general_perk(enemy.side, Generals.Perk.CAREFUL):
+		dmg = dmg * Generals.CAREFUL_ARROW_PERCENT / 100  # Ostrożny (#31): −15% od strzał
 	return morale_damage(f, dmg)
 
 
@@ -1962,6 +2020,9 @@ func _tower_act(s: Structure) -> void:
 		@warning_ignore("integer_division")
 		dmg = dmg * TrapConfig.FIRE_ARROWS_PERCENT / 100
 		_ignite_arrow_target(best)
+	if general_perk(best.side, Generals.Perk.CAREFUL):
+		@warning_ignore("integer_division")
+		dmg = dmg * Generals.CAREFUL_ARROW_PERCENT / 100  # Ostrożny (#31): wieże też strzelają strzałami
 	_hurt(best, _roll(dmg))
 	_record(Fx.SHOT, FX_TOWER, cx, cy, best.x, best.y)
 

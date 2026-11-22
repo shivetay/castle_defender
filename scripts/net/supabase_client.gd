@@ -410,8 +410,8 @@ func finish_attack(body: Dictionary) -> bool:
 ## Zatwierdzenie planu ataku na gracza (#28) z planem `plan` (#29); pełne kopie, zapisany plan i badania
 ## przychodzą w `attack_launched`. Ponowienie po błędzie sieci jest bezpieczne: serwer zwraca te same
 ## kopie i plan z pierwszego zatwierdzenia.
-func launch_attack(attack_id: String, plan: AttackPlan) -> bool:
-	return _attack_send(AttackCall.LAUNCH, AttackLaunch.PATH, AttackLaunch.request(attack_id, plan))
+func launch_attack(attack_id: String, plan: AttackPlan, general: int = -1) -> bool:
+	return _attack_send(AttackCall.LAUNCH, AttackLaunch.PATH, AttackLaunch.request(attack_id, plan, general))
 
 
 ## Zwiad na gracza `defender_id` (#28); odpowiedź w `scout_sent`. False: brak sieci albo inne

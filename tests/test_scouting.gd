@@ -186,7 +186,7 @@ func test_save_game_v10_keeps_scouting_and_migrates_v9() -> bool:
 	var grid: BuildGrid = c["grid"]
 	var save := SaveGame.to_dict(1337, grid, c["e"], BuildQueue.new(), c["r"], null, c["rec"], 0, null, 0, null, 0,
 			null, s)
-	assert_eq(save["version"], 10, "wersja 10")
+	assert_eq(save["version"], SaveGame.FORMAT_VERSION, "bieżąca wersja")
 	var st := SaveGame.from_dict(save, T0)
 	assert_true(st.scouting.is_busy() and st.scouting.mission.target_key == "bot:2", "misja z zapisu")
 	var old := save.duplicate(true)

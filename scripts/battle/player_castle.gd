@@ -35,6 +35,10 @@ var research: Research
 ## liczy się z nich, a nie z planu na telefonie, więc obrońca w powtórce (BattleReplay) widzi to samo.
 var plan: AttackPlan
 var attacker_research: Research
+## Generał ataku z serwera (#31; poziom i perk z zamku atakującego na serwerze) albo null, i generałowie
+## obrońcy z kopii jego zamku (z nich komendant obrony z DefensePlan.commander).
+var attacker_general: Generals.General
+var defender_generals: Generals
 ## Id oddziałów załogi w kolejności `target.defenders` (do zadań z DefensePlan).
 var defender_ids: Array[int] = []
 ## Zapasy obrońcy z kopii, w kolejności EconomyConfig.Res (podstawa łupu jak na serwerze).
@@ -135,6 +139,8 @@ func apply_launch(launch: Dictionary) -> bool:
 	research = state.research
 	plan = server_plan
 	attacker_research = AttackLaunch.research_of(techs)
+	attacker_general = Generals.general_from(launch.get("general"))
+	defender_generals = state.generals
 	_age = state.grid.age()
 	defender_ids = state.recruitment.battle_ids()
 	stash = stash_of(castle as Dictionary)
@@ -180,6 +186,8 @@ func create_battle() -> Battle:
 	b.apply_research(Battle.Side.DEFENDER, research)
 	b.set_plan(AttackPlan.from_dict(plan.to_dict()))  # kopia: bitwa nie zmienia zapisanego planu
 	b.apply_research(Battle.Side.ATTACKER, attacker_research)
+	b.set_general(Battle.Side.ATTACKER, attacker_general)
+	b.set_general(Battle.Side.DEFENDER, defense.commander_general(defender_generals))
 	return b
 
 

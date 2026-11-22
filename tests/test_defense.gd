@@ -72,7 +72,8 @@ func test_plan_round_trip_and_prune() -> bool:
 	p.set_post(a, Vector2i(28, 29))
 	p.set_post(99, Vector2i(1, 1))
 	var d := p.to_dict()
-	assert_eq(d, {"orders": [[a, 0, 28, 29, []], [b, 0, 30, 31, []], [99, 0, 1, 1, []]], "tower_priority": 0, "traps": []},
+	assert_eq(d, {"orders": [[a, 0, 28, 29, []], [b, 0, 30, 31, []], [99, 0, 1, 1, []]], "tower_priority": 0, "traps": [],
+			"commander": -1},
 			"zapis w kolejności id")
 	var q := DefensePlan.from_dict(JSON.parse_string(JSON.stringify(d)) as Dictionary)
 	assert_eq(q.to_dict(), d, "odczyt z JSON (liczby jako float)")

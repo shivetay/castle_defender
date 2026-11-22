@@ -117,6 +117,9 @@ var defense_panel: DefensePanel
 var seal_check := SealCheck.new()
 ## Zwiad (#28) z Chaty tropicieli: misja w drodze i raporty o zamkach-celach.
 var scouting := Scouting.new()
+## Generałowie (#31): rekrutacja w Dworze, generał ataku i komendant obrony (DefensePlan.commander).
+var generals := Generals.new()
+var generals_panel: GeneralsPanel
 ## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
 const ABANDONED_MESSAGE := "Atak porzucony: ten zamek znowu po dobie"
 ## Czy trwająca bitwa to atak (inaczej fala PvE).
@@ -174,6 +177,7 @@ func _ready() -> void:
 		defense = saved.defense
 		seal_check = saved.seal
 		scouting = saved.scouting
+		generals = saved.generals
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -325,6 +329,13 @@ func _ready() -> void:
 	layer.add_child(recruit_panel)
 	recruit_panel.train_requested.connect(_on_train_requested)
 	recruit_panel.closed.connect(_on_overlay_closed)
+	generals_panel = GeneralsPanel.new()
+	generals_panel.visible = false
+	layer.add_child(generals_panel)
+	generals_panel.closed.connect(_on_overlay_closed)
+	generals_panel.recruit_requested.connect(_on_general_recruit)
+	generals_panel.promote_requested.connect(_on_general_promote)
+	generals_panel.perk_requested.connect(_on_general_perk)
 	settings_panel = SettingsPanel.new()
 	settings_panel.visible = false
 	layer.add_child(settings_panel)
@@ -390,6 +401,7 @@ func _start_battle_preview() -> void:
 	view.battle.arm_traps(defense.traps)
 	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	view.battle.apply_research(Battle.Side.DEFENDER, research)
+	view.battle.set_general(Battle.Side.DEFENDER, defense.commander_general(generals))
 	add_child(view)
 	hud.message = "Podgląd bitwy"
 
@@ -475,7 +487,7 @@ func _save() -> void:
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
 	var save := SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check, scouting)
+			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check, scouting, generals)
 	var err := SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
@@ -793,6 +805,7 @@ func _on_siege_pressed() -> void:
 			defense.tower_priority)
 	b.arm_traps(defense.traps)  # pułapki działają raz na bitwę, a w układzie zostają (odnawiają się, #100)
 	b.apply_research(Battle.Side.DEFENDER, research)  # A2 łuki i O2 palisady obrońcy (#12)
+	b.set_general(Battle.Side.DEFENDER, defense.commander_general(generals))  # komendant obrony (#31)
 	battle_view = BattleView.new()
 	battle_view.battle = b
 	battle_view.states_changed.connect(_on_battle_states)
@@ -873,6 +886,9 @@ func _update_battle() -> void:
 	hud.message = wave_end_message(_battle_wave, won, reward, fallen)
 	if won and _battle_wave == PveWaves.COUNT - 1:
 		hud.message = TutorialGoals.done_message(reward, fallen)  # koniec prowadzenia (#185), dalej zwykła gra
+	var xp := generals.add_battle_xp(defense.commander, won) if b.generals.has(Battle.Side.DEFENDER) else 0
+	if xp > 0:
+		hud.message += xp_note(xp)
 	battle_view.queue_free()
 	battle_view = null
 	_on_battle_states({})  # po bitwie zamek znów jest cały
@@ -1148,6 +1164,9 @@ func _open_target(bot: BotCastle, player: PlayerCastle) -> void:
 	bot_picker.visible = false
 	target_picker.visible = false
 	planner.open(bot, attack_plan, army, grid.age(), _scout_intel(bot, player, army))
+	attack_panel.generals = generals
+	attack_panel.commander = defense.commander
+	generals.set_attack(generals.attack_kind, defense.commander)
 	attack_panel.visible = true
 	hud.overlay = true
 	camera.look_at_world(Vector2(bot.grid.buildings[bot.objective].get_center() * TerrainMap.CELL))
@@ -1243,7 +1262,7 @@ func _on_attack_launched() -> void:
 		if _launching:
 			return
 		# plan idzie na serwer (#29): bitwa i powtórka u obrońcy liczą się z planu, który serwer zapisze
-		if net == null or not net.launch_attack(_player.attack_id, attack_plan):
+		if net == null or not net.launch_attack(_player.attack_id, attack_plan, generals.attack_kind):
 			hud.message = AttackStart.error_message(SupabaseClient.NETWORK_ERROR)
 			return
 		_launching = true
@@ -1260,6 +1279,7 @@ func _on_attack_launched() -> void:
 		b = _bot_battle(bot, army)
 		b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
 		b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
+		b.set_general(Battle.Side.ATTACKER, generals.attack_general())  # generał ataku (#31)
 		_pve_begin(army)
 	_attacking = true
 	attack_panel.visible = false
@@ -1303,6 +1323,19 @@ static func player_attack_problem(player: PlayerCastle, army: Array, now_s: int)
 	return ""
 
 
+## Doświadczenie generała ataku po bitwie `b` (#31): tylko gdy w niej był (ten z serwera przy graczu).
+## Bot daje PD tylko do pierwszego awansu, PvP zawsze (`pvp`).
+func _general_xp(b: Battle, pvp: bool) -> void:
+	var g: Generals.General = b.generals.get(Battle.Side.ATTACKER, null)
+	if g != null:
+		generals.add_battle_xp(g.kind, b.winner == Battle.Winner.ATTACKER, pvp)
+
+
+## Dopisek do komunikatu po bitwie: doświadczenie generała (#31).
+static func xp_note(xp: int) -> String:
+	return " · Generał +%d PD" % xp
+
+
 ## Koniec ataku: polegli znikają z armii, a pierwsze zdobycie zamku odblokowuje kolejny, mocniejszy
 ## (#26). Zamek wraca do pełnego stanu, więc można go atakować znowu.
 ## Wynik (#99): gwiazdki, procent zniszczeń i łup trafiają do okna wyniku; łup do magazynu.
@@ -1320,6 +1353,7 @@ func _finish_attack(b: Battle) -> void:
 	result.limit_to_capacity(BattleResult.carry_capacity(army, alive))  # łup unoszą ocaleli (#25)
 	var got := result.apply_loot(economy)
 	_pve_send(_pve.finish(result, alive))  # ranking PvE (#242): punkty doda serwer
+	_general_xp(b, false)
 	var first := won and attack_target == bots_beaten and bots_beaten < BotRoster.COUNT
 	var unlock := ""
 	if first:
@@ -1354,6 +1388,7 @@ func _finish_player_attack(b: Battle) -> void:
 	_finish_body = _player.finish_request(b, _finish_result)
 	_finish_fallen = recruitment.apply_losses(_battle_ids, alive)
 	_finish_tries = 0
+	_general_xp(b, true)
 	battle_view.queue_free()
 	battle_view = null
 	_on_battle_states({})
@@ -1394,6 +1429,7 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	if error.is_empty():
 		r.loot = loot
 		got = r.apply_loot(economy)
+		generals.add_pvp_gold(got[EconomyConfig.Res.GOLD])  # złoto z PvP na wyższe poziomy generałów (#31)
 	else:
 		r.loot.fill(0)
 		got.resize(EconomyConfig.count())
@@ -1460,6 +1496,7 @@ func _on_defence_pressed() -> void:
 	hud.set_building(false)
 	_cursor = Rect2i()
 	defense.prune(recruitment)
+	defense_panel.generals = generals
 	defense_panel.open(defense, army, recruitment.battle_ids(), grid, grid.age())
 	hud.overlay = true
 	camera.look_at_world(Vector2(DefensePlan.keep_center(grid) * TerrainMap.CELL))
@@ -1643,7 +1680,49 @@ func _on_army_opened(id: int) -> void:
 
 
 func _on_recruit_pressed() -> void:
+	if grid.buildings.has(_selected_id) and grid.kinds[_selected_id] == BuildingTypes.Kind.MANOR:
+		_on_generals_opened()
+		return
 	_on_army_opened(_selected_id)
+
+
+# --- Generałowie (#31) -------------------------------------------------------------------------------
+
+## Generałowie z karty Dworu: rekrutacja, awans i perk.
+func _on_generals_opened() -> void:
+	_tick()
+	_selected_id = 0
+	hud.hide_card()
+	_cursor = Rect2i()
+	hud.overlay = true
+	generals_panel.open(generals, grid.age())
+	hud.message = "Złoto: %d" % economy.amounts[EconomyConfig.Res.GOLD]
+	queue_redraw()
+
+
+func _on_general_recruit(kind: int) -> void:
+	_tick()
+	var r := generals.recruit(kind, grid.age(), economy, grid.manor_level() >= 1)
+	_general_done(r, "Do służby: %s" % Generals.NAMES[kind])
+
+
+func _on_general_promote(kind: int) -> void:
+	_tick()
+	var r := generals.promote(kind, economy)
+	var g := generals.get_general(kind)
+	_general_done(r, "%s wyszkolony: poziom %d" % [Generals.NAMES[kind], g.level if g != null else 1])
+
+
+func _on_general_perk(kind: int, perk: int) -> void:
+	var r := generals.choose_perk(kind, perk, grid.age())
+	_general_done(r, "%s: %s" % [Generals.NAMES[kind] if kind >= 0 else "", Generals.PERK_NAMES[perk]])
+
+
+func _general_done(result: int, ok_message: String) -> void:
+	hud.message = ok_message if result == Generals.Result.OK else Generals.MESSAGES[result]
+	if result == Generals.Result.OK:
+		_save()
+	generals_panel.queue_redraw()
 
 
 func _on_train_requested(unit: int, squad_id: int) -> void:
@@ -1770,7 +1849,8 @@ func _refresh_card() -> void:
 	var can_upgrade := not pending and level < BuildConfig.max_level(kind, grid.manor_level()) \
 			and BuildQueue.missing_techs(kind, level + 1, research).is_empty()
 	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
-	hud.card_recruit = level >= 1 and RecruitPanel.recruits(kind)
+	hud.card_generals = level >= 1 and kind == BuildingTypes.Kind.MANOR
+	hud.card_recruit = (level >= 1 and RecruitPanel.recruits(kind)) or hud.card_generals
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
 	hud.card_plain = plain_card(kind, pending)

@@ -5,6 +5,8 @@
 // #29: żądanie niesie plan ataku (rozkazy oddziałów), który serwer sprawdza i zapisuje do powtórki
 // u obrońcy, a odpowiedź oddaje zapisany plan i badania atakującego z jego zamku na serwerze. Klient
 // liczy bitwę z nich, więc obrońca w powtórce widzi ten sam przebieg.
+// #31: żądanie może nieść rodzaj generała ataku (`general`, liczba 0..2). Poziom i perk serwer bierze
+// z zamku atakującego na serwerze (`private.castle_general`) i oddaje w odpowiedzi.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -13,7 +15,9 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const ALLOWED_KEYS = new Set(["attack_id", "plan"]);
+const ALLOWED_KEYS = new Set(["attack_id", "plan", "general"]);
+// Generals.Kind w grze: Wódz drużyny, Łowczy, Budowniczy kopców
+const MAX_GENERAL = 2;
 // AttackPlan.MAX_SQUADS_BY_AGE[-1] w grze; dokładny limit (liczba oddziałów armii) sprawdza check_plan
 const MAX_ORDERS = 8;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -22,6 +26,7 @@ const ERRORS: Record<string, number> = {
   attack_not_found: 404,
   attack_expired: 409,
   bad_plan: 400,
+  bad_general: 400,
 };
 
 Deno.serve(async (req) => {
@@ -69,11 +74,20 @@ Deno.serve(async (req) => {
     return json({ error: "bad_plan" }, 400);
   }
 
+  let general: number | null = null;
+  if (b.general !== undefined) {
+    if (typeof b.general !== "number" || !Number.isInteger(b.general) || b.general < 0 || b.general > MAX_GENERAL) {
+      return json({ error: "bad_general" }, 400);
+    }
+    general = b.general;
+  }
+
   const admin = createClient(supabaseUrl, serviceKey);
   const { data, error } = await admin.rpc("launch_attack", {
     p_attacker: userData.user.id,
     p_attack: attackId,
     p_plan: b.plan,
+    p_general: general,
   });
   if (error) {
     const code = known(error);
@@ -93,6 +107,7 @@ Deno.serve(async (req) => {
     defense: row.defense ?? {},
     plan: row.plan ?? [],
     techs: row.techs ?? [],
+    general: row.general ?? null,
   });
 });
 
