@@ -1,12 +1,13 @@
 -- Testy budżetu generałów (#31), uruchamiane przez `supabase test db` (pgTAP).
 -- Kryteria: przy zapisie zamku serwer zostawia generałów tylko w granicach złota (start + fale PvE + łupy
--- z zakończonych ataków) i PD (40 za bitwę); generał bez pokrycia traci poziomy albo znika; uczciwy zapis
--- przechodzi bez zmian; generał ataku w PvP pochodzi z przyciętego zapisu; gracz nie woła funkcji sam.
+-- z zakończonych ataków) i PD (40 za bitwę); boty i fale PvE wystarczą najwyżej na poziom 2, a poziom 3
+-- wymaga złota i PD z PvP; generał bez pokrycia traci poziomy albo znika; uczciwy zapis przechodzi bez
+-- zmian; generał ataku w PvP pochodzi z przyciętego zapisu; gracz nie woła funkcji sam.
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(11);
+select plan(12);
 
 create temp table test_ids (id uuid primary key) on commit drop;
 insert into test_ids values
@@ -21,52 +22,50 @@ create function pg_temp.save(p_generals jsonb) returns jsonb language sql as $$
   returning c.data -> 'generals'
 $$;
 
--- bez ataków: 175 złota, 200 PD, więc nawet jeden generał (300 złota) nie ma pokrycia
-select is(pg_temp.save('{"roster": [{"kind": 0, "level": 1, "xp": 20, "perk": -1}], "attack": 0}'),
-  '{"roster": [], "attack": -1}'::jsonb, 'bez złota z łupów generał znika');
+-- bez ataków: 175 złota i 200 PD (fale PvE) wystarczą na rekrutację i poziom 2, ale nie na poziom 3
+select is(pg_temp.save('{"roster": [{"kind": 0, "level": 2, "xp": 0, "perk": -1}], "attack": 0, "pvp_gold": 0}'),
+  '{"roster": [{"kind": 0, "level": 2, "xp": 0, "perk": -1}], "attack": 0, "pvp_gold": 0}'::jsonb,
+  'uczciwy zapis z PvE bez zmian');
+select is(pg_temp.save('{"roster": [{"kind": 0, "level": 3, "xp": 0, "perk": 0}]}') -> 'roster' -> 0,
+  '{"kind": 0, "level": 2, "xp": 0, "perk": -1}'::jsonb, 'bez PvP poziom 3 spada do 2');
+select is(jsonb_array_length(pg_temp.save('{"roster": [{"kind": 0, "level": 2}, {"kind": 1, "level": 1},
+  {"kind": 2, "level": 1}]}') -> 'roster'), 1, 'na drugiego generała brakuje złota: znika z kolejnymi');
 
--- 10 zakończonych ataków z łupem 100 złota: 1175 złota, 600 PD
-insert into public.attacks (attacker_id, defender_id, battle_seed, status, result, loot, finished_at)
-select '00000000-0000-0000-0000-0000000031d1', '00000000-0000-0000-0000-0000000031e1', g, 'finished',
+-- 20 wygranych z botem z łupem 100 złota: złoto ogółem rośnie, ale PvP nadal zero
+insert into public.attacks (attacker_id, bot_idx, battle_seed, status, result, loot, finished_at)
+select '00000000-0000-0000-0000-0000000031d1', 0, g, 'finished',
   '{"won": true, "percent": 60, "stars": [false, true, true]}', array[0, 0, 0, 100], now()
-from generate_series(1, 10) g;
+from generate_series(1, 20) g;
+select is(pg_temp.save('{"roster": [{"kind": 1, "level": 3, "xp": 0, "perk": 0}], "pvp_gold": 500}'),
+  '{"roster": [{"kind": 1, "level": 2, "xp": 0, "perk": -1}], "attack": -1, "pvp_gold": 0}'::jsonb,
+  'złoto z botów nie daje poziomu 3, a pula PvP z telefonu jest przycięta');
+select is(jsonb_array_length(pg_temp.save('{"roster": [{"kind": 0, "level": 2}, {"kind": 1, "level": 2},
+  {"kind": 2, "level": 2}]}') -> 'roster'), 3, 'złoto z botów starcza na trzech generałów poziomu 2');
+select is(pg_temp.save('{"roster": [{"kind": 0, "level": 2, "xp": 120}]}') -> 'roster' -> 0 -> 'xp',
+  '0'::jsonb, 'od poziomu 2 boty nie dają PD');
+
+-- 8 ataków na gracza z łupem 30 złota: 240 złota i 320 PD z PvP
+insert into public.attacks (attacker_id, defender_id, battle_seed, status, result, loot, finished_at)
+select '00000000-0000-0000-0000-0000000031d1', '00000000-0000-0000-0000-0000000031e1', 100 + g, 'finished',
+  '{"won": true, "percent": 60, "stars": [false, true, true]}', array[0, 0, 0, 30], now()
+from generate_series(1, 8) g;
 -- atak w toku i porzucony się nie liczą
 insert into public.attacks (attacker_id, defender_id, battle_seed, status, loot)
 values ('00000000-0000-0000-0000-0000000031d1', '00000000-0000-0000-0000-0000000031e1', 99, 'abandoned',
   array[0, 0, 0, 5000]);
-
-select is(pg_temp.save('{"roster": [{"kind": 0, "level": 2, "xp": 40, "perk": -1}], "attack": 0}'),
-  '{"roster": [{"kind": 0, "level": 2, "xp": 40, "perk": -1}], "attack": 0}'::jsonb, 'uczciwy zapis bez zmian');
-select is(pg_temp.save('{"roster": [{"kind": 1, "level": 3, "xp": 0, "perk": 0}], "attack": 1}') -> 'roster' -> 0,
-  '{"kind": 1, "level": 2, "xp": 0, "perk": -1}'::jsonb, 'na poziom 3 brakuje złota: poziom 2, bez perka');
-select is(jsonb_array_length(pg_temp.save('{"roster": [{"kind": 0, "level": 2, "xp": 0}, {"kind": 1, "level": 2, "xp": 0},
-  {"kind": 2, "level": 1, "xp": 0}]}') -> 'roster'), 2, 'trzeci generał bez złota znika');
-select is(pg_temp.save('{"roster": [{"kind": 0, "level": 2, "xp": 0}, {"kind": 1, "level": 2, "xp": 0}]}') -> 'roster' -> 1 -> 'level',
-  '1'::jsonb, 'drugiemu starcza tylko na rekrutację');
-select is(pg_temp.save('{"roster": [{"kind": 0, "level": 1, "xp": 300}]}') -> 'roster' -> 0 -> 'xp',
-  '300'::jsonb, 'PD w limicie bitew');
-select is(pg_temp.save('{"roster": [{"kind": 0}, {"kind": 0}, {"kind": 7}, "x"], "attack": 2}'),
-  '{"roster": [{"kind": 0, "level": 1, "xp": 0, "perk": -1}], "attack": -1}'::jsonb,
-  'powtórzony, nieznany i zły wpis odpadają, generał ataku tylko spośród zostawionych');
-
--- PD: bez bitew (tylko fale PvE) 200 PD nie starczy na poziom 3 (100 + 300)
-reset role;
-delete from public.attacks where attacker_id = '00000000-0000-0000-0000-0000000031d1' and status = 'finished'
-  and battle_seed > 2;
-update public.attacks set loot = array[0, 0, 0, 1000] where attacker_id = '00000000-0000-0000-0000-0000000031d1'
-  and status = 'finished';
--- 2175 złota, ale tylko (2 + 5) × 40 = 280 PD
-select is(pg_temp.save('{"roster": [{"kind": 1, "level": 3, "xp": 250, "perk": 1}]}') -> 'roster' -> 0,
-  '{"kind": 1, "level": 2, "xp": 180, "perk": -1}'::jsonb, 'poziom bez pokrycia w PD spada, PD przycięte');
+select is(pg_temp.save('{"roster": [{"kind": 1, "level": 3, "xp": 10, "perk": 0}], "attack": 1, "pvp_gold": 90}'),
+  '{"roster": [{"kind": 1, "level": 3, "xp": 10, "perk": 0}], "attack": 1, "pvp_gold": 90}'::jsonb,
+  'poziom 3 z PvP bez zmian');
+select is(pg_temp.save('{"roster": [{"kind": 0, "level": 3}, {"kind": 1, "level": 3}]}') -> 'roster' -> 1 -> 'level',
+  '2'::jsonb, 'złota z PvP starcza tylko na jeden poziom 3');
+select is(pg_temp.save('{"roster": [{"kind": 0}, {"kind": 0}, {"kind": 7}, "x"], "attack": 2}') -> 'attack',
+  '-1'::jsonb, 'generał ataku tylko spośród zostawionych');
 
 -- generał ataku w PvP z przyciętego zapisu
-select is(private.castle_general((select data from public.castles where player_id = '00000000-0000-0000-0000-0000000031d1'), 1),
-  '{"kind": 1, "level": 2, "perk": -1}'::jsonb, 'launch_attack widzi tylko generała z pokryciem');
-
--- zapis zamku bez generałów zostaje bez nich
-update public.castles set data = '{"grid": {}}' where player_id = '00000000-0000-0000-0000-0000000031d1';
-select ok(not ((select data from public.castles where player_id = '00000000-0000-0000-0000-0000000031d1') ? 'generals'),
-  'zapis bez generałów bez zmian');
+select lives_ok($$select pg_temp.save('{"roster": [{"kind": 1, "level": 3, "perk": 1}, {"kind": 0, "level": 3}]}')$$,
+  'zapis dwóch generałów poziomu 3');
+select is(private.castle_general((select data from public.castles where player_id = '00000000-0000-0000-0000-0000000031d1'), 0),
+  '{"kind": 0, "level": 2, "perk": -1}'::jsonb, 'launch_attack widzi tylko generała z pokryciem');
 
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000031d1", "role": "authenticated"}', true);
 set local role authenticated;

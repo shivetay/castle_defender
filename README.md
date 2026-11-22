@@ -39,7 +39,9 @@ w sekcji „Następny etap”.
 - Generałowie (#31, etap 11 #133, `scripts/world/generals.gd`, `Generals`): Wódz drużyny, Łowczy i Budowniczy
   kopców, wszyscy od epoki I, najwyżej 3, każdy innego rodzaju. Werbuje się ich za złoto w Dworze (karta Dworu →
   Generał.), doświadczenie dostają z bitew (20 PD, za wygraną +20), a kolejny poziom (2 i 3) zdobywają
-  w Dworze przyciskiem Wyszkol, który zużywa PD i złoto z zamku. Na poziomie 3 gracz wybiera jeden perk dodatkowy: Szybki marsz (+1 szybkości), od epoki II
+  w Dworze przyciskiem Wyszkol, który zużywa PD i złoto z zamku (rekrutacja 50 zł, poziom 2: 100 PD i 80 zł,
+  poziom 3: 300 PD i 150 zł). Głównym źródłem jest PvP: boty i fale PvE dają PD i złoto najwyżej na poziom 2,
+  a poziom 3 wymaga PD z bitew PvP i złota z łupów PvP (`Generals.pvp_gold`). Na poziomie 3 gracz wybiera jeden perk dodatkowy: Szybki marsz (+1 szybkości), od epoki II
   Ostrożny (−15% od strzał). Generał nie stoi na siatce: dowodzi całym atakiem (przycisk w lewym górnym rogu
   planu ataku) albo całą obroną jako komendant (przycisk Komend. na ekranie Obrona, `DefensePlan.commander`).
   Jeden generał nie może dowodzić obiema stronami. Perki działają na całą stronę (`Battle.set_general`):
@@ -48,8 +50,8 @@ w sekcji „Następny etap”.
   z zamku atakującego na serwerze (migracja `attack_general`, Edge Function `launch_attack`), a powtórka u obrońcy
   dostaje tego samego generała. Komendant jedzie w kopii obrony. Przed każdym zapisem zamku serwer sprawdza
   pokrycie (migracja `general_budget`): złoto na rekrutację i awanse najwyżej ze złota startowego, nagród
-  fal PvE i łupów z zakończonych ataków, a PD najwyżej 40 za bitwę zapisaną na serwerze i fale PvE.
-  Generał bez pokrycia traci poziomy albo znika. Koszty i progi PD są tymczasowe.
+  fal PvE i łupów z zakończonych ataków, a PD najwyżej 40 za bitwę zapisaną na serwerze i fale PvE; poziom 3
+  tylko ze złota i PD z ataków na graczy. Generał bez pokrycia traci poziomy albo znika. Koszty i progi PD są tymczasowe.
   Z puli notatki odpadły Weteran i Twardy (bez postaci na siatce nic nie robią), a Okrutny czeka na łup
   z generałem liczony na serwerze. Zapis gry ma wersję 11.
 

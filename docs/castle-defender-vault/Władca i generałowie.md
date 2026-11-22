@@ -54,7 +54,7 @@ Gracz jest władcą zamku i ma własne perki. Do tego dowodzą generałowie: jed
 
 **Pula perków dodatkowych (poziom 3 i 5)**
 
-W MVP (#31) z puli epok I–II działają Szybki marsz (wszyscy +1 szybkości) i Ostrożny (wszyscy −15% od strzał). Weteran i Twardy nie mają sensu bez postaci na siatce, a Okrutny czeka na łup z generałem liczony na serwerze. Wódz drużyny: piechota +10% obrażeń i +10 morale całej armii. Koszty MVP (tymczasowe): rekrutacja 300 zł, poziom 2: 100 PD i 400 zł, poziom 3: 300 PD i 1000 zł; 20 PD za bitwę, +20 za wygraną. Awans robi się w Dworze (Wyszkol) i zużywa PD oraz złoto z zamku. Serwer przy zapisie zamku sprawdza, czy złoto i PD generałów mają pokrycie w łupach, nagrodach fal i bitwach zapisanych na serwerze (anti-cheat).
+W MVP (#31) z puli epok I–II działają Szybki marsz (wszyscy +1 szybkości) i Ostrożny (wszyscy −15% od strzał). Weteran i Twardy nie mają sensu bez postaci na siatce, a Okrutny czeka na łup z generałem liczony na serwerze. Wódz drużyny: piechota +10% obrażeń i +10 morale całej armii. Koszty MVP (tymczasowe, obniżone 22.11.2026): rekrutacja 50 zł, poziom 2: 100 PD i 80 zł, poziom 3: 300 PD i 150 zł; 20 PD za bitwę, +20 za wygraną. Głównym źródłem złota i PD jest PvP: boty i fale PvE wystarczają najwyżej na poziom 2, poziom 3 tylko za PD i złoto z PvP. Awans robi się w Dworze (Wyszkol) i zużywa PD oraz złoto z zamku. Serwer przy zapisie zamku sprawdza, czy złoto i PD generałów mają pokrycie w łupach, nagrodach fal i bitwach zapisanych na serwerze (anti-cheat).
 
 | Perk | Od epoki | Efekt |
 | --- | --- | --- |

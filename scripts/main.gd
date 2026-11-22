@@ -1324,10 +1324,11 @@ static func player_attack_problem(player: PlayerCastle, army: Array, now_s: int)
 
 
 ## Doświadczenie generała ataku po bitwie `b` (#31): tylko gdy w niej był (ten z serwera przy graczu).
-func _general_xp(b: Battle) -> void:
+## Bot daje PD tylko do pierwszego awansu, PvP zawsze (`pvp`).
+func _general_xp(b: Battle, pvp: bool) -> void:
 	var g: Generals.General = b.generals.get(Battle.Side.ATTACKER, null)
 	if g != null:
-		generals.add_battle_xp(g.kind, b.winner == Battle.Winner.ATTACKER)
+		generals.add_battle_xp(g.kind, b.winner == Battle.Winner.ATTACKER, pvp)
 
 
 ## Dopisek do komunikatu po bitwie: doświadczenie generała (#31).
@@ -1352,7 +1353,7 @@ func _finish_attack(b: Battle) -> void:
 	result.limit_to_capacity(BattleResult.carry_capacity(army, alive))  # łup unoszą ocaleli (#25)
 	var got := result.apply_loot(economy)
 	_pve_send(_pve.finish(result, alive))  # ranking PvE (#242): punkty doda serwer
-	_general_xp(b)
+	_general_xp(b, false)
 	var first := won and attack_target == bots_beaten and bots_beaten < BotRoster.COUNT
 	var unlock := ""
 	if first:
@@ -1387,7 +1388,7 @@ func _finish_player_attack(b: Battle) -> void:
 	_finish_body = _player.finish_request(b, _finish_result)
 	_finish_fallen = recruitment.apply_losses(_battle_ids, alive)
 	_finish_tries = 0
-	_general_xp(b)
+	_general_xp(b, true)
 	battle_view.queue_free()
 	battle_view = null
 	_on_battle_states({})
@@ -1428,6 +1429,7 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	if error.is_empty():
 		r.loot = loot
 		got = r.apply_loot(economy)
+		generals.add_pvp_gold(got[EconomyConfig.Res.GOLD])  # złoto z PvP na wyższe poziomy generałów (#31)
 	else:
 		r.loot.fill(0)
 		got.resize(EconomyConfig.count())

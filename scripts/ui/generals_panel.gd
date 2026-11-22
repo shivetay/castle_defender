@@ -87,8 +87,9 @@ static func row_status(g: Generals, kind: int) -> String:
 		return "Najlepszy w: %s" % Generals.BEST_IN[kind]
 	if gen.level >= Generals.MAX_LEVEL:
 		return "Poz. %d · PD %d" % [gen.level, gen.xp]
-	return "Poz. %d · PD %d/%d · %d Zł" % [gen.level, gen.xp, Generals.LEVEL_XP[gen.level + 1],
-			Generals.LEVEL_GOLD[gen.level + 1]]
+	var pvp := " z PvP" if gen.level + 1 > Generals.PVE_LEVEL else ""
+	return "Poz. %d · PD %d/%d · %d Zł%s" % [gen.level, gen.xp, Generals.LEVEL_XP[gen.level + 1],
+			Generals.LEVEL_GOLD[gen.level + 1], pvp]
 
 
 ## Trzecia linia: perk główny i dodatkowy.

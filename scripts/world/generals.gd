@@ -3,7 +3,9 @@ extends RefCounted
 ## Generałowie (#31, notatka Władca i generałowie): do MAX generałów, każdy innego rodzaju, rekrutacja
 ## za złoto w Dworze. Generał zdobywa doświadczenie (PD) w bitwach, a kolejny poziom zdobywa w Dworze
 ## (Wyszkol): awans zużywa PD i złoto z zamku (decyzja właścicielki z 22.11.2026). Serwer przy zapisie
-## zamku sprawdza, czy złoto i PD generałów mają pokrycie (migracja `general_budget`). W MVP są 3 postacie (Plan MVP): Wódz drużyny, Łowczy i Budowniczy
+## zamku sprawdza, czy złoto i PD generałów mają pokrycie (migracja `general_budget`).
+## Główne źródło to PvP (decyzja właścicielki z 22.11.2026): boty i fale PvE dają PD i złoto najwyżej
+## na jeden awans (do PVE_LEVEL), a poziom 3 wymaga PD z bitew PvP i złota z łupów PvP (`pvp_gold`). W MVP są 3 postacie (Plan MVP): Wódz drużyny, Łowczy i Budowniczy
 ## kopców, wszyscy od epoki I (decyzja właścicielki: w notatce Budowniczy jest od epoki II, ale wtedy
 ## w epoce I nie byłoby komendanta obrony), poziomy 1–3 i jeden perk dodatkowy na poziomie 3.
 ##
@@ -20,7 +22,8 @@ enum Kind { CHIEF, HUNTSMAN, MOUND_BUILDER }
 ## Perki dodatkowe z puli epok I–II (poziom 3). Okrutny (+10% łupu, −5 morale) czeka, aż serwer będzie
 ## liczył limit łupu z generałem (także przy zamkach-botach); bez tego odrzuciłby wyższy łup.
 enum Perk { NONE = -1, FAST_MARCH, CAREFUL }
-enum Result { OK, FULL, TAKEN, NO_GOLD, UNKNOWN, MAX_LEVEL, NO_XP, NO_PERK_YET, PERK_SET, PERK_LOCKED, NO_MANOR }
+enum Result { OK, FULL, TAKEN, NO_GOLD, UNKNOWN, MAX_LEVEL, NO_XP, NO_PERK_YET, PERK_SET, PERK_LOCKED, NO_MANOR,
+	NO_PVP_GOLD }
 
 const R := EconomyConfig.Res
 
@@ -45,12 +48,14 @@ const MAX := 3
 const MAX_LEVEL := 3
 ## Poziom, od którego generał ma perk dodatkowy.
 const PERK_LEVEL := 3
-## Rekrutacja w złocie (TYMCZASOWE).
-const RECRUIT_GOLD := 300
+## Rekrutacja w złocie (TYMCZASOWE, obniżone 22.11.2026).
+const RECRUIT_GOLD := 50
 ## Doświadczenie zużywane na awans do poziomu 1, 2, 3 (TYMCZASOWE).
 const LEVEL_XP: Array[int] = [0, 0, 100, 300]
 ## Złoto za awans na poziom 1, 2, 3 (TYMCZASOWE).
-const LEVEL_GOLD: Array[int] = [0, 0, 400, 1000]
+const LEVEL_GOLD: Array[int] = [0, 0, 80, 150]
+## Najwyższy poziom, na który wystarczą boty i fale PvE; wyżej tylko PD i złoto z PvP.
+const PVE_LEVEL := 2
 ## Doświadczenie za każdą bitwę i dodatkowo za zwycięstwo (TYMCZASOWE).
 const XP_BATTLE := 20
 const XP_WIN := 20
@@ -68,7 +73,7 @@ const MOUND_BUILDER_HP_PERCENT := 115
 const MESSAGES: Array[String] = ["", "Masz już 3 generałów", "Ten generał już służy",
 		"Brakuje złota", "Nie ma takiego generała", "Najwyższy poziom w tej wersji",
 		"Za mało doświadczenia", "Perk dodatkowy od poziomu 3", "Perk już wybrany",
-		"Ten perk od późniejszej epoki", "Najpierw zbuduj Dwór"]
+		"Ten perk od późniejszej epoki", "Najpierw zbuduj Dwór", "Brakuje złota z PvP"]
 
 
 ## Generał gracza: rodzaj, poziom 1..MAX_LEVEL, doświadczenie i perk dodatkowy (Perk.NONE do wyboru).
@@ -93,6 +98,8 @@ class General:
 var roster: Array[General] = []
 ## Rodzaj generała dowodzącego atakiem albo -1 (bez generała).
 var attack_kind := -1
+## Złoto z łupów PvP jeszcze niewydane na poziomy ponad PVE_LEVEL (część złota w zamku).
+var pvp_gold := 0
 
 
 static func count() -> int:
@@ -200,6 +207,8 @@ func promote_problem(kind: int, economy: Economy) -> int:
 		return Result.NO_XP
 	if not economy.can_afford(level_cost(g.level + 1)):
 		return Result.NO_GOLD
+	if g.level + 1 > PVE_LEVEL and pvp_gold < LEVEL_GOLD[g.level + 1]:
+		return Result.NO_PVP_GOLD
 	return Result.OK
 
 
@@ -209,6 +218,8 @@ func promote(kind: int, economy: Economy) -> int:
 		return problem
 	var g := get_general(kind)
 	economy.spend(level_cost(g.level + 1))
+	if g.level + 1 > PVE_LEVEL:
+		pvp_gold -= LEVEL_GOLD[g.level + 1]
 	g.xp -= LEVEL_XP[g.level + 1]
 	g.level += 1
 	return Result.OK
@@ -255,13 +266,21 @@ func choose_perk(kind: int, perk: int, age: int) -> int:
 
 
 ## Doświadczenie po bitwie dla generała `kind` (brak generała: nic). Zwraca, ile przybyło.
-func add_battle_xp(kind: int, won: bool) -> int:
+## Bitwa z botem albo fala PvE (`pvp` false) daje PD tylko do pierwszego awansu: generałowi poziomu 1
+## najwyżej tyle, ile kosztuje poziom PVE_LEVEL, a od niego nic. PvP daje PD zawsze.
+func add_battle_xp(kind: int, won: bool, pvp: bool = false) -> int:
 	var g := get_general(kind)
 	if g == null:
 		return 0
 	var before := g.xp
-	g.xp = mini(XP_MAX, g.xp + XP_BATTLE + (XP_WIN if won else 0))
+	var cap := XP_MAX if pvp else (LEVEL_XP[PVE_LEVEL] if g.level < PVE_LEVEL else 0)
+	g.xp = maxi(before, mini(cap, g.xp + XP_BATTLE + (XP_WIN if won else 0)))
 	return g.xp - before
+
+
+## Złoto z łupu PvP (z odpowiedzi serwera) do puli na poziomy ponad PVE_LEVEL.
+func add_pvp_gold(amount: int) -> void:
+	pvp_gold = clampi(pvp_gold + maxi(0, amount), 0, 10000000)
 
 
 ## Ustawia generała ataku (-1: bez generała). Komendant obrony (`commander`) nie może dowodzić też
@@ -296,7 +315,7 @@ func save_data() -> Dictionary:
 	var list: Array = []
 	for g in roster:
 		list.append(g.to_dict())
-	return {"roster": list, "attack": attack_kind}
+	return {"roster": list, "attack": attack_kind, "pvp_gold": pvp_gold}
 
 
 ## Odczyt zapisu (także z kopii zamku innego gracza). Złe wpisy i powtórzone rodzaje są pomijane;
@@ -314,4 +333,5 @@ func load_data(d: Dictionary) -> int:
 				continue
 			roster.append(g)
 	set_attack(_int_of(d.get("attack"), -1))
+	pvp_gold = clampi(_int_of(d.get("pvp_gold"), 0), 0, 10000000)
 	return skipped

@@ -67,8 +67,12 @@ func test_promote_needs_xp_and_gold_up_to_level_3() -> bool:
 	var e := _rich()
 	gs.recruit(G.CHIEF, 0, e)
 	assert_eq(gs.promote(G.CHIEF, e), RES.NO_XP, "bez doświadczenia")
-	assert_eq(gs.add_battle_xp(G.CHIEF, true), Generals.XP_BATTLE + Generals.XP_WIN, "wygrana")
-	assert_eq(gs.add_battle_xp(G.CHIEF, false), Generals.XP_BATTLE, "przegrana")
+	assert_eq(gs.add_battle_xp(G.CHIEF, true), Generals.XP_BATTLE + Generals.XP_WIN, "wygrana z botem")
+	assert_eq(gs.add_battle_xp(G.CHIEF, false), Generals.XP_BATTLE, "przegrana z botem")
+	for i in 10:
+		gs.add_battle_xp(G.CHIEF, true)
+	assert_eq(gs.get_general(G.CHIEF).xp, Generals.LEVEL_XP[2], "boty dają PD najwyżej na pierwszy awans")
+	assert_eq(gs.add_battle_xp(G.CHIEF, true, true), Generals.XP_BATTLE + Generals.XP_WIN, "PvP daje dalej")
 	assert_eq(gs.add_battle_xp(G.HUNTSMAN, true), 0, "generała, którego nie ma, nic nie dostaje")
 	gs.get_general(G.CHIEF).xp = Generals.LEVEL_XP[2]
 	var gold := e.amounts[EconomyConfig.Res.GOLD]
@@ -79,11 +83,15 @@ func test_promote_needs_xp_and_gold_up_to_level_3() -> bool:
 	assert_eq(Generals.total_gold(gs.get_general(G.CHIEF)), Generals.RECRUIT_GOLD + Generals.LEVEL_GOLD[2],
 			"złoto na generała: rekrutacja i awans")
 	assert_eq(gs.choose_perk(G.CHIEF, P.FAST_MARCH, 0), RES.NO_PERK_YET, "perk dopiero na poziomie 3")
+	assert_eq(gs.add_battle_xp(G.CHIEF, true), 0, "od poziomu 2 boty nie dają PD")
 	assert_eq(gs.promote(G.CHIEF, e), RES.NO_XP, "na 3 trzeba więcej doświadczenia")
 	gs.get_general(G.CHIEF).xp = Generals.LEVEL_XP[3]
 	var poor := Economy.new(0)
 	assert_eq(gs.promote(G.CHIEF, poor), RES.NO_GOLD, "bez złota nie awansuje")
+	assert_eq(gs.promote(G.CHIEF, e), RES.NO_PVP_GOLD, "poziom 3 tylko za złoto z PvP")
+	gs.add_pvp_gold(Generals.LEVEL_GOLD[3] + 5)
 	assert_eq(gs.promote(G.CHIEF, e), RES.OK, "awans na 3")
+	assert_eq(gs.pvp_gold, 5, "złoto z PvP zeszło")
 	assert_eq(gs.promote(G.CHIEF, e), RES.MAX_LEVEL, "MVP kończy się na 3")
 	assert_eq(gs.choose_perk(G.CHIEF, P.CAREFUL, 0), RES.PERK_LOCKED, "Ostrożny od epoki II")
 	assert_eq(gs.choose_perk(G.CHIEF, P.FAST_MARCH, 0), RES.OK, "Szybki marsz")
@@ -91,7 +99,7 @@ func test_promote_needs_xp_and_gold_up_to_level_3() -> bool:
 	assert_eq(Generals.perks_for(0).size(), 1, "w epoce I jeden perk")
 	assert_eq(Generals.perks_for(1).size(), 2, "w epoce II dwa")
 	for i in 30:
-		gs.add_battle_xp(G.CHIEF, true)
+		gs.add_battle_xp(G.CHIEF, true, true)
 	assert_eq(gs.get_general(G.CHIEF).xp, Generals.XP_MAX, "doświadczenie ma górną granicę")
 	return true
 
@@ -359,15 +367,17 @@ func test_server_budget_constants_match_game() -> bool:
 	var pve_gold := 0
 	for w in PveWaves.COUNT:
 		pve_gold += PveWaves.reward(w)[EconomyConfig.Res.GOLD]
+	var xp := Generals.XP_BATTLE + Generals.XP_WIN
 	assert_true(sql.contains("v_gold + %d + %d" % [EconomyConfig.START[EconomyConfig.Res.GOLD], pve_gold]),
 			"złoto startowe i nagrody fal")
-	assert_true(sql.contains("(v_battles + %d) * %d" % [PveWaves.COUNT, Generals.XP_BATTLE + Generals.XP_WIN]),
-			"PD za bitwę i fale")
+	assert_true(sql.contains("(v_battles + %d) * %d" % [PveWaves.COUNT, xp]), "PD za bitwę i fale")
+	assert_true(sql.contains("v_pvp_battles * %d" % xp), "PD z PvP")
 	assert_true(sql.contains("v_spent + %d > v_gold" % Generals.RECRUIT_GOLD), "rekrutacja")
-	assert_true(sql.contains("v_cost + %d > v_gold" % Generals.LEVEL_GOLD[2]), "awans na 2")
-	assert_true(sql.contains("v_cost + %d > v_gold" % Generals.LEVEL_GOLD[3]), "awans na 3")
-	assert_true(sql.contains("then %d else 0 end + case when v_level >= 3 then %d" % [Generals.LEVEL_XP[2],
-			Generals.LEVEL_XP[3]]), "PD na awanse")
+	assert_true(sql.contains("v_cost + %d > v_gold or v_xp_cap < %d" % [Generals.LEVEL_GOLD[2], Generals.LEVEL_XP[2]]),
+			"awans na 2 z dowolnych bitew")
+	assert_eq(Generals.PVE_LEVEL, 2, "boty wystarczają do poziomu 2")
+	assert_true(sql.contains("v_pvp_spent + %d > v_pvp_gold" % Generals.LEVEL_GOLD[3]), "awans na 3 za złoto z PvP")
+	assert_true(sql.contains("v_pvp_xp_cap < %d" % Generals.LEVEL_XP[3]), "awans na 3 za PD z PvP")
 	assert_true(sql.contains("private.json_int(e -> 'xp', 0, %d)" % Generals.XP_MAX), "górna granica PD")
 	assert_true(sql.contains("private.json_int(e -> 'perk', 0, %d)" % (Generals.PERK_NAMES.size() - 1)), "perki")
 	return true

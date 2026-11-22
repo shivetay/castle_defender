@@ -18,8 +18,8 @@ insert into test_ids values
 insert into auth.users (id) select id from test_ids;
 update public.players set rating = 63100, age = 0 where id in (select id from test_ids);
 
--- Pokrycie generałów (#31, `general_budget`): 10 zakończonych ataków A sprzed dwóch dni z łupem 200 złota
--- (2175 złota, 600 PD), więc wyzwalacz zapisu zamku zostawia Łowczego na poziomie 3 i Wodza.
+-- Pokrycie generałów (#31, `general_budget`): 10 zakończonych ataków A na gracza sprzed dwóch dni z łupem 200 złota
+-- (2000 złota z PvP, 400 PD z PvP), więc wyzwalacz zapisu zamku zostawia Łowczego na poziomie 3 i Wodza.
 insert into public.attacks (attacker_id, defender_id, battle_seed, status, result, loot, started_at, finished_at)
 select '00000000-0000-0000-0000-0000000031a1', '00000000-0000-0000-0000-0000000031c1', g, 'finished',
   '{"won": true, "percent": 60, "stars": [false, true, true]}', array[0, 0, 0, 200],
