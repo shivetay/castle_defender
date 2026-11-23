@@ -383,6 +383,8 @@ func _ready() -> void:
 	net.defenses_loaded.connect(_on_defenses_loaded)
 	net.defense_reports_loaded.connect(_on_defense_reports)
 	net.replay_loaded.connect(_on_replay_loaded)
+	net.loot_applied.connect(_on_loot_applied)
+	net.castle_rejected.connect(_on_castle_rejected)
 	add_child(net)
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
@@ -1375,7 +1377,8 @@ func _finish_attack(b: Battle) -> void:
 	var result := BattleResult.of(b)
 	result.compute_loot(attack_target, BotRoster.is_beaten(attack_target, bots_beaten))
 	result.limit_to_capacity(BattleResult.carry_capacity(army, alive))  # łup unoszą ocaleli (#25)
-	var got := result.apply_loot(economy)
+	# złoto z wyprawy dolicza dopiero odpowiedź serwera (#274, _on_pve_finished): bez niej nie ma pokrycia
+	var got := result.apply_loot(economy, false)
 	_pve_send(_pve.finish(result, alive))  # ranking PvE (#242): punkty doda serwer
 	_general_xp(b, false)
 	var first := won and attack_target == bots_beaten and bots_beaten < BotRoster.COUNT
@@ -1437,7 +1440,7 @@ func _send_finish() -> void:
 ## żądanie (serwer zwraca zapisany wynik), a po RETRIES próbach albo odrzuceniu wynik jest bez łupu.
 func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	if _pve_sending:
-		_on_pve_finished(error)
+		_on_pve_finished(error, loot)
 		return
 	if _finish_result == null:
 		return
@@ -1452,8 +1455,10 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	var note := ""
 	if error.is_empty():
 		r.loot = loot
-		got = r.apply_loot(economy)
-		generals.add_pvp_gold(got[EconomyConfig.Res.GOLD])  # złoto z PvP na wyższe poziomy generałów (#31)
+		# łup jest już w zamku na serwerze (#274): telefon dolicza go z odpowiedzi na najbliższy zapis
+		# (`loot_applied`), więc tu go nie dodaje; okno pokazuje łup przyjęty przez serwer
+		got = loot.duplicate()
+		generals.add_pvp_gold(loot[EconomyConfig.Res.GOLD])  # złoto z PvP na wyższe poziomy generałów (#31)
 	else:
 		r.loot.fill(0)
 		got.resize(EconomyConfig.count())
@@ -1463,6 +1468,8 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	hud.overlay = true
 	result_panel.show_result(r, got, _finish_fallen, note)
 	_save()
+	if error.is_empty():
+		net.flush()  # zapis od razu: odpowiedź serwera przynosi łup (#274)
 
 
 # --- Ranking PvE (#242) -----------------------------------------------------------------------------
@@ -1491,9 +1498,10 @@ func _pve_send(body: Dictionary) -> void:
 	_on_pve_finished(SupabaseClient.NETWORK_ERROR)
 
 
-## Odpowiedź `finish_attack` na wynik wyprawy: łup jest już w magazynie z gry, więc odpowiedź tylko
-## kończy zgłoszenie. Błąd sieci ponawia tę samą treść, a odrzucony wynik pokazuje komunikat.
-func _on_pve_finished(error: String) -> void:
+## Odpowiedź `finish_attack` na wynik wyprawy: drewno, kamień i żywność są już w magazynie z gry, a złoto
+## przychodzi tylko z łupu przyjętego przez serwer (#274, `loot`). Błąd sieci ponawia tę samą treść,
+## a odrzucony wynik pokazuje komunikat (bez złota).
+func _on_pve_finished(error: String, loot: Array[int] = []) -> void:
 	_pve_sending = false
 	if _pve.on_finished(error):
 		get_tree().create_timer(AttackFinish.RETRY_S).timeout.connect(
@@ -1501,6 +1509,41 @@ func _on_pve_finished(error: String) -> void:
 		return
 	if _pve.failed():
 		hud.message = PveReport.FAILED_MESSAGE
+		return
+	var gold := loot[EconomyConfig.Res.GOLD] if error.is_empty() and loot.size() == EconomyConfig.count() else 0
+	if gold > 0:
+		_tick()
+		economy.add(EconomyConfig.Res.GOLD, gold)
+		hud.message = "Złoto z wyprawy: +%d" % gold
+		_save()
+
+
+## Serwer scalił łup PvP z zapasami (#274): łup z własnego ataku albo strata po najeździe na zamek.
+func _on_loot_applied(delta: Array[int]) -> void:
+	_tick()
+	var got := economy.apply_delta(delta)
+	var text := loot_message(got)
+	if not text.is_empty():
+		hud.message = text
+	_save()
+
+
+## Komunikat o łupie z serwera („Łup z ataku: +50 Dr +20 Ka”, „Straty z najazdu: -50 Dr”) albo pusty.
+static func loot_message(got: Array[int]) -> String:
+	var parts: Array[String] = []
+	var lost := false
+	for res in got.size():
+		if got[res] != 0:
+			parts.append("%+d %s" % [got[res], EconomyConfig.SHORT_NAMES[res]])
+			lost = lost or got[res] < 0
+	if parts.is_empty():
+		return ""
+	return ("Straty z najazdu: " if lost else "Łup z ataku: ") + " ".join(parts)
+
+
+## Serwer odrzucił stan zamku spoza limitów surowców (#274): zamek wraca z serwera.
+func _on_castle_rejected() -> void:
+	hud.message = "Serwer odrzucił stan zamku"
 
 
 # --- Ustawienia obrony (#19) -------------------------------------------------------------------------

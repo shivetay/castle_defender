@@ -88,8 +88,9 @@ func test_paths_and_parsing() -> bool:
 	assert_eq(CastleSync.map_seed_from_rows([{"map_seed": 4242}]), 4242, "odczyt z GET")
 	assert_eq(CastleSync.map_seed_from_rows([]), 0, "brak wiersza")
 	assert_eq(CastleSync.own_path("abc"), "/rest/v1/castles?player_id=eq.abc", "filtr własnego")
-	assert_eq(CastleSync.push_path("abc", 7), "/rest/v1/castles?player_id=eq.abc&revision=eq.7&select=revision",
-			"zapis tylko od znanej rewizji")
+	assert_eq(CastleSync.push_path("abc", 7),
+			"/rest/v1/castles?player_id=eq.abc&revision=eq.7&select=revision,loot_applied",
+			"zapis tylko od znanej rewizji, z łupem scalonym przez serwer (#274)")
 	assert_eq(CastleSync.revision_from_rows([{"revision": 8}]), 8, "nowa rewizja")
 	assert_eq(CastleSync.revision_from_rows([]), -1, "pusta odpowiedź = konflikt")
 	assert_eq(CastleSync.revision_from_rows(null), -1, "zła odpowiedź")
@@ -315,6 +316,83 @@ func test_conflict_rereads_and_server_wins() -> bool:
 	assert_eq(c.sync_state.revision, 5, "rewizja czeka na zapis zamku na telefonie")
 	c.confirm_restore()
 	assert_eq(c.sync_state.revision, 8, "od jego rewizji")
+	_done(c)
+	return true
+
+
+## Łup PvP scalony przez serwer przy zapisie (#274) idzie do gry sygnałem; same zera nie.
+func test_push_reports_loot_applied() -> bool:
+	var c := _client(5)
+	c.sync_state.nickname = "Mieszko"
+	var got: Array = []
+	c.loot_applied.connect(func(delta: Array[int]) -> void: got.append(delta))
+	_sync(c, 1)
+	_reply(c, 200, [_row(5)])
+	_reply(c, 200, [{"revision": 6, "loot_applied": [0, 0, 0, 0]}])
+	assert_eq(got.size(), 0, "bez łupu bez sygnału")
+	_reply(c, 200, [{"player_id": UID}])
+	_sync(c, 2)
+	c.flush()
+	_reply(c, 200, [{"revision": 7, "loot_applied": [-50, 0, -10, -5]}])
+	assert_eq(got.size(), 1, "strata po najeździe")
+	assert_eq(got[0], [-50, 0, -10, -5] as Array[int], "zmiana z serwera")
+	assert_eq(c.sync_state.revision, 7, "rewizja zapisana")
+	_done(c)
+	return true
+
+
+## Serwer odrzucił zapis zamku spoza limitów (#274, HTTP 422): ten sam zapis nie wraca, tylko zamek
+## z serwera wraca na telefon, choć ma tę samą rewizję.
+func test_rejected_push_restores_from_server() -> bool:
+	var c := _client(5)
+	var restored: Array = []
+	var rejected: Array = []
+	c.castle_restored.connect(func(save: Dictionary, _p: Dictionary) -> void: restored.append(save))
+	c.castle_rejected.connect(func() -> void: rejected.append(true))
+	_sync(c, 1)
+	_reply(c, 200, [_row(5)])
+	assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.PUSH, "zapis")
+	_reply(c, 422, {"code": "PT422", "message": "gold_unbacked"})
+	assert_eq(rejected.size(), 1, "gra dostaje sygnał")
+	assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.GET, "ponowny odczyt zamku")
+	_reply(c, 200, [_row(5)])
+	assert_eq(restored.size(), 1, "zamek z serwera wraca mimo tej samej rewizji")
+	var sent := c.sent_requests.size()
+	_sync(c, 2)
+	c.flush()
+	assert_eq(c.sent_requests.size(), sent, "do przywrócenia nic nie idzie na serwer")
+	_done(c)
+	return true
+
+
+## Odrzucone założenie zamku (na serwerze nic nie ma): synchronizacja stoi, bez pętli zapisów.
+func test_rejected_insert_stops_sync() -> bool:
+	var c := _client()
+	_sync(c, 1)
+	_reply(c, 200, [])
+	assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.INSERT, "założenie")
+	assert_true((_last(c)["path"] as String).ends_with("select=revision,loot_applied"), "z łupem w odpowiedzi")
+	_reply(c, 422, {"code": "PT422", "message": "over_capacity"})
+	var sent := c.sent_requests.size()
+	_sync(c, 2)
+	c.flush()
+	c._process(SupabaseClient.PUSH_INTERVAL_S + 0.1)
+	assert_eq(c.sent_requests.size(), sent, "bez ponawiania odrzuconego zamku")
+	_done(c)
+	return true
+
+
+## Limit zapisów na serwerze (#274, HTTP 429): zapis wraca po przerwie, jak przy błędzie sieci.
+func test_rate_limited_push_retries_later() -> bool:
+	var c := _client(5)
+	_sync(c, 1)
+	_reply(c, 200, [_row(5)])
+	_reply(c, 429, {"code": "PT429", "message": "castle_rate_limited"})
+	var sent := c.sent_requests.size()
+	c._process(1.0)
+	assert_eq(c.sent_requests.size(), sent, "nie od razu")
+	c._process(float(SupabaseClient.retry_delay(1)) + 0.1)
+	assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.PUSH, "po przerwie ten sam zapis")
 	_done(c)
 	return true
 

@@ -85,6 +85,8 @@ static func error_message(code: String) -> String:
 			return "Serwer nie zna jeszcze Twojej armii. Spróbuj za chwilę"
 		"army_over_limit":
 			return "Armia ponad limit miejsc. Ulepsz Dwór albo Koszary"
+		"castle_invalid":
+			return "Serwer nie przyjął stanu zamku. Spróbuj za chwilę"
 		"army_over_upkeep":
 			return "Armia zje więcej, niż daje żywność. Postaw Rybaka"
 		"bad_army":

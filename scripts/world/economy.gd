@@ -168,6 +168,23 @@ func add(res: int, amount: int) -> int:
 	return amounts[res] - before
 
 
+## Dolicza zmianę zapasów z serwera (#274, łup PvP scalony przy zapisie zamku): dodatnią do pojemności
+## magazynu, ujemną najwyżej do zera. Zwraca, o ile faktycznie zmienił się każdy surowiec.
+func apply_delta(delta: Array[int]) -> Array[int]:
+	var out: Array[int] = []
+	for res in EconomyConfig.count():
+		var d := delta[res] if res < delta.size() else 0
+		if d >= 0:
+			out.append(add(res, d))
+			continue
+		var before := amounts[res]
+		amounts[res] = maxi(0, before + d)
+		if amounts[res] == 0:
+			_remainder[res] = 0
+		out.append(amounts[res] - before)
+	return out
+
+
 ## Koszt to tablica ilości w kolejności EconomyConfig.Res.
 func can_afford(cost: Array[int]) -> bool:
 	for res in cost.size():
