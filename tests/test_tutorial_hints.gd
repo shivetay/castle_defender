@@ -127,6 +127,17 @@ func test_no_hint_on_other_screens() -> bool:
 	ui.recruit_open = false
 	ui.build_open = true
 	assert_eq(TutorialHints.step(TutorialHints.GOAL_ARMY, ui), S.NONE, "panel budowy przy szkoleniu")
+	# Wojsko z karty budynku bez Chłopa: Zamknij, potem Wojsko w HUD (review #289)
+	ui.build_open = false
+	ui.recruit_open = true
+	ui.recruit_units = RecruitPanel.units_for(K.ARCHERY_RANGE)
+	assert_true(not ui.recruit_units.has(U.PEASANT), "Strzelnica nie szkoli Chłopów")
+	assert_eq(TutorialHints.step(TutorialHints.GOAL_ARMY, ui), S.RECRUIT_CLOSE, "Zamknij")
+	assert_eq(TutorialHints.recruit_target(S.RECRUIT_CLOSE, ui), RecruitPanel.Target.CLOSE, "przycisk Zamknij")
+	var b := Hud.content_bounds(VIEW, Rect2())
+	var r := RecruitPanel.hint_rect(RecruitPanel.Target.CLOSE, VIEW, b.x, b.y, ui.recruit_units.size())
+	assert_eq(RecruitPanel.target_at(r.get_center(), VIEW, b.x, b.y, ui.recruit_units.size()), RecruitPanel.Target.CLOSE,
+			"ramka na Zamknij")
 	return true
 
 
@@ -184,6 +195,9 @@ func test_state_and_profile() -> bool:
 		assert_eq(PlayerProfile.read_tutorial(PROFILE), st, "odczyt %d" % st)
 	assert_eq(PlayerProfile.read_seed(PROFILE), 42, "seed zostaje w profilu")
 	assert_eq(TutorialHints.state_from("cokolwiek"), ST.ASK, "nieznany tekst")
+	# przełącznik w Ustawieniach pokazuje, czy samouczek naprawdę prowadzi (review #289)
+	assert_true(TutorialHints.settings_on(ST.ASK) and TutorialHints.settings_on(ST.ON), "wł.")
+	assert_true(not TutorialHints.settings_on(ST.OFF) and not TutorialHints.settings_on(ST.DONE), "ukończony to wył.")
 	PlayerProfile.delete(PROFILE)
 	return true
 

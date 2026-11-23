@@ -82,7 +82,7 @@ var target_squad := Recruitment.NEW_SQUAD
 var detail_mode := DetailMode.COST
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
-## Element do podświetlenia przez mini-samouczek (#251): TRAIN, kafelek TILE + i albo NONE.
+## Element do podświetlenia przez mini-samouczek (#251): TRAIN, CLOSE, kafelek TILE + i albo NONE.
 var hint_target: int = Target.NONE
 
 var _pressed: int = Target.NONE
@@ -457,10 +457,12 @@ static func stock_lines(g: Goods, width: int, room: int) -> Array:
 	return out
 
 
-## Prostokąt przycisku Szkol albo kafelka `t` (TILE + i z `count` kafelków); pusty dla innych celów.
+## Prostokąt przycisku Szkol, Zamknij albo kafelka `t` (TILE + i z `count` kafelków); pusty dla innych celów.
 static func hint_rect(t: int, view: Vector2, left: float, right: float, count: int) -> Rect2:
 	if t == Target.TRAIN:
 		return train_rect(view, right)
+	if t == Target.CLOSE:
+		return close_rect(view, right)
 	if t >= Target.TILE and t < Target.SQUAD and t - Target.TILE < count:
 		return tile_rects(left, right, count)[t - Target.TILE]
 	return Rect2()

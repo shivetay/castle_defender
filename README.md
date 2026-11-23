@@ -390,7 +390,8 @@ w sekcji „Następny etap”.
   zapisu), więc po spełnieniu celu wskazanie samo przechodzi dalej; dalsze cele mają tylko tekst. Po
   onboardingu okno `TutorialPrompt` pyta, czy wyłączyć samouczek; wybór (i ukończenie 5 fal) trzyma profil
   gracza (`tutorial` w `user://player.json`), więc Zacznij od nowa nie pokazuje samouczka komuś, kto go już
-  przeszedł. W Ustawieniach jest przełącznik Samouczek: wł./wył. (wyłączenie z potwierdzeniem).
+  przeszedł. W Ustawieniach jest przełącznik Samouczek: wł./wył. (wyłączenie z potwierdzeniem); ukończony
+  samouczek pokazuje „wył.”, a włączenie go tam to świadoma decyzja: po Zacznij od nowa znowu prowadzi.
 - Morale (#98): każdy oddział ma morale 0–100 (liczby całkowite, start 70). Poległy zabiera
   oddziałowi 80 / początkowa liczebność, więc oddział łamie się po stracie ponad połowy ludzi.
   Poniżej 30 oddział sam się wycofuje na swoją kratkę startową i już nie walczy; gdy wycofają się

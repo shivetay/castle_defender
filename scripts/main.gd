@@ -370,7 +370,7 @@ func _ready() -> void:
 	tutorial_state = PlayerProfile.read_tutorial(PlayerProfile.PATH)
 	if pve_cleared >= PveWaves.COUNT and tutorial_state != TutorialHints.State.DONE:
 		_set_tutorial(TutorialHints.State.DONE)  # 5 fal już obronionych: samouczek się więcej nie pokaże
-	settings_panel.tutorial_on = tutorial_state != TutorialHints.State.OFF
+	settings_panel.tutorial_on = TutorialHints.settings_on(tutorial_state)
 	settings_panel.tutorial_changed.connect(_on_tutorial_changed)
 	if identity != null:
 		hud.ruler_id = identity.ruler
@@ -1968,7 +1968,9 @@ func _ask_tutorial() -> void:
 	if not TutorialHints.should_ask(tutorial_state, pve_cleared) or tutorial_prompt != null:
 		return
 	tutorial_prompt = TutorialPrompt.new()
-	hud.get_parent().add_child(tutorial_prompt)  # ostatnie dziecko warstwy UI: dotyk trafia najpierw tutaj
+	# ostatnie dziecko warstwy UI: Godot wywołuje _input od ostatniego węzła w drzewie, więc dotyk trafia
+	# najpierw tutaj (jak onboarding i info_popup)
+	hud.get_parent().add_child(tutorial_prompt)
 	tutorial_prompt.answered.connect(_on_tutorial_answered)
 	tutorial_prompt.open()
 	hud.overlay = true

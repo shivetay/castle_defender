@@ -24,6 +24,7 @@ enum Step {
 	CARD_RECRUIT,
 	RECRUIT_TILE,
 	RECRUIT_TRAIN,
+	RECRUIT_CLOSE,
 	WAIT_BUILD,
 	WAIT_TRAIN,
 }
@@ -78,6 +79,13 @@ static func active(state: int, cleared: int) -> bool:
 	return (state == State.ON or state == State.ASK) and cleared < PveWaves.COUNT
 
 
+## Napis przełącznika w Ustawieniach: „wł.” tylko wtedy, gdy samouczek naprawdę prowadzi (włączony albo
+## przed pytaniem). Ukończony (DONE) pokazuje „wył.”; włączenie go z Ustawień to świadoma decyzja gracza
+## i zapisuje ON, więc po Zacznij od nowa samouczek znowu prowadzi (review #289).
+static func settings_on(state: int) -> bool:
+	return state == State.ON or state == State.ASK
+
+
 ## Czy po wczytaniu gry zapytać gracza o samouczek (okno TutorialPrompt).
 static func should_ask(state: int, cleared: int) -> bool:
 	return state == State.ASK and cleared < PveWaves.COUNT
@@ -118,7 +126,8 @@ static func _army_step(ui: Ui) -> int:
 		if need <= 0:
 			return Step.NONE
 		if not ui.recruit_units.has(PEASANT):
-			return Step.NONE
+			# Wojsko z karty budynku bez Chłopa (np. Strzelnica): Zamknij i dalej przez Wojsko w HUD
+			return Step.RECRUIT_CLOSE
 		return Step.RECRUIT_TRAIN if ui.recruit_selected == PEASANT else Step.RECRUIT_TILE
 	if ui.build_open:
 		return Step.NONE
@@ -144,7 +153,7 @@ static func where(s: int) -> int:
 			return Where.HUD
 		Step.BUILD_TAB, Step.BUILD_TILE, Step.BUILD_PLACE:
 			return Where.BUILD_PANEL
-		Step.RECRUIT_TILE, Step.RECRUIT_TRAIN:
+		Step.RECRUIT_TILE, Step.RECRUIT_TRAIN, Step.RECRUIT_CLOSE:
 			return Where.RECRUIT_PANEL
 	return Where.NONE
 
@@ -184,6 +193,8 @@ static func recruit_target(s: int, ui: Ui) -> int:
 			return RecruitPanel.Target.TILE + ui.recruit_units.find(PEASANT)
 		Step.RECRUIT_TRAIN:
 			return RecruitPanel.Target.TRAIN
+		Step.RECRUIT_CLOSE:
+			return RecruitPanel.Target.CLOSE
 	return RecruitPanel.Target.NONE
 
 
