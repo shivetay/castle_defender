@@ -9,7 +9,7 @@ set search_path = public, extensions;
 select plan(24);
 
 -- S = a1 (20 toporników, bez budynków), K = a2 (20 jeźdźców, Dwór 2), R = a3 (20 jeźdźców, Dwór 2
--- i Rybak 1), T = a4 (10 taranów i 10 toporników, bez budynków). Ranking w paśmie 80 000 (bez
+-- i Rybak 1), T = a4 (50 taranów i 10 toporników, Dwór 6: epoka II, bo taran wymaga A6, #281). Ranking w paśmie 80 000 (bez
 -- prawdziwych graczy), bo testy biegną też na projekcie w chmurze, w transakcji, która się cofa.
 create temp table limit_ids (id uuid primary key) on commit drop;
 insert into limit_ids values
@@ -17,6 +17,8 @@ insert into limit_ids values
   ('00000000-0000-0000-0000-0000000000a3'), ('00000000-0000-0000-0000-0000000000a4');
 insert into auth.users (id) select id from limit_ids;
 update public.players set rating = 80000, age = 0 where id in (select id from limit_ids);
+-- T w epoce gracza 3: do ataku idzie 6 oddziałów, więc 60 jednostek przekracza limit Dworu 6 (50)
+update public.players set age = 3 where id = '00000000-0000-0000-0000-0000000000a4';
 
 -- budynki [id, rodzaj, poziom, x, y, szer., wys.]: Dwór = 5, Rybak = 16, Koszary = 18;
 -- oddziały [id, rodzaj, liczba]: topornik 0 (je 1), jeździec 6 (je 2), taran 11 (nie je)
@@ -27,14 +29,19 @@ insert into public.castles (player_id, map_seed, save_version, data) values
   ('00000000-0000-0000-0000-0000000000a2', 22, 8, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Głodny'),
     'grid', jsonb_build_object('buildings', '[[1, 5, 2, 30, 30, 4, 4]]'::jsonb),
+    'research', jsonb_build_object('done', '["G18", "G19", "A2", "A43", "A7"]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 6, 10], [2, 6, 10]]'::jsonb))),
   ('00000000-0000-0000-0000-0000000000a3', 23, 8, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Syty'),
     'grid', jsonb_build_object('buildings', '[[1, 5, 2, 30, 30, 4, 4], [2, 16, 1, 40, 30, 2, 2]]'::jsonb),
+    'research', jsonb_build_object('done', '["G18", "G19", "A2", "A43", "A7"]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 6, 10], [2, 6, 10]]'::jsonb))),
   ('00000000-0000-0000-0000-0000000000a4', 24, 8, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Oblężniczy'),
-    'recruitment', jsonb_build_object('squads', '[[1, 11, 10], [2, 0, 10]]'::jsonb)));
+    'grid', jsonb_build_object('buildings', '[[1, 5, 6, 30, 30, 4, 4]]'::jsonb),
+    'research', jsonb_build_object('done', '["O1", "G1", "G18", "G19", "A2", "A43", "A7", "A1", "A6"]'::jsonb),
+    'recruitment', jsonb_build_object('squads',
+      '[[1, 11, 10], [2, 11, 10], [3, 11, 10], [4, 11, 10], [5, 11, 10], [6, 0, 10]]'::jsonb)));
 
 -- ---- klient nie woła funkcji pomocniczych ----
 set local role authenticated;
@@ -94,11 +101,11 @@ select lives_ok(
   $$select * from public.begin_attack('00000000-0000-0000-0000-0000000000a3', null, 0::smallint, '[[6, 10], [6, 10]]', 1)$$,
   'z Rybakiem (60 Ży/h) 20 jeźdźców przechodzi');
 select throws_ok(
-  $$select * from public.begin_attack('00000000-0000-0000-0000-0000000000a4', null, 0::smallint, '[[11, 10], [0, 10]]', 1)$$,
+  $$select * from public.begin_attack('00000000-0000-0000-0000-0000000000a4', null, 0::smallint, '[[11, 10], [11, 10], [11, 10], [11, 10], [11, 10], [0, 10]]', 1)$$,
   'P0001', 'army_over_limit', 'taran nie je, ale zajmuje miejsce');
 select lives_ok(
-  $$select * from public.begin_attack('00000000-0000-0000-0000-0000000000a4', null, 0::smallint, '[[11, 10]]', 1)$$,
-  '10 taranów: 10 miejsc i 0 Ży/h');
+  $$select * from public.begin_attack('00000000-0000-0000-0000-0000000000a4', null, 0::smallint, '[[11, 10], [11, 10], [11, 10], [11, 10], [11, 10]]', 1)$$,
+  '50 taranów: 50 miejsc i 0 Ży/h');
 
 reset role;
 select * from finish();

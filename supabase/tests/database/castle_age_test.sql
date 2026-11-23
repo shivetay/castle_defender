@@ -44,19 +44,19 @@ select is(private.castle_age('{"grid": {"buildings": "x"}, "research": {"done": 
   0::smallint, 'zły kształt zapisu: epoka I');
 
 -- ---- zapis zamku przez gracza ----
--- konto sprzed doby (zabudowa z czasu gry, #274), a przebudowa Dworu na 6 jest w kolejce przy zapisie
+-- konto sprzed doby (zabudowa i badania z czasu gry, #274, #281), a przebudowa Dworu na 6 jest w kolejce przy zapisie
 update public.players set created_at = now() - interval '1 day' where id = '00000000-0000-0000-0000-0000000a9e01';
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000a9e01", "role": "authenticated"}', true);
 select lives_ok($$insert into public.castles (player_id, map_seed, save_version, data) values
   ('00000000-0000-0000-0000-0000000a9e01', 77, 8,
-   '{"grid": {"buildings": [[1, 5, 5, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "A7"]},
+   '{"grid": {"buildings": [[1, 5, 5, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "G18", "G19", "A2", "A43", "A7"]},
      "queue": {"orders": [{"building_id": 1, "level": 6}]}}')$$,
   'gracz zakłada swój zamek');
 select is((select age from public.players where id = '00000000-0000-0000-0000-0000000a9e01'), 0::smallint,
   'Dwór 5: epoka I');
 select lives_ok($$update public.castles set data =
-  '{"grid": {"buildings": [[1, 5, 6, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "A7"]}}'
+  '{"grid": {"buildings": [[1, 5, 6, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "G18", "G19", "A2", "A43", "A7"]}}'
   where player_id = '00000000-0000-0000-0000-0000000a9e01'$$, 'gracz zapisuje zamek po przebudowie Dworu');
 select is((select age from public.players where id = '00000000-0000-0000-0000-0000000a9e01'), 1::smallint,
   'zapis zamku podnosi epokę do II');
@@ -74,7 +74,7 @@ insert into public.castles (player_id, map_seed, save_version, data)
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000a9e01", "role": "authenticated"}', true);
 select is_empty($$update public.castles set data =
-  '{"grid": {"buildings": [[1, 5, 6, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "A7"]}}'
+  '{"grid": {"buildings": [[1, 5, 6, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "G18", "G19", "A2", "A43", "A7"]}}'
   where player_id = '00000000-0000-0000-0000-0000000a9e02' returning player_id$$, 'cudzy zamek: 0 wierszy');
 reset role;
 select is((select age from public.players where id = '00000000-0000-0000-0000-0000000a9e02'), 0::smallint,
