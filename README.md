@@ -53,7 +53,22 @@ w sekcji „Następny etap”.
   fal PvE i łupów z zakończonych ataków, a PD najwyżej 40 za bitwę zapisaną na serwerze i fale PvE; poziom 3
   tylko ze złota i PD z ataków na graczy. Generał bez pokrycia traci poziomy albo znika. Koszty i progi PD są tymczasowe.
   Z puli notatki odpadły Weteran i Twardy (bez postaci na siatce nic nie robią), a Okrutny czeka na łup
-  z generałem liczony na serwerze. Zapis gry ma wersję 11.
+  z generałem liczony na serwerze.
+
+- Perki władcy (#32, etap 11 #133, `scripts/world/ruler_perks.gd`, `RulerPerks`, panel `scripts/ui/ruler_panel.gd`):
+  1 miejsce na perk i 6 perków MVP z notatki, wybieranych po dotknięciu portretu władcy w HUD-zie. Zdobywca
+  (+10% obrażeń wszystkich oddziałów w ataku, w jednostki i budynki), Łupieżca (od epoki II, +15% łupu z ataków
+  na graczy), Gospodarz grodu (budynki obrońcy +10% wytrzymałości), Gospodarny (+10 punktów procentowych do
+  produkcji każdego surowca, także w limicie utrzymania armii), Budowniczy (od epoki II, budowa −10% czasu,
+  liczone przy zleceniu) i Ukochany władca (+10 morale załogi). Perk działa na cały zamek: perki obrony bitwa
+  bierze z siatki zamku (`BuildGrid.ruler_perk`), więc działają też w falach PvE i w kopii zamku przy ataku na
+  gracza, a perki ataku działają u atakującego (`Battle.set_ruler_perk`). Zmiana perka jest darmowa raz na 24 h,
+  a każda kolejna w tym czasie kosztuje 50 zł (kwota tymczasowa). Serwer przy każdym zapisie zamku sprawdza
+  perk swoim zegarem (migracja `ruler_perk`): perk spoza gry albo z wyższej epoki odpada, płatna zmiana musi
+  mieć pokrycie w złocie (ta sama górna granica co u generałów, które płatne zmiany zmniejszają), a bez pokrycia
+  wraca poprzedni perk. W ataku na gracza serwer bierze perk z zamku atakującego (`launch_attack`, kolumna
+  `attacks.attacker_ruler_perk`), powtórka obrońcy dostaje ten sam, `end_attack` z Łupieżcą przyjmuje łup do
+  115% zwykłego limitu, a `private.food_production` liczy Gospodarnego. Zapis gry ma wersję 12.
 
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
@@ -154,10 +169,10 @@ w sekcji „Następny etap”.
   sprawdza nazwy: imię 3–12 znaków, nazwa zamku 3–16, tylko litery z fontu (także polskie), cyfry,
   spacja i łącznik. Tożsamość (imię, nazwa zamku i władca) leży w profilu `user://player.json` (wersja 2)
   obok seeda gracza; Zacznij od nowa jej nie kasuje. Władca to na razie tylko domyślny Kasztelan bez
-  premii (`scripts/world/rulers.gd`, `Rulers`); perki władcy (#32) dojdą jako kolejne wpisy, a generałowie (#31) są osobno (`Generals`).
+  premii (`scripts/world/rulers.gd`, `Rulers`); perk władcy (#32) wybiera się osobno (`RulerPerks`), a generałowie (#31) są osobno (`Generals`).
   Po onboardingu w lewym górnym rogu HUD-u (pod paskiem celu) stoi portret władcy w okręgu 22×22 px
   (`scripts/gfx/portrait_art.gd`, `PortraitArt`: wzór w kodzie, złoty pierścień, tekstura w cache).
-  Dotknięcie portretu otwiera okienko z graczem, zamkiem i premiami władcy. Skóra portretu to
+  Dotknięcie portretu otwiera panel władcy z graczem, zamkiem i perkiem władcy (#32). Skóra portretu to
   `Palette.SKIN` w kolorach UI.
   Bez tożsamości zamek nie idzie na serwer. Z synchronizacją (#23) imię trafia do `players.nickname`,
   a cała tożsamość do `castles.data.profile`, więc wraca razem z zamkiem.
@@ -777,4 +792,7 @@ Etap 11 (#133) zaczynają generałowie (#31) w kodzie. Migracje `attack_general`
 `launch_attack` i `attack_replay` czekają na wgranie na projekt **przed** wydaniem klienta: wdrożona
 `launch_attack` odrzuca żądanie z generałem (`unknown_field`). Komendant zdobywa PD tylko w obronie fali PvE;
 PD z obron PvP, generałowie z poziomami 4–5 i pozostała dziewiątka postaci zostają na kolejne zadania,
-a perki władcy to #32.
+a perki władcy (#32) są w kodzie: migracja `ruler_perk` i nowe wersje Edge Functions `launch_attack`
+i `attack_replay` (pole `ruler_perk`) czekają na wgranie na projekt. Bez nich klient działa, ale atakujący
+gra bez perka w ataku na gracza, a serwer nie sprawdza perka przy zapisie zamku. Miejsca 2 i 3 oraz
+pozostałe 13 perków zostają na kolejne zadania.

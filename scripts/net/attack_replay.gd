@@ -37,7 +37,7 @@ static func parse_response(data: Variant) -> Dictionary:
 	return {"id": str(d.get("id", "")), "map_seed": map_seed, "battle_seed": battle_seed,
 			"castle": castle as Dictionary, "defense": defense as Dictionary if defense is Dictionary else {},
 			"army": army, "plan": d.get("plan"), "techs": AttackLaunch.parse_techs(d.get("techs")),
-			"general": d.get("general"),
+			"general": d.get("general"), "ruler_perk": d.get("ruler_perk"),
 			"result": result, "loot": DefenseLog.parse_loot(d.get("loot")), "at_s": maxi(0, at_s)}
 
 

@@ -27,7 +27,7 @@ static func from_response(d: Dictionary) -> BattleReplay:
 	pc.army = (d.get("army", []) as Array).duplicate(true)
 	if pc.army.is_empty() or not pc.apply_launch({"id": pc.attack_id, "castle": d.get("castle"),
 			"defense": d.get("defense", {}), "plan": d.get("plan"), "techs": d.get("techs", []),
-			"general": d.get("general")}):
+			"general": d.get("general"), "ruler_perk": d.get("ruler_perk")}):
 		return null
 	var r := BattleReplay.new()
 	r.castle = pc

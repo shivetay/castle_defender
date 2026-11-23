@@ -120,6 +120,9 @@ var scouting := Scouting.new()
 ## Generałowie (#31): rekrutacja w Dworze, generał ataku i komendant obrony (DefensePlan.commander).
 var generals := Generals.new()
 var generals_panel: GeneralsPanel
+## Perk władcy (#32); działający perk jest też w grid.ruler_perk.
+var ruler := RulerPerks.new()
+var ruler_panel: RulerPanel
 ## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
 const ABANDONED_MESSAGE := "Atak porzucony: ten zamek znowu po dobie"
 ## Czy trwająca bitwa to atak (inaczej fala PvE).
@@ -178,6 +181,7 @@ func _ready() -> void:
 		seal_check = saved.seal
 		scouting = saved.scouting
 		generals = saved.generals
+		ruler = saved.ruler
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -342,6 +346,11 @@ func _ready() -> void:
 	settings_panel.closed.connect(_on_overlay_closed)
 	settings_panel.new_game_requested.connect(_on_new_game)
 	hud.settings_pressed.connect(_on_settings_opened)
+	ruler_panel = RulerPanel.new()
+	ruler_panel.visible = false
+	layer.add_child(ruler_panel)
+	ruler_panel.closed.connect(_on_overlay_closed)
+	ruler_panel.perk_requested.connect(_on_ruler_perk)
 	info_popup = InfoPopup.new()
 	layer.add_child(info_popup)  # dostaje dotyk przed panelami
 	identity = PlayerProfile.read_identity(PlayerProfile.PATH)
@@ -487,7 +496,7 @@ func _save() -> void:
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
 	var save := SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check, scouting, generals)
+			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check, scouting, generals, ruler)
 	var err := SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
@@ -696,7 +705,7 @@ func _on_tapped(world_pos: Vector2) -> void:
 		# przy nieudanej próbie ramka ma kształt pierwszego wariantu (np. pionowej bramy)
 		_cursor = grid.buildings[queue.placed_id] if _cursor_ok else grid.placement_candidates(cell, kind, true)[0]
 		if _cursor_ok:
-			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(BuildConfig.time_ms(kind, 1))]
+			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(_build_time(kind, 1, grid.ruler_perk))]
 			_save()
 		elif result == BuildQueue.Result.NEEDS_TECH:
 			hud.message = _tech_hint(kind)
@@ -707,10 +716,16 @@ func _on_tapped(world_pos: Vector2) -> void:
 	queue_redraw()
 
 
+## Czas budowy poziomu `level` z perkiem władcy `perk` (Budowniczy -10%, #32), jak w kolejce.
+static func _build_time(kind: int, level: int, perk: int = RulerPerks.Perk.NONE) -> int:
+	return RulerPerks.build_time_ms(BuildConfig.time_ms(kind, level), perk)
+
+
 ## Panel budowy (Buduj w trybie oglądania albo Zmień w trybie budowy).
 func _on_build_panel_opened() -> void:
 	_tick()
 	_selected_id = 0
+	build_panel.ruler_perk = grid.ruler_perk
 	hud.hide_card()
 	hud.overlay = true
 	build_panel.select(hud.selected_kind)
@@ -724,7 +739,7 @@ func _on_place_requested(kind: int) -> void:
 	hud.overlay = false
 	hud.selected_kind = kind
 	hud.set_building(true)
-	hud.message = build_message(kind)
+	hud.message = build_message(kind, grid.ruler_perk)
 	queue_redraw()
 
 
@@ -732,19 +747,19 @@ func _on_place_requested(kind: int) -> void:
 ## budynku z jego kosztem w komunikacie; otwarty przez Buduj wraca do oglądania (review #160).
 func _on_build_panel_closed() -> void:
 	hud.overlay = false
-	hud.message = closed_message(hud.building, hud.selected_kind)
+	hud.message = closed_message(hud.building, hud.selected_kind, grid.ruler_perk)
 	queue_redraw()
 
 
-## Komunikat trybu budowy: nazwa, koszt i czas wybranego budynku.
-static func build_message(kind: int) -> String:
+## Komunikat trybu budowy: nazwa, koszt i czas wybranego budynku (z perkiem władcy `perk`).
+static func build_message(kind: int, perk: int = RulerPerks.Perk.NONE) -> String:
 	return "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, 1)),
-			Hud.format_time(BuildConfig.time_ms(kind, 1))]
+			Hud.format_time(_build_time(kind, 1, perk))]
 
 
 ## Komunikat po zamknięciu panelu budowy bez Postaw.
-static func closed_message(building: bool, kind: int) -> String:
-	return build_message(kind) if building else DEFAULT_MESSAGE
+static func closed_message(building: bool, kind: int, perk: int = RulerPerks.Perk.NONE) -> String:
+	return build_message(kind, perk) if building else DEFAULT_MESSAGE
 
 
 ## Czy Rybak nie staje tylko przez brak wody: ten sam prostokąt bez warunku wody byłby wolny
@@ -1280,6 +1295,7 @@ func _on_attack_launched() -> void:
 		b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
 		b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
 		b.set_general(Battle.Side.ATTACKER, generals.attack_general())  # generał ataku (#31)
+		b.set_ruler_perk(Battle.Side.ATTACKER, grid.ruler_perk)  # Zdobywca (#32)
 		_pve_begin(army)
 	_attacking = true
 	attack_panel.visible = false
@@ -1800,14 +1816,38 @@ func _on_onboarding_finished(id: PlayerProfile.Identity) -> void:
 	_save()
 
 
-## Portret władcy w HUD-zie (#228): okienko z władcą, graczem i zamkiem.
+## Portret władcy w HUD-zie (#228): panel z władcą, graczem, zamkiem i perkiem władcy (#32).
 func _on_portrait_pressed() -> void:
 	if identity == null:
 		return
-	info_popup.open(Rulers.ruler_name(identity.ruler), ruler_info(identity))
+	_tick()
+	_selected_id = 0
+	hud.hide_card()
+	_cursor = Rect2i()
+	hud.overlay = true
+	ruler_panel.open(Rulers.ruler_name(identity.ruler), "Gracz: %s · Zamek: %s" % [identity.player_name,
+			identity.castle_name], ruler, grid.age(), _now_ms())
+	hud.message = "Złoto: %d" % economy.amounts[EconomyConfig.Res.GOLD]
 
 
-## Linie okienka władcy: kto rządzi którym zamkiem i jakie ma premie (domyślny żadnych, #32).
+## Wybór perka władcy (#32): darmowy raz na 24 h, potem za złoto. Perk działa od razu w całym zamku.
+func _on_ruler_perk(perk: int) -> void:
+	_tick()
+	var now := _now_ms()
+	var gold := ruler.change_gold(now)
+	var r := ruler.choose(perk, grid.age(), economy, now)
+	if r == RulerPerks.Result.OK:
+		grid.ruler_perk = ruler.active(grid.age())
+		var paid := " (%d Zł)" % gold if gold > 0 else ""
+		hud.message = "Perk władcy: %s%s" % [RulerPerks.NAMES[perk], paid]
+		_save()
+	else:
+		hud.message = RulerPerks.MESSAGES[r]
+	ruler_panel.now_ms = now
+	ruler_panel.queue_redraw()
+
+
+## Linie okienka władcy: kto rządzi którym zamkiem i jakie ma premie postaci (domyślny żadnych).
 static func ruler_info(id: PlayerProfile.Identity) -> PackedStringArray:
 	var perks := Rulers.perks(id.ruler)
 	return PackedStringArray([
@@ -1856,7 +1896,7 @@ func _refresh_card() -> void:
 	hud.card_plain = plain_card(kind, pending)
 	hud.card_check_disabled = seal_check.is_busy()
 	hud.card_seal_disabled = not seal_check.has_selection()
-	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending)
+	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending, grid.ruler_perk)
 	if hud.card_seal and not pending:
 		hud.card_info = seal_card_info(seal_check, _now_ms())
 		hud.card_info_missing = PackedStringArray()
@@ -1903,7 +1943,8 @@ static func scout_card_info(s: Scouting, now_ms: int) -> String:
 
 ## Opis karty z kosztem ulepszenia, np. „Ulepsz: 180 Dr 60 Ka 60 Ży, 3:00”. Wymagania są osobno
 ## (upgrade_needs).
-static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool) -> String:
+static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool,
+		perk: int = RulerPerks.Perk.NONE) -> String:
 	if pending:
 		return "Trwa budowa"
 	if kind == BuildingTypes.Kind.KEEP:
@@ -1917,7 +1958,7 @@ static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool
 	if Ages.is_age_step(level + 1):
 		verb = "Przebuduj" if kind == BuildingTypes.Kind.MANOR else Ages.age_name(Ages.of_level(level + 1))
 	return "%s: %s, %s%s" % [verb, Hud.cost_text(BuildConfig.cost(kind, level + 1)),
-			Hud.format_time(BuildConfig.time_ms(kind, level + 1)), BuildQueue.capacity_gain_text(kind, level + 1)]
+			Hud.format_time(_build_time(kind, level + 1, perk)), BuildQueue.capacity_gain_text(kind, level + 1)]
 
 
 ## Linia karty z wymaganiami następnego poziomu (po teście na telefonie), np. „Wymaga: Dwór poz. 3
@@ -2007,7 +2048,7 @@ func _on_seal_pressed() -> void:
 	if result == BuildQueue.Result.OK:
 		seal_check.prune(grid)
 		hud.message = "Uszczelnianie: %s, %s" % [BuildingTypes.NAMES[kind],
-				Hud.format_time(BuildConfig.time_ms(kind, 1))]
+				Hud.format_time(_build_time(kind, 1, grid.ruler_perk))]
 		_save()
 	elif result == BuildQueue.Result.NEEDS_TECH:
 		hud.message = _tech_hint(kind)

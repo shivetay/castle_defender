@@ -108,11 +108,14 @@ func compute_loot(i: int, repeat: bool) -> void:
 
 ## Łup z zamku gracza (#25): `amounts` to jego zapasy (z kopii zamku z `start_attack`), w kolejności
 ## EconomyConfig.Res. Bez zniżki za powtórkę (ten sam cel raz na 24 godziny pilnuje serwer).
-func compute_player_loot(amounts: Array) -> void:
+## `ruler_perk`: perk władcy atakującego (#32); Łupieżca daje +15% (RulerPerks.pvp_loot, jak `end_attack`).
+func compute_player_loot(amounts: Array, ruler_perk: int = RulerPerks.Perk.NONE) -> void:
 	var s: Array[int] = []
 	for res in EconomyConfig.count():
 		s.append(clampi(int(amounts[res]), 0, 10000000) if res < amounts.size() else 0)
 	_loot_from(s, false)
+	for res in loot.size():
+		loot[res] = RulerPerks.pvp_loot(loot[res], ruler_perk)
 
 
 func _loot_from(s: Array[int], repeat: bool) -> void:
