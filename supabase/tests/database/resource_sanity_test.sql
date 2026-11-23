@@ -19,14 +19,15 @@ insert into auth.users (id) select id from test_ids;
 update public.players set rating = 62740, age = 0 where id in (select id from test_ids);
 grant select on test_ids to authenticated;
 
--- Zamek z zapasami `p_amounts` i Magazynem na poziomie `p_wh` (0: bez Magazynu). Dwór 3 i Koszary 5 dają
+-- Zamek z zapasami `p_amounts` i Magazynem na poziomie `p_wh` (0: bez Magazynu). Dwór 3 i Koszary 3 + 2 dają
 -- 40 miejsc, Rybak 1 karmi 3 oddziały toporników (rodzaj 0).
 create function pg_temp.castle(p_amounts jsonb, p_wh int default 0) returns jsonb language sql as $$
   select jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Gród'),
-    'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 4, 4], [2, 18, 5, 36, 30, 3, 3], [3, 16, 1, 40, 30, 2, 2]]'::jsonb
+    'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 4, 4], [2, 18, 3, 36, 30, 3, 3], [9, 18, 2, 50, 50, 3, 3], [3, 16, 1, 40, 30, 2, 2]]'::jsonb
       || case when p_wh > 0 then jsonb_build_array(jsonb_build_array(4, 25, p_wh, 10, 10, 2, 2)) else '[]'::jsonb end),
     'economy', jsonb_build_object('amounts', p_amounts, 'remainder', '[0, 0, 0, 0]'::jsonb, 'last_update_ms', 0),
+    'research', jsonb_build_object('done', '["G21"]'::jsonb),  -- Rybak wymaga G21 (#274, etap 4)
     'recruitment', jsonb_build_object('squads', '[[1, 0, 10], [2, 0, 10], [3, 0, 10]]'::jsonb))
 $$;
 grant execute on function pg_temp.castle(jsonb, int) to authenticated;
@@ -52,8 +53,8 @@ select lives_ok(
   $$update public.castles set data = pg_temp.castle('[1500, 0, 1500, 0]', 1) where player_id = '00000000-0000-0000-0000-0000000274a1'$$,
   'Magazyn 1 dodaje 500 pojemności');
 select throws_ok(
-  $$update public.castles set data = pg_temp.castle('[0, 3001, 0, 0]', 5) where player_id = '00000000-0000-0000-0000-0000000274a1'$$,
-  'PT422', 'over_capacity', 'Magazyn 5: najwyżej 3000');
+  $$update public.castles set data = pg_temp.castle('[0, 1501, 0, 0]', 1) where player_id = '00000000-0000-0000-0000-0000000274a1'$$,
+  'PT422', 'over_capacity', 'Magazyn 1: najwyżej 1500');
 select throws_ok(
   $$update public.castles set data = pg_temp.castle('[-1, 0, 0, 0]') where player_id = '00000000-0000-0000-0000-0000000274a1'$$,
   'PT422', 'bad_economy', 'ujemny zapas odrzucony');
@@ -75,6 +76,7 @@ select lives_ok(
   $$update public.castles set data = '{"profile": {"castle_name": "Gród"}}' where player_id = '00000000-0000-0000-0000-0000000274a1'$$,
   'zapis bez economy przechodzi');
 reset role;
+select set_config('request.jwt.claims', '', true);  -- dalej pisze serwer (bez tokenu gracza)
 
 -- złoto z wyprawy na bota przyjętej przez serwer podnosi pokrycie, a rekrutacja generała (50) je zmniejsza
 insert into public.attacks (attacker_id, bot_idx, battle_seed, status, result, loot, finished_at)
@@ -158,6 +160,7 @@ select throws_ok(
   '42501', null, 'gracz nie zeruje licznika zapisów');
 select throws_ok($$select private.castle_capacity('{}')$$, '42501', null, 'gracz nie woła funkcji serwera');
 reset role;
+select set_config('request.jwt.claims', '', true);  -- dalej pisze serwer (bez tokenu gracza)
 select is((select count(*)::int from public.castle_loot_pending where player_id = '00000000-0000-0000-0000-0000000274b1'), 0,
   'scalony łup znika z kolejki');
 

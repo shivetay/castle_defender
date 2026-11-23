@@ -12,6 +12,7 @@ Testy bazy (pgTAP), głównie RLS.
 | `database/general_budget_test.sql` | Pokrycie generałów (#31): przy zapisie zamku złoto i PD najwyżej z łupów, fal PvE i bitew na serwerze; bez pokrycia poziomy spadają albo generał znika |
 | `database/ruler_perk_test.sql` | Perk władcy (#32): przy zapisie zamku tylko znany perk z epoki, zmiana darmowa raz na 24 h, potem za złoto z pokryciem; perk ataku z zamku na serwerze, Łupieżca w limicie łupu, Gospodarny w limicie żywności, gracz nie ustawia kolumn serwera |
 | `database/resource_sanity_test.sql` | Surowce w zapisie zamku (#274): odrzut zapasów ponad pojemność, złego kształtu i złota bez pokrycia, rate limit zapisów, łup PvP przeniesiony raz (także przy ponowieniu) i scalony przy zapisie, kopia obrońcy z czekającym łupem, zamek spoza limitów poza PvP, gracz nie czyta łupu czekającego ani nie ustawia kolumn serwera |
+| `database/building_sanity_test.sql` | Zabudowa w zapisie zamku (#274, etap 4): budynek wyżej niż Dwór, poziom spoza gry i epoka II bez technologii odrzucone; zabudowa najwyżej w czasie jednego budowniczego od poprzedniego zapisu (zlecenie w toku się liczy, niższa zabudowa przechodzi); serwer bez limitu czasu; zamek spoza reguł poza PvP |
 | `database/attack_flow_test.sql` | Start i koniec ataku (#25): blokada celu, tarcze, limity armii i startów, zawyżony łup, capacity, idempotencja |
 
 ```bash

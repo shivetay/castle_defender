@@ -21,7 +21,7 @@ update public.players set rating = 61000, age = 0 where id in (select id from te
 insert into public.castles (player_id, map_seed, save_version, data)
 select t.id, 2929, 8, jsonb_build_object(
   'profile', jsonb_build_object('castle_name', 'Gród'),
-  'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 2, 2], [2, 18, 5, 36, 30, 2, 2], [3, 16, 1, 40, 30, 2, 2]]'::jsonb),
+  'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 2, 2], [2, 18, 3, 36, 30, 2, 2], [9, 18, 2, 50, 50, 2, 2], [3, 16, 1, 40, 30, 2, 2]]'::jsonb),
   'economy', jsonb_build_object('amounts', jsonb_build_array(1000, 1000, 1000, 100)),
   -- A2 nie jest zbadane; G2 nie działa w bitwie
   'research', jsonb_build_object('done', '["A1", "A7", "G2", "O2"]'::jsonb),
