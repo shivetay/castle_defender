@@ -172,6 +172,19 @@ static func commander_label(p: DefensePlan, g: Generals) -> String:
 	return Generals.SHORT_NAMES[p.commander]
 
 
+## Wskaźnik siły obrony (#263), np. „Siła obrony 245”: załoga, pułapki i umocnienia (Strength.defense).
+static func strength_text(r: Recruitment, p: DefensePlan, g: BuildGrid) -> String:
+	return "Siła obrony %d" % Strength.defense(r, p, g)
+
+
+## Pole wskaźnika siły obrony: na prawo od przycisku komendanta, na wysokości jego środka, z 2 px
+## marginesu tła wokół tekstu.
+static func strength_rect(left: float, text: String) -> Rect2:
+	var b := AttackPanel.general_rect(left)
+	return Rect2(b.end.x + 3, b.position.y + floorf((b.size.y - PixelFont.LINE) / 2.0) - 2,
+			PixelFont.text_width(text) + 4, PixelFont.LINE + 3)
+
+
 ## Opis komendanta: „Komendant: brak” albo „Komendant: Wódz drużyny, poz. 2”.
 static func commander_text(p: DefensePlan, g: Generals) -> String:
 	if p.commander < 0 or g == null or not g.has_general(p.commander):
@@ -477,6 +490,10 @@ func _draw() -> void:
 	if plan == null:
 		return
 	var view := get_viewport_rect().size
+	var strength := strength_text(recruitment, plan, castle)
+	var sr := strength_rect(content_left, strength)
+	draw_rect(sr, Color(Palette.SHADOW, 0.8))
+	PixelFont.draw_text(self, sr.position + Vector2(2, 2), strength, Palette.INK)
 	var col := column(trap_mode)
 	var labels := column_labels(trap_mode)
 	for i in col.size():

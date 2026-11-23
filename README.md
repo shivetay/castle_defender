@@ -70,6 +70,14 @@ w sekcji „Następny etap”.
   `attacks.attacker_ruler_perk`), powtórka obrońcy dostaje ten sam, `end_attack` z Łupieżcą przyjmuje łup do
   115% zwykłego limitu, a `private.food_production` liczy Gospodarnego. Zapis gry ma wersję 12.
 
+- Wskaźniki siły armii i obrony (#263, `scripts/world/strength.gd`, `Strength`): podpowiedź na własnym
+  zamku, nie ranking. Ekran Wojsko pokazuje „Siła N” armii: suma po wyszkolonych jednostkach, a jednostka
+  ma (HP + 5 × atak) / 10, Tropiciel i Wóz 0. Ekran Obrona pokazuje „Siła obrony N”: cała załoga (garnizon
+  Dworu z premią wytrzymałości jak w bitwie), pułapki (stała waga każdego rodzaju) i umocnienia (wał,
+  palisada, brama, wieża: wytrzymałość na poziomie / 50, wieża +3 × atak). Wszystkie wagi są TYMCZASOWE;
+  perki, technologie i generałowie jeszcze nie zmieniają wskaźnika, a siła celu na karcie ataku czeka
+  na osobną decyzję (dane z serwera i mgła wojny).
+
 - Surowce bez zaufanej edycji lokalnej (#274, etapy 1 i 2, migracja `resource_sanity`): serwer przy każdym
   zapisie zamku odrzuca (HTTP 422, bez przycinania) zapasy spoza gry: zły kształt, drewno, kamień albo żywność
   ponad pojemność Dworu i Magazynów z tego samego zapisu oraz złoto bez pokrycia (decyzja właścicielki: wymóg

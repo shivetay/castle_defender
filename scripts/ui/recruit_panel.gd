@@ -343,6 +343,20 @@ static func title_text(r: Recruitment, g: BuildGrid, res: Research = null) -> St
 			r.upkeep_used(), Recruitment.upkeep_limit(g, res)]
 
 
+## Wskaźnik siły armii (#263), np. „Siła 145”: suma sił wyszkolonych jednostek (Strength.army).
+static func strength_text(r: Recruitment) -> String:
+	return "Siła %d" % Strength.army(r)
+
+
+## Lewy górny róg wskaźnika siły: tuż za połową wiersza tytułu (licznik armii), albo Vector2(-1, -1),
+## gdy nie mieści się przed napisem trybu `mode` przy prawej krawędzi.
+static func strength_pos(left: float, right: float, text: String, mode: String) -> Vector2:
+	var x := limit_rect(left, right).end.x + 2
+	if x + PixelFont.text_width(text) + 4 > right - PixelFont.text_width(mode):
+		return Vector2(-1, -1)
+	return Vector2(x, TITLE_Y)
+
+
 ## Czy licznik w tytule ma ostrzegać: brak miejsc albo utrzymanie na granicy lub ponad produkcją.
 static func limit_warning(r: Recruitment, g: BuildGrid, res: Research) -> bool:
 	return r.free_army(g) <= 0 or r.free_upkeep(g, res) <= 0
@@ -599,6 +613,10 @@ func _draw() -> void:
 			Palette.ACCENT if full else Palette.INK)
 	var mode := BuildingTypes.name_of(building_kind, research) if building_kind >= 0 else "wszystkie jednostki"
 	PixelFont.draw_right(self, content_right, TITLE_Y, mode, Palette.THATCH[2])
+	var strength := strength_text(recruitment)
+	var at := strength_pos(content_left, content_right, strength, mode)
+	if at.x >= 0:
+		PixelFont.draw_text(self, at, strength, Palette.INK)
 	var list := units()
 	var tiles := tile_rects(content_left, content_right, list.size())
 	for i in list.size():
