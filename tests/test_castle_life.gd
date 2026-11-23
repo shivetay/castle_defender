@@ -113,3 +113,19 @@ func test_flags_found_on_textures() -> bool:
 	assert_eq((east[0] as Vector4i).z, -1, "odbity proporzec łopocze na zachód")
 	assert_eq(t.flags(K.TOWER, 5), t.flags(K.TOWER, 5), "wykrycie powtarzalne")
 	return true
+
+
+## Review #286: ulepszenie budynku (Dwór 4 → 5) odświeża proporce bez zmiany liczby budynków.
+func test_upgrade_refreshes_flags() -> bool:
+	var grid := _grid()
+	var o := _free_field(grid)
+	var id := grid.place(Rect2i(o, Vector2i(2, 2)), K.MANOR, 4)
+	var view := AmbientView.new()
+	view.setup(grid, BuildingTextures.new())
+	view._refresh_layout()
+	assert_true(view._flags.is_empty(), "Dwór 4 bez flagi")
+	grid.levels[id] = 5
+	view._refresh_layout()
+	assert_eq(view._flags.size(), 1, "po ulepszeniu do 5 proporzec łopocze")
+	view.free()
+	return true

@@ -191,12 +191,13 @@ static func villagers_out(minute: int) -> bool:
 
 # --- Trasy mieszkańców i straży (#36) ----------------------------------------------------------
 
-## Klucz zabudowy: zmienia się, gdy budynek przybywa, znika albo kończy się jego budowa.
-## Do tego stan zniszczeń (flagi znikają ze zburzonych budynków).
+## Klucz zabudowy: zmienia się, gdy budynek przybywa, znika, zmienia rodzaj albo poziom (proporzec
+## pojawia się na poziomie 5 i zmienia z epoką, review #286). Do tego stan zniszczeń (flagi znikają
+## ze zburzonych budynków).
 func _layout_key() -> int:
 	var k := grid.levels.size()
 	for id in grid.levels:
-		k = (k * 31 + id * 7 + (1 if grid.levels[id] > 0 else 0)) & 0x7fffffff
+		k = (k * 31 + id * 7 + grid.levels[id] * 3 + grid.kinds[id] * 101) & 0x7fffffff
 	return (k * 131 + states.hash()) & 0x7fffffff
 
 
