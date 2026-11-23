@@ -756,8 +756,8 @@ Potem:
 
 ## Google Play (pre-alfa, test zamknięty)
 
-Pakiet w sklepie to `com.shivetay.dunhold` (preset **Android (Google Play AAB)**). Debug APK ma
-`com.shivetay.dunhold.debug`, więc obie wersje mogą być na jednym telefonie. Google Play przyjmuje tylko
+Gra w sklepie nazywa się **Dunhold**, a jej pakiet to `com.shivetay.dunhold` (preset **Android (Google Play AAB)**). Debug APK ma
+`com.shivetay.dunhold.debug` i nazwę „Dunhold (debug)”, więc obie wersje mogą być na jednym telefonie. Google Play przyjmuje tylko
 podpisany pakiet AAB (Gradle, target SDK 36 z szablonu Godota 4.7.2), a nie APK.
 
 Jednorazowo:
