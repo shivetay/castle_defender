@@ -74,6 +74,16 @@ def find_one(regex: re.Pattern[str], text: str, where: str) -> str:
     return found[0]
 
 
+def find_all_same(regex: re.Pattern[str], text: str, where: str) -> str:
+    """Każdy preset eksportu ma ten sam wpis (debug APK i AAB do Google Play mają tę samą wersję)."""
+    found = regex.findall(text)
+    if not found:
+        fail(f"{where}: brak wpisu {regex.pattern}")
+    if len(set(found)) != 1:
+        fail(f"{where}: presety mają różne wartości {regex.pattern}: {', '.join(found)}")
+    return found[0]
+
+
 def current() -> str:
     return find_one(RE_PROJECT, read(PROJECT), "project.godot")
 
@@ -100,8 +110,8 @@ def cmd_check(tag: str | None) -> None:
     ver = current()
     parse(ver)
     presets = read(PRESETS)
-    name = find_one(RE_NAME, presets, "export_presets.cfg")
-    code = int(find_one(RE_CODE, presets, "export_presets.cfg"))
+    name = find_all_same(RE_NAME, presets, "export_presets.cfg")
+    code = int(find_all_same(RE_CODE, presets, "export_presets.cfg"))
     errors = []
     if name != ver:
         errors.append(f"export_presets.cfg version/name={name}, a project.godot ma {ver}")
@@ -165,8 +175,8 @@ def cmd_bump(what: str, repo: str | None = None, offline: bool = False) -> None:
     write(CHANGELOG, log)
 
     write(PROJECT, RE_PROJECT.sub(f'config/version="{new}"', read(PROJECT), count=1))
-    presets = RE_NAME.sub(f'version/name="{new}"', read(PRESETS), count=1)
-    presets = RE_CODE.sub(f"version/code={version_code(new)}", presets, count=1)
+    presets = RE_NAME.sub(f'version/name="{new}"', read(PRESETS))
+    presets = RE_CODE.sub(f"version/code={version_code(new)}", presets)
     write(PRESETS, presets)
     print(f"{old} -> {new} (version/code {version_code(new)}). Dalej:")
     print(f'  git commit -am "Wydanie {new}" && git tag v{new} && git push --follow-tags')

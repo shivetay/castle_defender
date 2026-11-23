@@ -1,6 +1,7 @@
 name: Wydanie
 
-# Po wypchnięciu tagu vX.Y.Z: testy, debug APK i GitHub Release z opisem z CHANGELOG.md.
+# Po wypchnięciu tagu vX.Y.Z: testy, debug APK i GitHub Release z opisem z CHANGELOG.md, a do tego
+# podpisany AAB do Google Play (com.shivetay.dunhold) jako artefakt, jeśli są sekrety klucza wysyłania.
 # Push na main i uruchomienie ręczne (workflow_dispatch) budują samo APK jako artefakt, bez Release.
 on:
   push:
@@ -45,16 +46,7 @@ jobs:
 
       - name: Konfiguracja Androida (SDK z runnera, debug keystore)
         run: |
-          # Runner GitHuba ma preinstalowane Android SDK w $ANDROID_HOME (platform-tools, build-tools).
-          test -d "$ANDROID_HOME/platform-tools" && ls "$ANDROID_HOME/build-tools"
-          mkdir -p ~/.config/godot
-          cat > ~/.config/godot/editor_settings-4.7.tres <<EOF
-          [gd_resource type="EditorSettings" format=3]
-
-          [resource]
-          export/android/android_sdk_path = "$ANDROID_HOME"
-          export/android/java_sdk_path = "$JAVA_HOME"
-          EOF
+          bash .github/scripts/android_sdk_config.sh
           keytool -genkeypair -keystore "$RUNNER_TEMP/debug.keystore" -storepass android \
             -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US"
@@ -65,26 +57,11 @@ jobs:
           } >> "$GITHUB_ENV"
 
       # Adres i klucz publishable ze zmiennych repozytorium (Settings → Variables), nie z repo.
-      # Klucz publishable jest publiczny z założenia (trafia do APK); klucza serwera tu nie ma.
       - name: Konfiguracja Supabase
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
-        run: |
-          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "Brak zmiennych SUPABASE_URL/SUPABASE_PUBLISHABLE_KEY: APK działa offline"
-            exit 0
-          fi
-          case "$SUPABASE_PUBLISHABLE_KEY" in
-            sb_publishable_*) ;;
-            *) echo "::error::SUPABASE_PUBLISHABLE_KEY musi zaczynać się od sb_publishable_"; exit 1 ;;
-          esac
-          case "$SUPABASE_URL" in
-            https://*) ;;
-            *) echo "::error::SUPABASE_URL musi zaczynać się od https://"; exit 1 ;;
-          esac
-          python3 -c 'import json, os; json.dump({"url": os.environ["SUPABASE_URL"], "publishable_key": os.environ["SUPABASE_PUBLISHABLE_KEY"]}, open("config/supabase.json", "w"))'
-          echo "Zapisano config/supabase.json"
+        run: bash .github/scripts/supabase_config.sh
 
       - name: Eksport APK
         run: |
@@ -112,3 +89,93 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" build/*.apk \
             --title "Castle Defender ${VERSION}" --notes-file build/notes.md \
             $([[ "$VERSION" == 0.* ]] && echo --prerelease)
+
+  # Podpisany pakiet AAB do Google Play (test wewnętrzny / zamknięty). Tylko z tagu albo ręcznie,
+  # bo potrzebuje klucza wysyłania (upload key) z sekretów repozytorium. AAB nie trafia do Release:
+  # wgrywasz go ręcznie w Play Console, Google podpisuje aplikację własnym kluczem (Play App Signing).
+  aab:
+    name: AAB do Google Play
+    needs: test
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag zgodny z wersją
+        if: github.ref_type == 'tag'
+        run: python3 tools/version.py check --tag "${GITHUB_REF_NAME}"
+
+      - name: Sekrety klucza wysyłania
+        id: keys
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+            echo "::warning::Brak sekretów ANDROID_UPLOAD_KEYSTORE_BASE64/ANDROID_UPLOAD_KEY_ALIAS/ANDROID_UPLOAD_KEY_PASSWORD: pomijam AAB"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          umask 077
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.keystore"
+          keytool -list -keystore "$RUNNER_TEMP/upload.keystore" -storepass "$KEY_PASSWORD" -alias "$KEY_ALIAS" > /dev/null \
+            || { echo "::error::Keystore, alias albo hasło się nie zgadzają"; exit 1; }
+          echo "ok=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-java@v6
+        if: steps.keys.outputs.ok == 'true'
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Godota i szablonów
+        if: steps.keys.outputs.ok == 'true'
+        uses: actions/cache@v6
+        with:
+          path: ~/godot
+          key: godot-templates-${{ hashFiles('.github/scripts/install_godot.sh') }}
+
+      - name: Instalacja Godota i szablonów eksportu
+        if: steps.keys.outputs.ok == 'true'
+        run: bash .github/scripts/install_godot.sh --templates
+
+      - name: Konfiguracja Androida (SDK z runnera)
+        if: steps.keys.outputs.ok == 'true'
+        run: bash .github/scripts/android_sdk_config.sh
+
+      - name: Konfiguracja Supabase
+        if: steps.keys.outputs.ok == 'true'
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+        run: bash .github/scripts/supabase_config.sh
+
+      - name: Eksport AAB
+        if: steps.keys.outputs.ok == 'true'
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ runner.temp }}/upload.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          VERSION=$(python3 tools/version.py current)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          mkdir -p build
+          godot --headless --path . --import
+          # Szablon budowy Gradle (res://android, w .gitignore) instaluje się przy każdym eksporcie od zera.
+          godot --headless --path . --install-android-build-template \
+            --export-release "Android (Google Play AAB)" "build/dunhold-${VERSION}.aab"
+          test -s "build/dunhold-${VERSION}.aab" || { echo "Brak AAB po eksporcie"; exit 1; }
+          ls -la build/
+
+      - name: Usunięcie klucza z runnera
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.keystore"
+
+      - uses: actions/upload-artifact@v7
+        if: steps.keys.outputs.ok == 'true'
+        with:
+          name: dunhold-${{ env.VERSION }}-google-play-aab
+          path: build/*.aab
+          retention-days: 30
