@@ -33,6 +33,9 @@ const TRAIN_TIME_S: Array[int] = [20, 20, 25, 40, 30, 30, 45, 25, 50, 35, 60, 90
 ## TYMCZASOWE.
 const ARMY_PER_MANOR_LEVEL := 10
 const ARMY_PER_BARRACKS_LEVEL := 2
+## Garnizon Dworu (#81, decyzja właścicielki 23.11.2026): Dwór mieści tyle jednostek za każdy swój
+## poziom (epoka II trzyma premię poziomu 5, Ages.bonus_level), czyli 4–20.
+const GARRISON_PER_MANOR_LEVEL := 4
 ## Głód (#214): co tyle ms na zerze żywności przy ujemnym bilansie odchodzi jedna jednostka.
 ## TYMCZASOWE, decyzja balansowa właścicielki.
 const DESERT_MS := 3600 * 1000
@@ -51,6 +54,11 @@ static func class_of(kind: int) -> int:
 		if int(CLASS_BUILDING[unit_class]) == kind:
 			return unit_class
 	return -1
+
+
+## Ile jednostek mieści garnizon Dworu zamku `grid` (#81), z poziomu Dworu jak army_limit.
+static func garrison_capacity(grid: BuildGrid) -> int:
+	return GARRISON_PER_MANOR_LEVEL * Ages.bonus_level(grid.manor_level())
 
 
 static func training_slots(level: int) -> int:

@@ -120,20 +120,21 @@ func default_squad(unit: int) -> int:
 
 
 ## Wyszkolone oddziały jako lista [rodzaj, liczba] dla Battle.create_squads (#15), w kolejności
-## tworzenia; puste oddziały pomija.
-func battle_squads() -> Array:
+## tworzenia; puste oddziały pomija, a także oddziały o id z `skip` (garnizon Dworu nie idzie do
+## ataku, #81).
+func battle_squads(skip: Array[int] = []) -> Array:
 	var out: Array = []
 	for s in squads:
-		if s.count > 0:
+		if s.count > 0 and not skip.has(s.id):
 			out.append([s.unit, s.count])
 	return out
 
 
-## Id oddziałów z battle_squads(), w tej samej kolejności (oddział bitwy i → battle_ids()[i]).
-func battle_ids() -> Array[int]:
+## Id oddziałów z battle_squads(skip), w tej samej kolejności (oddział bitwy i → battle_ids()[i]).
+func battle_ids(skip: Array[int] = []) -> Array[int]:
 	var out: Array[int] = []
 	for s in squads:
-		if s.count > 0:
+		if s.count > 0 and not skip.has(s.id):
 			out.append(s.id)
 	return out
 

@@ -239,6 +239,6 @@ func test_age_ii_art_uses_palettes_and_is_deterministic() -> bool:
 	var manor_ii := BuildingArt.make_image(K.MANOR, 6, BuildingTypes.State.INTACT)
 	assert_true(manor_i.get_data() != manor_ii.get_data(), "Dwór po przebudowie wygląda inaczej")
 	var textures := BuildingTextures.new()
-	assert_eq(textures.draw_building(K.MANOR, 9), textures.draw_building(K.MANOR, 6), "epoka II: jeden rysunek w cache")
+	assert_true(textures.draw_building(K.MANOR, 9) != textures.draw_building(K.MANOR, 6), "Dwór epoki II: rysunek na poziom (#81)")
 	assert_true(textures.draw_building(K.MANOR, 6) != textures.draw_building(K.MANOR, 5), "inny niż poziom 5")
 	return true

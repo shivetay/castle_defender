@@ -918,8 +918,16 @@ func _update_battle() -> void:
 ## Oddziały armii, które idą do ataku: pierwsze tyle, ile mieści plan w bieżącej epoce.
 ## Armia ataku: oddziały w limicie epoki, a z nich tyle, ile mieści się w limicie miejsc i utrzymania
 ## zamku (#249, ten sam warunek sprawdza serwer przy starcie ataku na gracza).
+## Komunikat, gdy do ataku nie ma kogo wysłać: bez wojska albo cała armia w garnizonie Dworu (#81).
+func _no_army_message() -> String:
+	if not recruitment.battle_squads().is_empty():
+		return "Całe wojsko w garnizonie Dworu: zmień w Obronie"
+	return "Najpierw wyszkol wojsko: Koszary i Wojsko"
+
+
+## Garnizon Dworu (#81) zostaje w zamku.
 func _attack_army() -> Array:
-	var army := recruitment.battle_squads()
+	var army := recruitment.battle_squads(defense.garrison_ids())
 	return Recruitment.fit_attack(army.slice(0, AttackPlan.max_squads(grid.age())), grid, research)
 
 
@@ -936,7 +944,7 @@ func _bot() -> BotCastle:
 func _on_attack_pressed() -> void:
 	_tick()
 	if _attack_army().is_empty():
-		hud.message = "Najpierw wyszkol wojsko: Koszary i Wojsko"
+		hud.message = _no_army_message()
 		return
 	_selected_id = 0
 	hud.hide_card()
@@ -1121,7 +1129,7 @@ func _on_player_target(target: TargetSearch.Target) -> void:
 		return
 	var army := _attack_army()
 	if army.is_empty():
-		hud.message = "Najpierw wyszkol wojsko: Koszary i Wojsko"
+		hud.message = _no_army_message()
 		return
 	if net == null or not net.is_online():
 		hud.message = AttackStart.error_message(SupabaseClient.NETWORK_ERROR)
@@ -1185,7 +1193,7 @@ func _open_target(bot: BotCastle, player: PlayerCastle) -> void:
 	attack_panel.visible = true
 	hud.overlay = true
 	camera.look_at_world(Vector2(bot.grid.buildings[bot.objective].get_center() * TerrainMap.CELL))
-	var all := recruitment.battle_squads().size()
+	var all := recruitment.battle_squads(defense.garrison_ids()).size()
 	var by_age := mini(all, AttackPlan.max_squads(grid.age()))
 	if all <= army.size():
 		hud.message = AttackPlanner.HINT
@@ -1266,7 +1274,7 @@ func _on_attack_launched() -> void:
 	var army := _attack_army()
 	var problem := attack_plan.problem(army.size(), grid.age(), research, AttackPlanner.unit_list(army))
 	if army.is_empty():
-		problem = "Najpierw wyszkol wojsko: Koszary i Wojsko"
+		problem = _no_army_message()
 	if problem.is_empty() and _player != null:
 		problem = player_attack_problem(_player, army, _now_s())
 	if not problem.is_empty():
@@ -1284,7 +1292,7 @@ func _on_attack_launched() -> void:
 		hud.message = "Zatwierdzam plan na serwerze"
 		return
 	var bot := planner.bot
-	_battle_ids = recruitment.battle_ids().slice(0, army.size())
+	_battle_ids = recruitment.battle_ids(defense.garrison_ids()).slice(0, army.size())
 	_battle_army = army
 	var b: Battle
 	if _player != null:
@@ -1502,7 +1510,7 @@ func _on_defence_pressed() -> void:
 	_tick()
 	var army := recruitment.battle_squads()
 	if army.is_empty():
-		hud.message = "Najpierw wyszkol wojsko: Koszary i Wojsko"
+		hud.message = _no_army_message()
 		return
 	if grid.keep_id() == 0:
 		hud.message = KEEP_NO_ROOM
@@ -1513,6 +1521,7 @@ func _on_defence_pressed() -> void:
 	_cursor = Rect2i()
 	defense.prune(recruitment)
 	defense_panel.generals = generals
+	defense_panel.recruitment = recruitment
 	defense_panel.open(defense, army, recruitment.battle_ids(), grid, grid.age())
 	hud.overlay = true
 	camera.look_at_world(Vector2(DefensePlan.keep_center(grid) * TerrainMap.CELL))

@@ -44,7 +44,7 @@ Starsza chronologia (12–17.11): etapy 1–8 jak w historii git / CHANGELOG —
 | Etap | Stan |
 | --- | --- |
 | 1–3 (#123–#125) | gotowe w kodzie; wygląd #150 nadal otwarty |
-| 4 (#126) | prawie: #81 (garnizon / wygląd Dworu przez epoki) otwarte |
+| 4 (#126) | kod gotowy: #81 (wygląd Dworu w epokach I–II, garnizon) w PR; migracja `garrison` czeka na wgranie |
 | 5 (#127) | prawie: #12 (pełne efekty badań) otwarte; rekrutacja #89 zamknięta |
 | 6–8 (#128–#130) | kod gotowy (#19, #20, #101, #185 zamknięte) |
 | 9 (#131) | rdzeń PvP na `main`; część checklist w issue może być do odhaczenia |

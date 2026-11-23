@@ -96,7 +96,7 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 			_draw_hut(img, lv, ln)
 		BuildingTypes.Kind.MANOR:
 			if age_ii:
-				_draw_manor_age_ii(img)
+				_draw_manor_age_ii(img, clampi(level - BuildingTypes.MAX_LEVEL, 1, BuildingTypes.MAX_LEVEL))
 			else:
 				_draw_manor(img, lv)
 		BuildingTypes.Kind.FLAX_FIELD:
@@ -461,23 +461,39 @@ static func _draw_manor(img: Image, level: int) -> void:
 			PixelCanvas.rect(img, Rect2i(x, body.end.y, 2, 2), Palette.ACCENT)
 
 
-## Dwór epoki II (#34) po przebudowie: dach z gontu na kamiennej podmurówce, daszek nad wejściem,
-## dwa błękitne proporce na kalenicy i tarcze pana na kopcu pod okapem.
-static func _draw_manor_age_ii(img: Image) -> void:
-	var body := Rect2i(1, 1, 14, 10)
+## Dwór epoki II (#34, #81): dach z gontu na kamiennej podmurówce, a każdy poziom wygląda inaczej.
+## Poziomy: 1 mniejszy dwór z kominem i jednym proporcem, 2 dłuższy korpus, 3 daszek nad wejściem
+## i tarcze pana pod okapem, 4 drugi proporzec i kamienne narożniki, 5 kamienna wieżyczka w rogu
+## i drugi komin.
+static func _draw_manor_age_ii(img: Image, level: int) -> void:
+	var body := Rect2i(2, 2, 12, 9) if level < 2 else Rect2i(1, 1, 14, 10)
 	PixelCanvas.roof_gable(img, body, true, Palette.SHINGLE, Palette.WOOD[0], 15)
 	PixelCanvas.chimney(img, chimney_at(body))
+	if level >= 5:
+		PixelCanvas.chimney(img, Vector2i(body.position.x + 5, chimney_at(body).y))
 	for x in range(body.position.x, body.end.x):
 		for y in range(body.end.y, body.end.y + 2):
 			PixelCanvas.px(img, x, y, Palette.STONE[2] if (x + y * 3) % 4 == 0 else Palette.STONE[1])
 		PixelCanvas.px(img, x, body.end.y + 1, Palette.STONE[0] if x % 3 == 0 else Palette.STONE[1])
-	PixelCanvas.roof_gable(img, Rect2i(6, body.end.y, 4, 3), false, Palette.SHINGLE, Palette.WOOD[1], 16)
+	if level >= 4:
+		# kamienne narożniki: ciosy na rogach korpusu
+		for x: int in [body.position.x, body.end.x - 1]:
+			for y in range(body.position.y + 1, body.end.y, 2):
+				PixelCanvas.px(img, x, y, Palette.STONE[2])
+	if level >= 3:
+		PixelCanvas.roof_gable(img, Rect2i(6, body.end.y, 4, 3), false, Palette.SHINGLE, Palette.WOOD[1], 16)
+		for x: int in [3, 11]:
+			PixelCanvas.rect(img, Rect2i(x, body.end.y, 2, 2), Palette.AGE_II_ACCENT)
 	@warning_ignore("integer_division")
 	var ridge_y := body.position.y + body.size.y / 2
 	PixelCanvas.pennant(img, Vector2i(body.position.x + 1, ridge_y), Palette.AGE_II_ACCENT)
-	PixelCanvas.pennant(img, Vector2i(body.end.x - 5, ridge_y), Palette.AGE_II_ACCENT)
-	for x: int in [3, 11]:
-		PixelCanvas.rect(img, Rect2i(x, body.end.y, 2, 2), Palette.AGE_II_ACCENT)
+	if level >= 4:
+		PixelCanvas.pennant(img, Vector2i(body.end.x - 5, ridge_y), Palette.AGE_II_ACCENT)
+	if level >= 5:
+		# wieżyczka w północno-wschodnim rogu: kamienny trzon z dachem namiotowym z gontu
+		var turret := Rect2i(body.end.x - 5, 0, 5, 5)
+		_ring(img, turret, Palette.STONE[0], Palette.STONE[2])
+		PixelCanvas.roof_hip(img, turret.grow(-1), Palette.SHINGLE, Palette.AGE_II_ACCENT)
 
 
 ## Znaki epoki II (#34) na budynku z poziomu 5: kamienna podmurówka pod sylwetką budynków z obrysem

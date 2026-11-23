@@ -112,6 +112,9 @@ const A1_WOOD_PERCENT := 115
 const A2_RANGE_PERCENT := 120
 const A7_CAVALRY_SPEED_PERCENT := 125
 const O2_PALISADE_HP_PERCENT := 120
+## Garnizon Dworu (#81, decyzja właścicielki 23.11.2026): jednostki oddziału w garnizonie mają tyle
+## procent wytrzymałości (stoją przy donżonie, nie idą do ataku).
+const GARRISON_HP_PERCENT := 120
 ## Jeździec omija wolne cele (szybkość do tej wartości), chyba że stoją tuż obok.
 const RIDER_IGNORES_SPEED := 2
 ## Podpalacz: trafiony drewniany budynek płonie tyle sekund i traci tyle punktów na sekundę. TYMCZASOWE.

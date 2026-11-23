@@ -12,8 +12,7 @@ z gestami) są zamknięte. Etap 3 (#125: paleta epoki I w 16 kolorach #5, autoti
 budynków z poziomami 1–5 #7, 4 stany zniszczeń #8) jest zrobiony; z #5 zostaje pomiar startu na telefonie.
 Etap 4 (#126): HUD z trybami oglądania i budowy (#9), ekonomia (#10), progresja z kolejką budowy
 i Dworem jako poziomem zamku (#11), zapis lokalny (#13) i losowy seed mapy dla każdego gracza (#97,
-część kliencka). Z etapu 4 zostaje Dwór zmieniający się z epokami i garnizon (#81), który czeka
-na jednostki, bitwę i epokę II z późniejszych etapów.
+część kliencka). Ostatni z etapu 4 jest Dwór zmieniający się z epokami i garnizon (#81, opis niżej).
 Etap 5 (#127) zaczyna badania z #12: 34 technologie z notatki Drzewko technologiczne z epokami,
 zależnościami, efektami i ekranem drzewka. Działają premie G1 i G2 oraz w bitwie A1, A2, A7 (konnica
 +25% szybkości), O2 i O3, a manewry wymagają A3–A6. Jednostki i budynki MVP mają swoje technologie.
@@ -70,6 +69,20 @@ w sekcji „Następny etap”.
   `attacks.attacker_ruler_perk`), powtórka obrońcy dostaje ten sam, `end_attack` z Łupieżcą przyjmuje łup do
   115% zwykłego limitu, a `private.food_production` liczy Gospodarnego. Zapis gry ma wersję 12.
 
+- Dwór z epokami i garnizon (#81, `DefensePlan.Task.GARRISON`, decyzje właścicielki 23.11.2026): Dwór ma
+  własny rysunek na każdym z 5 poziomów epoki I (strzecha) i epoki II (gont na kamiennej podmurówce:
+  1 mniejszy, 2 dłuższy, 3 daszek nad wejściem i tarcze, 4 drugi proporzec i kamienne narożniki,
+  5 wieżyczka w rogu i drugi komin), każdy w 4 stanach zniszczeń. Przejście I → II zostawia poziom (#34).
+  Garnizon to zadanie Garnizon Dworu na ekranie Obrona (przycisk Zadanie, przed Przy donżonie). Dwór
+  mieści 4 jednostki za poziom (4–20, epoka II trzyma premię poziomu 5, `RecruitmentConfig.garrison_capacity`),
+  liczą się też szkolone do oddziału. Gdy oddział się nie mieści, przycisk przeskakuje na Przy donżonie
+  z komunikatem „Garnizon pełny 4/4”. W bitwie garnizon stoi przy donżonie (strzelcy na nim) i ma +20%
+  wytrzymałości (`BattleConfig.GARRISON_HP_PERCENT`); oddziały ponad pojemność z kopii zamku (w kolejności
+  armii) stoją przy donżonie bez premii (`DefensePlan.battle_garrison`), tak samo u atakującego i w powtórce.
+  Garnizon nie idzie do ataku: klient go nie wysyła, a serwer (`begin_attack`, migracja `garrison`) nie
+  liczy jego oddziałów do wojska atakującego (`army_not_owned`). Utrzymanie bez zmian: garnizon to ta sama
+  armia, więc liczy się do limitu miejsc i żywności. Format zapisu bez zmian (nowy numer zadania).
+
 - `scripts/gfx/palette.gd` (`Palette`): 16 kolorów epoki I w `AGE_I`. Rampy `GRASS`, `WOOD`, `EARTH`,
   `THATCH`, `WATER` to widoki na nią (ziemia i drewno dzielą ciemne brązy). Kolory UI są osobno w `UI`.
   Epoka II (#34) ma własne 16 kolorów w `AGE_II`: trawa, drewno, ziemia i cień jak w epoce I, a do tego
@@ -85,7 +98,7 @@ w sekcji „Następny etap”.
   względem epoki I. Nic nie ginie: zamek, budynki i ich poziomy zostają, a premie liczą się od poziomu 5
   (`Ages.bonus_level`, epoka II nie dokłada jeszcze nowych), tak samo jak na serwerze, który obcina poziom
   do 5. Technologie epoki II są dostępne dopiero w epoce II i po swoich wymaganiach. Dwór epoki II ma dach
-  z gontu na kamiennej podmurówce i błękitne proporce, inne budynki z poziomów epoki II kamienną podmurówkę,
+  z gontu na kamiennej podmurówce i błękitne proporce (każdy poziom inaczej, #81), inne budynki z poziomów epoki II kamienną podmurówkę,
   a wieża i donżon błękitny proporzec. Koszty i czasy epoki II są tymczasowe.
 
 - `scripts/gfx/pixel_canvas.gd` (`PixelCanvas`): prymitywy rysowania w rzucie z góry: dach dwuspadowy,
@@ -762,7 +775,7 @@ backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym konte
 władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i dobór przeciwnika z ekranem
 3 celów (#24, migracja `match_targets` i funkcja `find_targets` są na projekcie). Konto anonimowe przetrwa
 reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
-zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze w jego limicie miejsc i utrzymania żywności, #249), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10, Wóz 50, #235), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Ranking PvP (#27) ma osobne tabele ataku i obrony w epoce gracza (Elo, punkty zmienia tylko serwer po bitwie); migracja `pvp_ranking` i funkcja `ranking` są na projekcie. Ranking PvE (#242) to trzeci widok tego ekranu: punkty za wygrane z zamkami-botami liczy serwer po `finish_attack`; migracja `pve_ranking` i nowa wersja Edge Function `ranking` są na projekcie, a dobór przeciwnika nadal używa wspólnego `rating` (przejście na ranking ataku i obrony to decyzja właścicielki). Wóz (#235) podnosi capacity łupu; migracja `wagon_carry` jest na projekcie. Limit armii przy starcie ataku (#249, migracja `army_limits`) jest na projekcie razem z nową wersją `start_attack`; klient wysyła tylko oddziały mieszczące się w limitach. Po ataku na gracza (#99) `finish_attack` zapisuje zniszczone budynki (`record_destroyed`, migracja `attack_ruins` i nowe `finish_attack` są na projekcie): tylko gotowe budynki z kopii zamku, bez umocnień, nie więcej niż procent zniszczeń. Obrońca po połączeniu czyta swoje obrony i widzi te budynki jako ruiny, które same się odbudowują (epoka I godzina, każda następna o godzinę dłużej); w ruinie Chata drwala i Rybak produkują 75%. Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają: Dwór z epokami i garnizonem (#81),
+zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze w jego limicie miejsc i utrzymania żywności, #249), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10, Wóz 50, #235), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Ranking PvP (#27) ma osobne tabele ataku i obrony w epoce gracza (Elo, punkty zmienia tylko serwer po bitwie); migracja `pvp_ranking` i funkcja `ranking` są na projekcie. Ranking PvE (#242) to trzeci widok tego ekranu: punkty za wygrane z zamkami-botami liczy serwer po `finish_attack`; migracja `pve_ranking` i nowa wersja Edge Function `ranking` są na projekcie, a dobór przeciwnika nadal używa wspólnego `rating` (przejście na ranking ataku i obrony to decyzja właścicielki). Wóz (#235) podnosi capacity łupu; migracja `wagon_carry` jest na projekcie. Limit armii przy starcie ataku (#249, migracja `army_limits`) jest na projekcie razem z nową wersją `start_attack`; klient wysyła tylko oddziały mieszczące się w limitach. Po ataku na gracza (#99) `finish_attack` zapisuje zniszczone budynki (`record_destroyed`, migracja `attack_ruins` i nowe `finish_attack` są na projekcie): tylko gotowe budynki z kopii zamku, bez umocnień, nie więcej niż procent zniszczeń. Obrońca po połączeniu czyta swoje obrony i widzi te budynki jako ruiny, które same się odbudowują (epoka I godzina, każda następna o godzinę dłużej); w ruinie Chata drwala i Rybak produkują 75%. Do zrobienia: odjęcie łupu z magazynu obrońcy i wynik, który nie ginie przy zamknięciu gry przed odpowiedzią serwera. Z wcześniejszych etapów zostają:
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu.
 Zwiad z mgłą wojny (#28, etap 10) ma część kliencką: Chata tropicieli (S1, epoka I) szkoli
@@ -796,3 +809,6 @@ a perki władcy (#32) są w kodzie: migracja `ruler_perk` i nowe wersje Edge Fun
 i `attack_replay` (pole `ruler_perk`) czekają na wgranie na projekt. Bez nich klient działa, ale atakujący
 gra bez perka w ataku na gracza, a serwer nie sprawdza perka przy zapisie zamku. Miejsca 2 i 3 oraz
 pozostałe 13 perków zostają na kolejne zadania.
+Dwór z epokami i garnizon (#81) domyka etap 4: migracja `garrison` (nowa wersja `begin_attack`) czeka na
+wgranie na projekt. Bez niej klient działa (nie wysyła garnizonu), ale serwer nie odrzuci armii z garnizonem
+od zmodyfikowanego klienta. Wygląd Dworu w epokach III–VI dojdzie z tymi epokami (#38, #43, #46, #51).
