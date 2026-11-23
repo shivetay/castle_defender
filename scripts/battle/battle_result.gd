@@ -190,9 +190,9 @@ func to_server() -> Dictionary:
 
 
 ## Dodaje łup do magazynu gracza. Zwraca, ile faktycznie weszło (pełny magazyn nie przyjmie nadmiaru).
-## `with_gold` false: złoto zostaje poza magazynem (wyprawa na bota, #274: złoto dolicza dopiero serwer).
-func apply_loot(economy: Economy, with_gold: bool = true) -> Array[int]:
+## Gra nie woła tego po bitwie: łup z ataku dolicza serwer (#274, #282, `loot_applied`).
+func apply_loot(economy: Economy) -> Array[int]:
 	var got: Array[int] = []
 	for res in loot.size():
-		got.append(economy.add(res, loot[res]) if with_gold or res != EconomyConfig.Res.GOLD else 0)
+		got.append(economy.add(res, loot[res]))
 	return got

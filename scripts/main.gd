@@ -1414,8 +1414,10 @@ static func xp_note(xp: int) -> String:
 
 ## Koniec ataku: polegli znikają z armii, a pierwsze zdobycie zamku odblokowuje kolejny, mocniejszy
 ## (#26). Zamek wraca do pełnego stanu, więc można go atakować znowu.
-## Wynik (#99): gwiazdki, procent zniszczeń i łup trafiają do okna wyniku; łup do magazynu.
-## Łupu jest najwyżej tyle, ile uniosą ocaleli (capacity, #25).
+## Wynik (#99): gwiazdki, procent zniszczeń i łup trafiają do okna wyniku. Łupu jest najwyżej tyle,
+## ile uniosą ocaleli (capacity, #25). Do magazynu łup wchodzi tylko z serwera (#282): po przyjęciu wyniku
+## czeka w zamku na serwerze i przychodzi w odpowiedzi na najbliższy zapis (`loot_applied`), więc wyprawa
+## bez sieci nic nie daje.
 func _finish_attack(b: Battle) -> void:
 	if _player != null:
 		_finish_player_attack(b)
@@ -1427,8 +1429,9 @@ func _finish_attack(b: Battle) -> void:
 	var result := BattleResult.of(b)
 	result.compute_loot(attack_target, BotRoster.is_beaten(attack_target, bots_beaten))
 	result.limit_to_capacity(BattleResult.carry_capacity(army, alive))  # łup unoszą ocaleli (#25)
-	# złoto z wyprawy dolicza dopiero odpowiedź serwera (#274, _on_pve_finished): bez niej nie ma pokrycia
-	var got := result.apply_loot(economy, false)
+	# łup dolicza dopiero serwer (#282): okno pokazuje łup, który czeka na przyjęcie wyniku
+	var online := not _pve.is_idle() and not _pve.failed()
+	var got := PveReport.shown_loot(result.loot, online)
 	_pve_send(_pve.finish(result, alive))  # ranking PvE (#242): punkty doda serwer
 	_general_xp(b, false)
 	var first := won and attack_target == bots_beaten and bots_beaten < BotRoster.COUNT
@@ -1438,6 +1441,8 @@ func _finish_attack(b: Battle) -> void:
 				else "Odblokowany: %d. %s" % [bots_beaten + 2, BotRoster.NAMES[bots_beaten + 1]]
 	elif _pve.failed():
 		unlock = PveReport.FAILED_MESSAGE  # serwer odrzucił start wyprawy
+	elif not online:
+		unlock = PveReport.OFFLINE_MESSAGE
 	if first:
 		bots_beaten += 1
 		if bots_beaten < BotRoster.COUNT:
@@ -1498,7 +1503,7 @@ func _send_finish() -> void:
 ## i wraca na serwer później (#99, `_resume_finish`); odrzucony wynik jest bez łupu i znika.
 func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	if _pve_sending:
-		_on_pve_finished(error, loot)
+		_on_pve_finished(error)
 		return
 	if _finish_result == null:
 		return
@@ -1566,10 +1571,10 @@ func _pve_send(body: Dictionary) -> void:
 	_on_pve_finished(SupabaseClient.NETWORK_ERROR)
 
 
-## Odpowiedź `finish_attack` na wynik wyprawy: drewno, kamień i żywność są już w magazynie z gry, a złoto
-## przychodzi tylko z łupu przyjętego przez serwer (#274, `loot`). Błąd sieci ponawia tę samą treść,
-## a odrzucony wynik pokazuje komunikat (bez złota).
-func _on_pve_finished(error: String, loot: Array[int] = []) -> void:
+## Odpowiedź `finish_attack` na wynik wyprawy: przyjęty łup czeka w zamku na serwerze (#282), więc zapis
+## idzie od razu, a łup przychodzi w odpowiedzi na niego (`loot_applied`, _on_loot_applied). Błąd sieci
+## ponawia tę samą treść, a odrzucony wynik pokazuje komunikat (bez łupu).
+func _on_pve_finished(error: String) -> void:
 	_pve_sending = false
 	if _pve.on_finished(error):
 		get_tree().create_timer(AttackFinish.RETRY_S).timeout.connect(
@@ -1578,15 +1583,13 @@ func _on_pve_finished(error: String, loot: Array[int] = []) -> void:
 	if _pve.failed():
 		hud.message = PveReport.FAILED_MESSAGE
 		return
-	var gold := loot[EconomyConfig.Res.GOLD] if error.is_empty() and loot.size() == EconomyConfig.count() else 0
-	if gold > 0:
-		_tick()
-		economy.add(EconomyConfig.Res.GOLD, gold)
-		hud.message = "Złoto z wyprawy: +%d" % gold
+	if error.is_empty() and net != null:
 		_save()
+		net.flush()
 
 
-## Serwer scalił łup PvP z zapasami (#274): łup z własnego ataku albo strata po najeździe na zamek.
+## Serwer scalił łup z zapasami (#274, #282): łup z własnego ataku (na gracza albo zamek-bota) albo strata
+## po najeździe na zamek.
 func _on_loot_applied(delta: Array[int]) -> void:
 	_tick()
 	var got := economy.apply_delta(delta)

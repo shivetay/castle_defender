@@ -1,8 +1,8 @@
 extends TestCase
 ## Surowce bez zaufanej edycji lokalnej (#274, etapy 1 i 2). Serwer (`*_resource_sanity.sql`) liczy
 ## pojemność i pokrycie złota tymi samymi liczbami co gra, przenosi łup PvP między zamkami, a telefon
-## dolicza zmianę z odpowiedzi na zapis zamku (`loot_applied`). Złoto z wyprawy na bota przychodzi
-## tylko z odpowiedzi serwera.
+## dolicza zmianę z odpowiedzi na zapis zamku (`loot_applied`). Łup z wyprawy na bota przychodzi tą samą
+## drogą (#282).
 
 const MIGRATION := "res://supabase/migrations/20261124090000_resource_sanity.sql"
 const MAIN := preload("res://scripts/main.gd")
@@ -64,16 +64,18 @@ func test_apply_delta() -> bool:
 	return true
 
 
-## Wyprawa na bota: drewno, kamień i żywność do magazynu, złoto czeka na serwer.
-func test_bot_loot_without_gold() -> bool:
+## Wyprawa na bota (#282): okno wyniku pokazuje łup czekający na serwer, a bez serwera nic; sam łup
+## do magazynu przychodzi dopiero z `loot_applied`.
+func test_bot_loot_from_server() -> bool:
+	var loot: Array[int] = [10, 20, 30, 40]
+	assert_eq(PveReport.shown_loot(loot, true), [10, 20, 30, 40] as Array[int], "łup przyjmie serwer")
+	assert_eq(PveReport.shown_loot(loot, false), [0, 0, 0, 0] as Array[int], "bez sieci bez łupu")
+	assert_eq(PveReport.shown_loot([] as Array[int], true), [0, 0, 0, 0] as Array[int], "pusty łup")
+	assert_eq(loot, [10, 20, 30, 40] as Array[int], "łup bitwy bez zmian")
 	var e := Economy.new(0)
 	var r := BattleResult.new()
 	r.loot.assign([10, 20, 30, 40])
-	var got := r.apply_loot(e, false)
-	assert_eq(got, [10, 20, 30, 0] as Array[int], "złoto poza magazynem")
-	assert_eq(e.amounts[R.GOLD], EconomyConfig.START[R.GOLD], "złoto bez zmian")
-	assert_eq(r.loot[R.GOLD], 40, "łup do okna wyniku zostaje")
-	assert_eq(r.apply_loot(e)[R.GOLD], 40, "domyślnie ze złotem (PvP po odpowiedzi serwera)")
+	assert_eq(r.apply_loot(e), [10, 20, 30, 40] as Array[int], "apply_loot dodaje wszystko")
 	return true
 
 
@@ -86,7 +88,8 @@ func test_loot_message() -> bool:
 	assert_eq(MAIN.loot_message([0, 0, 0, 0] as Array[int]), "", "bez zmiany bez komunikatu")
 	var worst := MAIN.loot_message([-9999, -9999, -9999, -9999] as Array[int])
 	assert_true(PixelFont.text_width(worst) <= Hud.MESSAGE_MAX_WIDTH, "najdłuższa strata w pasku")
-	assert_true(PixelFont.text_width(PveReport.FAILED_MESSAGE) <= Hud.MESSAGE_MAX_WIDTH, "wyprawa bez złota w pasku")
+	assert_true(PixelFont.text_width(PveReport.FAILED_MESSAGE) <= Hud.MESSAGE_MAX_WIDTH, "wyprawa bez łupu w pasku")
+	assert_true(PixelFont.text_width(PveReport.OFFLINE_MESSAGE) <= Hud.MESSAGE_MAX_WIDTH, "wyprawa bez sieci w pasku")
 	assert_true(AttackStart.error_message("castle_invalid") != AttackStart.error_message("cokolwiek"),
 			"własny komunikat odrzuconego zamku")
 	return true

@@ -8,6 +8,26 @@ set search_path = public, extensions;
 
 select plan(25);
 
+-- #282: bilans surowców ma własny test (`economy_growth_test.sql`). Zamki w tym teście nie mają zgodnego
+-- bilansu, więc każdy zapis zamku dostaje kredyt bez limitu (przed wstawieniem i po każdym zapisie).
+create function pg_temp.economy_free() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' and tg_when = 'BEFORE' then
+    new.economy_credit := '{1000000000, 1000000000, 1000000000, 1000000000}';
+    return new;
+  end if;
+  perform set_config('session_replication_role', 'replica', true);
+  update public.castles set economy_credit = '{1000000000, 1000000000, 1000000000, 1000000000}',
+    hide_credit = '{1000000000, 1000000000, 1000000000, 1000000000}' where player_id = new.player_id;
+  perform set_config('session_replication_role', 'origin', true);
+  return null;
+end;
+$$;
+create trigger castles_economy_free before insert on public.castles
+  for each row execute function pg_temp.economy_free();
+create trigger castles_economy_free_after after insert or update of data on public.castles
+  for each row execute function pg_temp.economy_free();
+
 -- A atakuje. B, G, I: pasują. C: tarcza. D: epoka 2. E: ranking +200. F: atakowany przez A 2 h temu.
 -- H: zamek bez nazwy (bez onboardingu). J: pasuje, ale bez nazwy zamku do drugiej części testu.
 -- K: atakował B (cudzy atak nie wyklucza B), sam ma ranking +1000. L: bez zamku.
@@ -139,7 +159,7 @@ select is_empty(
 
 -- czwarty pasujący gracz: nadal najwyżej 3 cele, wszystkie z pasujących
 reset role;
-update public.castles set data = '{"profile": {"castle_name": "Jaworzyna"}}'
+update public.castles set data = '{"profile": {"castle_name": "Jaworzyna"}, "economy": {"amounts": [0, 0, 0, 0]}}'
   where player_id = '00000000-0000-0000-0000-0000000000a5';
 set local role service_role;
 select is(

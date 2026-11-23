@@ -5,13 +5,16 @@ extends RefCounted
 ## bitwy i `finish_attack` z wynikiem po niej. Punkty PvE dodaje wyłącznie serwer (migracja
 ## `*_pve_ranking.sql`) po przyjęciu wyniku w swoich limitach; klient ich nie liczy ani nie wysyła.
 ## Odpowiedź na start może przyjść już po końcu bitwy, więc wynik czeka wtedy na id ataku.
-## Drewno, kamień i żywność z łupu trafiają do magazynu w grze (także bez sieci), a złoto tylko z łupu
-## przyjętego przez serwer (#274): serwer liczy pokrycie złota w zamku z ataków, które zna.
+## Łup trafia do magazynu tylko z wyniku przyjętego przez serwer (#282, decyzja właścicielki): serwer
+## dopisuje go do zamku i telefon dolicza go z odpowiedzi na najbliższy zapis (`loot_applied`), bo bilans
+## surowców na serwerze nie zna łupu z bitwy, której nie widział. Wyprawa bez sieci nic nie daje.
 
 enum State { IDLE, STARTING, STARTED, FINISHING }
 
 ## Komunikat, gdy wynik nie trafił do rankingu (mieści się w pasku komunikatu).
-const FAILED_MESSAGE := "Wyprawa poza serwerem: bez złota i PvE"
+const FAILED_MESSAGE := "Wyprawa poza serwerem: bez łupu i PvE"
+## Okno wyniku wyprawy bez sieci (#282).
+const OFFLINE_MESSAGE := "Bez sieci: wyprawa bez łupu"
 
 var state: int = State.IDLE
 var bot_idx := -1
@@ -119,3 +122,12 @@ func _take() -> Dictionary:
 	queued = false
 	tries = 1
 	return pending
+
+
+## Łup do okna wyniku wyprawy (#282): ten, który czeka na serwer, albo zera, gdy wyprawa nie idzie
+## przez serwer (bez sieci albo odmowa startu). Sam łup do magazynu dolicza dopiero odpowiedź na zapis.
+static func shown_loot(loot: Array[int], online: bool) -> Array[int]:
+	var out: Array[int] = []
+	for res in EconomyConfig.count():
+		out.append(loot[res] if online and res < loot.size() else 0)
+	return out

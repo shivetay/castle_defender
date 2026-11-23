@@ -7,6 +7,26 @@ set search_path = public, extensions;
 
 select plan(52);
 
+-- #282: bilans surowców ma własny test (`economy_growth_test.sql`). Zamki w tym teście nie mają zgodnego
+-- bilansu, więc każdy zapis zamku dostaje kredyt bez limitu (przed wstawieniem i po każdym zapisie).
+create function pg_temp.economy_free() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' and tg_when = 'BEFORE' then
+    new.economy_credit := '{1000000000, 1000000000, 1000000000, 1000000000}';
+    return new;
+  end if;
+  perform set_config('session_replication_role', 'replica', true);
+  update public.castles set economy_credit = '{1000000000, 1000000000, 1000000000, 1000000000}',
+    hide_credit = '{1000000000, 1000000000, 1000000000, 1000000000}' where player_id = new.player_id;
+  perform set_config('session_replication_role', 'origin', true);
+  return null;
+end;
+$$;
+create trigger castles_economy_free before insert on public.castles
+  for each row execute function pg_temp.economy_free();
+create trigger castles_economy_free_after after insert or update of data on public.castles
+  for each row execute function pg_temp.economy_free();
+
 -- Trzech graczy: A, B, C (konta Auth tworzą wiersze w players przez wyzwalacz).
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-00000000000a'),
@@ -56,7 +76,7 @@ select is_empty(
     where player_id = '00000000-0000-0000-0000-00000000000b' returning player_id$$,
   'A nie zmieni zamku B');
 select lives_ok(
-  $$update public.castles set data = '{"grid": "a2"}', save_version = 8
+  $$update public.castles set data = '{"grid": "a2", "economy": {"amounts": [0, 0, 0, 0]}}', save_version = 8
     where player_id = '00000000-0000-0000-0000-00000000000a'$$,
   'A zapisuje własny zamek');
 select is((select revision from public.castles), 1::bigint, 'zapis podbija licznik zmian');
