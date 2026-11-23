@@ -21,6 +21,11 @@ const CASTLES_PATH := "/rest/v1/castles"
 const DEFENSE_PATH := "/rest/v1/defense_layouts"
 const PLAYERS_PATH := "/rest/v1/players"
 const SELECT_OWN := "map_seed,save_version,revision,data"
+## Odpowiedź na zapis zamku: nowa rewizja i łup PvP, który serwer scalił z zapasami (#274).
+const SELECT_PUSH := "revision,loot_applied"
+## Kod HTTP, którym serwer odrzuca zapis zamku spoza limitów surowców (#274, SQLSTATE PT422 w wyzwalaczu
+## `castles_resources`). Telefon przywraca wtedy zamek z serwera, zamiast ponawiać ten sam zapis.
+const REJECTED_HTTP := 422
 ## Pole w `castles.data` z tożsamością gracza z onboardingu (#228).
 const PROFILE_KEY := "profile"
 
@@ -113,9 +118,14 @@ static func read_path(player_id: String) -> String:
 
 
 ## Zapis z kontrolą wersji: trafia w wiersz tylko wtedy, gdy rewizja na serwerze to `base_revision`.
-## Odpowiedź (`Prefer: return=representation`) to nowa rewizja albo pusta tablica przy konflikcie.
+## Odpowiedź (`Prefer: return=representation`) to nowa rewizja z `loot_applied` albo pusta tablica przy konflikcie.
 static func push_path(player_id: String, base_revision: int) -> String:
-	return "%s&revision=eq.%d&select=revision" % [own_path(player_id), base_revision]
+	return "%s&revision=eq.%d&select=%s" % [own_path(player_id), base_revision, SELECT_PUSH]
+
+
+## Założenie zamku (POST) z tą samą odpowiedzią co zapis.
+static func insert_path() -> String:
+	return "%s?select=%s" % [CASTLES_PATH, SELECT_PUSH]
 
 
 ## Zapis układu obrony (wiersz w `defense_layouts`, z którego `start_attack` robi kopię dla ataku).
@@ -150,6 +160,24 @@ static func revision_from_rows(rows: Variant) -> int:
 	var row := first_row(rows)
 	var value: Variant = row.get("revision")
 	return int(value) if value is int or value is float else -1
+
+
+## Łup PvP, który serwer scalił z zapasami przy tym zapisie (#274, `castles.loot_applied`), w kolejności
+## EconomyConfig.Res: dodatni u atakującego, ujemny u obrońcy. Zera, gdy odpowiedź go nie ma albo jest zła.
+static func loot_from_rows(rows: Variant) -> Array[int]:
+	var out: Array[int] = []
+	out.resize(EconomyConfig.count())
+	out.fill(0)
+	var raw: Variant = first_row(rows).get("loot_applied")
+	if not raw is Array or (raw as Array).size() != EconomyConfig.count():
+		return out
+	for res in EconomyConfig.count():
+		var v: Variant = (raw as Array)[res]
+		if not (v is int or v is float):
+			out.fill(0)
+			return out
+		out[res] = int(v)
+	return out
 
 
 ## Dane zamku wysyłane do `castles.data`: ten sam kształt co lokalny zapis, bez pola world_seed

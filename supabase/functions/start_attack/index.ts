@@ -27,6 +27,8 @@ const ERRORS: Record<string, number> = {
   attacker_no_castle: 409,
   army_over_limit: 409,
   army_over_upkeep: 409,
+  // #274: zamek atakującego na serwerze spoza limitów surowców (zapis sprzed reguł) nie wchodzi do PvP
+  castle_invalid: 409,
   target_not_found: 404,
   attacker_not_found: 404,
   army_not_owned: 400,

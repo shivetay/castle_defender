@@ -41,6 +41,12 @@ signal defenses_loaded(rows: Array[Dictionary], ok: bool)
 signal defense_reports_loaded(reports: Array[DefenseLog.Report], ok: bool)
 ## Odpowiedź `attack_replay` (#29): AttackReplay.parse_response albo pusty słownik z kodem błędu.
 signal replay_loaded(replay: Dictionary, error: String)
+## Serwer scalił łup PvP z zapasami przy zapisie zamku (#274, CastleSync.loot_from_rows): zmiana do
+## doliczenia na telefonie, dodatnia u atakującego, ujemna u obrońcy. Nie przychodzi dla samych zer.
+signal loot_applied(delta: Array[int])
+## Serwer odrzucił zapis zamku spoza limitów surowców (#274, HTTP 422). Po tym sygnale zamek wraca
+## z serwera (`castle_restored`), a gdy na serwerze go nie ma, synchronizacja stoi do końca sesji.
+signal castle_rejected
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -127,6 +133,8 @@ var _push_wait := 0.0
 var _conflicts := 0
 ## Na serwerze jest zamek z nowszej wersji gry albo zamek właśnie wraca na telefon: nic nie wysyłamy.
 var _castle_hold := false
+## Serwer odrzucił zapis zamku (#274): po odczycie zamek wraca z serwera zamiast ponawiać ten sam zapis.
+var _force_pull := false
 var _failures_castle := 0
 ## Testy: żądania synchronizacji trafiają tu zamiast do sieci (call, method, path, body).
 var fake_transport := false
@@ -664,6 +672,9 @@ func handle_castle_rest(call: int, result: int, code: int, body: String) -> void
 		return
 	var outcome := outcome_of(result, code)
 	if outcome != Outcome.OK:
+		if code == CastleSync.REJECTED_HTTP and (call == CastleCall.PUSH or call == CastleCall.INSERT):
+			_castle_rejected(call)
+			return
 		_castle_failed(call, code)
 		return
 	var rows: Variant = SupabaseConfig.parse_json(body)
@@ -679,6 +690,9 @@ func handle_castle_rest(call: int, result: int, code: int, body: String) -> void
 			_failures_castle = 0
 			_conflicts = 0
 			_castle_saved(revision)
+			var delta := CastleSync.loot_from_rows(rows)
+			if delta.any(func(v: int) -> bool: return v != 0):
+				loot_applied.emit(delta)
 			_castle_send(CastleCall.DEFENSE_PATCH, HTTPClient.METHOD_PATCH, CastleSync.defense_path(user_id()),
 					CastleSync.update_body(_sent_save_version, _sent_defense), true)
 		CastleCall.DEFENSE_PATCH:
@@ -724,11 +738,19 @@ func _castle_on_get(row: Dictionary) -> void:
 	var fresh := local_fresh or sync_state.restore_pending_for(uid)
 	var action := CastleSync.decide(_castle_map_seed, sync_state.revision_for(uid), fresh,
 			sync_state.force_push, _can_push, row)
+	if _force_pull:
+		# serwer odrzucił stan z telefonu (#274): wygrywa zamek z serwera, a bez niego nic nie wysyłamy
+		_force_pull = false
+		if CastleSync.save_from_row(row).is_empty():
+			_castle_hold = true
+			_castle_dirty = false
+			return
+		action = CastleSync.Action.PULL
 	match action:
 		CastleSync.Action.INSERT:
 			_castle_dirty = false
 			_capture_sent()
-			_castle_send(CastleCall.INSERT, HTTPClient.METHOD_POST, CastleSync.CASTLES_PATH + "?select=revision",
+			_castle_send(CastleCall.INSERT, HTTPClient.METHOD_POST, CastleSync.insert_path(),
 					CastleSync.insert_body(uid, _castle_map_seed, _sent_save_version, _sent_data), true)
 		CastleSync.Action.PUSH:
 			_base_revision = int(row.get("revision", 0))
@@ -792,6 +814,25 @@ func _castle_conflict() -> void:
 		# ktoś stale zapisuje ten zamek: czekamy na kolejny zapis z gry
 		_castle_dirty = false
 		return
+	_push_wait = 0.0
+	_castle_pump()
+
+
+## Serwer odrzucił zamek spoza limitów surowców (#274). Ten sam zapis nie przejdzie, więc czytamy zamek
+## z serwera i przywracamy go na telefon (`_force_pull`). Odrzucone założenie zamku (na serwerze nic
+## nie ma) zatrzymuje synchronizację do końca sesji.
+func _castle_rejected(call: int) -> void:
+	_failures_castle = 0
+	_conflicts = 0
+	_base_revision = -1
+	castle_rejected.emit()
+	if call == CastleCall.INSERT:
+		_castle_hold = true
+		_castle_dirty = false
+		return
+	_force_pull = true
+	_castle_dirty = true
+	_checked_user = ""
 	_push_wait = 0.0
 	_castle_pump()
 

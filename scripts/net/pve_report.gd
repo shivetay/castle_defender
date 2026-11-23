@@ -5,12 +5,13 @@ extends RefCounted
 ## bitwy i `finish_attack` z wynikiem po niej. Punkty PvE dodaje wyłącznie serwer (migracja
 ## `*_pve_ranking.sql`) po przyjęciu wyniku w swoich limitach; klient ich nie liczy ani nie wysyła.
 ## Odpowiedź na start może przyjść już po końcu bitwy, więc wynik czeka wtedy na id ataku.
-## Łup z bota trafia do magazynu w grze jak dotąd, a odpowiedź serwera go nie zmienia.
+## Drewno, kamień i żywność z łupu trafiają do magazynu w grze (także bez sieci), a złoto tylko z łupu
+## przyjętego przez serwer (#274): serwer liczy pokrycie złota w zamku z ataków, które zna.
 
 enum State { IDLE, STARTING, STARTED, FINISHING }
 
 ## Komunikat, gdy wynik nie trafił do rankingu (mieści się w pasku komunikatu).
-const FAILED_MESSAGE := "Wyprawa poza rankingiem PvE"
+const FAILED_MESSAGE := "Wyprawa poza serwerem: bez złota i PvE"
 
 var state: int = State.IDLE
 var bot_idx := -1
