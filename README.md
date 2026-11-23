@@ -97,8 +97,7 @@ w sekcji „Następny etap”.
   drewna, kamienia, żywności i złota od poprzedniego zapisu na zegarze serwera. Przyrost plus wydatki widoczne
   w zapisie (budowa i zlecenia w kolejce, badania, rekrutacja, pułapki, zwiad, generałowie, płatne zmiany perka)
   nie może przekroczyć produkcji w tym czasie (górna granica z budynków obu zapisów, premii G1/G2 i Gospodarnego,
-  żywność z Chaty myśliwego), nagród fal PvE, których serwer jeszcze nie wliczył, i zwrotów za anulowane
-  zlecenia (`economy_too_fast`). Zapas nie może też spaść bardziej, niż wyjaśniają te wydatki, utrzymanie
+  żywność z Chaty myśliwego) i zwrotów za anulowane zlecenia (`economy_too_fast`). Zapas nie może też spaść bardziej, niż wyjaśniają te wydatki, utrzymanie
   wojska, wejścia wytwórców i mniejszy magazyn (`economy_hidden`), więc obrońca nie schowa łupu; na wydatki,
   których zapis nie pokazuje (np. pułapka postawiona i zdjęta), jest łączny zapas 100 sztuk (20 złota) plus
   5 minut produkcji, odnawiany w godzinę. Zapis gracza bez `economy` jest odrzucany (`economy_missing`).
@@ -106,6 +105,13 @@ w sekcji „Następny etap”.
   z serwera (HTTP 422, bez przycinania). Łup z wyprawy na bota (wszystkie surowce) dopisuje serwer po przyjęciu
   wyniku i przychodzi w `loot_applied` z najbliższego zapisu (decyzja właścicielki); wyprawa bez sieci nie daje
   łupu („Bez sieci: wyprawa bez łupu”). Złoto ma ten sam bilans, więc po najeździe nie wraca z telefonu.
+  Fale PvE na serwerze (#288, migracja `pve_wave_results`, Edge Function `pve_wave`): nagrodę za falę daje
+  tylko serwer, nie licznik `pve.cleared` z zapisu. Gdy gra jest połączona, fala startuje i kończy się na serwerze
+  (`WaveReport`), a nagroda za wygraną dochodzi jak łup z bota, w `loot_applied` („Nagroda za falę: …”). Każda
+  fala daje nagrodę raz na konto; serwer odrzuca start fali, którą już nagrodził, wygraną szybszą niż 5 s, wynik
+  po 10 minutach i ponad 10 startów na 10 minut. Fala bez sieci odblokowuje następną, ale nie daje nagrody
+  („Fala 1 obroniona poza serwerem: bez nagrody”), a serwer już jej później nie nagrodzi (do potwierdzenia
+  przez właścicielkę).
 
 - Dwór z epokami i garnizon (#81, `DefensePlan.Task.GARRISON`, decyzje właścicielki 23.11.2026): Dwór ma
   własny rysunek na każdym z 5 poziomów epoki I (strzecha) i epoki II (gont na kamiennej podmurówce:
@@ -869,4 +875,7 @@ Dwór z epokami i garnizon (#81) domyka etap 4: migracja `garrison` (nowa wersja
 wgranie na projekt. Bez niej klient działa (nie wysyła garnizonu), ale serwer nie odrzuci armii z garnizonem
 od zmodyfikowanego klienta. Bilans surowców (#282, migracja `economy_growth`) czeka na wgranie razem z wydaniem
 klienta: stara wersja gry dolicza łup z bota sama, więc po migracji jej zapisy po wyprawie trafią na odrzut
-i przywrócenie zamku z serwera (łup i tak dojdzie z `loot_applied`). Wygląd Dworu w epokach III–VI dojdzie z tymi epokami (#38, #43, #46, #51).
+i przywrócenie zamku z serwera (łup i tak dojdzie z `loot_applied`). Fale PvE przez serwer (#288, migracja
+`pve_wave_results` i nowa Edge Function `pve_wave`) czekają na wgranie razem z wydaniem klienta: stara wersja
+gry dolicza nagrodę fali sama, więc po migracji taki zapis trafi na odrzut i przywrócenie zamku z serwera
+(bez nagrody). Wygląd Dworu w epokach III–VI dojdzie z tymi epokami (#38, #43, #46, #51).
