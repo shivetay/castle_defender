@@ -1,14 +1,14 @@
 -- Testy bilansu surowców w zapisie zamku (#282), uruchamiane przez `supabase test db` (pgTAP).
 -- Kryteria: zapasy nie rosną szybciej niż produkcja od poprzedniego zapisu (z tolerancją 5 minut produkcji
--- łącznie), budowa, badania i rekrutacja mają pokrycie w surowcach, zwrot za anulowane zlecenie i nagroda fali
--- PvE liczą się raz, zapasy nie spadają bez wydatku (obrońca nie schowa łupu), mniejszy magazyn i scalony łup
--- przechodzą, łup z zamku-bota przenosi serwer, złoto po najeździe nie wraca, serwer pisze bez bilansu,
--- a gracz nie ustawi kolumn bilansu.
+-- łącznie), budowa, badania i rekrutacja mają pokrycie w surowcach, zwrot za anulowane zlecenie liczy się raz,
+-- nagroda fali PvE wchodzi tylko z wyniku przyjętego przez serwer (#288), zapasy nie spadają bez wydatku
+-- (obrońca nie schowa łupu), mniejszy magazyn i scalony łup przechodzą, łup z zamku-bota przenosi serwer,
+-- złoto po najeździe nie wraca, serwer pisze bez bilansu, a gracz nie ustawi kolumn bilansu.
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(41);
+select plan(44);
 
 insert into auth.users (id) values ('00000000-0000-0000-0000-0000000282a1');
 update public.players set rating = 62820, age = 0 where id = '00000000-0000-0000-0000-0000000282a1';
@@ -113,10 +113,25 @@ select lives_ok($$select pg_temp.push('[380, 270, 203, 50]',
     '{"research": {"done": ["A1"]}, "recruitment": {"squads": [[1, 13, 4]], "orders": []}}')$$,
   'czterech chłopów za 20 żywności przechodzi');
 
--- ---- nagrody fal PvE ----
-select lives_ok($$select pg_temp.push('[480, 320, 303, 60]',
+-- ---- nagrody fal PvE (#288: tylko z wyniku fali przyjętego przez serwer) ----
+select throws_ok($$select pg_temp.push('[480, 320, 303, 60]',
     '{"research": {"done": ["A1"]}, "recruitment": {"squads": [[1, 13, 4]], "orders": []}, "pve": {"cleared": 1}}')$$,
-  'nagroda za pierwszą falę');
+  'PT422', 'economy_too_fast', 'skok pve.cleared bez wyniku fali nie daje nagrody (#288)');
+reset role;
+select set_config('request.jwt.claims', '', true);
+set local role service_role;
+create temp table wave_run as select * from public.begin_wave('00000000-0000-0000-0000-0000000282a1', 0);
+update public.pve_wave_runs set started_at = now() - interval '1 minute' where id = (select run_id from wave_run);
+select is((select status from public.end_wave('00000000-0000-0000-0000-0000000282a1', (select run_id from wave_run), true)),
+  'won', 'serwer przyjął wygraną pierwszą falę');
+reset role;
+select pg_temp.as_a();
+set local role authenticated;
+select lives_ok($$select pg_temp.push('[380, 270, 203, 50]',
+    '{"research": {"done": ["A1"]}, "recruitment": {"squads": [[1, 13, 4]], "orders": []}, "pve": {"cleared": 1}}')$$,
+  'zapis po fali przechodzi bez nagrody z telefonu');
+select is((select data -> 'economy' -> 'amounts' from public.castles where player_id = '00000000-0000-0000-0000-0000000282a1'),
+  '[480, 320, 303, 60]'::jsonb, 'nagrodę za pierwszą falę dopisał serwer po bilansie');
 select lives_ok($$select pg_temp.push('[480, 320, 303, 60]',
     '{"research": {"done": ["A1"]}, "recruitment": {"squads": [[1, 13, 4]], "orders": []}, "pve": {"cleared": 0}}')$$,
   'zapis z cofniętym licznikiem fal przechodzi');

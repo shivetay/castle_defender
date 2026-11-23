@@ -44,6 +44,10 @@ signal replay_loaded(replay: Dictionary, error: String)
 ## Serwer scalił łup PvP z zapasami przy zapisie zamku (#274, CastleSync.loot_from_rows): zmiana do
 ## doliczenia na telefonie, dodatnia u atakującego, ujemna u obrońcy. Nie przychodzi dla samych zer.
 signal loot_applied(delta: Array[int])
+## Odpowiedź na start fali PvE (#288, WaveReport.parse_start; pusty słownik przy błędzie).
+signal wave_started(start: Dictionary, error: String)
+## Odpowiedź na koniec fali PvE (#288): nagroda, którą serwer dopisał do zamku (zera przy przegranej).
+signal wave_finished(reward: Array[int], error: String)
 ## Serwer odrzucił zapis zamku spoza limitów surowców (#274, HTTP 422). Po tym sygnale zamek wraca
 ## z serwera (`castle_restored`), a gdy na serwerze go nie ma, synchronizacja stoi do końca sesji.
 signal castle_rejected
@@ -55,7 +59,7 @@ enum Call { NONE, SIGNUP, REFRESH }
 ## Kroki synchronizacji zamku (#23): odczyt, założenie, zapis z rewizją, obrona i nick.
 enum CastleCall { NONE, GET, INSERT, PUSH, DEFENSE_PATCH, DEFENSE_INSERT, NICKNAME }
 ## Żądanie ataku na gracza w toku (#240).
-enum AttackCall { NONE, START, FINISH, LAUNCH, REPLAY }
+enum AttackCall { NONE, START, FINISH, LAUNCH, REPLAY, WAVE_START, WAVE_FINISH }
 ## Żądanie zwiadu w toku (#28).
 enum ScoutCall { NONE, SEND, REPORTS }
 
@@ -415,6 +419,18 @@ func finish_attack(body: Dictionary) -> bool:
 	return _attack_send(AttackCall.FINISH, AttackFinish.PATH, body)
 
 
+## Start fali PvE `wave` na serwerze (#288); odpowiedź w `wave_started`. False: brak sieci albo inne
+## żądanie ataku jeszcze trwa (wtedy fala idzie bez serwera i bez nagrody).
+func start_wave(wave: int) -> bool:
+	return _attack_send(AttackCall.WAVE_START, WaveReport.PATH, WaveReport.start_request(wave))
+
+
+## Wynik fali PvE (WaveReport.finish); odpowiedź w `wave_finished`. Ponowienie tej samej treści po błędzie
+## sieci jest bezpieczne: serwer zwraca zapisany wynik bez drugiej nagrody.
+func finish_wave(body: Dictionary) -> bool:
+	return _attack_send(AttackCall.WAVE_FINISH, WaveReport.PATH, body)
+
+
 ## Zatwierdzenie planu ataku na gracza (#28) z planem `plan` (#29); pełne kopie, zapisany plan i badania
 ## przychodzą w `attack_launched`. Ponowienie po błędzie sieci jest bezpieczne: serwer zwraca te same
 ## kopie i plan z pierwszego zatwierdzenia.
@@ -478,7 +494,7 @@ func is_attack_pending() -> bool:
 	return _attack_call != AttackCall.NONE
 
 
-## Obsługa odpowiedzi `start_attack` / `finish_attack` (bez sieci, wołana też z testów).
+## Obsługa odpowiedzi `start_attack` / `finish_attack` / `pve_wave` (bez sieci, wołana też z testów).
 func handle_attack(call: int, result: int, code: int, body: String) -> void:
 	_attack_call = AttackCall.NONE
 	var error := edge_error(result, code, body)
@@ -506,6 +522,19 @@ func handle_attack(call: int, result: int, code: int, body: String) -> void:
 			if error.is_empty() and replay.is_empty():
 				error = REJECTED_ERROR  # nieczytelna powtórka: ponowienie da to samo
 			replay_loaded.emit(replay, error)
+		AttackCall.WAVE_START:
+			var wave := WaveReport.parse_start(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
+			if error.is_empty() and wave.is_empty():
+				error = REJECTED_ERROR  # niepełna odpowiedź: fala idzie bez serwera
+			wave_started.emit(wave, error)
+		AttackCall.WAVE_FINISH:
+			var done := WaveReport.parse_finish(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
+			if error.is_empty() and done.is_empty():
+				error = NETWORK_ERROR  # niepełna odpowiedź: ponowienie zwróci zapisany wynik
+			var reward: Array[int] = []
+			if error.is_empty():
+				reward = done["reward"] as Array[int]
+			wave_finished.emit(reward, error)
 
 
 ## Wysyła zaległy zapis od razu (przy wyjściu z gry), bez czekania na `PUSH_INTERVAL_S`.

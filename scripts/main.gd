@@ -125,6 +125,11 @@ var ruler := RulerPerks.new()
 var ruler_panel: RulerPanel
 ## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
 const ABANDONED_MESSAGE := "Atak porzucony: ten zamek znowu po dobie"
+## Początek komunikatu o łupie z serwera i jego wersja dla nagrody za falę PvE (#288).
+const LOOT_PREFIX := "Łup z ataku: "
+const WAVE_REWARD_PREFIX := "Nagroda za falę: "
+## Serwer nie przyjął fali albo jej wyniku (#288): nagrody nie ma.
+const WAVE_FAILED_MESSAGE := "Fala poza serwerem: bez nagrody"
 ## Czy trwająca bitwa to atak (inaczej fala PvE).
 var _attacking := false
 ## Atak na gracza (#240): cel z kopii z serwera (null przy zamku-bocie), czekanie na `start_attack`
@@ -158,6 +163,12 @@ const RESUME_POLL_S := 30.0
 var _pve := PveReport.new()
 ## Wynik wyprawy do rankingu PvE czeka na odpowiedź `finish_attack`.
 var _pve_sending := false
+## Fala PvE zgłoszona serwerowi (#288): start i wynik, gdy gra jest połączona; nagrodę daje tylko serwer.
+var _wave := WaveReport.new()
+## Wynik fali czeka na odpowiedź `pve_wave`.
+var _wave_sending := false
+## Serwer przyjął wygraną falę: najbliższy łup z zapisu zamku to nagroda za nią (komunikat).
+var _wave_reward_due := false
 
 var _terrain_tex: ImageTexture
 ## Dym z kominów i błyski na wodzie (#150), mieszkańcy, straż, proporce i pora dnia (#36), nad budynkami.
@@ -393,6 +404,8 @@ func _ready() -> void:
 	net.defense_reports_loaded.connect(_on_defense_reports)
 	net.replay_loaded.connect(_on_replay_loaded)
 	net.loot_applied.connect(_on_loot_applied)
+	net.wave_started.connect(_on_wave_started)
+	net.wave_finished.connect(_on_wave_finished)
 	net.castle_rejected.connect(_on_castle_rejected)
 	add_child(net)
 	if saved != null:
@@ -831,6 +844,7 @@ func _on_siege_pressed() -> void:
 	_cursor = Rect2i()
 	_battle_wave = pve_cleared
 	_battle_ids = recruitment.battle_ids()
+	_wave_begin(_battle_wave)
 	var b := Battle.for_castle_squads(grid, PveWaves.squads(_battle_wave), recruitment.battle_squads(), _edge_road(),
 			PveWaves.battle_seed(world_seed, _battle_wave), research,
 			defense.battle_orders(_battle_ids, recruitment.battle_squads(), grid, grid.age()),
@@ -878,8 +892,13 @@ static func speed_label(speed: int) -> String:
 
 
 ## Pasek i koniec fali: czas do limitu w prawym górnym rogu, po końcu wynik, nagroda i zapis.
-## Komunikat po fali: wynik, polegli (gdy są) i nagroda za wygraną.
+## Komunikat po fali: wynik, polegli (gdy są) i nagroda za wygraną. Pusta nagroda przy wygranej to fala
+## poza serwerem (#288: bez sieci albo odmowa), która nagrody nie daje.
 static func wave_end_message(wave: int, won: bool, reward: Array[int], fallen: int) -> String:
+	if won and reward.is_empty():
+		if fallen > 0:
+			return "Fala %d obroniona, polegli: %d. Bez nagrody" % [wave + 1, fallen]
+		return "Fala %d obroniona poza serwerem: bez nagrody" % (wave + 1)
 	if won:
 		if fallen > 0:
 			return "Fala %d obroniona, polegli: %d. +%s" % [wave + 1, fallen, Hud.cost_text(reward)]
@@ -907,13 +926,15 @@ func _update_battle() -> void:
 	# polegli znikają z armii, ocalali (także wycofani) wracają do swoich oddziałów (#164)
 	var fallen := recruitment.apply_losses(_battle_ids, b.survivors(Battle.Side.DEFENDER))
 	var won := b.winner == Battle.Winner.DEFENDER
+	# Nagrodę dopisuje tylko serwer (#288): komunikat pokazuje tę, która czeka na przyjęcie wyniku, a do
+	# magazynu wchodzi z odpowiedzi na najbliższy zapis (`loot_applied`). Fala bez sieci odblokowuje
+	# następną, ale nic nie daje.
 	# literał `[]` w trójargumentowym `if` jest nietypowany i nie da się go przypisać do Array[int]
 	var reward: Array[int] = []
-	if won:
+	if won and _wave.online():
 		reward = PveWaves.reward(_battle_wave)
+	_wave_send(_wave.finish(won))
 	if won:
-		for res in reward.size():
-			economy.add(res, reward[res])
 		pve_cleared = maxi(pve_cleared, _battle_wave + 1)
 	hud.message = wave_end_message(_battle_wave, won, reward, fallen)
 	if won and _battle_wave == PveWaves.COUNT - 1:
@@ -1592,12 +1613,15 @@ func _on_pve_finished(error: String) -> void:
 		net.flush()
 
 
-## Serwer scalił łup z zapasami (#274, #282): łup z własnego ataku (na gracza albo zamek-bota) albo strata
-## po najeździe na zamek.
+## Serwer scalił łup z zapasami (#274, #282): łup z własnego ataku (na gracza albo zamek-bota), nagroda
+## za falę PvE (#288) albo strata po najeździe na zamek.
 func _on_loot_applied(delta: Array[int]) -> void:
 	_tick()
 	var got := economy.apply_delta(delta)
 	var text := loot_message(got)
+	if _wave_reward_due and text.begins_with(LOOT_PREFIX):
+		text = WAVE_REWARD_PREFIX + text.substr(LOOT_PREFIX.length())
+	_wave_reward_due = false
 	if not text.is_empty():
 		hud.message = text
 	_save()
@@ -1617,8 +1641,59 @@ static func loot_message(got: Array[int]) -> String:
 			gained = gained or got[res] > 0
 	if parts.is_empty():
 		return ""
-	var prefix := "Zmiana zapasów: " if lost and gained else ("Straty z najazdu: " if lost else "Łup z ataku: ")
+	var prefix := "Zmiana zapasów: " if lost and gained else ("Straty z najazdu: " if lost else LOOT_PREFIX)
 	return prefix + " ".join(parts)
+
+
+# --- Fale PvE na serwerze (#288) ---------------------------------------------------------------------
+
+## Start fali: gdy gra jest połączona, ta sama fala zaczyna się na serwerze (`pve_wave`), żeby wygrana
+## mogła dać nagrodę. Bez sieci (albo gdy kanał ataków jest zajęty) fala idzie bez serwera i bez nagrody.
+## Wynik poprzedniej fali w drodze albo czekający na ponowienie ma pierwszeństwo (review #290): wtedy nowa
+## fala idzie bez serwera, a zgłoszenia poprzedniej nie kasujemy.
+func _wave_begin(wave: int) -> void:
+	if _wave_sending or not _wave.is_idle():
+		return
+	_wave.clear()
+	if net == null or identity == null or not net.is_online():
+		return
+	if net.start_wave(wave):
+		_wave.begin(wave)
+
+
+## Odpowiedź na start fali; wynik, który już czekał, idzie od razu.
+func _on_wave_started(start: Dictionary, error: String) -> void:
+	_wave_send(_wave.on_started(start, error))
+	if _wave.failed() and _battle_wave < 0:
+		hud.message = WAVE_FAILED_MESSAGE  # fala już się skończyła z obiecaną nagrodą
+
+
+## Wysyła wynik fali (pusta treść: nie ma czego wysyłać albo czekamy na start).
+func _wave_send(body: Dictionary) -> void:
+	if body.is_empty():
+		return
+	if net != null and net.finish_wave(body):
+		_wave_sending = true
+		return
+	_on_wave_finished([] as Array[int], SupabaseClient.NETWORK_ERROR)
+
+
+## Odpowiedź na wynik fali: przyjęta nagroda czeka w zamku na serwerze, więc zapis idzie od razu, a nagroda
+## przychodzi w odpowiedzi na niego (`loot_applied`). Błąd sieci ponawia tę samą treść, a odrzucony wynik
+## pokazuje komunikat (bez nagrody).
+func _on_wave_finished(reward: Array[int], error: String) -> void:
+	_wave_sending = false
+	if _wave.on_finished(error):
+		get_tree().create_timer(AttackFinish.RETRY_S).timeout.connect(
+				func() -> void: _wave_send(_wave.retry_body()))
+		return
+	if _wave.failed():
+		hud.message = WAVE_FAILED_MESSAGE
+		return
+	if error.is_empty() and net != null:
+		_wave_reward_due = reward.any(func(v: int) -> bool: return v > 0)
+		_save()
+		net.flush()
 
 
 ## Serwer odrzucił stan zamku spoza limitów surowców (#274): zamek wraca z serwera.
