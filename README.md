@@ -77,22 +77,34 @@ w sekcji „Następny etap”.
   przerwie). Łup z ataku na gracza przenosi serwer w `end_attack`: obrońca traci, atakujący zyskuje, a zmiana
   wchodzi do zamku przy najbliższym zapisie z telefonu i wraca w odpowiedzi (`castles.loot_applied`), którą
   gra dolicza z komunikatem („Łup z ataku”, „Straty z najazdu”). Kopia obrońcy do bitwy ma już ten łup, więc
-  tych samych zapasów nie da się złupić dwa razy. Wyprawa na bota daje drewno, kamień i żywność od razu (także
-  bez sieci), a złoto tylko z odpowiedzi serwera. Zamek spoza limitów nie wchodzi do PvP (`castle_invalid`).
+  tych samych zapasów nie da się złupić dwa razy. Łup z wyprawy na bota przychodzi tą samą drogą (#282).
+  Zamek spoza limitów nie wchodzi do PvP (`castle_invalid`).
   Sanity zabudowy (etap 4, migracja `building_sanity`): zapis z budynkiem wyżej niż Dwór (donżon i strażnica
   tylko poziom 1), z poziomem spoza 0–10, z Dworem epoki II bez O1, G1 i A7 albo z nowym budynkiem bez
   wymaganej technologii jest odrzucany, a zabudowa może urosnąć najwyżej o tyle, ile zbuduje jeden budowniczy
   na zegarze serwera. Czas sprzed zapisu na zlecenie w toku przechodzi jako kredyt (`castles.build_credit_ms`,
   najwyżej czas tego zlecenia), a tolerancja to 5 minut łącznie; pierwszy zapis liczy od założenia konta
   z zapasem 6 h. Limity z poziomu Dworu (armia, pułapki, garnizon, magazyn) biorą się więc tylko z przyjętej zabudowy.
-  Pokrycie kosztów budowy w surowcach i limit przyrostu produkcji (etap 3) czekają na decyzję.
   Badania, wojsko i towary (#281, migracja `army_research_goods_sanity`): zapis z technologią bez wymagań albo
   z późniejszej epoki, z jednostką bez technologii albo z późniejszej epoki i z towarem ponad zbrojownię jest
   odrzucany. Technologii może przybyć najwyżej tyle, ile zbada jeden badacz, jednostek tyle, ile wyszkolą
   budynki rekrutacji (każdy rodzaj budynku osobno, równolegle), a towarów tyle, ile dadzą wytwórcy, na zegarze
   serwera od poprzedniego zapisu. Czas na badanie, szkolenie i cykl w toku przechodzi jako kredyt (tolerancja
   5 minut łącznie, jak przy budowie). Armia ponad limit miejsc jest odrzucana tylko wtedy, gdy urosła (powrót
-  zwiadu i rozbiórka Koszar przechodzą), a w epoce II nie przybywa Chłopów. Pokrycie kosztów badań i rekrutacji czeka na limit przyrostu ekonomii (#282).
+  zwiadu i rozbiórka Koszar przechodzą), a w epoce II nie przybywa Chłopów.
+  Bilans surowców (#282, etap 3, migracja `economy_growth`): każdy zapis zamku z telefonu przechodzi przez bilans
+  drewna, kamienia, żywności i złota od poprzedniego zapisu na zegarze serwera. Przyrost plus wydatki widoczne
+  w zapisie (budowa i zlecenia w kolejce, badania, rekrutacja, pułapki, zwiad, generałowie, płatne zmiany perka)
+  nie może przekroczyć produkcji w tym czasie (górna granica z budynków obu zapisów, premii G1/G2 i Gospodarnego,
+  żywność z Chaty myśliwego), nagród fal PvE, których serwer jeszcze nie wliczył, i zwrotów za anulowane
+  zlecenia (`economy_too_fast`). Zapas nie może też spaść bardziej, niż wyjaśniają te wydatki, utrzymanie
+  wojska, wejścia wytwórców i mniejszy magazyn (`economy_hidden`), więc obrońca nie schowa łupu; na wydatki,
+  których zapis nie pokazuje (np. pułapka postawiona i zdjęta), jest łączny zapas 100 sztuk (20 złota) plus
+  5 minut produkcji, odnawiany w godzinę. Zapis gracza bez `economy` jest odrzucany (`economy_missing`).
+  Tolerancja to 5 minut produkcji łącznie, jak przy budowie (decyzja właścicielki), a odrzucony zapis wraca
+  z serwera (HTTP 422, bez przycinania). Łup z wyprawy na bota (wszystkie surowce) dopisuje serwer po przyjęciu
+  wyniku i przychodzi w `loot_applied` z najbliższego zapisu (decyzja właścicielki); wyprawa bez sieci nie daje
+  łupu („Bez sieci: wyprawa bez łupu”). Złoto ma ten sam bilans, więc po najeździe nie wraca z telefonu.
 
 - Dwór z epokami i garnizon (#81, `DefensePlan.Task.GARRISON`, decyzje właścicielki 23.11.2026): Dwór ma
   własny rysunek na każdym z 5 poziomów epoki I (strzecha) i epoki II (gont na kamiennej podmurówce:
@@ -846,4 +858,6 @@ gra bez perka w ataku na gracza, a serwer nie sprawdza perka przy zapisie zamku.
 pozostałe 13 perków zostają na kolejne zadania.
 Dwór z epokami i garnizon (#81) domyka etap 4: migracja `garrison` (nowa wersja `begin_attack`) czeka na
 wgranie na projekt. Bez niej klient działa (nie wysyła garnizonu), ale serwer nie odrzuci armii z garnizonem
-od zmodyfikowanego klienta. Wygląd Dworu w epokach III–VI dojdzie z tymi epokami (#38, #43, #46, #51).
+od zmodyfikowanego klienta. Bilans surowców (#282, migracja `economy_growth`) czeka na wgranie razem z wydaniem
+klienta: stara wersja gry dolicza łup z bota sama, więc po migracji jej zapisy po wyprawie trafią na odrzut
+i przywrócenie zamku z serwera (łup i tak dojdzie z `loot_applied`). Wygląd Dworu w epokach III–VI dojdzie z tymi epokami (#38, #43, #46, #51).
