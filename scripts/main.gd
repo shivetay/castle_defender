@@ -146,6 +146,14 @@ var _finish_body: Dictionary = {}
 var _finish_result: BattleResult
 var _finish_fallen := 0
 var _finish_tries := 0
+## Wynik ataku na gracza czekający na serwer, także po zamknięciu gry (#99, `PendingFinish`).
+var _pending := PendingFinish.new()
+## Wysyłany wynik to zaległy wynik (z poprzedniej gry albo po wcześniejszym braku sieci).
+var _finish_resumed := false
+## Do kolejnej próby wysłania zaległego wyniku (s).
+var _resume_poll_s := 0.0
+## Co ile sekund ponawiać zaległy wynik, gdy gra jest połączona.
+const RESUME_POLL_S := 30.0
 ## Ranking PvE (#242): wyprawa na zamek-bota zgłoszona serwerowi (start i wynik), gdy gra jest połączona.
 var _pve := PveReport.new()
 ## Wynik wyprawy do rankingu PvE czeka na odpowiedź `finish_attack`.
@@ -163,6 +171,7 @@ var _cursor_ok := true
 
 func _ready() -> void:
 	var saved := SaveGame.load_state(SaveGame.PATH, _now_ms())
+	_pending = PendingFinish.read()
 	if saved != null:
 		world_seed = saved.world_seed
 		# zapis sprzed profilu: seed zamku zostaje seedem gracza (first_playable go nie zmieni)
@@ -511,6 +520,7 @@ func _on_net_state(st: int) -> void:
 	if st == SupabaseClient.State.ONLINE:
 		net.flush()
 		_load_defenses()
+		_resume_finish()
 
 
 ## Pyta serwer o obrony z czasu, w którym ruiny mogą jeszcze stać (#99).
@@ -612,6 +622,7 @@ func _tick() -> void:
 		_save()
 	var scouted := scouting.update(now, recruitment)
 	_poll_scout_reports(now)
+	_poll_resume_finish()
 	if scouted != null:
 		hud.message = Scouting.report_text(scouted)
 		_save()
@@ -1085,6 +1096,35 @@ func _on_scout_sent(send: Dictionary, error: String) -> void:
 	_refresh_scout_lines()
 
 
+## Zaległy wynik ataku na gracza (#99) idzie na serwer, gdy nic innego nie trwa: bez bitwy, planu
+## ataku na gracza, wysyłanego wyniku i wyprawy w drodze. Okno wyniku pokaże odpowiedź serwera.
+func _resume_finish() -> void:
+	if _pending.is_empty() or _finish_result != null or _player != null or _attacking or _pve_sending \
+			or not _pve.is_idle() or net == null or not net.is_online() or net.is_attack_pending():
+		return
+	var r := _pending.result()
+	if r == null:
+		_pending = PendingFinish.new()
+		PendingFinish.clear()
+		return
+	_finish_result = r
+	_finish_body = _pending.body
+	_finish_fallen = _pending.fallen
+	_finish_tries = 0
+	_finish_resumed = true
+	_send_finish()
+
+
+func _poll_resume_finish() -> void:
+	if _pending.is_empty():
+		return
+	var t := Time.get_ticks_msec() / 1000.0
+	if t < _resume_poll_s:
+		return
+	_resume_poll_s = t + RESUME_POLL_S
+	_resume_finish()
+
+
 ## Misja na gracza skończona: co SCOUT_POLL_S pytamy serwer o raport.
 func _poll_scout_reports(now_ms: int) -> void:
 	if not scouting.remote_due(now_ms) or net == null or not net.is_online() or net.is_scout_pending():
@@ -1415,6 +1455,13 @@ func _finish_player_attack(b: Battle) -> void:
 	_finish_body = _player.finish_request(b, _finish_result)
 	_finish_fallen = recruitment.apply_losses(_battle_ids, alive)
 	_finish_tries = 0
+	_finish_resumed = false
+	# wynik czeka w pliku, dopóki serwer nie odpowie: zamknięcie gry go nie gubi (#99)
+	_pending.body = _finish_body
+	_pending.fallen = _finish_fallen
+	var err := _pending.write()
+	if err != OK:
+		push_warning("Nie udało się zapisać wyniku ataku: %s" % error_string(err))
 	_general_xp(b, true)
 	battle_view.queue_free()
 	battle_view = null
@@ -1437,7 +1484,8 @@ func _send_finish() -> void:
 
 
 ## Odpowiedź `finish_attack`: łup z serwera do magazynu i okno wyniku. Błąd sieci ponawia to samo
-## żądanie (serwer zwraca zapisany wynik), a po RETRIES próbach albo odrzuceniu wynik jest bez łupu.
+## żądanie (serwer zwraca zapisany wynik). Po RETRIES próbach bez sieci wynik zostaje w pliku
+## i wraca na serwer później (#99, `_resume_finish`); odrzucony wynik jest bez łupu i znika.
 func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	if _pve_sending:
 		_on_pve_finished(error, loot)
@@ -1449,10 +1497,20 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 		get_tree().create_timer(AttackFinish.RETRY_S).timeout.connect(_send_finish)
 		return
 	var r := _finish_result
+	var resumed := _finish_resumed
 	_finish_result = null
 	_finish_body = {}
+	_finish_resumed = false
+	if error == SupabaseClient.NETWORK_ERROR:
+		_resume_poll_s = Time.get_ticks_msec() / 1000.0 + RESUME_POLL_S
+		if resumed:
+			hud.message = ""  # zaległy wynik nadal czeka; okno pokazało się już po bitwie
+			return
+	else:
+		_pending = PendingFinish.new()
+		PendingFinish.clear()
 	var got: Array[int] = []
-	var note := ""
+	var note := "Wynik ataku dotarł na serwer" if resumed else ""
 	if error.is_empty():
 		r.loot = loot
 		# łup jest już w zamku na serwerze (#274): telefon dolicza go z odpowiedzi na najbliższy zapis
@@ -1852,6 +1910,7 @@ func _on_new_game() -> void:
 	if net != null:
 		net.mark_new_game()
 	SaveGame.delete(SaveGame.PATH)
+	PendingFinish.clear()  # wynik ataku starego zamku nie idzie już na serwer (#99)
 	get_tree().reload_current_scene()
 
 
