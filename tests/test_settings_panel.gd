@@ -10,7 +10,7 @@ const MAIN := preload("res://scripts/main.gd")
 
 
 func test_buttons_and_targets() -> bool:
-	assert_eq(SettingsPanel.targets(S.SETTINGS), [T.LANGUAGE, T.SOUND, T.NEW_GAME, T.CLOSE] as Array[int], "ustawienia")
+	assert_eq(SettingsPanel.targets(S.SETTINGS), [T.LANGUAGE, T.SOUND, T.TUTORIAL, T.NEW_GAME, T.CLOSE] as Array[int], "ustawienia")
 	assert_eq(SettingsPanel.targets(S.CONFIRM), [T.CONFIRM_YES, T.CONFIRM_NO] as Array[int], "potwierdzenie")
 	var first := SettingsPanel.button_rects(VIEW, S.SETTINGS)[0].get_center()
 	assert_eq(SettingsPanel.target_at(first, VIEW, S.SETTINGS), T.LANGUAGE, "na górze język")
@@ -56,7 +56,7 @@ func test_language_path() -> bool:
 ## Układ: cele ≥ 12×12, napisy mieszczą się na przyciskach i na 320 px, przyciski nad stopką.
 func test_layout_fits_the_screen() -> bool:
 	var m := SettingsPanel.new()
-	for s: int in [S.SETTINGS, S.CONFIRM]:
+	for s: int in [S.SETTINGS, S.CONFIRM, S.CONFIRM_TUTORIAL]:
 		var rects := SettingsPanel.button_rects(VIEW, s)
 		var ts := SettingsPanel.targets(s)
 		for i in rects.size():
@@ -67,7 +67,7 @@ func test_layout_fits_the_screen() -> bool:
 			assert_true(PixelFont.text_width(m.label(ts[i])) <= r.size.x - 2, "„%s” mieści się" % m.label(ts[i]))
 			if i > 0:
 				assert_true(r.position.y > rects[i - 1].end.y, "bez nakładania")
-	for t: String in [SettingsPanel.TITLE.to_upper(), SettingsPanel.CONFIRM_TEXT, SettingsPanel.ENGLISH_LATER,
+	for t: String in [SettingsPanel.TITLE.to_upper(), SettingsPanel.CONFIRM_TEXT, SettingsPanel.TUTORIAL_CONFIRM_TEXT, SettingsPanel.ENGLISH_LATER,
 			SettingsPanel.SOUND_LATER, SettingsPanel.OFFLINE_NOTE, SettingsPanel.version_text()]:
 		assert_true(PixelFont.text_width(t) <= VIEW.x - 2 * Hud.CORNER_INSET, "„%s” mieści się na 320 px" % t)
 	m.free()

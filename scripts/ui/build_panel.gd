@@ -45,6 +45,8 @@ var category := 0
 var selected := BuildingTypes.Kind.RAMPART
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
+## Element do podświetlenia przez mini-samouczek (#251): Target (zakładka TAB + i, kafelek TILE + i) albo NONE.
+var hint_target: int = Target.NONE
 
 var _pressed: int = Target.NONE
 
@@ -101,6 +103,21 @@ static func place_rect(view: Vector2, right: float) -> Rect2:
 
 static func close_rect(view: Vector2, right: float) -> Rect2:
 	return Hud.right_corner_rect(view, right)
+
+
+## Prostokąt elementu `t` przy pokazanej kategorii `shown`; pusty, gdy go nie ma.
+static func target_rect(t: int, view: Vector2, left: float, right: float, shown: int) -> Rect2:
+	if t == Target.CLOSE:
+		return close_rect(view, right)
+	if t == Target.PLACE:
+		return place_rect(view, right)
+	if t >= Target.TILE:
+		var tiles := tile_rects(left, right, BuildingTypes.in_category(shown).size())
+		return tiles[t - Target.TILE] if t - Target.TILE < tiles.size() else Rect2()
+	if t >= Target.TAB:
+		var tabs := tab_rects(left, right)
+		return tabs[t - Target.TAB] if t - Target.TAB < tabs.size() else Rect2()
+	return Rect2()
 
 
 static func target_at(p: Vector2, view: Vector2, left: float, right: float, shown: int) -> int:
@@ -246,3 +263,6 @@ func _draw() -> void:
 	var can_place := BuildConfig.is_unlocked(selected, research)
 	Hud.paint_button(self, place_rect(view, content_right), PLACE_LABEL, _pressed == Target.PLACE, not can_place)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
+	var hint := target_rect(hint_target, view, content_left, content_right, category)
+	if hint.has_area():
+		TutorialHints.draw_frame(self, hint, Time.get_ticks_msec())
