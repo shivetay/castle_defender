@@ -17,6 +17,7 @@ Klient sieciowy PvP (Supabase). W kliencie **tylko** klucz publishable/`anon` �
 | `attack_replay.gd` | Powtórka obrony (#29): kontrakt `attack_replay`, sprawdzenie armii, seedów i wyniku z serwera |
 | `ranking_board.gd` | Rankingi PvP (#27) i PvE (#242): odpowiedź `ranking`, wiersze tabeli |
 | `pve_report.gd` | Wyprawa na zamek-bota w rankingu PvE (#242): start i wynik na serwerze, kolejność odpowiedzi, ponowienia |
+| `wave_report.gd` | Fala PvE na serwerze (#288, `pve_wave`): start i wynik, kolejność odpowiedzi, ponowienia; nagrodę daje tylko serwer |
 | `target_search.gd` | Dobór przeciwnika (#24): odpowiedź `find_targets`, czyszczenie danych, uzupełnianie botami do 3 celów |
 
 Backend: `supabase/` (migracje, RLS, Edge Functions). Skille: `supabase-security`, `pvp-anti-cheat`, `user-data-privacy`.

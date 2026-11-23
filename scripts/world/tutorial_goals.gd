@@ -43,6 +43,10 @@ const GOALS: Array = [
 
 ## Komunikat po wygranej 5. fali: koniec samouczka z nagrodą (i poległymi), jak inne fale (review #189).
 static func done_message(reward: Array[int], fallen: int) -> String:
+	if reward.is_empty():  # ostatnia fala poza serwerem (#288): bez nagrody
+		if fallen > 0:
+			return "Koniec samouczka, polegli: %d. Bez nagrody" % fallen
+		return "Samouczek ukończony poza serwerem: bez nagrody"
 	if fallen > 0:
 		return "Koniec samouczka, polegli: %d. +%s" % [fallen, Hud.cost_text(reward)]
 	return "Samouczek ukończony! +%s" % Hud.cost_text(reward)
