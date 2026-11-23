@@ -44,6 +44,6 @@ Każdy etap ma w repo ticket „Etap N” z podpiętymi zadaniami (sub-issues, e
 
 Wersje po MVP mają tickety zbiorcze z podpiętymi zadaniami: Etap 0.2 (#38), 0.3 (#43), 0.4 (#46), 0.5 (#51), 1.0 (#137).
 
-Bieżący stan (17.11.2026): etap 8 w toku, szczegóły i daty wdrożeń w [[Stan prac]]; pytania i braki w [[Otwarte pytania]].
+Bieżący stan (23.11.2026): na `main` domknięte etapy 8–10 w dużym zakresie, generałowie (#31 / #273), przejście epoki II w kodzie (#261; balans liczb → #262 / [[Balans]]), ranking PvE w toku. Wersja gry **0.4.0** (+ nieopublikowane merge). Szczegóły: [[Stan prac]]; pytania: [[Otwarte pytania]].
 
-Powiązane: [[Stack technologiczny]], [[Backend PvP]], [[Otwarte pytania]], [[Jednostki]], [[Drzewko technologiczne]]
+Powiązane: [[Stack technologiczny]], [[Backend PvP]], [[Otwarte pytania]], [[Jednostki]], [[Drzewko technologiczne]], [[Balans]]

@@ -117,4 +117,6 @@ Każda epoka ma jednostki w 5 klasach bojowych (lekka, ciężka, strzelecka, szy
 
 Wymagane technologie nowych jednostek są do dopisania w [[Drzewko technologiczne]].
 
-Powiązane: [[Klasy jednostek i produkcja]], [[Epoki]], [[Załoga i administracja]], [[Gospodarka]]
+Aktualne koszty rekrutacji, utrzymania i limity z kodu: [[Balans]].
+
+Powiązane: [[Klasy jednostek i produkcja]], [[Epoki]], [[Załoga i administracja]], [[Gospodarka]], [[Balans]]

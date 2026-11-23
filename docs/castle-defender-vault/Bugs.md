@@ -1,35 +1,26 @@
 # Bugs
 
-Błędy i poprawki UX znalezione przy graniu (stan na 19.11.2026). Chronologia szersza: [[Stan prac]]. Pytania projektowe: [[Otwarte pytania]].
+Błędy i poprawki UX (stan na 23.11.2026). Chronologia szersza: [[Stan prac]]. Pytania projektowe: [[Otwarte pytania]].
 
-Źródło: repo [shivetay/castle_defender](https://github.com/shivetay/castle_defender), zakres PR #215–#224.
+Źródło: repo [shivetay/castle_defender](https://github.com/shivetay/castle_defender).
 
 ## Naprawione niedawno (na `main`)
 
-Scalone 19.11.2026. Nie miały osobnych issue GitHub (tylko CAS w trackerze) — po merge nie było czego zamykać przez `gh issue close`.
-
-| PR | Co naprawia |
+| PR / issue | Co naprawia |
 | --- | --- |
-| [#216](https://github.com/shivetay/castle_defender/pull/216) | Wojsko: zapas towarów jednostkowych ze zbrojowni |
-| [#218](https://github.com/shivetay/castle_defender/pull/218) | Ikony klas czytelne w planie ataku i obrony |
-| [#219](https://github.com/shivetay/castle_defender/pull/219) | Budowa: Anuluj kończy stawianie |
-| [#220](https://github.com/shivetay/castle_defender/pull/220) | Bez pętli ścian przy wieży po auto-fill |
-| [#222](https://github.com/shivetay/castle_defender/pull/222) | Wyprawa: zwarta lista, Planuj rozwija, kolejne startuje |
-| [#223](https://github.com/shivetay/castle_defender/pull/223) | Ostrzał: stój w punkcie i strzelaj, idź tylko bez wroga w zasięgu |
-| [#224](https://github.com/shivetay/castle_defender/pull/224) | Mapa repozytorium i README folderów dla agentów (docs, nie UX gry) |
+| [#225](https://github.com/shivetay/castle_defender/issues/225) | Plan ataku: przeciąganie końca strzałki z donżonu |
+| [#226](https://github.com/shivetay/castle_defender/issues/226) | Dachy warsztatów wg kategorii |
+| [#199](https://github.com/shivetay/castle_defender/issues/199) | Komenda umocnień: Sprawdź / Domknij |
+| [#216](https://github.com/shivetay/castle_defender/pull/216)–[#224](https://github.com/shivetay/castle_defender/pull/224) | Wojsko towary, ikony klas, Anuluj budowy, auto-fill ścian, Wyprawa UI, Ostrzał punkt, mapa repo |
+| [#247](https://github.com/shivetay/castle_defender/pull/247) / [#214](https://github.com/shivetay/castle_defender/issues/214) | Limit armii od produkcji Ży (utrzymanie) |
+| [#254](https://github.com/shivetay/castle_defender/pull/254) | Serwer odrzuca atak ponad limit miejsc i utrzymania |
 
-## Nadal otwarte (znalezione)
+## Otwarte (grywalne / UX)
 
-| Ticket | Temat | PR | Label |
-| --- | --- | --- | --- |
-| [#199](https://github.com/shivetay/castle_defender/issues/199) | Komenda umocnień: Sprawdź, czerwone luki i Domknij | [#215](https://github.com/shivetay/castle_defender/pull/215) (open) | wcześniejszy |
-| [#225](https://github.com/shivetay/castle_defender/issues/225) | Plan ataku: przeciąganie końca strzałki z donżonu | [#221](https://github.com/shivetay/castle_defender/pull/221) (open) | `bug`, `mvp` |
-| [#226](https://github.com/shivetay/castle_defender/issues/226) | Dachy warsztatów wg kategorii: strzecha, pomost, namiot | [#217](https://github.com/shivetay/castle_defender/pull/217) (open) | `bug`, `mvp` |
+Brak świeżych ticketów `bug` blokujących PvP na liście z 23.11.2026. Otwarte enhancementy i etapy: [[Otwarte pytania]] (m.in. #99 wynik bitwy UI, #150 wygląd, #251 samouczek, #262 balans).
 
-[#199](https://github.com/shivetay/castle_defender/issues/199) zamyka dopiero merge **#215**.
+## Inne niedawne merge (kontekst)
 
-## Inne niedawne merge (poza 215–224)
+m.in. #273 generałowie, #266–#267 powtórka, #264–#265 ranking PvE, #261 epoka II, #258–#259 zwiad, #256 budynki #35, #255 ruiny/odbudowa.
 
-m.in. #213 seed mapy, #212 bitwa/zniszczenia/odznaki, #211 routing Claude, #210 README stan, #209 auto-fill wału do bramy/wieży, #208 produkcja cywilna, #207 widok z góry, #206 okienka info, #205 INTERNET Android, #204 wieża na murze, #203 karta budynku, #202 manewry wg jednostek, #201 klient Supabase, #200 szczelne mury botów.
-
-Powiązane: [[Stan prac]], [[Otwarte pytania]], [[Interfejs]], [[Widok zamku]]
+Powiązane: [[Stan prac]], [[Otwarte pytania]], [[Balans]], [[Interfejs]], [[Widok zamku]]

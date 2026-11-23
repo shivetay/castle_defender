@@ -1,57 +1,49 @@
 # Otwarte pytania
 
-Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na `main` (stan na 17.11.2026). Chronologia wdrożeń: [[Stan prac]].
+Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na `main` (stan na 23.11.2026). Chronologia: [[Stan prac]]. Liczby: [[Balans]].
 
 ## Ustalone
 
 - Bitwą nikt nie steruje (działa plan); klany i sojusze w późniejszych wersjach; gra darmowa z dobrowolnymi reklamami.
-- **Ile oddziałów w planie ataku?** 3 w epoce I, potem 4 / 5 / 6 / 7 / 8 do epoki VI (wdrożone w `AttackPlan`, 16.11.2026).
+- **Ile oddziałów w planie ataku?** 3 w epoce I, potem 4 / 5 / 6 / 7 / 8 do epoki VI (`AttackPlan`, 16.11.2026).
 - Celem ataku jest donżon (Wieża grodowa od epoki I), nie Dwór (#120).
+- Gaszenie pożarów + Studnia weszły z #35 / #20.
+- Generał nie stoi na siatce; PvE max poziom 2; awans w Dworze za PD i złoto (#31 / #273).
+- Przejście I → II: Dwór 5 + O1 + G1 + A7; przebudowa L6; budynki max→lvl1 z bonusami (#34 / #261). **Liczby tymczasowe** → #262 / [[Balans]].
 
 ## Pytania otwarte
 
 - [ ] Czy obok reklam dodać jednorazowy zakup (pakiet startowy / „wesprzyj twórcę” ze sztandarem)? Ticket sklepu: #174; model reklam: [[Model wydania]].
-- [ ] Czy ranking PvP ma sezony z resetem co kilka tygodni? (Roadmapa zakłada sezony od 0.3 / #45 — potwierdzić przed backendem rankingu.)
-- [ ] Koszty i czasy badań, produkcji towarów, szkolenia i stawek bitewnych są w kodzie **tymczasowe** — kiedy pierwsza passa balansu (tabele lokalne vs od razu Supabase #56)?
-- [x] Czy Gaszenie pożarów (#20) blokuje zamknięcie etapu 8, dopóki nie ma Studni (#35), czy wystarczy uproszczona wersja bez budynku? Rozstrzygnięte: Gaszenie pożarów weszło razem ze Studnią w #35.
-- [ ] Samouczek PvE (#16): czy 5 fal pod Oblężenie wystarczy do zamknięcia ticketu, a prowadzenie gracza (#185) idzie osobno do etapu 1.0 / onboardingu (#57)?
-- [ ] Ekran startowy, tryb offline i widoki gry (#177) — przed PvP (etap 9) czy razem z kontem Google (#63)?
+- [ ] Czy ranking PvP ma sezony z resetem co kilka tygodni? (Roadmapa od 0.3 / #45.)
+- [ ] **Pierwsza passa balansu:** vault proponuje [[Balans]] **Opcję C „Spokojny rytm”** (A/B zostają jako skrajne odniesienia) — pending OK właścicielki, potem #262. Tabele lokalne na razie; Supabase #56 później?
+- [ ] Samouczek: czy #185 wystarczy, a mini-highlight UI (#251) idzie osobno?
+- [ ] Premie poziomów 6–10 epoki II: osobna tablica vs na razie jak poziom 5 (status quo w kodzie)? Część #262.
 
 ## Braki (kod / tickety vs vault)
 
-### Domknięcie bieżących etapów
+### Domknięcie bieżących
 
 | Brak | Ticket | Uwagi |
 | --- | --- | --- |
-| Dwór przez epoki + garnizon | #81 | czeka na epokę II i bitwę offline |
-| Pełne efekty 34 technologii + blokada epoki II | #12 | drzewko i premie G1/G2 są; reszta efektów i przejście epoki otwarte |
-| Dokończenie rekrutacji (konie po bitwie) | #89, #164 | szkolenie i Wojsko działają; powrót koni do zbrojowni nie |
-| Część kliencka seeda OK, brak `castles.map_seed` | #97, #166 | atakujący musi dostać ten sam teren |
-| Prowadzenie gracza do 5 fal | #16, #185 | fale działają; brak soft guidance budynki → badania → wojsko → umocnienia |
-| Efekty bitwy bez Studni / gaszenia | #101 | strzały, pył, ogień, dym są; rozprzestrzenianie + gaszenie z #20 |
-| Ustawienia obrony: komendant, pełna edycja | #19 | posterunki i część zadań są |
-| Gaszenie pożarów | #20 | 4/5 zadań obrony; brakuje gaszenia |
-| Tickety zbiorcze etapów 3–8 | #125–#130 | kod wyprzedza checkboxy w body issues — warto odhaczyć przy domknięciu |
+| Pełne efekty 34 technologii | #12 | drzewko i część premii są; reszta efektów otwarta |
+| Dwór przez epoki + garnizon UI | #81 | mechanika epoki jest (#261); wygląd / garnizon do domknięcia |
+| Wynik bitwy: % / gwiazdki / łup UI | #99 | odbudowa / ruiny są (#255); reszta UI otwarta |
+| Perki władcy | #32 | generałowie #31 gotowe |
+| Powiadomienia push | #30 | — |
+| Ranking PvE (ticket zbiorczy) | #242 | kod rankingu #264–#265; checklist issue |
+| Balans epoki II (koszty, czasy, premie) | #262 | propozycje w [[Balans]] |
+| Mini-samouczek UI do 6 żołnierzy | #251 | — |
+| Życie w zamku | #36 | — |
+| Reklamy z nagrodą | #33 | — |
+| Wygląd zamku / teren | #150 | — |
+| Obrót kamery | #151 | — |
 
-### Zawartość MVP jeszcze niezaczęta
+### Zamknięte niedawno (nie trzymać jako braków)
 
-| Brak | Ticket |
-| --- | --- |
-| Pozostałe budynki MVP (Fosa, Kopiec, Pole i spichlerz, Studnia, Kamieniołom, Wieża sygnałowa) | #35 |
-| Epoka II i przejście I → II (Dwór 5 + 2 techy; max→lvl1; bez niszczenia postępu) | #34 |
-| Budynki epoki II spoza rdzenia (Pomost, Częstokół, Młyn, Kaplica; Dom zwiadowców już jest) | #102 |
-| Życie w zamku (mieszkańcy, dym, flagi, pora dnia) | #36 |
-| Wynik bitwy: % zniszczeń, gwiazdki, łup, odbudowa | #99 |
-| Zwiad z mgłą wojny | #28 |
-| Bitwa na żywo, raport, powtórka | #29 |
-| Backend PvP (Supabase) | #21–#27, #131 |
-| Generałowie i perki władcy | #31, #32 |
-| Reklamy z nagrodą | #33 |
-| Wygląd: przyklejenie do murów, polish zamku | #149, #150 |
-| Obrót kamery | #151 |
+#19, #20, #28, #29 (rdzeń), #31, #35, #89, #101, #164, #166, #185, #199, #214, #225, #226 — szczegóły w [[Stan prac]] / [[Bugs]].
 
 ### Świadomie później (po MVP / 1.0)
 
-Epoki III–VI (#93–#96, #103+), sezony i ligi, kampania PvE, osiągnięcia, i18n, zgodność ze sklepem — [[Roadmapa do 1.0]].
+Epoki III–VI (#93–#96, #103+), sezony i ligi, kampania PvE, osiągnięcia, i18n, zgodność ze sklepem — [[Roadmapa do 1.0]]. Budynki epoki II spoza rdzenia (Pomost, Częstokół, Młyn, Kaplica): #102.
 
-Powiązane: [[Koncept gry]], [[Plan MVP]], [[Stan prac]], [[Bugs]], [[Model wydania]]
+Powiązane: [[Koncept gry]], [[Plan MVP]], [[Stan prac]], [[Bugs]], [[Balans]], [[Model wydania]]
