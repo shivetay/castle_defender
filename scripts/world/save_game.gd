@@ -8,9 +8,9 @@ extends RefCounted
 ## obok (.broken), żeby następny zapis nie zrobił z niego kopii. Zapis z nowszej wersji gry
 ## też nie jest nadpisywany, tylko odkładany, a gra zaczyna od nowa.
 ## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, towary, kolejkę, badania, armię,
-## plany ataku, ustawienia obrony, sprawdzanie szczelności z Komendy umocnień, zwiad i generałów.
+## plany ataku, ustawienia obrony, sprawdzanie szczelności z Komendy umocnień, zwiad, generałów i perk władcy.
 
-const FORMAT_VERSION := 11
+const FORMAT_VERSION := 12
 const PATH := "user://castle.json"
 
 ## Migracje: wersja → funkcja przerabiająca słownik tej wersji na wersję o 1 wyższą.
@@ -18,9 +18,9 @@ const PATH := "user://castle.json"
 ## Wersja 2 dodała badania (#12), wersja 3 towary w zbrojowni (#88), wersja 4 armię i szkolenie (#89),
 ## wersja 5 postęp samouczka PvE (#16), wersja 6 plan ataku i zdobyte zamki (#17), wersja 7 ustawienia
 ## obrony (#19), wersja 8 zadania obrony i priorytet wież (#20), wersja 9 sprawdzanie szczelności (#199),
-## wersja 10 zwiad (#28), wersja 11 generałowie i komendant obrony (#31).
+## wersja 10 zwiad (#28), wersja 11 generałowie i komendant obrony (#31), wersja 12 perk władcy (#32).
 static var MIGRATIONS: Dictionary = {1: _from_v1, 2: _from_v2, 3: _from_v3, 4: _from_v4, 5: _from_v5, 6: _from_v6,
-		7: _from_v7, 8: _from_v8, 9: _from_v9, 10: _from_v10}
+		7: _from_v7, 8: _from_v8, 9: _from_v9, 10: _from_v10, 11: _from_v11}
 
 ## Stan gry odczytany z pliku.
 class State:
@@ -41,6 +41,8 @@ class State:
 	var scouting := Scouting.new()
 	## Generałowie (#31) i generał ataku.
 	var generals := Generals.new()
+	## Perk władcy (#32); działający perk jest też w grid.ruler_perk.
+	var ruler := RulerPerks.new()
 	var grid: BuildGrid
 	var economy: Economy
 	var queue: BuildQueue
@@ -56,7 +58,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		research: Research = null, goods: Goods = null, recruitment: Recruitment = null, pve_cleared: int = 0,
 		attack_plan: AttackPlan = null, bots_beaten: int = 0, defense: DefensePlan = null,
 		attack_target: int = 0, seal: SealCheck = null, scouting: Scouting = null,
-		generals: Generals = null) -> Dictionary:
+		generals: Generals = null, ruler: RulerPerks = null) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -73,6 +75,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		"seal": seal.save_data() if seal != null else {},
 		"scout": scouting.save_data() if scouting != null else {},
 		"generals": generals.save_data() if generals != null else {},
+		"ruler": ruler.save_data() if ruler != null else {},
 	}
 
 
@@ -85,6 +88,10 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	s.world_seed = int(d["world_seed"])
 	s.grid = BuildGrid.new(TerrainMap.generate(s.world_seed))
 	s.skipped += s.grid.load_data(d.get("grid", {}) as Dictionary)
+	# perk władcy przed ekonomią i kolejką: Gospodarny liczy się w produkcji, Budowniczy w czasie budowy
+	var ruler: Variant = d.get("ruler", {})
+	s.skipped += s.ruler.load_data(ruler as Dictionary if ruler is Dictionary else {})
+	s.grid.ruler_perk = s.ruler.active(s.grid.age())
 	s.economy = Economy.new(now_ms)
 	# pojemność z Magazynów przed odczytem zapasów, bo odczyt przycina je do pojemności
 	s.economy.refresh_capacity(s.grid)
@@ -174,6 +181,12 @@ static func _from_v9(d: Dictionary) -> Dictionary:
 ## Wersja 10 → 11: zapis sprzed generałów (#31) dostaje pustą listę generałów.
 static func _from_v10(d: Dictionary) -> Dictionary:
 	d["generals"] = {}
+	return d
+
+
+## Wersja 11 → 12: zapis sprzed perków władcy (#32) nie ma wybranego perka.
+static func _from_v11(d: Dictionary) -> Dictionary:
+	d["ruler"] = {}
 	return d
 
 

@@ -45,6 +45,9 @@ static func resource(res: int, grid: BuildGrid, research: Research, amounts: Arr
 	var percent := research.production_percent(res) if research != null else 100
 	if percent != 100:
 		out.append("- badania: %+d%%" % (percent - 100))
+	var perk_bonus := RulerPerks.production_bonus(grid.ruler_perk)
+	if perk_bonus > 0:
+		out.append("- władca %s: %+d%%" % [RulerPerks.perk_name(grid.ruler_perk), perk_bonus])
 	if army > 0:
 		out.append("- utrzymanie armii: -%d" % army)
 	if rate < 0 and have <= 0:

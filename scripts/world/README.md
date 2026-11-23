@@ -9,6 +9,7 @@ Dane i logika świata zamku (poza bitwą i UI). Tu żyje **ekonomia**, budowa i 
 | `terrain_map.gd` | Mapa 64×64 z seeda (trawa, woda, drogi, wysokości) |
 | `world_seed.gd` / `player_profile.gd` | Seed zamku i tożsamość gracza (`user://player.json`) |
 | `rulers.gd` | Władcy zamku; na razie domyślny bez premii (#228) |
+| `ruler_perks.gd` | Perki władcy (#32): 1 miejsce, 6 perków, zmiana raz na 24 h za darmo, potem za złoto |
 | `building_types.gd` | Rodzaje budynków, rozmiary, stany HP → zniszczenia |
 | `build_grid.gd` | Siatka budowy, sąsiedztwo, kolejność rysowania |
 | `build_config.gd` / `build_queue.gd` | Koszty/czasy i kolejka budowy |

@@ -76,7 +76,7 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 		for res in cost.size():
 			economy.add(res, cost[res])
 		return Result.NO_PLACE
-	_append(placed_id, kind, 1, cost, now_ms)
+	_append(placed_id, kind, 1, cost, now_ms, grid.ruler_perk)
 	return Result.OK
 
 
@@ -101,7 +101,7 @@ func order_upgrade(grid: BuildGrid, economy: Economy, building_id: int, now_ms: 
 	var cost := BuildConfig.cost(kind, level)
 	if not economy.spend(cost):
 		return Result.NO_RESOURCES
-	_append(building_id, kind, level, cost, now_ms)
+	_append(building_id, kind, level, cost, now_ms, grid.ruler_perk)
 	return Result.OK
 
 
@@ -114,13 +114,16 @@ static func missing_techs(kind: int, level: int, research: Research) -> Array[St
 	return out
 
 
-func _append(building_id: int, kind: int, level: int, cost: Array[int], now_ms: int) -> void:
+## Czas zlecenia z BuildConfig.time_ms; perk władcy Budowniczy (#32) skraca go o 10% w chwili zlecenia,
+## więc zmiana perka nie przelicza budów, które już czekają w kolejce.
+func _append(building_id: int, kind: int, level: int, cost: Array[int], now_ms: int,
+		perk: int = RulerPerks.Perk.NONE) -> void:
 	var o := Order.new()
 	o.building_id = building_id
 	o.kind = kind
 	o.level = level
 	o.cost = cost
-	o.duration_ms = BuildConfig.time_ms(kind, level)
+	o.duration_ms = RulerPerks.build_time_ms(BuildConfig.time_ms(kind, level), perk)
 	if orders.is_empty():
 		o.start_ms = now_ms
 	orders.append(o)

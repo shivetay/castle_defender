@@ -20,10 +20,12 @@ update public.players set rating = 63100, age = 0 where id in (select id from te
 
 -- Pokrycie generałów (#31, `general_budget`): 10 zakończonych ataków A na gracza sprzed dwóch dni z łupem 200 złota
 -- (2000 złota z PvP, 400 PD z PvP), więc wyzwalacz zapisu zamku zostawia Łowczego na poziomie 3 i Wodza.
-insert into public.attacks (attacker_id, defender_id, battle_seed, status, result, loot, started_at, finished_at)
+-- Atak na gracza ma kopie zamku i obrony (attacks_player_target_snapshots), więc wstawiamy puste.
+insert into public.attacks (attacker_id, defender_id, battle_seed, status, result, loot, started_at, finished_at,
+  castle_snapshot, defense_snapshot)
 select '00000000-0000-0000-0000-0000000031a1', '00000000-0000-0000-0000-0000000031c1', g, 'finished',
   '{"won": true, "percent": 60, "stars": [false, true, true]}', array[0, 0, 0, 200],
-  now() - interval '2 days', now() - interval '2 days'
+  now() - interval '2 days', now() - interval '2 days', '{}', '{}'
 from generate_series(1, 10) g;
 
 -- Łowczy (1) na poziomie 3 z Szybkim marszem; Wódz (0) z poziomem spoza MVP i perkiem poniżej poziomu 3

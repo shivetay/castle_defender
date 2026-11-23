@@ -7,6 +7,7 @@ Gracz jest władcą zamku i ma własne perki. Do tego dowodzą generałowie: jed
 - Miejsca na perki: 1 na start, 2. po przejściu do epoki III, 3. po przejściu do epoki V.
 - Perk z wyższej epoki odblokowuje się dopiero po wejściu do niej. Zmiana perka jest darmowa raz na 24 h, kolejne zmiany kosztują złoto.
 - Perki władcy działają na cały zamek: w ataku, w obronie i w gospodarce.
+- W MVP (#32): 1 miejsce i 6 perków (Zdobywca, Łupieżca, Gospodarz grodu, Gospodarny, Budowniczy, Ukochany władca), wybór z portretu władcy w HUD-zie. Kolejna zmiana w ciągu 24 h kosztuje 50 zł (tymczasowo). Serwer sprawdza perk przy zapisie zamku (epoka, 24 h, pokrycie złota), bierze perk atakującego z zamku na serwerze, a Łupieżcę liczy w limicie łupu. Budowniczy skraca czas przy zleceniu budowy (budowy już w kolejce się nie zmieniają).
 
 | Perk | Kategoria | Od epoki | Efekt |
 | --- | --- | --- | --- |

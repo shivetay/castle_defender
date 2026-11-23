@@ -159,6 +159,10 @@ var _sq_fire: Dictionary[int, Vector2i] = {}
 ## Generałowie (#31): strona → generał (kopia z Generals). Generał nie stoi na siatce: dowodzi całą
 ## stroną, a jego perki działają na wszystkie jej oddziały. Strona bez wpisu walczy bez generała.
 var generals: Dictionary[int, Generals.General] = {}
+## Perki władców (#32): strona → RulerPerks.Perk. Obrońca dostaje perk z siatki zamku (BuildGrid.ruler_perk)
+## w create_squads, atakujący przez set_ruler_perk. Perki ataku działają tylko u atakującego, a obrony
+## tylko u obrońcy.
+var ruler_perks: Dictionary[int, int] = {}
 var _spawn := Vector2i.ZERO
 ## Zdarzenie: [tick, Fx, jednostka albo FX_TOWER, x0, y0, x1, y1]. SHOT i HIT w podjednostkach
 ## (HIT: x1, y1 to punkt trafienia), COLLAPSE w kratkach (pozycja i rozmiar budynku).
@@ -197,6 +201,9 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 	b._terrain = grid.terrain
 	b._cells = grid.cells.duplicate()
 	b.objective = objective_id
+	if RulerPerks.is_known(grid.ruler_perk):
+		b.ruler_perks[Side.DEFENDER] = grid.ruler_perk
+	var steward := b.ruler_perk_is(Side.DEFENDER, RulerPerks.Perk.STEWARD)
 	for id: int in grid.buildings:
 		if grid.levels[id] < 1:
 			continue  # plac budowy nie broni się
@@ -213,6 +220,9 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 		s.rect = grid.buildings[id]
 		s.level = grid.levels[id]
 		s.max_hp = BattleConfig.building_hp(s.kind, grid.levels[id])
+		if steward:
+			@warning_ignore("integer_division")
+			s.max_hp = s.max_hp * RulerPerks.STEWARD_HP_PERCENT / 100  # Gospodarz grodu (#32): +10%
 		s.base_hp = s.max_hp
 		s.hp = s.max_hp
 		b.structures[id] = s
@@ -239,6 +249,8 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 		if o.task == DefensePlan.Task.FIREFIGHT:
 			b._fire_well[i + 1] = b._well_near(o.post)
 	b._spawn_squads(defenders, Side.DEFENDER, home, anchors)
+	if b.ruler_perk_is(Side.DEFENDER, RulerPerks.Perk.BELOVED):
+		b.add_side_morale(Side.DEFENDER, RulerPerks.BELOVED_MORALE)  # Ukochany władca (#32): +10 morale załogi
 	return b
 
 
@@ -309,6 +321,28 @@ func set_general(side: int, g: Generals.General) -> void:
 		add_side_morale(side, Generals.CHIEF_MORALE)
 	if side == Side.DEFENDER:
 		_fortify()
+
+
+## Perk władcy atakującego (#32, RulerPerks.Perk; z serwera przy ataku na gracza). Wołać po create
+## i przed pierwszym krokiem; drugie wywołanie nic nie zmienia. Perk obrońcy bitwa bierze sama z siatki
+## zamku (create_squads), więc tu liczy się tylko strona ataku.
+func set_ruler_perk(side: int, perk: int) -> void:
+	if side != Side.ATTACKER or not RulerPerks.is_known(perk) or ruler_perks.has(side):
+		return
+	ruler_perks[side] = perk
+
+
+## Czy władca strony `side` ma perk `perk`.
+func ruler_perk_is(side: int, perk: int) -> bool:
+	return int(ruler_perks.get(side, RulerPerks.Perk.NONE)) == perk
+
+
+## Zdobywca (#32): +10% obrażeń wszystkich oddziałów atakującego, w jednostki i w budynki.
+func _conqueror(f: Fighter, dmg: int) -> int:
+	if f.side == Side.ATTACKER and ruler_perk_is(Side.ATTACKER, RulerPerks.Perk.CONQUEROR):
+		@warning_ignore("integer_division")
+		return dmg * RulerPerks.CONQUEROR_DAMAGE_PERCENT / 100
+	return dmg
 
 
 ## Czy strona `side` ma generała rodzaju `kind`.
@@ -996,7 +1030,7 @@ func unit_damage(f: Fighter, enemy: Fighter) -> int:
 		dmg = dmg * Generals.CHIEF_DAMAGE_PERCENT / 100  # Wódz drużyny (#31): piechota +10%
 	if ranged and general_perk(enemy.side, Generals.Perk.CAREFUL):
 		dmg = dmg * Generals.CAREFUL_ARROW_PERCENT / 100  # Ostrożny (#31): −15% od strzał
-	return morale_damage(f, dmg)
+	return morale_damage(f, _conqueror(f, dmg))
 
 
 ## Wysokie morale (powyżej MORALE_HIGH): +10% obrażeń (#98), co najmniej +1, żeby premia działała
@@ -1029,7 +1063,7 @@ func _strike_structure(f: Fighter, s: Structure) -> void:
 	if f.unit == UnitTypes.Unit.AXE_WARRIOR and BuildingTypes.is_wooden(s.kind) and has_tech(f.side, "A1"):
 		@warning_ignore("integer_division")
 		dmg = dmg * BattleConfig.A1_WOOD_PERCENT / 100
-	s.hp -= _roll(morale_damage(f, dmg))
+	s.hp -= _roll(morale_damage(f, _conqueror(f, dmg)))
 	f.charged = true  # szarża to pierwsze uderzenie w ogóle, także w umocnienie
 	if record_fx:
 		var hx := clampi(f.x, s.rect.position.x * BattleConfig.SUB, s.rect.end.x * BattleConfig.SUB - 1)

@@ -21,5 +21,6 @@ Wejście: dotyk (`InputEventScreenTouch` / `ScreenDrag`); mysz tylko przez emula
 | `info_popup.gd` / `info_text.gd` | Karty info i teksty |
 | `settings_panel.gd` | Ustawienia (m.in. tryb offline) |
 | `onboarding_panel.gd` | Pierwsze uruchomienie: imię gracza, nazwa zamku, domyślny władca (#228) |
+| `ruler_panel.gd` | Panel władcy z portretu: perk władcy, koszt zmiany (#32) |
 
 Orkiestracja trybów: `scripts/main.gd`. Ikony/rysunki UI: `scripts/gfx/pixel_icons.gd`, `pixel_font.gd`.

@@ -1,6 +1,6 @@
 // attack_replay (#29): dane do powtórki zakończonej obrony. Id gracza idzie wyłącznie z tokenu, a
 // `public.attack_replay` oddaje je tylko obrońcy: seedy, kopie zamku i obrony z chwili startu, armię,
-// plan, badania i generała (#31) atakującego zapisane przy zatwierdzeniu planu. Obrońca liczy z nich bitwę jeszcze raz
+// plan, badania, generała (#31) i perk władcy (#32) atakującego zapisane przy zatwierdzeniu planu. Obrońca liczy z nich bitwę jeszcze raz
 // (powtórka to nie wideo), więc widzi ten sam przebieg co atakujący. Bez danych atakującego poza armią
 // i planem (kto atakował, gra tu nie potrzebuje).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
@@ -85,6 +85,7 @@ Deno.serve(async (req) => {
     plan: row.plan ?? [],
     techs: row.techs ?? [],
     general: row.general ?? null,
+    ruler_perk: row.ruler_perk ?? -1,
     result: row.result ?? {},
     loot: row.loot ?? [0, 0, 0, 0],
     finished_at: row.finished_at,

@@ -29,17 +29,21 @@ func _init(now_ms: int = 0) -> void:
 
 
 ## Produkcja na godzinę dla zamku z siatki `grid`: gród plus budynki produkcyjne, razy premie
-## ze zbadanych technologii (`research`, np. G1 +20% drewna). Budynek w ruinie po ataku PvP
+## ze zbadanych technologii (`research`, np. G1 +20% drewna) i z perka władcy Gospodarny (+10 punktów
+## procentowych do premii, #32). Budynek w ruinie po ataku PvP
 ## (`grid.ruined`, #99) daje Ruins.PRODUCTION_PERCENT swojej produkcji.
 static func rates(grid: BuildGrid, research: Research = null) -> Array[int]:
 	var out: Array[int] = []
 	out.assign(EconomyConfig.BASE_PER_HOUR)
+	var perk_bonus := 0
 	if grid != null:
 		_add_buildings(grid, out)
-	if research != null:
+		perk_bonus = RulerPerks.production_bonus(grid.ruler_perk)
+	if research != null or perk_bonus > 0:
 		for res in out.size():
+			var percent := research.production_percent(res) if research != null else 100
 			@warning_ignore("integer_division")
-			out[res] = out[res] * research.production_percent(res) / 100
+			out[res] = out[res] * (percent + perk_bonus) / 100
 	return out
 
 

@@ -39,6 +39,8 @@ const DESCRIPTIONS := {
 
 var research: Research
 var economy: Economy
+## Perk władcy (#32): Budowniczy skraca czas budowy w opisie tak jak w kolejce.
+var ruler_perk: int = RulerPerks.Perk.NONE
 var category := 0
 var selected := BuildingTypes.Kind.RAMPART
 var content_left := float(Hud.CORNER_INSET)
@@ -158,7 +160,8 @@ static func state_text(kind: int, r: Research) -> String:
 
 ## Linie szczegółów [tekst, kolor, tekst z prawej], zawinięte do `width` px, najwyżej DETAIL_LINES:
 ## nazwa z rozmiarem i stanem, koszt z czasem, wymagana technologia, opis.
-static func detail_lines(kind: int, r: Research, e: Economy, width: int) -> Array:
+static func detail_lines(kind: int, r: Research, e: Economy, width: int,
+		perk: int = RulerPerks.Perk.NONE) -> Array:
 	var out: Array = []
 	var size := BuildingTypes.size_of(kind)
 	var title := "%s (%d×%d)" % [BuildingTypes.name_of(kind, r), size.x, size.y]
@@ -166,7 +169,8 @@ static func detail_lines(kind: int, r: Research, e: Economy, width: int) -> Arra
 	out.append([ResearchPanel.fit_text(title, width - PixelFont.text_width(state) - 6), Palette.INK, state])
 	var cost := BuildConfig.cost(kind, 1)
 	var missing := Hud.missing_tokens(cost, e.amounts) if e != null else PackedStringArray()
-	var cost_line := "Koszt: %s, %s" % [Hud.cost_text(cost), Hud.format_time(BuildConfig.time_ms(kind, 1))]
+	var cost_line := "Koszt: %s, %s" % [Hud.cost_text(cost), Hud.format_time(
+			RulerPerks.build_time_ms(BuildConfig.time_ms(kind, 1), perk))]
 	for l in PixelFont.wrap(cost_line, width, 2):
 		# brakujące surowce na czerwono (4. pole: fragmenty do wyróżnienia)
 		out.append([l, Palette.INK, "", missing])
@@ -233,7 +237,7 @@ func _draw() -> void:
 		Hud.paint_button(self, tiles[i], BuildingTypes.SHORT_NAMES[kinds[i]],
 				kinds[i] == selected or _pressed == Target.TILE + i, locked)
 	var y := float(DETAIL_Y)
-	for l: Array in detail_lines(selected, research, economy, int(content_right - content_left)):
+	for l: Array in detail_lines(selected, research, economy, int(content_right - content_left), ruler_perk):
 		var tokens: PackedStringArray = l[3] if l.size() > 3 else PackedStringArray()
 		Hud.draw_highlighted(self, Vector2(content_left, y), l[0] as String, l[1] as Color, tokens, Palette.ACCENT)
 		if not (l[2] as String).is_empty():

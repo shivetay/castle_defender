@@ -10,6 +10,8 @@ extends RefCounted
 ## Generał ataku (#31): żądanie niesie tylko rodzaj wybranego generała (`general`, bez niego klucza nie ma,
 ## więc stary serwer nie odrzuci żądania), a serwer bierze jego poziom i perk z zamku atakującego na
 ## serwerze i oddaje go w odpowiedzi (`general`: {kind, level, perk} albo null).
+## Perk władcy atakującego (#32): żądanie go nie niesie; serwer bierze go z zamku atakującego na serwerze
+## i oddaje w odpowiedzi (`ruler_perk`: numer RulerPerks.Perk albo -1).
 
 const PATH := "/functions/v1/launch_attack"
 
@@ -52,4 +54,5 @@ static func parse_response(data: Variant) -> Dictionary:
 		return {}
 	return {"id": str(d.get("id", "")), "castle": castle as Dictionary,
 			"defense": defense as Dictionary if defense is Dictionary else {},
-			"plan": d.get("plan"), "techs": parse_techs(d.get("techs")), "general": d.get("general")}
+			"plan": d.get("plan"), "techs": parse_techs(d.get("techs")), "general": d.get("general"),
+			"ruler_perk": d.get("ruler_perk")}

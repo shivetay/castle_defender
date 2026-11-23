@@ -39,6 +39,9 @@ var attacker_research: Research
 ## obrońcy z kopii jego zamku (z nich komendant obrony z DefensePlan.commander).
 var attacker_general: Generals.General
 var defender_generals: Generals
+## Perk władcy atakującego z serwera (#32; z zamku atakującego na serwerze przy zatwierdzeniu planu):
+## Zdobywca wzmacnia bitwę, Łupieżca podnosi łup. Perk obrońcy siedzi w kopii jego zamku (grid.ruler_perk).
+var attacker_ruler_perk: int = RulerPerks.Perk.NONE
 ## Id oddziałów załogi w kolejności `target.defenders` (do zadań z DefensePlan).
 var defender_ids: Array[int] = []
 ## Zapasy obrońcy z kopii, w kolejności EconomyConfig.Res (podstawa łupu jak na serwerze).
@@ -140,6 +143,7 @@ func apply_launch(launch: Dictionary) -> bool:
 	plan = server_plan
 	attacker_research = AttackLaunch.research_of(techs)
 	attacker_general = Generals.general_from(launch.get("general"))
+	attacker_ruler_perk = ruler_perk_from(launch.get("ruler_perk"))
 	defender_generals = state.generals
 	_age = state.grid.age()
 	defender_ids = state.recruitment.battle_ids()
@@ -188,13 +192,21 @@ func create_battle() -> Battle:
 	b.apply_research(Battle.Side.ATTACKER, attacker_research)
 	b.set_general(Battle.Side.ATTACKER, attacker_general)
 	b.set_general(Battle.Side.DEFENDER, defense.commander_general(defender_generals))
+	b.set_ruler_perk(Battle.Side.ATTACKER, attacker_ruler_perk)
 	return b
+
+
+## Perk władcy z odpowiedzi serwera: znany numer perka, inaczej Perk.NONE (stara Edge Function go nie
+## podaje, a wtedy także serwer nie podnosi limitu łupu, bo w ataku nie ma zapisanego perka).
+static func ruler_perk_from(v: Variant) -> int:
+	var p := Generals._int_of(v, RulerPerks.Perk.NONE)
+	return p if RulerPerks.is_known(p) else RulerPerks.Perk.NONE
 
 
 ## Wynik skończonej bitwy z łupem z kopii zapasów, przyciętym do capacity ocalałych (jak `end_attack`).
 func result_of(b: Battle) -> BattleResult:
 	var r := BattleResult.of(b)
-	r.compute_player_loot(stash)
+	r.compute_player_loot(stash, attacker_ruler_perk)
 	r.limit_to_capacity(BattleResult.carry_capacity(army, b.survivors(Battle.Side.ATTACKER)))
 	return r
 

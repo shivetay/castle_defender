@@ -50,14 +50,16 @@ select is(pg_temp.save('{"roster": [{"kind": 0, "level": 2, "xp": 120}]}') -> 'r
   '0'::jsonb, 'od poziomu 2 boty nie dają PD');
 
 -- 8 ataków na gracza z łupem 30 złota: 240 złota i 320 PD z PvP (oraz 1320 PD ogółem)
-insert into public.attacks (attacker_id, defender_id, battle_seed, status, result, loot, finished_at)
+-- (ataki na gracza mają kopie zamku i obrony: attacks_player_target_snapshots)
+insert into public.attacks (attacker_id, defender_id, battle_seed, status, result, loot, finished_at,
+  castle_snapshot, defense_snapshot)
 select '00000000-0000-0000-0000-0000000031d1', '00000000-0000-0000-0000-0000000031e1', 100 + g, 'finished',
-  '{"won": true, "percent": 60, "stars": [false, true, true]}', array[0, 0, 0, 30], now()
+  '{"won": true, "percent": 60, "stars": [false, true, true]}', array[0, 0, 0, 30], now(), '{}', '{}'
 from generate_series(1, 8) g;
 -- atak w toku i porzucony się nie liczą
-insert into public.attacks (attacker_id, defender_id, battle_seed, status, loot)
+insert into public.attacks (attacker_id, defender_id, battle_seed, status, loot, castle_snapshot, defense_snapshot)
 values ('00000000-0000-0000-0000-0000000031d1', '00000000-0000-0000-0000-0000000031e1', 99, 'abandoned',
-  array[0, 0, 0, 5000]);
+  array[0, 0, 0, 5000], '{}', '{}');
 select is(pg_temp.save('{"roster": [{"kind": 1, "level": 3, "xp": 10, "perk": 0}], "attack": 1, "pvp_gold": 90}'),
   '{"roster": [{"kind": 1, "level": 3, "xp": 10, "perk": 0}], "attack": 1, "pvp_gold": 90}'::jsonb,
   'poziom 3 z PvP bez zmian');
