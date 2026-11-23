@@ -8,6 +8,9 @@ var _cache: Dictionary[int, ImageTexture] = {}
 var _used: Dictionary[int, Rect2i] = {}
 ## Cienie rzucane na trawę (#150), z tym samym kluczem co tekstura, liczone przy pierwszym użyciu.
 var _shadows: Dictionary[int, ImageTexture] = {}
+## Proporce na teksturze (#36): Vector4i(x płachty przy drzewcu, y, kierunek ±1, 0 = ACCENT / 1 = AGE_II_ACCENT),
+## wykryte raz na obrazie razem z teksturą. AmbientView rysuje na nich łopotanie.
+var _flags: Dictionary[int, Array] = {}
 
 
 ## Poziom rysunku: 0–5 jak poziom w epoce I, a wszystkie poziomy epoki II (6–10) to jeden
@@ -38,7 +41,54 @@ func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTAC
 		tex = ImageTexture.create_from_image(img)
 		_cache[k] = tex
 		_used[k] = img.get_used_rect()
+		_flags[k] = find_flags(img)
 	return tex
+
+
+## Proporce tekstury budynku (#36), w pikselach obrazu. Zburzony budynek zwykle już ich nie ma.
+func flags(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
+		vertical: bool = false, lean: int = 0) -> Array:
+	draw_building(kind, level, state, mask, vertical, lean)
+	var m := mask if BuildingTypes.is_wall(kind) else 0
+	var v := vertical and kind == BuildingTypes.Kind.GATE
+	var lv := art_level(level, kind)
+	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
+	return _flags[key(kind, lv, state, m, v, ln)]
+
+
+## Szuka proporców z PixelCanvas.pennant: płachta 3×2 w kolorze sztandaru z wcięciem w dolnym rogu
+## od strony swobodnego końca i bez sztandaru przy drzewcu. Lustro (przybudówka z prawej) łopocze na zachód.
+## Tarcze 2×2 i pasy bramy tego wzoru nie mają.
+static func find_flags(img: Image) -> Array[Vector4i]:
+	var found: Array[Vector4i] = []
+	var size := img.get_size()
+	for y in range(0, size.y - 1):
+		for x in size.x:
+			var col := _accent_of(img, x, y, size)
+			if col < 0:
+				continue
+			for dir: int in [1, -1]:
+				if _accent_of(img, x - dir, y, size) == col:
+					continue
+				if _accent_of(img, x + dir, y, size) == col and _accent_of(img, x + 2 * dir, y, size) == col \
+						and _accent_of(img, x, y + 1, size) == col and _accent_of(img, x + dir, y + 1, size) == col \
+						and _accent_of(img, x + 2 * dir, y + 1, size) != col and _accent_of(img, x + 3 * dir, y, size) != col:
+					found.append(Vector4i(x, y, dir, col))
+	return found
+
+
+## 0 dla czerwieni epoki I, 1 dla błękitu epoki II, -1 dla innego koloru albo spoza obrazu.
+static func _accent_of(img: Image, x: int, y: int, size: Vector2i) -> int:
+	if x < 0 or y < 0 or x >= size.x or y >= size.y:
+		return -1
+	var c := img.get_pixel(x, y)
+	if c.a < 1.0:
+		return -1
+	if c.is_equal_approx(Palette.ACCENT):
+		return 0
+	if c.is_equal_approx(Palette.AGE_II_ACCENT):
+		return 1
+	return -1
 
 
 ## Rysuje z góry wszystkie całe (nieuszkodzone) warianty i place budowy (poziom 0), także przybudówki
