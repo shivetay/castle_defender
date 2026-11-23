@@ -14,6 +14,8 @@
 --   tyle, co pierwszy;
 -- - age_locked: Dwór na poziomie 6+ (epoka II) bez zbadanych technologii przejścia O1, G1, A7
 --   (Ages.TRANSITION_TECHS), jak `private.castle_age`;
+-- - building_locked: nowy budynek (id, którego nie było w poprzednim zapisie z tym rodzajem) bez zbadanej
+--   technologii z BuildConfig.REQUIRED_TECH (ulepszenia jej nie wymagają, jak w grze);
 -- - build_too_fast: zabudowa urosła bardziej, niż zdążyłby zbudować jeden budowniczy (BuildConfig.BUILDERS = 1)
 --   od poprzedniego zapisu zamku na serwerze.
 --
@@ -23,12 +25,15 @@
 --   AGE_TIME_MULT = [1, 2] dla epok, a Dwór ma własne MANOR_TIME_S = [0, 600, 3600, 14400, 43200, 43200, 1200, 7200, 28800, 86400].
 -- Potrzebny czas to suma czasów poziomów, które przybyły od poprzedniego zapisu (ten sam id i rodzaj; nowy
 -- budynek od zera, plac budowy na poziomie 0 nic nie kosztuje), razy BUILDER_TIME_PERCENT = 90 procent, bo
--- zlecenie z perkiem Budowniczy (#32) trwa krócej, a perk mógł się zmienić po zleceniu. Budżet to czas
--- od poprzedniego zapisu na zegarze serwera (`old.updated_at`) plus pełny czas zlecenia, które było
--- w toku przy poprzednim zapisie (`queue.orders[0]`, zaczęło się przed nim), plus TOLERANCE = 5 minut
--- (opóźnienie sieci i krótkie odcinki umocnień, które gra domyka sama). Stałe przesunięcie zegara telefonu
--- nie przeszkadza: gra liczy budowę z różnicy dwóch chwil na tym samym zegarze. Przestawienie zegara
--- do przodu (przyspieszenie budowy) jest tym, co ten limit łapie.
+-- zlecenie z perkiem Budowniczy (#32) trwa krócej, a perk mógł się zmienić po zleceniu. Dostępny czas to
+-- czas od poprzedniego zapisu na zegarze serwera (`old.updated_at`) plus kredyt z poprzedniego zapisu
+-- (`castles.build_credit_ms`, zmienia go tylko wyzwalacz). Kredyt to niewykorzystany, naprawdę upłynięty
+-- czas, najwyżej tyle, ile trwa zlecenie w toku w zapisie (`queue.orders[0]`): budowniczy mógł już nad nim
+-- pracować, ale poziom jeszcze nie przybył. Zlecenie wpisane do zapisu nie daje więc czasu samo z siebie
+-- (review #279). Kredyt może zejść do -TOLERANCE = 5 minut łącznie, nie na każdy zapis (opóźnienie sieci
+-- i krótkie odcinki umocnień, które gra domyka sama). Stałe przesunięcie zegara telefonu nie przeszkadza:
+-- gra liczy budowę z różnicy dwóch chwil na tym samym zegarze. Przestawienie zegara do przodu
+-- (przyspieszenie budowy) jest tym, co ten limit łapie.
 -- Pierwszy zapis zamku (INSERT) liczy od założenia konta (`players.created_at`) z zapasem
 -- INSERT_GRACE = 6 godzin na grę bez sieci przed pierwszym połączeniem; za darmo stoją Dwór na poziomie 1
 -- i donżon, jak w nowej grze.
@@ -41,6 +46,17 @@
 -- Zamki zapisane przed migracją, które łamią reguły poziomów, dostają raz poziomy przycięte do Dworu
 -- (a Dwór bez technologii epoki II do poziomu 5); to jedyny wyjątek od zasady „bez przycinania”.
 -- Liczby pilnuje test gry (`tests/test_building_sanity.gd`) po znacznikach w komentarzach.
+
+-- ---------------------------------------------------------------------------------------------
+-- Kredyt czasu budowy
+-- ---------------------------------------------------------------------------------------------
+
+-- Klient ma uprawnienia do zapisu wyłącznie `save_version` i `data` (migracja init), więc kredytu nie ustawi.
+alter table public.castles
+  add column build_credit_ms bigint not null default 0;
+
+comment on column public.castles.build_credit_ms is
+  'Kredyt czasu budowy (#274 etap 4): niewykorzystany czas z poprzednich zapisów, najwyżej czas zlecenia w toku, ujemny do -5 minut. Zmienia tylko wyzwalacz.';
 
 -- ---------------------------------------------------------------------------------------------
 -- Funkcje pomocnicze (schemat private)
@@ -143,8 +159,8 @@ as $$
   cross join lateral generate_series(greatest(coalesce(o.level, 0), 0) + 1, least(n.level, 10)) as l
 $$;
 
--- Pełny czas zlecenia, które w zapisie `p_castle` było w toku (pierwsze w kolejce), w ms.
-create function private.queue_slack_ms(p_castle jsonb)
+-- Pełny czas zlecenia, które w zapisie `p_castle` jest w toku (pierwsze w kolejce), w ms.
+create function private.queue_head_ms(p_castle jsonb)
 returns bigint
 language sql
 immutable
@@ -157,12 +173,32 @@ as $$
     where jsonb_typeof(p_castle -> 'queue' -> 'orders') = 'array'), 0)
 $$;
 
+-- Czy w `p_new` stoi nowy budynek (id bez tego rodzaju w `p_old`) bez technologii z BuildConfig.REQUIRED_TECH:
+--   REQUIRED_TECH = {"6": "G18", "7": "G19", "8": "A38", "9": "A39", "10": "A40", "11": "A41", "12": "A42", "13": "A43", "14": "G24", "15": "G20", "16": "G21", "19": "A45", "20": "A44", "22": "S1", "24": "O2", "27": "O1", "30": "G4", "31": "S2"}
+create function private.locked_new_building(p_old jsonb, p_new jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from private.castle_levels(p_new) n
+    cross join lateral (select ('{"6": "G18", "7": "G19", "8": "A38", "9": "A39", "10": "A40", "11": "A41", "12": "A42", "13": "A43", "14": "G24", "15": "G20", "16": "G21", "19": "A45", "20": "A44", "22": "S1", "24": "O2", "27": "O1", "30": "G4", "31": "S2"}'::jsonb ->> n.kind::text) as tech) r
+    where r.tech is not null
+      and not exists (select 1 from private.castle_levels(p_old) o where o.id = n.id and o.kind = n.kind)
+      -- coalesce: zapis bez `research` to brak technologii (null nie może przepuścić budynku)
+      and not coalesce(jsonb_typeof(p_new -> 'research' -> 'done') = 'array'
+        and (p_new -> 'research' -> 'done') @> jsonb_build_array(r.tech), false))
+$$;
+
 revoke all on function private.castle_levels(jsonb) from public, anon, authenticated;
 revoke all on function private.build_time_ms(bigint, bigint) from public, anon, authenticated;
 revoke all on function private.castle_buildings_problem(jsonb) from public, anon, authenticated;
 revoke all on function private.start_buildings(jsonb) from public, anon, authenticated;
 revoke all on function private.build_need_ms(jsonb, jsonb) from public, anon, authenticated;
-revoke all on function private.queue_slack_ms(jsonb) from public, anon, authenticated;
+revoke all on function private.queue_head_ms(jsonb) from public, anon, authenticated;
+revoke all on function private.locked_new_building(jsonb, jsonb) from public, anon, authenticated;
 -- begin_attack woła castle_buildings_problem (przez castle_resources_problem) jako service_role
 grant execute on function private.castle_levels(jsonb) to service_role;
 grant execute on function private.castle_buildings_problem(jsonb) to service_role;
@@ -203,6 +239,13 @@ where jsonb_typeof(c.data -> 'grid' -> 'buildings') = 'array'
   and private.castle_buildings_problem(c.data) is not null;
 alter table public.castles enable trigger castles_resources;
 
+-- Kredyt na start: zlecenie w toku w zapisie sprzed migracji dostaje pełny czas (budowniczy mógł nad nim
+-- pracować przed migracją). Bez bump_revision, żeby telefony nie dostały konfliktu rewizji.
+alter table public.castles disable trigger castles_bump_revision;
+update public.castles c set build_credit_ms = private.queue_head_ms(c.data)
+where private.queue_head_ms(c.data) > 0;
+alter table public.castles enable trigger castles_bump_revision;
+
 -- ---------------------------------------------------------------------------------------------
 -- Wyzwalacz zapisu zamku
 -- ---------------------------------------------------------------------------------------------
@@ -222,7 +265,7 @@ declare
   v_problem text := private.castle_buildings_problem(new.data);
   v_role text := coalesce(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role', '');
   v_old jsonb;
-  v_budget numeric;
+  v_avail numeric;
   v_need bigint;
 begin
   if v_problem is not null then
@@ -235,19 +278,22 @@ begin
   if tg_op = 'INSERT' then
     v_old := private.start_buildings(new.data);
     -- INSERT_GRACE = 6 godzin
-    select extract(epoch from now() - p.created_at) * 1000 + 6 * 3600 * 1000 into v_budget
+    select extract(epoch from now() - p.created_at) * 1000 + 6 * 3600 * 1000 into v_avail
     from public.players p where p.id = new.player_id;
-    v_budget := coalesce(v_budget, 6 * 3600 * 1000);
+    v_avail := coalesce(v_avail, 6 * 3600 * 1000);
   else
     v_old := old.data;
-    v_budget := extract(epoch from now() - old.updated_at) * 1000 + private.queue_slack_ms(old.data);
+    v_avail := extract(epoch from now() - old.updated_at) * 1000 + old.build_credit_ms;
   end if;
-  -- TOLERANCE = 5 minut, BUILDER_TIME_PERCENT = 90
-  v_budget := v_budget + 5 * 60 * 1000;
+  if private.locked_new_building(v_old, new.data) then
+    raise exception 'building_locked' using errcode = 'PT422';
+  end if;
+  -- BUILDER_TIME_PERCENT = 90; TOLERANCE = 5 minut łącznie (kredyt najwyżej -5 minut)
   v_need := private.build_need_ms(v_old, new.data) * 90 / 100;
-  if v_need > v_budget then
+  if v_avail - v_need < -5 * 60 * 1000 then
     raise exception 'build_too_fast' using errcode = 'PT422';
   end if;
+  new.build_credit_ms := least(v_avail - v_need, private.queue_head_ms(new.data))::bigint;
   return new;
 end;
 $$;

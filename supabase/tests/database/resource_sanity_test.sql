@@ -27,6 +27,7 @@ create function pg_temp.castle(p_amounts jsonb, p_wh int default 0) returns json
     'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 4, 4], [2, 18, 3, 36, 30, 3, 3], [9, 18, 2, 50, 50, 3, 3], [3, 16, 1, 40, 30, 2, 2]]'::jsonb
       || case when p_wh > 0 then jsonb_build_array(jsonb_build_array(4, 25, p_wh, 10, 10, 2, 2)) else '[]'::jsonb end),
     'economy', jsonb_build_object('amounts', p_amounts, 'remainder', '[0, 0, 0, 0]'::jsonb, 'last_update_ms', 0),
+    'research', jsonb_build_object('done', '["G21"]'::jsonb),  -- Rybak wymaga G21 (#274, etap 4)
     'recruitment', jsonb_build_object('squads', '[[1, 0, 10], [2, 0, 10], [3, 0, 10]]'::jsonb))
 $$;
 grant execute on function pg_temp.castle(jsonb, int) to authenticated;

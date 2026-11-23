@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(23);
+select plan(30);
 
 create temp table test_ids (id uuid primary key) on commit drop;
 insert into test_ids values ('00000000-0000-0000-0000-0000000274d1'), ('00000000-0000-0000-0000-0000000274e1');
@@ -61,8 +61,18 @@ select lives_ok(
   'serwer zakłada zamek bez limitu czasu');
 
 -- ---- gracz D: czas jednego budowniczego ----
+-- Zapis jak z telefonu (PATCH): budynki `p_b` i opcjonalnie kolejka/badania w `p_extra`.
+create function pg_temp.push(p_b jsonb, p_extra jsonb default '{}') returns void language sql as $$
+  update public.castles set data = pg_temp.castle(p_b, p_extra) where player_id = '00000000-0000-0000-0000-0000000274d1'
+$$;
+grant execute on function pg_temp.push(jsonb, jsonb) to authenticated;
+-- Gracz D z tokenem (limit czasu działa tylko dla zapisów gracza).
+create function pg_temp.as_d() returns void language sql as $$
+  select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000274d1", "role": "authenticated"}', true)
+$$;
+
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000274d1", "role": "authenticated"}', true);
+select pg_temp.as_d();
 
 select throws_ok(
   $$insert into public.castles (player_id, map_seed, save_version, data)
@@ -74,42 +84,63 @@ select lives_ok(
       pg_temp.castle('[[1, 5, 1, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]]'))$$,
   'nowe konto: Dwór i donżon za darmo, Wieża 1 w zapasie gry bez sieci');
 select throws_ok(
-  $$update public.castles set data = pg_temp.castle('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]]')
-    where player_id = '00000000-0000-0000-0000-0000000274d1'$$,
+  $$select pg_temp.push('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]]')$$,
   'PT422', 'build_too_fast', 'Dwór 2 (10 min) zaraz po poprzednim zapisie odrzucony');
 select is((select data -> 'grid' -> 'buildings' -> 0 ->> 2 from public.castles), '1', 'odrzucony zapis niczego nie zmienił');
+-- review #279: zlecenie wpisane do zapisu nie daje czasu samo z siebie
+select lives_ok(
+  $$select pg_temp.push('[[1, 5, 1, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]]',
+    '{"queue": {"orders": [{"building_id": 1, "level": 2}]}}')$$,
+  'zapis ze zleceniem Dworu 2 przechodzi');
+select throws_ok(
+  $$select pg_temp.push('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]]')$$,
+  'PT422', 'build_too_fast', 'fikcyjne zlecenie nie skraca budowy');
 reset role;
 select set_config('request.jwt.claims', '', true);  -- serwer przestawia czas poprzedniego zapisu
--- przy poprzednim zapisie Dwór 2 był w toku: jego czas się liczy, choć od zapisu nic nie minęło
-update public.castles set data = data || '{"queue": {"orders": [{"building_id": 1, "level": 2}]}}'
-where player_id = '00000000-0000-0000-0000-0000000274d1';
+select pg_temp.age_castle('00000000-0000-0000-0000-0000000274d1', interval '20 minutes');
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000274d1", "role": "authenticated"}', true);
+select pg_temp.as_d();
+-- 20 minut pracy nad Dworem 2 przed zapisem: kredyt najwyżej czas tego zlecenia (10 min)
 select lives_ok(
-  $$update public.castles set data = pg_temp.castle('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]]')
-    where player_id = '00000000-0000-0000-0000-0000000274d1'$$,
-  'zlecenie w toku przy poprzednim zapisie kończy się zaraz po nim');
+  $$select pg_temp.push('[[1, 5, 1, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]]',
+    '{"queue": {"orders": [{"building_id": 1, "level": 2}]}}')$$,
+  'zapis w trakcie budowy Dworu 2');
+select is((select build_credit_ms from public.castles), 600000::bigint, 'kredyt: czas zlecenia w toku');
+select lives_ok(
+  $$select pg_temp.push('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]]')$$,
+  'Dwór 2 kończy się zaraz po zapisie: praca sprzed zapisu z kredytu');
+-- tolerancja 5 minut jest łączna, nie na każdy zapis: Wieża 1 to 54 s, piąta mieści się, szósta już nie
+do $$
+begin
+  perform pg_temp.push(('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]'
+    || (select string_agg(format(', [%s, 3, 1, %s, 20, 2, 2]', 10 + i, 2 * i), '') from generate_series(1, n) i)
+    || ']')::jsonb) from generate_series(1, 5) n;
+end;
+$$;
+select is((select build_credit_ms from public.castles), (-5 * 54000)::bigint, 'pięć Wież na kredyt z tolerancji');
+select throws_ok(
+  $$select pg_temp.push(('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2]'
+    || (select string_agg(format(', [%s, 3, 1, %s, 20, 2, 2]', 10 + i, 2 * i), '') from generate_series(1, 6) i)
+    || ']')::jsonb)$$,
+  'PT422', 'build_too_fast', 'szósta Wieża ponad łączną tolerancję odrzucona');
 reset role;
 select set_config('request.jwt.claims', '', true);
 select pg_temp.age_castle('00000000-0000-0000-0000-0000000274d1', interval '20 minutes');
 set local role authenticated;
-select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000274d1", "role": "authenticated"}', true);
--- nowa Wieża 2 to 60 + 180 s, a Chata drwala 2 na id 3 (inny rodzaj nie dziedziczy poziomu Wieży) 45 + 135 s
-select lives_ok(
-  $$update public.castles set data = pg_temp.castle('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [4, 3, 2, 12, 9, 2, 2],
-      [3, 4, 2, 15, 9, 2, 2]]')
-    where player_id = '00000000-0000-0000-0000-0000000274d1'$$,
-  '20 minut wystarcza na Wieżę 2 i Chatę drwala 2');
+select pg_temp.as_d();
+-- nowy Rybak (rodzaj 16) wymaga G21 (BuildConfig.REQUIRED_TECH); id i rodzaj z poprzedniego zapisu już nie
 select throws_ok(
-  $$update public.castles set data = pg_temp.castle('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [4, 3, 2, 12, 9, 2, 2],
-      [3, 4, 2, 15, 9, 2, 2], [6, 3, 2, 18, 9, 2, 2], [7, 3, 2, 21, 9, 2, 2], [8, 3, 2, 24, 9, 2, 2]]')
-    where player_id = '00000000-0000-0000-0000-0000000274d1'$$,
-  'PT422', 'build_too_fast', 'trzy nowe Wieże 2 (12 min) zaraz po zapisie odrzucone');
+  $$select pg_temp.push('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2], [30, 16, 0, 30, 30, 2, 2]]')$$,
+  'PT422', 'building_locked', 'nowy Rybak bez G21 odrzucony');
 select lives_ok(
-  $$update public.castles set data = pg_temp.castle('[[1, 5, 1, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2]]')
-    where player_id = '00000000-0000-0000-0000-0000000274d1'$$,
+  $$select pg_temp.push('[[1, 5, 2, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2], [3, 3, 1, 12, 9, 2, 2], [30, 16, 1, 30, 30, 2, 2]]',
+    '{"research": {"done": ["G21"]}}')$$,
+  'Rybak z G21 przechodzi');
+select lives_ok(
+  $$select pg_temp.push('[[1, 5, 1, 0, 0, 4, 4], [2, 21, 1, 9, 9, 2, 2]]')$$,
   'niższa zabudowa (nowa gra) przechodzi');
 select throws_ok($$select private.build_need_ms('{}', '{}')$$, '42501', null, 'gracz nie woła funkcji serwera');
+select throws_ok($$update public.castles set build_credit_ms = 999999999$$, '42501', null, 'gracz nie ustawia kredytu');
 reset role;
 select set_config('request.jwt.claims', '', true);
 

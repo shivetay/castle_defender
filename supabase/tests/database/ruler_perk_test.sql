@@ -26,7 +26,8 @@ create function pg_temp.castle(p_ruler jsonb, p_generals jsonb default null) ret
     'profile', jsonb_build_object('castle_name', 'Gród'),
     'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 2, 2], [2, 18, 3, 36, 30, 2, 2], [9, 18, 2, 50, 50, 2, 2], [3, 16, 1, 40, 30, 2, 2]]'::jsonb),
     'economy', jsonb_build_object('amounts', jsonb_build_array(1000, 1000, 1000, 0)),
-    'research', jsonb_build_object('done', '[]'::jsonb),
+    -- G21: Rybak wymaga badania (BuildConfig.REQUIRED_TECH, #274)
+    'research', jsonb_build_object('done', '["G21"]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 0, 10], [2, 0, 10]]'::jsonb),
     'ruler', p_ruler)
     || case when p_generals is null then '{}'::jsonb else jsonb_build_object('generals', p_generals) end

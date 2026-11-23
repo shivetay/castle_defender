@@ -72,6 +72,21 @@ func test_level_rules_match_game() -> bool:
 	return true
 
 
+## Nowy budynek wymaga tej samej technologii co w grze (BuildConfig.REQUIRED_TECH, review #279).
+func test_required_tech_matches_game() -> bool:
+	var keys: Array = BuildConfig.REQUIRED_TECH.keys()
+	keys.sort()
+	var parts: Array[String] = []
+	for kind: int in keys:
+		parts.append("\"%d\": \"%s\"" % [kind, BuildConfig.REQUIRED_TECH[kind]])
+	var table := "{" + ", ".join(parts) + "}"
+	var sql := _sql()
+	assert_true(sql.contains("REQUIRED_TECH = " + table), "tabela w komentarzu")
+	assert_true(sql.contains("select ('" + table + "'::jsonb ->> n.kind::text)"), "tabela w funkcji")
+	assert_true(sql.contains("TOLERANCE = 5 minut łącznie"), "tolerancja łączna, nie na zapis")
+	return true
+
+
 ## Kolejka w zapisie ma pola, z których serwer liczy zlecenie w toku (`queue.orders[0]`).
 func test_queue_save_has_server_fields() -> bool:
 	var grid := BuildGrid.new(TerrainMap.generate(1337))
