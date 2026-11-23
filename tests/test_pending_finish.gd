@@ -89,3 +89,34 @@ func test_unknown_fields_dropped() -> bool:
 	assert_true(not back.body.has("extra"), "bez obcego pola")
 	assert_eq(back.body.keys().size(), _body().keys().size(), "te same pola co AttackFinish.request")
 	return true
+
+
+## Zaległy wynik blokuje start nowego ataku na serwerze (review #283): `begin_attack` porzuciłby
+## atak z wynikiem w pliku. Bez sieci nic nie startuje na serwerze, więc nic nie blokuje.
+func test_pending_blocks_server_start() -> bool:
+	var p := PendingFinish.new()
+	assert_true(not p.blocks_start(true), "bez zaległego wyniku atak startuje")
+	p.body = _body()
+	assert_true(p.blocks_start(true), "z zaległym wynikiem najpierw wynik")
+	assert_true(not p.blocks_start(false), "bez sieci wyprawa na bota idzie lokalnie")
+	return true
+
+
+## Awaria w środku zapisu (review #283): bez pliku głównego wynik wraca z pełnego .tmp albo z kopii .bak.
+func test_read_falls_back_to_tmp_and_bak() -> bool:
+	PendingFinish.clear(TEST_PATH)
+	var p := PendingFinish.new()
+	p.body = _body()
+	p.fallen = 3
+	assert_eq(p.write(TEST_PATH), OK, "pierwszy zapis")
+	DirAccess.rename_absolute(TEST_PATH, TEST_PATH + ".tmp")
+	assert_eq(PendingFinish.read(TEST_PATH).fallen, 3, "z pełnego .tmp")
+	DirAccess.rename_absolute(TEST_PATH + ".tmp", TEST_PATH + ".bak")
+	assert_eq(PendingFinish.read(TEST_PATH).fallen, 3, "z kopii .bak")
+	var f := FileAccess.open(TEST_PATH, FileAccess.WRITE)
+	f.store_string("{zły")
+	f.close()
+	assert_eq(PendingFinish.read(TEST_PATH).fallen, 3, "zły plik główny: kopia")
+	PendingFinish.clear(TEST_PATH)
+	assert_true(PendingFinish.read(TEST_PATH).is_empty(), "po wyczyszczeniu nic")
+	return true

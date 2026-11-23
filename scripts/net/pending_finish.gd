@@ -12,6 +12,8 @@ const PATH := "user://attack_result.json"
 const VERSION := 1
 ## Najwięcej oddziałów w treści (więcej żaden atak nie wysyła).
 const MAX_SQUADS := 64
+## Komunikat, gdy nowy atak czeka na wysłanie zaległego wyniku (mieści się w pasku komunikatu).
+const WAIT_MESSAGE := "Najpierw wysyłam wynik ataku"
 
 ## Treść `finish_attack` (AttackFinish.request); pusta, gdy nic nie czeka.
 var body: Dictionary = {}
@@ -21,6 +23,13 @@ var fallen := 0
 
 func is_empty() -> bool:
 	return body.is_empty()
+
+
+## Czy zaległy wynik blokuje start nowego ataku na serwerze. `begin_attack` porzuca poprzedni atak
+## w toku tego samego gracza, więc nowy start przed wysłaniem wyniku dałby `attack_expired` i stratę
+## łupu. Bez sieci nic nie startuje na serwerze, więc wyprawa na bota może iść lokalnie.
+func blocks_start(online: bool) -> bool:
+	return online and not is_empty()
 
 
 func to_dict() -> Dictionary:
@@ -76,8 +85,14 @@ func write(path: String = PATH) -> Error:
 	return SaveGame.write(path, to_dict())
 
 
+## Odczyt jak przy zapisie gry: plik główny, a gdy go nie ma albo jest zły, pełny .tmp (awaria
+## między zmianami nazw w `SaveGame.write`) i kopia .bak.
 static func read(path: String = PATH) -> PendingFinish:
-	return from_dict(SaveGame.read(path))
+	for candidate: String in [path, path + ".tmp", path + ".bak"]:
+		var p := from_dict(SaveGame.read(candidate))
+		if not p.is_empty():
+			return p
+	return PendingFinish.new()
 
 
 static func clear(path: String = PATH) -> void:

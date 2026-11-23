@@ -554,6 +554,9 @@ w sekcji „Następny etap”.
     na serwer”. Ponowienie jest bezpieczne: zakończony atak serwer oddaje z zapisanym łupem, a atak
     w toku przyjmuje tylko w swoich 10 minutach od startu. Plik ma tylko id ataku, wynik, łup, ocalałych,
     zniszczone budynki i liczbę poległych; nie wchodzi do zapisu zamku. Nowa gra go usuwa.
+    Dopóki wynik czeka, gra połączona z siecią nie zaczyna nowego ataku na gracza ani wyprawy na bota
+    („Najpierw wysyłam wynik ataku”), bo nowy start na serwerze porzuciłby atak z zaległym wynikiem.
+    Odczyt próbuje pliku głównego, pełnego .tmp i kopii .bak, jak zapis gry.
 - Powtórka obrony (#29, `scripts/battle/battle_replay.gd`, `scripts/net/attack_replay.gd`, lista
   `scripts/ui/replay_panel.gd`): to nie wideo, tylko ta sama bitwa policzona jeszcze raz.
   - **Dane:** atakujący wysyła plan przy zatwierdzeniu (`launch_attack`), a serwer zapisuje go razem

@@ -1176,6 +1176,11 @@ func _on_player_target(target: TargetSearch.Target) -> void:
 	if net == null or not net.is_online():
 		hud.message = AttackStart.error_message(SupabaseClient.NETWORK_ERROR)
 		return
+	if _pending.blocks_start(true):
+		# nowy start porzuciłby atak z zaległym wynikiem (review #283)
+		_resume_finish()
+		hud.message = PendingFinish.WAIT_MESSAGE
+		return
 	# serwer sprawdza armię z kopii zamku na serwerze: najpierw zaległy zapis (#23)
 	net.flush()
 	if not net.start_attack(target.player_id, army):
@@ -1332,6 +1337,11 @@ func _on_attack_launched() -> void:
 			return
 		_launching = true
 		hud.message = "Zatwierdzam plan na serwerze"
+		return
+	if _player == null and _pending.blocks_start(net != null and net.is_online()):
+		# start wyprawy na serwerze porzuciłby atak z zaległym wynikiem (review #283)
+		_resume_finish()
+		hud.message = PendingFinish.WAIT_MESSAGE
 		return
 	var bot := planner.bot
 	_battle_ids = recruitment.battle_ids(defense.garrison_ids()).slice(0, army.size())
@@ -1536,7 +1546,7 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 ## (`start_attack` z `bot_idx`), żeby wynik mógł dać punkty PvE. Bez sieci bitwa idzie jak dotąd.
 ## Wynik ataku na gracza czekający na serwer albo poprzednia wyprawa w drodze mają pierwszeństwo.
 func _pve_begin(army: Array) -> void:
-	if not _pve.is_idle() or _pve_sending or _finish_result != null:
+	if not _pve.is_idle() or _pve_sending or _finish_result != null or not _pending.is_empty():
 		return
 	_pve.clear()  # nowa wyprawa: bez znacznika porażki poprzedniej
 	if net == null or identity == null or not net.is_online():
