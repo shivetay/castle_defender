@@ -383,6 +383,14 @@ w sekcji „Następny etap”.
   jest Oblężenie. Cele tylko podpowiadają, Oblężenia nie blokują. Po 5. fali komunikat sukcesu z nagrodą i koniec
   prowadzenia. Test sprawdza, że obrona z tej ścieżki z bramą, palisadą i zadaniami domyślnymi wygrywa
   każdą falę na kilku mapach.
+- Mini-samouczek UI (#251, `scripts/ui/tutorial_hints.gd`, `TutorialHints`): przy dwóch pierwszych
+  celach pulsująca ramka wskazuje kolejne dotknięcie: Buduj → zakładka Wojsko → Koszary → Postaw, potem
+  podpowiedź „Dotknij wolnego pola na mapie” i Gotowe; dalej Wojsko (albo Szkol na karcie Koszar) →
+  Chłop → Szkol, póki z kolejką brakuje do 6 żołnierzy. Krok liczy się z celu i stanu interfejsu (bez
+  zapisu), więc po spełnieniu celu wskazanie samo przechodzi dalej; dalsze cele mają tylko tekst. Po
+  onboardingu okno `TutorialPrompt` pyta, czy wyłączyć samouczek; wybór (i ukończenie 5 fal) trzyma profil
+  gracza (`tutorial` w `user://player.json`), więc Zacznij od nowa nie pokazuje samouczka komuś, kto go już
+  przeszedł. W Ustawieniach jest przełącznik Samouczek: wł./wył. (wyłączenie z potwierdzeniem).
 - Morale (#98): każdy oddział ma morale 0–100 (liczby całkowite, start 70). Poległy zabiera
   oddziałowi 80 / początkowa liczebność, więc oddział łamie się po stracie ponad połowy ludzi.
   Poniżej 30 oddział sam się wycofuje na swoją kratkę startową i już nie walczy; gdy wycofają się
@@ -660,7 +668,7 @@ w sekcji „Następny etap”.
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
 - `scripts/ui/settings_panel.gd` (`SettingsPanel`, #177): gra startuje od razu w zamku (to gra PvP,
   bez ekranu startowego; tylko pierwsze uruchomienie zaczyna się od onboardingu z #228). Ustawienia pod zębatką na dole kolumny HUD-u: Język polski/English
-  (angielski jako zapowiedź #64), Dźwięk: wkrótce, Zacznij od nowa (z potwierdzeniem; usuwa zapis
+  (angielski jako zapowiedź #64), Dźwięk: wkrótce, Samouczek: wł./wył. (#251), Zacznij od nowa (z potwierdzeniem; usuwa zapis
   i przeładowuje scenę, mapa zostaje ta sama, bo seed należy do gracza) i Zamknij. Stopka: gra offline
   z zapisem na telefonie i wersja z `project.godot`. Gra nie łączy się z siecią przy starcie.
 - Strażnica (`BuildingTypes.Kind.WATCHTOWER`, #177): budynek PvE 2×2, czatownia na słupach z drabiną.
