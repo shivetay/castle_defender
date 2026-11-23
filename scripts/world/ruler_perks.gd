@@ -99,9 +99,10 @@ static func pvp_loot(amount: int, p: int) -> int:
 	return amount * LOOTER_LOOT_PERCENT / 100
 
 
-## Czy zmiana w chwili `now_ms` jest darmowa (pierwsza w oknie 24 h).
+## Czy zmiana w chwili `now_ms` jest darmowa (pierwsza w oknie 24 h). Cofnięty zegar (`now_ms` przed
+## `free_ms`) nie daje darmowej zmiany (review #276): okno trwa, aż minie 24 h od zapisanej chwili.
 func is_free_change(now_ms: int) -> bool:
-	return free_ms <= 0 or now_ms - free_ms >= COOLDOWN_MS or now_ms < free_ms
+	return free_ms <= 0 or now_ms - free_ms >= COOLDOWN_MS
 
 
 ## Złoto za zmianę w chwili `now_ms`: 0 albo CHANGE_GOLD.

@@ -71,6 +71,8 @@ func test_change_free_once_per_day_then_gold() -> bool:
 	assert_eq(r.choose(P.THRIFTY, 0, poor, t + RulerPerks.COOLDOWN_MS), RES.OK, "po 24 h znowu darmowo")
 	assert_eq(poor.amounts[EconomyConfig.Res.GOLD], RulerPerks.CHANGE_GOLD - 1, "bez opłaty")
 	assert_eq(r.free_ms, t + RulerPerks.COOLDOWN_MS, "nowe okno 24 h")
+	assert_true(not r.is_free_change(t), "cofnięty zegar nie daje darmowej zmiany")
+	assert_eq(r.change_gold(t), RulerPerks.CHANGE_GOLD, "przy cofniętym zegarze zmiana płatna")
 	for m: String in RulerPerks.MESSAGES:
 		assert_true(PixelFont.text_width(m) <= 320 - 16, "komunikat „%s” mieści się" % m)
 	return true
