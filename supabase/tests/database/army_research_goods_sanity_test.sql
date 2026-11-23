@@ -11,6 +11,26 @@ set search_path = public, extensions;
 
 select plan(56);
 
+-- #282: bilans surowców ma własny test (`economy_growth_test.sql`). Zamki w tym teście nie mają zgodnego
+-- bilansu, więc każdy zapis zamku dostaje kredyt bez limitu (przed wstawieniem i po każdym zapisie).
+create function pg_temp.economy_free() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' and tg_when = 'BEFORE' then
+    new.economy_credit := '{1000000000, 1000000000, 1000000000, 1000000000}';
+    return new;
+  end if;
+  perform set_config('session_replication_role', 'replica', true);
+  update public.castles set economy_credit = '{1000000000, 1000000000, 1000000000, 1000000000}',
+    hide_credit = '{1000000000, 1000000000, 1000000000, 1000000000}' where player_id = new.player_id;
+  perform set_config('session_replication_role', 'origin', true);
+  return null;
+end;
+$$;
+create trigger castles_economy_free before insert on public.castles
+  for each row execute function pg_temp.economy_free();
+create trigger castles_economy_free_after after insert or update of data on public.castles
+  for each row execute function pg_temp.economy_free();
+
 insert into auth.users (id) values ('00000000-0000-0000-0000-0000000281a1');
 update public.players set rating = 62810, age = 0 where id = '00000000-0000-0000-0000-0000000281a1';
 

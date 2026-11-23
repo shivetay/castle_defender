@@ -9,6 +9,26 @@ set search_path = public, extensions;
 
 select plan(22);
 
+-- #282: bilans surowców ma własny test (`economy_growth_test.sql`). Zamki w tym teście nie mają zgodnego
+-- bilansu, więc każdy zapis zamku dostaje kredyt bez limitu (przed wstawieniem i po każdym zapisie).
+create function pg_temp.economy_free() returns trigger language plpgsql security definer set search_path = '' as $$
+begin
+  if tg_op = 'INSERT' and tg_when = 'BEFORE' then
+    new.economy_credit := '{1000000000, 1000000000, 1000000000, 1000000000}';
+    return new;
+  end if;
+  perform set_config('session_replication_role', 'replica', true);
+  update public.castles set economy_credit = '{1000000000, 1000000000, 1000000000, 1000000000}',
+    hide_credit = '{1000000000, 1000000000, 1000000000, 1000000000}' where player_id = new.player_id;
+  perform set_config('session_replication_role', 'origin', true);
+  return null;
+end;
+$$;
+create trigger castles_economy_free before insert on public.castles
+  for each row execute function pg_temp.economy_free();
+create trigger castles_economy_free_after after insert or update of data on public.castles
+  for each row execute function pg_temp.economy_free();
+
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-0000000a9e01'),
   ('00000000-0000-0000-0000-0000000a9e02');
@@ -56,11 +76,12 @@ select lives_ok($$insert into public.castles (player_id, map_seed, save_version,
 select is((select age from public.players where id = '00000000-0000-0000-0000-0000000a9e01'), 0::smallint,
   'Dwór 5: epoka I');
 select lives_ok($$update public.castles set data =
-  '{"grid": {"buildings": [[1, 5, 6, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "G18", "G19", "A2", "A43", "A7"]}}'
+  '{"grid": {"buildings": [[1, 5, 6, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "G18", "G19", "A2", "A43", "A7"]},
+    "economy": {"amounts": [0, 0, 0, 0]}}'
   where player_id = '00000000-0000-0000-0000-0000000a9e01'$$, 'gracz zapisuje zamek po przebudowie Dworu');
 select is((select age from public.players where id = '00000000-0000-0000-0000-0000000a9e01'), 1::smallint,
   'zapis zamku podnosi epokę do II');
-select lives_ok($$update public.castles set data = '{"grid": {"buildings": [[1, 5, 2, 30, 30, 2, 2]]}}'
+select lives_ok($$update public.castles set data = '{"grid": {"buildings": [[1, 5, 2, 30, 30, 2, 2]]}, "economy": {"amounts": [0, 0, 0, 0]}}'
   where player_id = '00000000-0000-0000-0000-0000000a9e01'$$, 'zapis z niższym Dworem przechodzi');
 select is((select age from public.players where id = '00000000-0000-0000-0000-0000000a9e01'), 1::smallint,
   'epoka nie spada (zmodyfikowany zapis nie przeniesie do słabszych)');
@@ -74,7 +95,8 @@ insert into public.castles (player_id, map_seed, save_version, data)
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-0000000a9e01", "role": "authenticated"}', true);
 select is_empty($$update public.castles set data =
-  '{"grid": {"buildings": [[1, 5, 6, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "G18", "G19", "A2", "A43", "A7"]}}'
+  '{"grid": {"buildings": [[1, 5, 6, 30, 30, 2, 2]]}, "research": {"done": ["O1", "G1", "G18", "G19", "A2", "A43", "A7"]},
+    "economy": {"amounts": [0, 0, 0, 0]}}'
   where player_id = '00000000-0000-0000-0000-0000000a9e02' returning player_id$$, 'cudzy zamek: 0 wierszy');
 reset role;
 select is((select age from public.players where id = '00000000-0000-0000-0000-0000000a9e02'), 0::smallint,
