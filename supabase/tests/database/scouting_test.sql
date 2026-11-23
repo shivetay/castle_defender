@@ -33,7 +33,7 @@ insert into public.castles (player_id, map_seed, save_version, data) values
   -- cel: donżon 21 na 10..11, chata 4 na 20..21, mur 1 na 15,15; zwiad stanu `scout` obrońcy
   ('00000000-0000-0000-0000-000000005c02', 32, 10, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Cel'),
-    'grid', jsonb_build_object('buildings', '[[1, 21, 1, 10, 10, 2, 2], [2, 4, 3, 20, 20, 2, 2], [3, 1, 1, 15, 15, 1, 1]]'::jsonb),
+    'grid', jsonb_build_object('buildings', '[[1, 21, 1, 10, 10, 2, 2], [2, 4, 1, 20, 20, 2, 2], [3, 1, 1, 15, 15, 1, 1]]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 2, 5], [2, 0, 5]]'::jsonb),
     'economy', jsonb_build_object('amounts', '[100, 0, 0, 0]'::jsonb),
     'scout', jsonb_build_object('reports', '[{"key": "gracz:tajne"}]'::jsonb))),

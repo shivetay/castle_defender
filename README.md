@@ -79,7 +79,12 @@ w sekcji „Następny etap”.
   gra dolicza z komunikatem („Łup z ataku”, „Straty z najazdu”). Kopia obrońcy do bitwy ma już ten łup, więc
   tych samych zapasów nie da się złupić dwa razy. Wyprawa na bota daje drewno, kamień i żywność od razu (także
   bez sieci), a złoto tylko z odpowiedzi serwera. Zamek spoza limitów nie wchodzi do PvP (`castle_invalid`).
-  Sanity zabudowy (etap 4) to osobny PR, a limit przyrostu produkcji (etap 3) czeka na decyzję.
+  Sanity zabudowy (etap 4, migracja `building_sanity`): zapis z budynkiem wyżej niż Dwór (donżon i strażnica
+  tylko poziom 1), z poziomem spoza 1–10 albo z Dworem epoki II bez O1, G1 i A7 jest odrzucany, a zabudowa
+  może urosnąć najwyżej o tyle, ile zbuduje jeden budowniczy od poprzedniego zapisu na zegarze serwera
+  (plus zlecenie, które było w toku, i 5 minut tolerancji; pierwszy zapis liczy od założenia konta z zapasem
+  6 h). Limity z poziomu Dworu (armia, pułapki, garnizon, magazyn) biorą się więc tylko z przyjętej zabudowy.
+  Pokrycie kosztów budowy w surowcach i limit przyrostu produkcji (etap 3) czekają na decyzję.
 
 - Dwór z epokami i garnizon (#81, `DefensePlan.Task.GARRISON`, decyzje właścicielki 23.11.2026): Dwór ma
   własny rysunek na każdym z 5 poziomów epoki I (strzecha) i epoki II (gont na kamiennej podmurówce:

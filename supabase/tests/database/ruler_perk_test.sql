@@ -24,7 +24,7 @@ update public.players set rating = 63300, age = 0 where id in (select id from te
 create function pg_temp.castle(p_ruler jsonb, p_generals jsonb default null) returns jsonb language sql as $$
   select jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Gród'),
-    'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 2, 2], [2, 18, 5, 36, 30, 2, 2], [3, 16, 1, 40, 30, 2, 2]]'::jsonb),
+    'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 2, 2], [2, 18, 3, 36, 30, 2, 2], [9, 18, 2, 50, 50, 2, 2], [3, 16, 1, 40, 30, 2, 2]]'::jsonb),
     'economy', jsonb_build_object('amounts', jsonb_build_array(1000, 1000, 1000, 0)),
     'research', jsonb_build_object('done', '[]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 0, 10], [2, 0, 10]]'::jsonb),

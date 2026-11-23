@@ -22,7 +22,7 @@ update public.players set rating = 60000, age = 0 where id in (select id from te
 insert into public.castles (player_id, map_seed, save_version, data)
 select t.id, 4242, 8, jsonb_build_object(
   'profile', jsonb_build_object('castle_name', 'Gród'),
-  'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 2, 2], [2, 18, 5, 36, 30, 2, 2], [3, 16, 1, 40, 30, 2, 2], [4, 4, 0, 44, 30, 2, 2], [5, 0, 1, 46, 30, 1, 1], [6, 1, 1, 47, 30, 1, 1]]'::jsonb),
+  'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 2, 2], [2, 18, 3, 36, 30, 2, 2], [9, 18, 2, 50, 50, 2, 2], [3, 16, 1, 40, 30, 2, 2], [4, 4, 0, 44, 30, 2, 2], [5, 0, 1, 46, 30, 1, 1], [6, 1, 1, 47, 30, 1, 1]]'::jsonb),
   'economy', jsonb_build_object('amounts', jsonb_build_array(1000, 1000, 1000, 100)),
   'recruitment', jsonb_build_object('squads', '[[1, 0, 10], [2, 0, 10]]'::jsonb))
 from test_ids t;
