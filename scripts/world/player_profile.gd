@@ -160,6 +160,17 @@ static func sync_fields(id: Identity) -> Dictionary:
 	return {"nickname": id.player_name, "castle_name": id.castle_name, "ruler": id.ruler}
 
 
+## Stan mini-samouczka (#251, TutorialHints.State): czy gracz go wyłączył albo już ukończył. Zostaje
+## w profilu, więc Zacznij od nowa nie pokazuje samouczka komuś, kto już przeszedł 5 fal. Bez pola
+## (stary profil, pierwsze uruchomienie): jeszcze nie zapytano.
+static func read_tutorial(path: String) -> int:
+	return TutorialHints.state_from(str(read(path).get("tutorial", "")))
+
+
+static func write_tutorial(path: String, state: int) -> Error:
+	return _write(path, {"tutorial": TutorialHints.state_name(state)})
+
+
 ## Usuwa profil (w testach).
 static func delete(path: String) -> void:
 	SaveGame.delete(path)

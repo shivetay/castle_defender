@@ -72,6 +72,9 @@ var _restoring := false
 ## wtedy panel onboardingu przykrywa zamek, a zamek nie idzie na serwer.
 var identity: PlayerProfile.Identity
 var onboarding: OnboardingPanel
+## Mini-samouczek UI (#251): stan z profilu (TutorialHints.State) i okno z pytaniem, póki otwarte.
+var tutorial_state: int = TutorialHints.State.ASK
+var tutorial_prompt: TutorialPrompt
 var build_panel: BuildPanel
 var queue_panel: QueuePanel
 ## Ile fal samouczka PvE (#16) gracz obronił; trwająca bitwa (null poza bitwą).
@@ -364,6 +367,11 @@ func _ready() -> void:
 	layer.add_child(info_popup)  # dostaje dotyk przed panelami
 	identity = PlayerProfile.read_identity(PlayerProfile.PATH)
 	hud.portrait_pressed.connect(_on_portrait_pressed)
+	tutorial_state = PlayerProfile.read_tutorial(PlayerProfile.PATH)
+	if pve_cleared >= PveWaves.COUNT and tutorial_state != TutorialHints.State.DONE:
+		_set_tutorial(TutorialHints.State.DONE)  # 5 fal już obronionych: samouczek się więcej nie pokaże
+	settings_panel.tutorial_on = tutorial_state != TutorialHints.State.OFF
+	settings_panel.tutorial_changed.connect(_on_tutorial_changed)
 	if identity != null:
 		hud.ruler_id = identity.ruler
 	else:
@@ -375,6 +383,8 @@ func _ready() -> void:
 		onboarding.open()
 		hud.overlay = true
 		hud.message = "Wybierz władcę i nazwij zamek"
+	if identity != null:
+		_ask_tutorial()
 	hud.resource_pressed.connect(_on_resource_info)
 	recruit_panel.limit_pressed.connect(_on_army_limit_info)
 	net = SupabaseClient.new()
@@ -648,7 +658,7 @@ func _tick() -> void:
 		seal_check.clear()
 	hud.queue_text = ""
 	hud.queue_count = queue.orders.size() + recruitment.orders.size()
-	hud.goal_text = TutorialGoals.text(pve_cleared, grid, research, recruitment)
+	_refresh_tutorial()
 	hud.research_text = "" if not research.is_busy() else "Bad. %s" % Hud.format_time(research.remaining_ms(now))
 	hud.age_text = Ages.label_for_manor(grid.manor_level())
 	if not queue.orders.is_empty():
@@ -918,6 +928,7 @@ func _update_battle() -> void:
 	hud.message = wave_end_message(_battle_wave, won, reward, fallen)
 	if won and _battle_wave == PveWaves.COUNT - 1:
 		hud.message = TutorialGoals.done_message(reward, fallen)  # koniec prowadzenia (#185), dalej zwykła gra
+		_set_tutorial(TutorialHints.State.DONE)
 	var xp := generals.add_battle_xp(defense.commander, won) if b.generals.has(Battle.Side.DEFENDER) else 0
 	if xp > 0:
 		hud.message += xp_note(xp)
@@ -1947,6 +1958,85 @@ func _on_onboarding_finished(id: PlayerProfile.Identity) -> void:
 	hud.overlay = false
 	hud.message = "Witaj, %s!" % id.player_name
 	_save()
+	_ask_tutorial()
+
+
+# --- Mini-samouczek UI (#251) ------------------------------------------------------------------------
+
+## Okno z pytaniem o samouczek, gdy gracz jeszcze nie odpowiedział i nie przeszedł 5 fal.
+func _ask_tutorial() -> void:
+	if not TutorialHints.should_ask(tutorial_state, pve_cleared) or tutorial_prompt != null:
+		return
+	tutorial_prompt = TutorialPrompt.new()
+	hud.get_parent().add_child(tutorial_prompt)  # ostatnie dziecko warstwy UI: dotyk trafia najpierw tutaj
+	tutorial_prompt.answered.connect(_on_tutorial_answered)
+	tutorial_prompt.open()
+	hud.overlay = true
+
+
+func _on_tutorial_answered(keep: bool) -> void:
+	tutorial_prompt.queue_free()
+	tutorial_prompt = null
+	hud.overlay = false
+	_on_tutorial_changed(keep)
+
+
+## Włączenie albo wyłączenie samouczka (okno z pytaniem albo Ustawienia).
+func _on_tutorial_changed(on: bool) -> void:
+	_set_tutorial(TutorialHints.State.ON if on else TutorialHints.State.OFF)
+	settings_panel.tutorial_on = on
+	hud.message = "Samouczek włączony" if on else "Samouczek wyłączony"
+	_refresh_tutorial()
+
+
+func _set_tutorial(state: int) -> void:
+	tutorial_state = state
+	var err := PlayerProfile.write_tutorial(PlayerProfile.PATH, state)
+	if err != OK:
+		push_warning("Nie udało się zapisać stanu samouczka: %s" % error_string(err))
+
+
+## Tekst celu (#185) i podświetlenie kolejnego dotknięcia (#251) według bieżącego celu i stanu interfejsu.
+func _refresh_tutorial() -> void:
+	hud.hint_target = Hud.Target.NONE
+	if build_panel != null:
+		build_panel.hint_target = BuildPanel.Target.NONE
+	if recruit_panel != null:
+		recruit_panel.hint_target = RecruitPanel.Target.NONE
+	if not TutorialHints.active(tutorial_state, pve_cleared):
+		hud.goal_text = ""
+		return
+	hud.goal_text = TutorialGoals.text(pve_cleared, grid, research, recruitment)
+	if build_panel == null or recruit_panel == null:
+		return
+	var ui := _tutorial_ui()
+	var s := TutorialHints.step(TutorialGoals.current(pve_cleared, grid, research, recruitment), ui)
+	var tip := TutorialHints.tip(s)
+	if not tip.is_empty():
+		hud.goal_text = tip
+	hud.hint_target = TutorialHints.hud_target(s)
+	build_panel.hint_target = TutorialHints.build_target(s)
+	recruit_panel.hint_target = TutorialHints.recruit_target(s, ui)
+
+
+func _tutorial_ui() -> TutorialHints.Ui:
+	var ui := TutorialHints.Ui.new()
+	ui.build_open = build_panel.visible
+	ui.recruit_open = recruit_panel.visible
+	ui.other_open = (hud.overlay or battle_view != null or defense_panel.visible or planner.visible
+			or tutorial_prompt != null) and not ui.build_open and not ui.recruit_open
+	ui.build_category = build_panel.category
+	ui.build_selected = build_panel.selected
+	ui.building = hud.building
+	ui.selected_kind = hud.selected_kind
+	ui.card_open = hud.is_card_open()
+	ui.card_recruit = hud.card_recruit and not hud.card_generals
+	ui.recruit_units = recruit_panel.units()
+	ui.recruit_selected = recruit_panel.selected
+	ui.barracks_placed = grid.kinds.values().has(BuildingTypes.Kind.BARRACKS)
+	ui.army = recruitment.army_size()
+	ui.training = recruitment.orders.size()
+	return ui
 
 
 ## Portret władcy w HUD-zie (#228): panel z władcą, graczem, zamkiem i perkiem władcy (#32).
