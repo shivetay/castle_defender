@@ -11,6 +11,7 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 - [[Model wydania]]
 - Budynki: [[Obrona]], [[Gospodarka]], [[Załoga i administracja]], [[Zwiad i kontrwywiad]]
 - [[Jednostki]] i [[Klasy jednostek i produkcja]]
+- [[Balans]] — koszty z kodu + dwie opcje do wyboru (#262)
 - [[Władca i generałowie]]
 - [[Widok zamku]]
 - [[Interfejs]]

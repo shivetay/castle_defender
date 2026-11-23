@@ -10,7 +10,7 @@ Każdy typ zamku (epoka) ma 5 poziomów Dworu. Przejście do kolejnej epoki wyma
 - Osobno stoi **donżon**, ostatnia linia obrony i cel każdego ataku: Wieża grodowa (I) → Wieża na kopcu (II) → Donżon (III–V) → Cytadela (VI). Jego upadek albo zdobycie kończy bitwę zwycięstwem atakującego.
 - Każdy budynek ma poziomy 1–5 w ramach bieżącej epoki i nie może mieć wyższego poziomu niż zamek.
 - Każdy poziom zmienia wygląd budynku (wyższa wieża, więcej okien, lepszy materiał) i daje premię: wytrzymałość, zasięg, produkcja albo nowa jednostka.
-- Koszt rośnie ok. 1,6× na poziom, czas ok. 2× na poziom. Pierwsze budowle są tanie i szybkie, żeby pierwsza sesja dała kilka widocznych zmian w ciągu minut.
+- Koszt rośnie ok. 1,6× na poziom, czas ok. 2× na poziom (cel projektowy). **W kodzie** mnożniki to 100/150/250/400/600% kosztu i 1/3/10/30/90 czasu (`BuildConfig`); epoka II ×2. Przykłady i „typowe czasy” poniżej są szkicem — aktualne liczby oraz dwie opcje korekty: [[Balans]] (#262).
 - Technologie są w 5 gałęziach drzewka. Przejście epoki opiera się na konkretnych techach kluczowych ★ (I → II: O1, G1, A7). Pełna lista: [[Drzewko technologiczne]].
 
 ## Budynki a epoka
@@ -57,4 +57,4 @@ Warunki wspólne dla każdego przejścia: **Dwór poziom 5** + konkretne technol
 
 Przejście to osobna budowa / przebudowa Dworu, zakończona animacją — bez kasowania osiągnięć. Po poziomie 5 epoki VI zostaje ranking PvP i kosmetyczne warianty zamku.
 
-Powiązane: [[Epoki]], [[Obrona]], [[Model wydania]], [[Plan MVP]]
+Powiązane: [[Epoki]], [[Obrona]], [[Model wydania]], [[Plan MVP]], [[Balans]]

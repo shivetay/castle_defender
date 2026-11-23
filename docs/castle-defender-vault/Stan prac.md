@@ -1,6 +1,6 @@
 # Stan prac
 
-Aktualizacja: 17.11.2026. Kod: repo `shivetay/castle_defender` (Godot 4.7, GDScript), wersja gry **0.3.0**. Tickety jako issues z labelkami `mvp` / `v1.0` oraz kamieniami milowymi 0.1 MVP … 1.0 Premiera.
+Aktualizacja: 23.11.2026. Kod: repo `shivetay/castle_defender` (Godot 4.7, GDScript), wersja gry **0.4.0** (+ scalenia na `main` bez nowego tagu). Tickety: issues z labelkami `mvp` / `v1.0` oraz kamieniami milowymi.
 
 ## Wydania
 
@@ -8,67 +8,53 @@ Aktualizacja: 17.11.2026. Kod: repo `shivetay/castle_defender` (Godot 4.7, GDScr
 | --- | --- | --- | --- |
 | 0.0.1 | 13.11.2026 | wydana | organizacja projektu, CI z debug APK, reguły agenta |
 | 0.1.0 | 13.11.2026 | wydana | teren 64×64, siatka budowy, kamera, budynki epoki I z 5 poziomami |
-| 0.2.0 | 15.11.2026 | wydana | stany zniszczeń, ekonomia w tle, kolejka budowy, Dwór, zapis lokalny, poprawki bramy/wału/HUD |
-| 0.3.0 | 16.11.2026 | wydana | badania, towary i wytwórcy, rekrutacja, klasy jednostek, Chłop, panel budowy, zoom 0,5× |
-| po 0.3.0 | 16–17.11.2026 | na `main`, bez nowego tagu | bitwa, morale, donżon, samouczek PvE, plan ataku, obrona, pułapki, efekty, Dom zwiadowców |
+| 0.2.0 | 15.11.2026 | wydana | stany zniszczeń, ekonomia w tle, kolejka budowy, Dwór, zapis lokalny |
+| 0.3.0 | 16.11.2026 | wydana | badania, towary i wytwórcy, rekrutacja, klasy jednostek, Chłop |
+| 0.4.0 | 17.11.2026 | wydana | bitwa, morale, donżon, samouczek PvE, plan ataku, obrona, pułapki |
+| po 0.4.0 | 18–22.11.2026 | na `main` | backend PvP, zwiad, ranking, epoka II (mechanika), utrzymanie Ży, generałowie, powtórka |
 
-## Co weszło i kiedy
+## Co weszło od ostatniej dużej aktualizacji vaultu
 
-### 12–13.11.2026 — fundament (etapy 1–4)
+### 18–20.11.2026 — backend, limity, budynki MVP
 
-- Etap 1–2: projekt Godot, CI, APK; generator terenu, siatka, kamera (#72, #123, #124).
-- Etap 3: paleta i prymitywy (#5), autotiling (#6), 5 budynków epoki I (#7), 4 stany zniszczeń (#78 / #8).
-- Etap 4: ekonomia także w tle (#79 / #10), koszty i kolejka budowy + Dwór (#80 / #11), zapis lokalny (#83 / #13), HUD z trybem Buduj (#118 / #9).
-- Poprawki: brama 3×1 nad drogą (#82), łączenie wału z palisadą (#85), margines zaokrągleń (#86).
-- Wydania 0.0.1 i 0.1.0.
+- Klient Supabase, atak, tarcze, seed mapy na serwerze (#166).
+- Limit armii od produkcji żywności (#214 → #247); serwer odrzuca armię ponad limit (#254).
+- Budynki MVP #35: Fosa, Kopiec, Pole i spichlerz, Studnia, Kamieniołom, Wieża sygnałowa (#256).
+- Odbudowa zamku po ataku / ruiny (#255); wóz łupowy (#252); donżon strzela (#244).
+- Ranking PvP (#243–#245).
 
-### 14–15.11.2026 — vault, seed, badania, produkcja (etap 5)
+### 20–21.11.2026 — epoka II, zwiad, ranking PvE
 
-- Vault Obsidiana w repo (#141).
-- Losowy seed mapy po stronie klienta (#138; ticket #97 częściowo, backend #166 otwarty).
-- Badania: drzewko 34 technologii + ekran (#139; ticket #12 nadal otwarty — braki efektów / epoki II).
-- Towary i łańcuchy (#140 / #88), 9 wytwórców (#142 / #90), Pole lnu i Rybak (#143 / #122), Stajnia (#144 / #91), budynki rekrutacji (#145 / #119), klasy i 13 jednostek MVP (#146 / #87).
-- Rekrutacja i ekran Wojsko (#147; ticket #89 częściowo — m.in. #164).
-- Wydanie 0.2.0 (#84).
+- Zasady przejścia epoki w vault i kodzie (#34 / #246 / #261): Dwór L6 = przebudowa, techy O1+G1+A7; budynki wchodzą w epokę II z poziomu 5; premie na razie jak L5.
+- **Balans liczb epoki II odłożony** → #262, decyzje w [[Balans]].
+- Zwiad z mgłą wojny (#28 / #258–#259).
+- Ranking PvE (#264–#265; ticket zbiorczy #242 jeszcze otwarty).
 
-### 16.11.2026 — bitwa i UI (etapy 6–7, wydanie 0.3.0)
+### 21–22.11.2026 — powtórka i generałowie
 
-- Wydanie 0.3.0 (#161): Chłop (#158), panel budowy z kategoriami (#160), zoom 0,5× (#159), powiązania badań (#157).
-- Symulacja bitwy (#148 / #14), donżon / Wieża grodowa (#152 / #120), jednostki w bitwie (#153 / #15), morale (#155 / #98).
-- Samouczek PvE: 5 fal pod Oblężenie (#170; ticket #16 częściowo — #185).
-- Efekty bitwy (#171; ticket #101 częściowo — m.in. Studnia / gaszenie).
-- Zwiadowca i Dom zwiadowców (#172 / część #92).
-- Polegli znikają z armii (#173).
-- Manewry ataku (#175 / #18), ekran planu ataku (#176 / #17).
-- UX: braki surowców na czerwono (#169), brama w linii umocnień (#168), opisy jednostek (#167).
+- Obrońca ogląda powtórkę i poprawia obronę (#266–#267; część #29 / #132).
+- Generałowie: Wódz, Łowczy, Budowniczy kopców; rekrutacja 50 Zł; L2/L3 w Dworze; PvE max L2; anti-cheat budżetu (#31 / #273). Perki władcy nadal #32.
 
-### 17.11.2026 — obrona i pułapki (etap 8)
-
-- Posterunki załogi wokół donżonu (#179; ticket #19 częściowo).
-- Zadania obrony: odcinek, patrol, priorytet wież (#181); strzelcy na murach, Wypad, domyślne (#184); ticket #20 częściowo (brak Gaszenia pożarów).
-- Wycofanie złamanego oddziału pod donżon (#180).
-- Poprawki manewrów po review (#178).
-- Ekran Kolejka w zakładkach (#183 / #163).
-- Badania wymagają budynku gałęzi (#182 / #165).
-- Pułapki: Wilczy dół, Kolczatka, Zrzucane kłody, Płonące strzały, Wrząca smoła (#186 / #100).
+Starsza chronologia (12–17.11): etapy 1–8 jak w historii git / CHANGELOG — nie powtarzana tu w całości.
 
 ## Etapy MVP
 
-**Bieżący etap: 8 (#130).** Następny po domknięciu braków etapu 8: etap 9 Backend Supabase (#131).
+**Bieżący nacisk:** domknięcie resztek etapów 10–13 (powiadomienia, perki władcy, balans #262, życie w zamku #36, reklamy #33) oraz otwarte tickety zbiorcze.
 
 | Etap | Stan |
 | --- | --- |
-| 1. Projekt, APK, CI (#123) | gotowy |
-| 2. Teren, siatka, kamera (#124) | gotowy |
-| 3. Grafika i budynki epoki I (#125) | kod gotowy (#5–#8); otwarte #149, #150 (wygląd) |
-| 4. Ekonomia, progresja, zapis, HUD (#126) | prawie: otwarte #81 (Dwór przez epoki), #97 (reszta / backend seeda → #166) |
-| 5. Klasy, produkcja, rekrutacja, badania (#127) | prawie: otwarte #12 (pełne efekty / epoka II), #89 (dokończenie, #164) |
-| 6. Bitwa, jednostki, PvE (#128) | prawie: otwarte #16 (+ #185), #101 (dokończenie efektów) |
-| 7. Plan ataku i manewry (#129) | gotowy w kodzie (#17, #18) — ticket zbiorczy jeszcze otwarty |
-| 8. Obrona, zadania, pułapki (#130) | w toku: #100 gotowe; #19 i #20 częściowo |
-| 9–14 (#131–#136) | do zrobienia |
+| 1–3 (#123–#125) | gotowe w kodzie; wygląd #150 nadal otwarty |
+| 4 (#126) | prawie: #81 (garnizon / wygląd Dworu przez epoki) otwarte |
+| 5 (#127) | prawie: #12 (pełne efekty badań) otwarte; rekrutacja #89 zamknięta |
+| 6–8 (#128–#130) | kod gotowy (#19, #20, #101, #185 zamknięte) |
+| 9 (#131) | rdzeń PvP na `main`; część checklist w issue może być do odhaczenia |
+| 10 (#132) | zwiad + powtórka na `main`; #99 (gwiazdki/łup UI) i #30 (push) otwarte |
+| 11 (#133) | generałowie #31 zamknięte (#273); perki władcy #32 otwarte |
+| 12 (#134) | reklamy #33 otwarte |
+| 13 (#135) | mechanika epoki II #261; balans #262; budynki #35 zamknięte; #36 życie w zamku otwarte |
+| 14 (#136) | zamknięte testy — później |
 
-Pełna lista etapów: [[Plan MVP]]. Pytania i braki: [[Otwarte pytania]]. Niedawne bugi UX: [[Bugs]].
+Pełna lista: [[Plan MVP]]. Pytania: [[Otwarte pytania]]. Koszty: [[Balans]]. Bugi UX: [[Bugs]].
 
 ## Decyzje (narosłe)
 
@@ -76,26 +62,31 @@ Pełna lista etapów: [[Plan MVP]]. Pytania i braki: [[Otwarte pytania]]. Niedaw
 
 - 5 klas jednostek; rekrutacja zużywa towary; Stajnia i Jeździec w epoce I; od III żelazo.
 - MVP: 25+ budynków i 13 jednostek; losowy seed mapy; celem ataku jest donżon (#120).
-- Drzewko: 131 technologii łącznie, 34 w MVP; praca w 14 etapach.
 
 ### Od 16.11.2026 (z kodu)
 
-- Limit oddziałów w planie ataku: **3 w epoce I … 8 w epoce VI** (`AttackPlan.MAX_SQUADS_BY_AGE`) — zamyka pytanie z [[Otwarte pytania]].
+- Limit oddziałów w planie ataku: **3 w epoce I … 8 w epoce VI**.
 - Bitwą nikt nie steruje; plan i zadania obrony wykonują się same.
 
-### 20.11.2026 — przejście epoki (#34)
+### 20–21.11.2026 — przejście epoki (#34 / #261)
 
-- Wejście w kolejną epokę: konkretne technologie (I → II od 21.11.2026: **O1, G1, A7**) **oraz** Dwór **poziom 5** (bez starych wymagań Wał/Palisada jako warunku przejścia).
-- Techy następnej epoki tylko po odblokowaniu prerequisite / blokujących.
-- Budynki: max poziom → w nowej epoce od poziomu 1, z zachowaniem bonusów; **nie niszczymy postępu**.
-- Vault: [[Epoki]], [[Progresja budowy]]; issue: #34.
-- W kodzie (21.11.2026): poziomy liczone narastająco (6–10 = epoka II), przejście to przebudowa Dworu 5 z O1 ★, budynki wchodzą w epokę II z poziomu 5 od poziomu 1, premie liczą się od poziomu 5. Warunek I → II: O1 + G1 + A7 (decyzja właścicielki 21.11.2026). `players.age` na serwerze — do dopięcia.
+- I → II: O1 + G1 + A7 oraz Dwór poziom 5 → przebudowa L6.
+- Budynki: max → poziom 1 nowej epoki z zachowaniem bonusów; premie II do ustalenia (#262).
+- `players.age` na serwerze — do dopięcia.
+
+### 21–22.11.2026 — generałowie (#31 / #273)
+
+- Bez postaci na siatce; dowodzą całą stroną. Koszty tymczasowe (50 / 80+100 PD / 150+300 PD). PvE max poziom 2.
+
+### 21.11.2026 — balans później
+
+- Właścicielka: „balans zrobimy później”. Ticket #262; propozycje A/B w [[Balans]].
 
 ## Następne kroki
 
-1. Domknąć etap 8: komendant i pełne ustawienia obrony (#19), Gaszenie pożarów + Studnia (#20 / #35).
-2. Domknąć resztki 4–6: #81, #12, #89/#164, #16/#185, #101.
-3. Etap 9: Supabase i PvP (#131, #21–#27); seed mapy po stronie serwera (#166).
-4. Potem zwiad, wynik bitwy, generałowie, reklamy, epoka II (#132–#135).
+1. Wybrać opcję balansu w [[Balans]] i domknąć #262 (liczby + premie 6–10 + ewentualna migracja serwera).
+2. Perki władcy (#32), push (#30), resztki wyniku bitwy (#99), życie w zamku (#36).
+3. Reklamy (#33), zamknięte testy (#37 / #136).
+4. Odhaczyć zbiorcze body etapów 9–13, jeśli kod już wyprzedza checklisty.
 
-Powiązane: [[Plan MVP]], [[Roadmapa do 1.0]], [[Otwarte pytania]], [[Klasy jednostek i produkcja]]
+Powiązane: [[Plan MVP]], [[Roadmapa do 1.0]], [[Otwarte pytania]], [[Balans]], [[Klasy jednostek i produkcja]], [[00 Start]]

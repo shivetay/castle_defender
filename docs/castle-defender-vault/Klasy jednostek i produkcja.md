@@ -93,7 +93,7 @@ Każda klasa ma własny budynek rekrutacji i własny łańcuch produkcji. Kowal 
 - Poziom budynku produkcyjnego przyspiesza produkcję i odblokowuje lepszy towar (np. Łukmistrz 3 → łuk refleksyjny).
 - Wieże i strzelcy w obronie zużywają zapas strzał. Pusty magazyn strzał = obrońcy strzelają o 50% wolniej. To daje atakującemu cel dla Podpalacza i Sabotażu.
 - Konie ze Stajni wracają do magazynu, jeśli jeździec przeżyje bitwę.
-- Liczby (koszty, tempo produkcji, limity) to decyzje balansowe; trafią do tabel Supabase razem z resztą balansu.
+- Liczby (koszty, tempo produkcji, limity) to decyzje balansowe; trafią do tabel Supabase razem z resztą balansu. Stan z kodu i dwie opcje korekty: [[Balans]] (#262).
 
 ## Zmiany względem wcześniejszych notatek
 
