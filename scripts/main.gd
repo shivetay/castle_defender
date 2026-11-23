@@ -1529,16 +1529,21 @@ func _on_loot_applied(delta: Array[int]) -> void:
 
 
 ## Komunikat o łupie z serwera („Łup z ataku: +50 Dr +20 Ka”, „Straty z najazdu: -50 Dr”) albo pusty.
+## Łup i strata scalone w jednym zapisie (gracz złupił i został złupiony przed synchronizacją) dają
+## neutralne „Zmiana zapasów: +50 Dr -40 Ka” (review #278).
 static func loot_message(got: Array[int]) -> String:
 	var parts: Array[String] = []
 	var lost := false
+	var gained := false
 	for res in got.size():
 		if got[res] != 0:
 			parts.append("%+d %s" % [got[res], EconomyConfig.SHORT_NAMES[res]])
 			lost = lost or got[res] < 0
+			gained = gained or got[res] > 0
 	if parts.is_empty():
 		return ""
-	return ("Straty z najazdu: " if lost else "Łup z ataku: ") + " ".join(parts)
+	var prefix := "Zmiana zapasów: " if lost and gained else ("Straty z najazdu: " if lost else "Łup z ataku: ")
+	return prefix + " ".join(parts)
 
 
 ## Serwer odrzucił stan zamku spoza limitów surowców (#274): zamek wraca z serwera.
