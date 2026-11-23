@@ -114,7 +114,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
         run: |
           if [ -z "$KEYSTORE_B64" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
-            echo "::warning::Brak sekretów ANDROID_UPLOAD_KEYSTORE_BASE64/ANDROID_UPLOAD_KEY_ALIAS/ANDROID_UPLOAD_KEY_PASSWORD: pomijam AAB"
+            echo "::warning::Pomijam AAB, bo brakuje sekretów klucza wysyłania (opis w README, sekcja Google Play)"
             echo "ok=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
