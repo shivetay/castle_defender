@@ -12,8 +12,8 @@
 -- - research_locked: technologia bez zbadanych technologii, których wymaga (TechTree.requires);
 -- - research_age: technologia z epoki późniejszej niż epoka zamku (`private.castle_age`, Research.check);
 -- - bad_army: zły kształt `recruitment` (oddział [id > 0, rodzaj 0..15, liczba 0..SQUAD_SIZE = 10], id bez
---   powtórzeń, `orders` jako lista) albo misji zwiadu (`scout.mission.units` = [[rodzaj, liczba], ...]);
--- - unit_locked: wyszkolona jednostka (w oddziale albo na zwiadzie) bez technologii z UnitTypes.required_tech;
+--   powtórzeń, zlecenie {unit 0..15, building_id > 0, ...}) albo misji zwiadu (`scout.mission.units` = [[rodzaj, liczba], ...]);
+-- - unit_locked: jednostka (w oddziale, w szkoleniu albo na zwiadzie) bez technologii z UnitTypes.required_tech;
 -- - unit_age: jednostka z epoki późniejszej niż epoka zamku (UnitTypes.age);
 -- - bad_goods: `goods.amounts` to nie GOODS_COUNT = 22 liczb całkowitych od 0;
 -- - goods_over_capacity: towar ponad pojemność zbrojowni ARMORY_CAPACITY = 1000 (GoodsConfig.capacity).
@@ -30,6 +30,9 @@
 --   TRAIN_TIME_S = [20, 20, 25, 40, 30, 30, 45, 25, 50, 35, 60, 90, 15, 10, 40, 45],
 --   TRAINING_SPEED_PERCENT = [100, 120, 140, 170, 200] dla poziomów 1–5 (wyższe jak 5);
 -- - unit_no_building: przybyła jednostka, a w zamku nie ma gotowego budynku, który ją szkoli;
+-- - unit_era_passed: w epoce II przybyło jednostek tylko na epokę I (UnitTypes.ERA_I_ONLY = [13], Chłop), wyszkolonych
+--   albo w szkoleniu (Recruitment.availability, ERA_PASSED). Chłopi z epoki I zostają, a zlecenie złożone w epoce I
+--   może się dokończyć; liczy się epoka poprzedniego zapisu, więc przejście do epoki II w tym samym oknie przechodzi;
 -- - army_over_limit: oddziały i zlecenia szkolenia ponad limit miejsc (`private.army_limit`), gdy armia
 --   (z jednostkami na zwiadzie) urosła. Mniejsza albo ta sama armia ponad limit przechodzi: po rozbiórce
 --   Koszar albo powrocie zwiadu zamek może legalnie mieć chwilowo za dużo wojska (#249);
@@ -54,7 +57,7 @@
 -- Zamki zapisane przed migracją, które łamią reguły stanu, dostają raz poprawkę (jedyny wyjątek od zasady
 -- „bez przycinania”): technologie spoza drzewka, bez wymagań i z późniejszej epoki znikają (a Dwór epoki II,
 -- który przez to traci technologie przejścia, schodzi z zabudową do poziomu 5), złe oddziały i jednostki
--- bez technologii znikają, zła misja zwiadu znika, a towary są przycięte do zbrojowni.
+-- bez technologii znikają (także ze zleceń szkolenia), zła misja zwiadu znika, a towary są przycięte do zbrojowni.
 -- Liczby pilnuje test gry (`tests/test_army_research_goods_sanity.gd`) po znacznikach w komentarzach.
 
 -- ---------------------------------------------------------------------------------------------
@@ -284,6 +287,23 @@ begin
         end if;
       end if;
     end loop;
+    -- zlecenia szkolenia: {unit, building_id, ...} (Recruitment.save_data), te same reguły jednostki (review #285)
+    for e in select x from jsonb_array_elements(coalesce(v_rec -> 'orders', '[]')) x loop
+      if jsonb_typeof(e) <> 'object' then
+        return 'bad_army';
+      end if;
+      u := private.json_int(e -> 'unit', 0, private.unit_count() - 1);
+      if u is null or private.json_int(e -> 'building_id', 1, 2147483647) is null then
+        return 'bad_army';
+      end if;
+      v_tech := private.unit_rules() -> u::integer ->> 1;
+      if v_tech <> '' and v_tech <> all (v_done) then
+        return 'unit_locked';
+      end if;
+      if (private.unit_rules() -> u::integer ->> 0)::integer > v_age then
+        return 'unit_age';
+      end if;
+    end loop;
   end if;
   -- zwiad: gra zapisuje misję tylko wtedy, gdy jest w toku (Scouting.save_data)
   if v_mission is not null and jsonb_typeof(v_mission) = 'object' and v_mission ? 'units' then
@@ -366,6 +386,20 @@ as $$
   select (select coalesce(sum(o.n), 0) from unnest(private.army_owned(p_castle)) o(n))::bigint
     + case when jsonb_typeof(p_castle -> 'recruitment' -> 'orders') = 'array'
         then jsonb_array_length(p_castle -> 'recruitment' -> 'orders') else 0 end
+$$;
+
+-- Jednostki tylko na epokę I (UnitTypes.ERA_I_ONLY) w zapisie: wyszkolone, na zwiadzie i w szkoleniu.
+create function private.era_i_units(p_castle jsonb)
+returns bigint
+language sql
+immutable
+set search_path = ''
+as $$
+  select (select coalesce(sum(o.n), 0) from unnest(private.army_owned(p_castle)) with ordinality as o(n, i)
+      where o.i - 1 = any (array[13]))::bigint
+    + (select count(*) from jsonb_array_elements(case when jsonb_typeof(p_castle -> 'recruitment' -> 'orders') = 'array'
+        then p_castle -> 'recruitment' -> 'orders' else '[]' end) x
+      where private.json_int(x -> 'unit', 0, 2147483647) = any (array[13]))
 $$;
 
 -- Plan szkolenia między zapisami dla każdego rodzaju budynku rekrutacji: czas (ms) potrzebny na nowe jednostki,
@@ -527,6 +561,7 @@ revoke all on function private.research_head_ms(jsonb) from public, anon, authen
 revoke all on function private.castle_army_problem(jsonb) from public, anon, authenticated;
 revoke all on function private.army_owned(jsonb) from public, anon, authenticated;
 revoke all on function private.army_total(jsonb) from public, anon, authenticated;
+revoke all on function private.era_i_units(jsonb) from public, anon, authenticated;
 revoke all on function private.train_plan(jsonb, jsonb) from public, anon, authenticated;
 revoke all on function private.castle_goods_problem(jsonb) from public, anon, authenticated;
 revoke all on function private.goods_amounts(jsonb) from public, anon, authenticated;
@@ -594,6 +629,14 @@ begin
         v := jsonb_set(v, '{recruitment,orders}', '[]'::jsonb);
       end if;
       d := coalesce(private.research_codes(v), '{}');
+      v := jsonb_set(v, '{recruitment,orders}', coalesce((
+        select jsonb_agg(x.e order by x.ord)
+        from jsonb_array_elements(v -> 'recruitment' -> 'orders') with ordinality as x(e, ord)
+        cross join lateral (select private.json_int(x.e -> 'unit', 0, private.unit_count() - 1) as unit) q
+        where jsonb_typeof(x.e) = 'object' and q.unit is not null
+          and private.json_int(x.e -> 'building_id', 1, 2147483647) is not null
+          and (private.unit_rules() -> q.unit::integer ->> 1 = '' or private.unit_rules() -> q.unit::integer ->> 1 = any (d))
+          and (private.unit_rules() -> q.unit::integer ->> 0)::integer <= private.castle_age(v)), '[]'::jsonb));
       v := jsonb_set(v, '{recruitment,squads}', coalesce((
         select jsonb_agg(s.e order by s.ord)
         from (
@@ -705,6 +748,9 @@ begin
   if private.army_total(new.data - 'scout') > private.army_limit(new.data)
       and private.army_total(new.data) > private.army_total(v_old) then
     raise exception 'army_over_limit' using errcode = 'PT422';
+  end if;
+  if private.castle_age(v_old) > 0 and private.era_i_units(new.data) > private.era_i_units(v_old) then
+    raise exception 'unit_era_passed' using errcode = 'PT422';
   end if;
   for r in select * from private.train_plan(v_old, new.data) loop
     if r.missing then

@@ -92,7 +92,7 @@ w sekcji „Następny etap”.
   budynki rekrutacji (każdy rodzaj budynku osobno, równolegle), a towarów tyle, ile dadzą wytwórcy, na zegarze
   serwera od poprzedniego zapisu. Czas na badanie, szkolenie i cykl w toku przechodzi jako kredyt (tolerancja
   5 minut łącznie, jak przy budowie). Armia ponad limit miejsc jest odrzucana tylko wtedy, gdy urosła (powrót
-  zwiadu i rozbiórka Koszar przechodzą). Pokrycie kosztów badań i rekrutacji czeka na limit przyrostu ekonomii (#282).
+  zwiadu i rozbiórka Koszar przechodzą), a w epoce II nie przybywa Chłopów. Pokrycie kosztów badań i rekrutacji czeka na limit przyrostu ekonomii (#282).
 
 - Dwór z epokami i garnizon (#81, `DefensePlan.Task.GARRISON`, decyzje właścicielki 23.11.2026): Dwór ma
   własny rysunek na każdym z 5 poziomów epoki I (strzecha) i epoki II (gont na kamiennej podmurówce:

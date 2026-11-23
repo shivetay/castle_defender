@@ -9,7 +9,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(49);
+select plan(56);
 
 insert into auth.users (id) values ('00000000-0000-0000-0000-0000000281a1');
 update public.players set rating = 62810, age = 0 where id = '00000000-0000-0000-0000-0000000281a1';
@@ -84,6 +84,10 @@ select is(private.castle_army_problem(pg_temp.castle('{"recruitment": {"squads":
   'pusty oddział nie przeszkadza');
 select is(private.castle_army_problem(pg_temp.castle('{"scout": {"mission": {"units": [[5, 3]]}}}')), 'unit_locked',
   'tropiciele na zwiadzie bez S1');
+select is(private.castle_army_problem(pg_temp.castle('{"recruitment": {"squads": [], "orders": [{"unit": 6, "building_id": 2}]}}')),
+  'unit_locked', 'jeździec bez A7 w szkoleniu (review #285)');
+select is(private.castle_army_problem(pg_temp.castle('{"recruitment": {"squads": [], "orders": [{"unit": "0", "building_id": 2}]}}')),
+  'bad_army', 'zlecenie złego kształtu');
 select is(private.castle_goods_problem(pg_temp.castle()), null, 'pusta zbrojownia');
 select is(private.castle_goods_problem(pg_temp.castle(pg_temp.goods(0, 21))), 'bad_goods', '21 towarów zamiast 22');
 select is(private.castle_goods_problem(pg_temp.castle(pg_temp.goods(1001))), 'goods_over_capacity',
@@ -189,6 +193,31 @@ select pg_temp.as_a();
 select lives_ok($$select pg_temp.push((select v from hunter) || pg_temp.goods(2))$$, 'godzina bez zmiany zapasu');
 select is((select (goods_credit ->> 0)::bigint from public.castles), 7200000::bigint,
   'kredyt towaru: najwyżej jeden cykl (2 skóry × godzina w ms), nie godzina produkcji');
+reset role;
+
+-- ---- Chłop tylko w epoce I (UnitTypes.ERA_I_ONLY, review #285) ----
+-- Dwór 6 z technologiami przejścia: epoka II; 5 chłopów z epoki I i jeden w szkoleniu
+select set_config('request.jwt.claims', '', true);
+create temp table age2 (v jsonb) on commit drop;
+insert into age2 values ('{"grid": {"buildings": [[1, 5, 6, 0, 0, 4, 4], [2, 18, 1, 10, 10, 3, 3]]},
+  "research": {"done": ["A1", "O1", "G1", "G18", "G19", "A2", "A43", "A7"]}}');
+grant select on age2 to authenticated;
+select pg_temp.push((select v from age2)
+  || '{"recruitment": {"squads": [[1, 13, 5]], "orders": [{"unit": 13, "building_id": 2, "squad_id": 1}]}}');
+select pg_temp.age_castle(interval '10 minutes');
+set local role authenticated;
+select pg_temp.as_a();
+select lives_ok($$select pg_temp.push((select v from age2) || '{"recruitment": {"squads": [[1, 13, 6]], "orders": []}}')$$,
+  'chłop zlecony w epoce I kończy szkolenie w epoce II');
+select lives_ok($$select pg_temp.push((select v from age2) || '{"recruitment": {"squads": [[1, 13, 6]], "orders": []}}')$$,
+  'chłopi z epoki I zostają w armii');
+select throws_ok($$select pg_temp.push((select v from age2) || '{"recruitment": {"squads": [[1, 13, 7]], "orders": []}}')$$,
+  'PT422', 'unit_era_passed', 'nowy chłop w epoce II odrzucony');
+select throws_ok($$select pg_temp.push((select v from age2)
+    || '{"recruitment": {"squads": [[1, 13, 6]], "orders": [{"unit": 13, "building_id": 2, "squad_id": 1}]}}')$$,
+  'PT422', 'unit_era_passed', 'zlecenie chłopa w epoce II odrzucone');
+select lives_ok($$select pg_temp.push((select v from age2) || '{"recruitment": {"squads": [[1, 13, 6], [2, 0, 2]], "orders": []}}')$$,
+  'toporników w epoce II szkoli się dalej');
 reset role;
 
 -- ---- serwer pisze bez limitu czasu, ale w regułach stanu ----

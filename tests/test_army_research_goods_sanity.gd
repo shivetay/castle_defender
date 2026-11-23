@@ -87,6 +87,9 @@ func test_unit_rules_match_game() -> bool:
 	assert_true(sql.contains("UNIT_RULES = " + rules), "jednostki w komentarzu")
 	assert_true(sql.contains("select '" + rules + "'::jsonb"), "jednostki w funkcji")
 	assert_true(sql.contains("SQUAD_SIZE = %d" % RecruitmentConfig.SQUAD_SIZE), "rozmiar oddziału")
+	var era := str(UnitTypes.ERA_I_ONLY)
+	assert_true(sql.contains("ERA_I_ONLY = " + era), "jednostki tylko na epokę I w komentarzu")
+	assert_eq(sql.count("= any (array%s)" % era), 2, "jednostki tylko na epokę I w funkcji")
 	return true
 
 
