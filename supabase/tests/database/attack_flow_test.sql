@@ -22,7 +22,7 @@ update public.players set age = 3 where id = '00000000-0000-0000-0000-0000000000
 
 -- armia: 3 oddziały toporników (rodzaj 0) po 10 i 1 jeźdźców (rodzaj 6) po 10. Budynki [id, rodzaj,
 -- poziom, x, y, szer., wys.]: Dwór 3 i Koszary 3 + 2 dają 40 miejsc, Rybak 1 daje 60 Ży/h (utrzymanie 50, #249).
--- Budynki najwyżej do Dworu (#274). Dziesięć Magazynów 3 (rodzaj 25) mieści 1000 + 10 × 1000 = 11000, a złoto ma pokrycie w złocie startu i fal (#274).
+-- Budynki najwyżej do Dworu (#274). Jeźdźcy mają A7 z wymaganiami, a oddziały są w kształcie z gry (#281). Dziesięć Magazynów 3 (rodzaj 25) mieści 1000 + 10 × 1000 = 11000, a złoto ma pokrycie w złocie startu i fal (#274).
 insert into public.castles (player_id, map_seed, save_version, data)
 select t.id, 4242, 8, jsonb_build_object(
   'profile', jsonb_build_object('castle_name', 'Gród'),
@@ -31,8 +31,9 @@ select t.id, 4242, 8, jsonb_build_object(
     [8, 25, 3, 22, 10, 2, 2], [9, 18, 2, 50, 50, 3, 3], [10, 25, 3, 10, 13, 2, 2], [11, 25, 3, 13, 13, 2, 2],
     [12, 25, 3, 16, 13, 2, 2], [13, 25, 3, 19, 13, 2, 2], [14, 25, 3, 22, 13, 2, 2]]'::jsonb),
   'economy', jsonb_build_object('amounts', jsonb_build_array(10000, 4000, 2000, 100)),
+  'research', jsonb_build_object('done', '["G18", "G19", "A2", "A43", "A7"]'::jsonb),
   'recruitment', jsonb_build_object('squads',
-    '[[1, 0, 10], [2, 0, 10], [3, 0, 10], [4, 6, 10], "zły", [5, 99, 10]]'::jsonb))
+    '[[1, 0, 10], [2, 0, 10], [3, 0, 10], [4, 6, 10]]'::jsonb))
 from test_ids t where t.id <> '00000000-0000-0000-0000-0000000000d5';
 insert into public.castles (player_id, map_seed, save_version, data)
   values ('00000000-0000-0000-0000-0000000000d5', 5, 8, '{"profile": {"castle_name": ""}}');

@@ -15,6 +15,7 @@ insert into public.castles (player_id, map_seed, save_version, data) values
   ('00000000-0000-0000-0000-0000000000b1', 31, 8, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Rolniczy'),
     'grid', jsonb_build_object('buildings', '[[1, 5, 2, 30, 30, 4, 4], [2, 28, 1, 40, 30, 2, 2]]'::jsonb),
+    'research', jsonb_build_object('done', '["G18", "G19", "A2", "A43", "A7"]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 6, 10], [2, 6, 10]]'::jsonb)));
 
 -- ---- klient nie woła funkcji pomocniczej ----

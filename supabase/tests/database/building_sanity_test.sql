@@ -21,7 +21,8 @@ create function pg_temp.castle(p_buildings jsonb, p_extra jsonb default '{}') re
     'profile', jsonb_build_object('castle_name', 'Gród'),
     'grid', jsonb_build_object('buildings', p_buildings),
     'economy', jsonb_build_object('amounts', '[0, 0, 0, 0]'::jsonb),
-    'recruitment', jsonb_build_object('squads', '[[1, 0, 10]]'::jsonb)) || p_extra
+    -- toporników szkolą Koszary (#281): zamek gracza bez Koszar nie ma wojska
+    'recruitment', jsonb_build_object('squads', '[]'::jsonb)) || p_extra
 $$;
 grant execute on function pg_temp.castle(jsonb, jsonb) to authenticated;
 

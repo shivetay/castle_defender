@@ -23,8 +23,8 @@ select t.id, 2929, 8, jsonb_build_object(
   'profile', jsonb_build_object('castle_name', 'Gród'),
   'grid', jsonb_build_object('buildings', '[[1, 5, 3, 30, 30, 2, 2], [2, 18, 3, 36, 30, 2, 2], [9, 18, 2, 50, 50, 2, 2], [3, 16, 1, 40, 30, 2, 2]]'::jsonb),
   'economy', jsonb_build_object('amounts', jsonb_build_array(1000, 1000, 1000, 100)),
-  -- A2 nie jest zbadane; G2 nie działa w bitwie
-  'research', jsonb_build_object('done', '["A1", "A7", "G2", "O2"]'::jsonb),
+  -- A7 z wymaganiami (#281); G2, G18, G19, A43 i O2 nie działają w bitwie
+  'research', jsonb_build_object('done', '["A1", "A2", "G18", "G19", "A43", "A7", "G2", "O2"]'::jsonb),
   'recruitment', jsonb_build_object('squads', '[[1, 0, 10], [2, 0, 10]]'::jsonb),
   'scout', jsonb_build_object('reports', '[]'::jsonb))
 from test_ids t;
@@ -89,7 +89,7 @@ create temp table l1 on commit drop as
   select * from public.launch_attack('00000000-0000-0000-0000-0000000029a1', (select attack_id from started),
     (select v from ok_plan));
 select is((select plan from l1), (select v from ok_plan), 'serwer oddaje zapisany plan');
-select is((select techs from l1), array['A1', 'A7'], 'badania atakującego działające w bitwie, z jego zamku');
+select is((select techs from l1), array['A1', 'A2', 'A7'], 'badania atakującego działające w bitwie, z jego zamku');
 select is((select orders from public.attacks where id = (select attack_id from started)), (select v from ok_plan),
   'plan w attacks.orders');
 select isnt((select launched_at from public.attacks where id = (select attack_id from started)), null,
@@ -103,11 +103,11 @@ create temp table l2 on commit drop as
 select is((select plan from l2), (select v from ok_plan), 'ponowienie nie zmienia planu');
 -- badania zmienione po zatwierdzeniu nie zmieniają powtórki
 reset role;
-update public.castles set data = jsonb_set(data, '{research,done}', '["A1", "A2", "A7"]')
+update public.castles set data = jsonb_set(data, '{research,done}', '["A1"]')
 where player_id = '00000000-0000-0000-0000-0000000029a1';
 set local role service_role;
 select is((select techs from public.launch_attack('00000000-0000-0000-0000-0000000029a1',
-  (select attack_id from started), (select v from ok_plan))), array['A1', 'A7'], 'ponowienie: te same badania');
+  (select attack_id from started), (select v from ok_plan))), array['A1', 'A2', 'A7'], 'ponowienie: te same badania');
 
 -- ---- powtórka: tylko zakończona obrona i tylko dla obrońcy ----
 select throws_ok(format($$select * from public.attack_replay('00000000-0000-0000-0000-0000000029b1', %L)$$,
@@ -123,7 +123,7 @@ select is((select map_seed from r1), 2929::bigint, 'seed terenu obrońcy');
 select is((select battle_seed from r1), 31::bigint, 'seed bitwy');
 select is((select army from r1), '[[0, 10], [0, 10]]'::jsonb, 'armia ze startu');
 select is((select plan from r1), (select v from ok_plan), 'plan z zatwierdzenia');
-select is((select techs from r1), array['A1', 'A7'], 'badania atakującego z zatwierdzenia');
+select is((select techs from r1), array['A1', 'A2', 'A7'], 'badania atakującego z zatwierdzenia');
 select is((select (result ->> 'percent')::int from r1), 66, 'wynik');
 select ok((select castle ? 'grid' and not (castle ? 'scout') from r1), 'kopia zamku z chwili startu, bez zwiadu');
 select throws_ok(format($$select * from public.attack_replay('00000000-0000-0000-0000-0000000029a1', %L)$$,

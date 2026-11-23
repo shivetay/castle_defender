@@ -27,8 +27,9 @@ update public.players set age = 3 where id = '00000000-0000-0000-0000-000000005c
 insert into public.castles (player_id, map_seed, save_version, data) values
   ('00000000-0000-0000-0000-000000005c01', 31, 10, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Zwiad'),
-    'grid', jsonb_build_object('buildings', '[[1, 5, 1, 30, 30, 2, 2], [2, 22, 1, 34, 30, 2, 2]]'::jsonb),
-    'research', jsonb_build_object('done', '["S1"]'::jsonb),
+    -- Zwiadowca (14) to jednostka epoki II z S3: Dwór 6 z technologiami przejścia (#281)
+    'grid', jsonb_build_object('buildings', '[[1, 5, 6, 30, 30, 2, 2], [2, 22, 1, 34, 30, 2, 2]]'::jsonb),
+    'research', jsonb_build_object('done', '["S1", "S3", "O1", "G1", "G18", "G19", "A2", "A43", "A7"]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 5, 3], [2, 14, 4], [3, 0, 10]]'::jsonb))),
   -- cel: donżon 21 na 10..11, chata 4 na 20..21, mur 1 na 15,15; zwiad stanu `scout` obrońcy
   ('00000000-0000-0000-0000-000000005c02', 32, 10, jsonb_build_object(
@@ -44,7 +45,8 @@ insert into public.castles (player_id, map_seed, save_version, data) values
   ('00000000-0000-0000-0000-000000005c04', 34, 10, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Bez S1'),
     'grid', jsonb_build_object('buildings', '[[2, 22, 1, 34, 30, 2, 2]]'::jsonb),
-    'recruitment', jsonb_build_object('squads', '[[1, 5, 3]]'::jsonb))),
+    -- Tropiciel bez S1 to zapis spoza gry (#281), więc D ma tylko toporników
+    'recruitment', jsonb_build_object('squads', '[[1, 0, 3]]'::jsonb))),
   ('00000000-0000-0000-0000-000000005c05', 35, 10, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Bez zwiadu'),
     'grid', jsonb_build_object('buildings', '[[2, 22, 1, 34, 30, 2, 2]]'::jsonb),
@@ -126,8 +128,8 @@ set local role service_role;
 create temp table r1 on commit drop as select * from public.scout_reports('00000000-0000-0000-0000-000000005c01');
 select is((select outcome from r1), 0::smallint, 'rzut 0: sukces');
 select is((select returned from r1), 5::smallint, 'sukces: wracają wszyscy');
--- średni zwiad 35 + 4 × 5 za zwiadowców = 55
-select is((select percent from r1), 55::smallint, 'procent zamku z długości i liczby zwiadowców');
+-- średni zwiad 35 + 4 × 5 za zwiadowców + S3 10 (Zwiadowca wymaga S3, #281) = 65
+select is((select percent from r1), 65::smallint, 'procent zamku z długości i liczby zwiadowców');
 select is((select castle_name from r1), 'Cel', 'nazwa zamku celu');
 select ok((select (intel -> 'region' ->> 0)::int >= 10 and (intel -> 'region' ->> 1)::int >= 10
     and (intel -> 'region' ->> 0)::int + (intel -> 'region' ->> 2)::int <= 22
