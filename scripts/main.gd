@@ -160,7 +160,7 @@ var _pve := PveReport.new()
 var _pve_sending := false
 
 var _terrain_tex: ImageTexture
-## Dym z kominów i błyski na wodzie (#150), nad budynkami.
+## Dym z kominów i błyski na wodzie (#150), mieszkańcy, straż, proporce i pora dnia (#36), nad budynkami.
 var ambient: AmbientView
 var _selected_id := 0
 ## Początek animacji przebudowy Dworu na nową epokę (ms) albo -1 (#34).
@@ -461,6 +461,10 @@ func _place_watchtower() -> void:
 
 func _process(_delta: float) -> void:
 	_tick()
+	# mieszkańcy i straż schodzą z widoku na czas bitwy na własnym zamku; flagi znikają ze zburzonych budynków
+	var own_battle := battle_view != null and not _on_target_map()
+	ambient.life = battle_view == null
+	ambient.states = battle_states if own_battle else _ruin_states
 	if battle_view != null:
 		_update_battle()
 	if not queue.orders.is_empty():

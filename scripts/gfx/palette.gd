@@ -37,6 +37,14 @@ const SHINGLE: Array[Color] = [AGE_II[9], AGE_II[10], AGE_II[11]]
 const STONE: Array[Color] = [AGE_II[12], AGE_II[13], AGE_II[14]]
 const AGE_II_ACCENT: Color = AGE_II[15]
 
+## Pora dnia (#36): mnożnik koloru świata (CanvasModulate), nie kolor do rysowania. Noc, świt,
+## dzień i zmierzch. Noc jest jasna na tyle, żeby budynki i jednostki dało się rozpoznać na telefonie.
+const DAYLIGHT: Array[Color] = [Color("aab0d8"), Color("ecd0b6"), Color("ffffff"), Color("ecc2a0")]
+const NIGHT_TINT: Color = DAYLIGHT[0]
+const DAWN_TINT: Color = DAYLIGHT[1]
+const DAY_TINT: Color = DAYLIGHT[2]
+const DUSK_TINT: Color = DAYLIGHT[3]
+
 ## Kolory interfejsu, wspólne dla wszystkich epok.
 const UI: Array[Color] = [Color("f2e8cf"), Color("9bd06a"), Color("7fb0e0"), Color("dca67c"), Color("6e6b66"),
 		Color("8f8b84")]

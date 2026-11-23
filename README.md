@@ -32,7 +32,8 @@ z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#1
 Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22), synchronizacja zamku
 z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25), atak na gracza w kliencie (#240), ranking PvP ataku i obrony (#27), osobny ranking PvE za zamki-boty (#242) oraz odbudowa zamku obrońcy po ataku (#99). Z etapu 10 (#132) jest
 zwiad (#28) oraz raport i powtórka obrony (#29). Z etapu 13 (#135) są już pozostałe budynki MVP (#35):
-Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom i Wieża sygnałowa. Stan i kolejne kroki są
+Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom i Wieża sygnałowa, oraz życie w zamku (#36):
+mieszkańcy, straż na murach, łopoczące proporce i pora dnia. Stan i kolejne kroki są
 w sekcji „Następny etap”.
 
 - Generałowie (#31, etap 11 #133, `scripts/world/generals.gd`, `Generals`): Wódz drużyny, Łowczy i Budowniczy
@@ -150,9 +151,16 @@ w sekcji „Następny etap”.
   więc wzgórze ma miękkie, poszarpane zbocza zamiast schodków. Na trawie są ozdoby z seeda: kępki,
   kwiatki (czerwone, żółte), kamienie i krzaki (`decor_at`). Przy wodzie rośnie trzcina, a ścieżki
   i rzeka mają poszarpane brzegi i zaokrąglone narożniki. Cała mapa liczy się raz, ok. 40 ms (komputer).
-- `scripts/gfx/ambient_view.gd` (`AmbientView`, #150): dym z kominów (Dwór i smolarnia zawsze, chaty
-  i warsztaty co drugi) i błyski na wodzie. Rysuje się 8 razy na sekundę, nie co klatkę, i nie wpływa
-  na symulację.
+- `scripts/gfx/ambient_view.gd` (`AmbientView`, #150, #36): dym z kominów (Dwór i smolarnia zawsze, chaty
+  i warsztaty co drugi) i błyski na wodzie. Życie w zamku (#36): mieszkańcy (do 10, dwa na trzy gotowe domy
+  i warsztaty z hasha pozycji) chodzą tam i z powrotem po wolnych kratkach pod budynkiem, a nocą (21:30–5:00)
+  siedzą w domach. Straż z włócznią (do 4) maszeruje po każdej linii gotowego wału i palisady z co najmniej
+  3 odcinkami, od końca linii, najdalej 16 odcinków. Proporce łopoczą w 4 klatkach; ich położenie gra
+  wykrywa raz na teksturze (`BuildingTextures.flags`), więc zburzony budynek flagi nie ma. Pora dnia to
+  `CanvasModulate` świata z zegara telefonu (noc, świt 5:00–8:00, dzień, zmierzch 18:30–21:30, kolory
+  `Palette.DAYLIGHT`), HUD zostaje bez tintu; w wersji debug `godot --path . -- --hour=22` wymusza godzinę.
+  Mieszkańcy i straż znikają na czas bitwy. Trasy liczą się z siatki przy zmianie zabudowy, a całość
+  rysuje się 8 razy na sekundę (kilkadziesiąt prostokątów), nie co klatkę, i nie wpływa na symulację.
 - Budynki (#150) mają ciemny obrys i światło z lewej góry (bez umocnień, bramy i wieży, które łączą się
   z murem), a pod nimi półprzezroczysty cień na trawie (`BuildingTextures.shadow`).
 - `scripts/gfx/building_textures.gd` (`BuildingTextures`): `draw_building(rodzaj, poziom, stan, maska,
@@ -833,7 +841,8 @@ z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymaj�
 (`players.age`, ranking i dobór przeciwnika) zajmuje się migracja `castle_age`: po każdym zapisie zamku
 serwer podnosi epokę do II, gdy zapis ma Dwór na poziomie 6+ i zbadane O1, G1, A7. Epoka tylko
 rośnie, a klient nadal nie ma do niej uprawnień. Migracja `castle_age` jest na projekcie. Nowe premie epoki II i balans kosztów i czasów epoki II czekają na osobny ticket.
-Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
+Życie w zamku (#36) jest w kodzie; płynność na słabszym telefonie (próg 30 FPS) i czytelność nocy
+zostają do ręcznego testu. Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
 Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
 Etap 11 (#133) zaczynają generałowie (#31) w kodzie. Migracje `attack_general` i `general_budget` oraz nowe wersje Edge Functions
