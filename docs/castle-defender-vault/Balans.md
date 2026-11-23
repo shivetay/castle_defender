@@ -133,11 +133,11 @@ Fakty z kodu i issue, nie odczucia:
 
 ---
 
-## 3. Dwie opcje balansu
+## 3. Opcje balansu
 
-Obie zakładają **epoki I–II MVP**, bez zmiany mechanik (limity miejsc + utrzymanie zostają). Wybór należy do właścicielki — agenci nie wdrażają żadnej bez decyzji. Ticket docelowy: #262 (+ ewentualnie dopiski przy #214).
+A i B to skrajne odniesienia. **Opcja C** to proponowana ścieżka środka (feedback właścicielki 23.11.2026): bez głodu, bez spamu armii, pełny postęp F2P, a reklamy i sklep dają realną korzyść bez soft-locka. Wszystkie zakładają epoki I–II MVP i te same mechaniki (miejsca + utrzymanie). Wdrożenie dopiero po OK właścicielki. Ticket: #262.
 
-### Opcja A — „Szybki gród” (łatwiejszy early, miększa epoka II)
+### Opcja A — „Szybki gród” (łatwiejszy early, miększa epoka II) — odniesienie
 
 Cel: pierwsza sesja daje armię i umocnienia w minutach; epoka II nie wymaga Magazynu na pierwsze ulepszenia; żywność nadal limituje, ale nie dusi.
 
@@ -156,7 +156,7 @@ Cel: pierwsza sesja daje armię i umocnienia w minutach; epoka II nie wymaga Mag
 
 **Tradeoffy:** szybszy onboarding i mniej frustracji Magazynem; ryzyko spamu armii i krótszego „głodzenia” przeciwnika; PvP early mocniejsze; mniej presji na budowę żywności.
 
-### Opcja B — „Głód i złoto” (twardszy anti-spam, epoka II jako próg)
+### Opcja B — „Głód i złoto” (twardszy anti-spam, epoka II jako próg) — odniesienie
 
 Cel: żywność i złoto realnie ograniczają armię; epoka II zostaje droga i wymusza Magazyn; premie II nagradzają przebudowę.
 
@@ -176,14 +176,72 @@ Cel: żywność i złoto realnie ograniczają armię; epoka II zostaje droga i w
 
 **Tradeoffy:** mniejszy spam, większa waga Pol / Rybaka / Magazynu; wolniejszy early i trudniejszy samouczek (#251); wymaga migracji serwera dla premii i limitów (`army_limit`, `food_production`); wyższe koszty generałów mocniej wiążą z PvP.
 
+### Opcja C — „Spokojny rytm” (**propozycja**, pending OK)
+
+Cel: komfortowy F2P bez poczucia głodu i bez spamu taniej piechoty; wąskie gardło to **towary + miejsca + czas**, nie Ży/h. Reklamy i sklep przyspieszają / upiększają — nigdy nie odblokowują tego, czego nie da się dostać za darmo czekając.
+
+| Parametr | Teraz | Opcja A | Opcja B | **Opcja C** |
+| --- | --- | --- | --- | --- |
+| Utrzymanie piechoty / konnicy / wozu | 1 / 2 / 2 | 1 / 2 / 2 | 2 / 4 / 3 | **1 / 2 / 2** (bez zmian — zero „głodówki”) |
+| Koszt Ży rekrutacji (Topornik…Łucznik) | 10 | 8 | 15 | **10** (bez zmian) |
+| Chłop | 5 Ży, utrzym. 1 | 4 Ży | 8 Ży / utrzym. 2 | **8 Ży, utrzym. 1** (anti-spam startu, bez karania Ży/h) |
+| Kopacz / Taran Ży | 10 / 0 Dr60 | — | — | **bez zmian** |
+| Jeździec / Kopijnik Ży | 15 / 20 | — | — | **bez zmian** (konnica już droga w towarach) |
+| `ARMY_PER_MANOR_LEVEL` | 10 | 12 | 8 | **10** |
+| `ARMY_PER_BARRACKS_LEVEL` | 2 | 2 | 2 | **2** |
+| Produkcja Pola L1→L5 | 60…200 | bez zmian | 40…140 | **60…200** (bez cięcia Ży) |
+| Przebudowa Dworu L6 | 1000/1000/1000, 12 h | 600/600/600, 4 h | 1000+200 Zł, 12 h | **800/800/800, 8 h**, **0 Zł** |
+| `AGE_COST_PERCENT` / `AGE_TIME_MULT` ep. II | 200 / 2 | 150 / 1,5 | 200 / 2 | **175 / 2** (koszt −12,5% vs teraz; czas ×2 zostaje) |
+| Premie poziomów 6–10 | jak 5 | lokalny 1…5 | pełna tablica do 10 | **lokalny poziom epoki** (L6→1 … L10→5), klient + serwer |
+| `TIME_MULT` budowy L1…L5 | [1, 3, 10, 30, 90] | zostaje (vault→kod) | [1, 2, 5, 15, 40] | **[1, 2, 6, 20, 55]** (Wieża L5 ≈ 55 min zamiast 90; sesja offline wystarcza) |
+| Czas szkolenia (mnożnik) | 100% | 80% | 120% | **100%**; Chłop / Topornik / Oszczepnik **×1,25** (`TRAIN_TIME_S` tylko tych trzech) |
+| Generał: rekrutacja / L2 / L3 | 50 / 80+100PD / 150+300PD | taniej | drożej | **50 / 80+100PD / 150+300PD** (bez zmian) |
+| `DESERT_MS` (głód) | 1 h | — | — | **1 h** (zostaje jako awaryjny zawór, nie główny balans) |
+
+**Anti-spam bez głodu (reguły C):**
+
+1. Utrzymanie Ży/h **nie rośnie** — gracz z Polem L3+ komfortowo trzyma pełny limit miejsc.
+2. Spam Chłopami / tanią piechotą hamują: wyższy koszt Ży Chłopa (8), dłuższe szkolenie tanich trzech, oraz **łańcuch towarów** dla reszty (bez zmian przepisów).
+3. Limit miejsc (Dwór 10 + Koszary 2/poziom) zostaje — nie dokręcamy slotów jak w B.
+4. Epoka II: przebudowa osiągalna z magazynu grodu (800 < 1000); Magazyn nadal potrzebny na L8–L10 (1500+).
+
+#### Monetizacja w Opcji C (zasada)
+
+**Zasada:** postęp bez reklam i bez sklepu jest **kompletny** (epoka II, pełna armia w limicie, generał L3 z PvP). Reklamy i sklep **przyspieszają albo upiększają** — nigdy nie są jedyną drogą przez próg (tech, Dwór 5, O1/G1/A7, miejsca armii).
+
+| Warstwa | Co dostaje F2P w wygodnym tempie | Czego nie wymaga |
+| --- | --- | --- |
+| Budowa / badania | L1–L3 w sesji; L4–L5 i L6 Dworu przez offline (`TIME_MULT` C + catch-up) | oglądania reklamy, żeby dokończyć |
+| Armia | pełny limit miejsc przy 1–2 źródłach Ży; jakość przez towary | płacenia Ży/h „pod korek” ani złota za żołnierza |
+| Epoka II | L6 za 800/800/800 w 8 h offline + techy | Zł z sklepu / reklamy |
+| Generałowie | L1–L2 z PvE; L3 z PvP (jak #273) | reklamy na PD |
+
+| Reklama z nagrodą ([[Model wydania]], #33) | Efekt w C | Soft-lock? |
+| --- | --- | --- |
+| Przyspieszenie budowy / badania | −25% pozostałego czasu (min. −15 min), max 6/dzień | **nie** — bez ads czeka się dłużej na L4–L6 |
+| ×2 produkcji surowca 1 h | max 3/dzień; przyśpiesza zapełnienie Magazynu pod L8+ | **nie** — produkcja bazowa wystarcza na L6 |
+| (później) skrócenie do ataku / wywiad / sabotaż / ochrona magazynu | wygoda PvP, nie siła stała | **nie** — zwiad i atak działają bez ads |
+
+| Sklep (#174) | Propozycja pod C | Soft-lock? |
+| --- | --- | --- |
+| Pakiet startowy / „wesprzyj twórcę” | złoto startowe + kosmetyczny sztandar / flaga (nie mnożnik obrażeń) | **nie** |
+| Wygoda | np. +1 miejsce w kolejce budowy **albo** jeden jednorazowy −50% czasu na wybrane zlecenie / dzień (limit serwerowy) | **nie** — kolejka 1+3 działa bez zakupu |
+| Kosmetyka | skóry Dworu / baner rankingu / portret | **nie** |
+| Zakazane w C | permanentny +% obrażeń, pomijanie techów przejścia, kupowanie miejsc armii ponad Dwór, „odblokuj epokę” | — |
+
+**Tradeoffy C:** wolniejszy early niż A (Chłop droższy, tania piechota dłużej się szkoli); łagodniejszy niż B (Ży/h i Pole bez nerfu). Reklamy mają sens głównie na długich timerach L4–L6 i Magazynie — gracz **widzi** korzyść, ale F2P kończy to samo wieczorem / rano. Wymaga tej samej migracji premii 6–10 co A (klient + serwer).
+
 ---
 
 ## 4. Co wybrać dalej (bez decyzji agenta)
 
-Po wyborze A lub B (albo hybrydy z konkretnymi wierszami):
+**Rekomendacja vaultu:** przyjąć **Opcję C**, ewentualnie z korektą pojedynczych wierszy. A/B zostają jako skrajne odniesienia.
 
-1. Wpisać liczby w `*_config.gd` / `unit_types.gd` / `generals.gd`.
-2. Zsynchronizować serwer (migracje `army_limit` / `food_production` / ewentualnie `bonus_level`) za zgodą właścicielki.
-3. Zaktualizować tę notatkę i [[Progresja budowy]]; zamknąć #262 checkboxami.
+Po OK właścicielki:
 
-Powiązane: [[00 Start]], [[Plan MVP]], [[Bugs]]
+1. Wpisać liczby C w `*_config.gd` / `unit_types.gd` / `generals.gd` (generałowie bez zmian).
+2. Zsynchronizować serwer (`bonus_level` / premie 6–10) za zgodą właścicielki.
+3. Trzymać nagrady ads i sklep w limicie zasady z § Monetizacja; ticket #33 / #174.
+4. Zaktualizować tę notatkę i [[Progresja budowy]]; zamknąć #262 checkboxami.
+
+Powiązane: [[00 Start]], [[Plan MVP]], [[Bugs]], [[Model wydania]]

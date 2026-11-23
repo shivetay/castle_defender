@@ -78,13 +78,14 @@ Pełna lista: [[Plan MVP]]. Pytania: [[Otwarte pytania]]. Koszty: [[Balans]]. Bu
 
 - Bez postaci na siatce; dowodzą całą stroną. Koszty tymczasowe (50 / 80+100 PD / 150+300 PD). PvE max poziom 2.
 
-### 21.11.2026 — balans później
+### 21–23.11.2026 — balans
 
-- Właścicielka: „balans zrobimy później”. Ticket #262; propozycje A/B w [[Balans]].
+- 21.11: „balans zrobimy później” → #262; A/B jako skrajne odniesienia w [[Balans]].
+- 23.11: feedback — bez głodu, bez spamu, F2P kompletny, ads/sklep z realną korzyścią bez soft-locka → vault proponuje **Opcję C „Spokojny rytm”** (pending OK).
 
 ## Następne kroki
 
-1. Wybrać opcję balansu w [[Balans]] i domknąć #262 (liczby + premie 6–10 + ewentualna migracja serwera).
+1. Potwierdzić [[Balans]] **Opcję C** (propozycja 23.11; A/B jako odniesienia) i domknąć #262 (liczby + premie 6–10 + ewentualna migracja serwera).
 2. Perki władcy (#32), push (#30), resztki wyniku bitwy (#99), życie w zamku (#36).
 3. Reklamy (#33), zamknięte testy (#37 / #136).
 4. Odhaczyć zbiorcze body etapów 9–13, jeśli kod już wyprzedza checklisty.

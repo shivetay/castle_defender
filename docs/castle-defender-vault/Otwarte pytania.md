@@ -15,7 +15,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 
 - [ ] Czy obok reklam dodać jednorazowy zakup (pakiet startowy / „wesprzyj twórcę” ze sztandarem)? Ticket sklepu: #174; model reklam: [[Model wydania]].
 - [ ] Czy ranking PvP ma sezony z resetem co kilka tygodni? (Roadmapa od 0.3 / #45.)
-- [ ] **Pierwsza passa balansu:** wybrać [[Balans]] Opcję A albo B (albo hybrydę wierszami) i zamknąć #262. Tabele lokalne na razie; Supabase #56 później?
+- [ ] **Pierwsza passa balansu:** vault proponuje [[Balans]] **Opcję C „Spokojny rytm”** (A/B zostają jako skrajne odniesienia) — pending OK właścicielki, potem #262. Tabele lokalne na razie; Supabase #56 później?
 - [ ] Samouczek: czy #185 wystarczy, a mini-highlight UI (#251) idzie osobno?
 - [ ] Premie poziomów 6–10 epoki II: osobna tablica vs na razie jak poziom 5 (status quo w kodzie)? Część #262.
 
