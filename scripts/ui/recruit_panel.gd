@@ -82,6 +82,8 @@ var target_squad := Recruitment.NEW_SQUAD
 var detail_mode := DetailMode.COST
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
+## Element do podświetlenia przez mini-samouczek (#251): TRAIN, kafelek TILE + i albo NONE.
+var hint_target: int = Target.NONE
 
 var _pressed: int = Target.NONE
 
@@ -455,6 +457,15 @@ static func stock_lines(g: Goods, width: int, room: int) -> Array:
 	return out
 
 
+## Prostokąt przycisku Szkol albo kafelka `t` (TILE + i z `count` kafelków); pusty dla innych celów.
+static func hint_rect(t: int, view: Vector2, left: float, right: float, count: int) -> Rect2:
+	if t == Target.TRAIN:
+		return train_rect(view, right)
+	if t >= Target.TILE and t < Target.SQUAD and t - Target.TILE < count:
+		return tile_rects(left, right, count)[t - Target.TILE]
+	return Rect2()
+
+
 static func target_at(p: Vector2, view: Vector2, left: float, right: float, count: int, squad_count: int = 0) -> int:
 	if close_rect(view, right).has_point(p):
 		return Target.CLOSE
@@ -597,6 +608,9 @@ func _draw() -> void:
 			_pressed == Target.INFO or detail_mode != DetailMode.COST, false)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
 	_draw_stock(view)
+	var hint := hint_rect(hint_target, view, content_left, content_right, list.size())
+	if hint.has_area():
+		TutorialHints.draw_frame(self, hint, Time.get_ticks_msec())
 
 
 ## Pasek zapasu: ikona towaru i liczba sztuk. Pusty towar jest przygaszony, a towar, którego

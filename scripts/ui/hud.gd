@@ -151,6 +151,9 @@ var ruler_id := ""
 var queue_count := 0
 ## Napis przycisku tempa, np. „Tempo ×2”.
 var speed_label := "Tempo ×1"
+## Przycisk do podświetlenia przez mini-samouczek (#251, TutorialHints): Target, przycisk karty jako
+## CARD + CardButton, albo NONE.
+var hint_target: int = Target.NONE
 
 var _pressed: int = Target.NONE
 
@@ -490,6 +493,22 @@ func _target_at(p: Vector2) -> int:
 			card_seal, card_plain)
 
 
+## Prostokąt przycisku `t` (kolumna w danym trybie albo karta, CARD + CardButton); pusty, gdy go
+## teraz nie widać.
+static func target_rect(t: int, view: Vector2, right: float, is_building: bool, card_open: bool,
+		recruit_card: bool = false, in_battle: bool = false, pve_card: bool = false,
+		seal_card: bool = false, plain_card: bool = false) -> Rect2:
+	if t == Target.NONE:
+		return Rect2()
+	if card_open and not in_battle:
+		if t < Target.CARD:
+			return Rect2()
+		var i := card_buttons(recruit_card, pve_card, seal_card, plain_card).find(t - Target.CARD)
+		return card_rects(view, recruit_card, pve_card, seal_card, plain_card)[i] if i >= 0 else Rect2()
+	var i := column_targets(is_building, in_battle).find(t)
+	return column_rect(right, i, uses_icons(is_building, in_battle)) if i >= 0 else Rect2()
+
+
 ## Napis w prawym górnym rogu jako cel dotyku, który otwiera Kolejkę (#163): od lewego brzegu tekstu
 ## do końca epoki, na całą wysokość paska. Działa tylko wtedy, gdy coś się buduje (jest czas budowy);
 ## samo szkolenie albo badanie nie robi z paska celu, a Kolejkę otwiera wtedy przycisk w kolumnie.
@@ -630,6 +649,11 @@ func _draw() -> void:
 						queue_count if targets[i] == Target.QUEUE else 0)
 			else:
 				_draw_button(column_rect(content_right, i), label, _pressed == targets[i], false)
+	if not overlay:
+		var hint := target_rect(hint_target, view, content_right, building, is_card_open(), card_recruit, battle,
+				card_pve, card_seal, card_plain)
+		if hint.has_area():
+			TutorialHints.draw_frame(self, hint, Time.get_ticks_msec())
 
 	draw_rect(Rect2(0, view.y - BAR_H, view.x, BAR_H), Color(Palette.SHADOW, 0.6))
 	PixelFont.draw_text(self, Vector2(content_left, view.y - BAR_H + 1), message, Palette.INK)
