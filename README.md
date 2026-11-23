@@ -86,6 +86,13 @@ w sekcji „Następny etap”.
   najwyżej czas tego zlecenia), a tolerancja to 5 minut łącznie; pierwszy zapis liczy od założenia konta
   z zapasem 6 h. Limity z poziomu Dworu (armia, pułapki, garnizon, magazyn) biorą się więc tylko z przyjętej zabudowy.
   Pokrycie kosztów budowy w surowcach i limit przyrostu produkcji (etap 3) czekają na decyzję.
+  Badania, wojsko i towary (#281, migracja `army_research_goods_sanity`): zapis z technologią bez wymagań albo
+  z późniejszej epoki, z jednostką bez technologii albo z późniejszej epoki i z towarem ponad zbrojownię jest
+  odrzucany. Technologii może przybyć najwyżej tyle, ile zbada jeden badacz, jednostek tyle, ile wyszkolą
+  budynki rekrutacji (każdy rodzaj budynku osobno, równolegle), a towarów tyle, ile dadzą wytwórcy, na zegarze
+  serwera od poprzedniego zapisu. Czas na badanie, szkolenie i cykl w toku przechodzi jako kredyt (tolerancja
+  5 minut łącznie, jak przy budowie). Armia ponad limit miejsc jest odrzucana tylko wtedy, gdy urosła (powrót
+  zwiadu i rozbiórka Koszar przechodzą). Pokrycie kosztów badań i rekrutacji czeka na limit przyrostu ekonomii (#282).
 
 - Dwór z epokami i garnizon (#81, `DefensePlan.Task.GARRISON`, decyzje właścicielki 23.11.2026): Dwór ma
   własny rysunek na każdym z 5 poziomów epoki I (strzecha) i epoki II (gont na kamiennej podmurówce:

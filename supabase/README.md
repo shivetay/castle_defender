@@ -10,7 +10,7 @@ właścicielki. Skill: `.claude/skills/supabase-security/`.
 | `config.toml` | Konfiguracja lokalnego stosu Supabase CLI |
 | `migrations/` | Migracje SQL (schemat, RLS, granty) |
 | `functions/` | Edge Functions (np. `start_attack/`) |
-| `tests/database/` | Testy pgTAP: RLS (`rls_test.sql`), dobór, atak, ranking PvP (`ranking_test.sql`) i PvE (`pve_ranking_test.sql`), zwiad (`scouting_test.sql`), epoka z zamku (`castle_age_test.sql`), perk władcy (`ruler_perk_test.sql`), garnizon Dworu (`garrison_test.sql`), surowce i łup PvP na serwerze (`resource_sanity_test.sql`), zabudowa (`building_sanity_test.sql`) |
+| `tests/database/` | Testy pgTAP: RLS (`rls_test.sql`), dobór, atak, ranking PvP (`ranking_test.sql`) i PvE (`pve_ranking_test.sql`), zwiad (`scouting_test.sql`), epoka z zamku (`castle_age_test.sql`), perk władcy (`ruler_perk_test.sql`), garnizon Dworu (`garrison_test.sql`), surowce i łup PvP na serwerze (`resource_sanity_test.sql`), zabudowa (`building_sanity_test.sql`), badania, wojsko i towary (`army_research_goods_sanity_test.sql`) |
 | `seed.sql` | Dane startowe lokalne |
 
 ## Lokalnie
