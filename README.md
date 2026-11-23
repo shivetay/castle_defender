@@ -754,6 +754,39 @@ Potem:
 - **Project → Export → Android (debug APK) → Export Project** zapisuje `build/castle_defender.apk`, albo
 - ikona Androida w prawym górnym rogu edytora (**Remote Deploy**) instaluje i uruchamia grę na podłączonym telefonie jednym kliknięciem.
 
+## Google Play (pre-alfa, test zamknięty)
+
+Gra w sklepie nazywa się **Dunhold**, a jej pakiet to `com.shivetay.dunhold` (preset **Android (Google Play AAB)**). Debug APK ma
+`com.shivetay.dunhold.debug` i nazwę „Dunhold (debug)”, więc obie wersje mogą być na jednym telefonie. Google Play przyjmuje tylko
+podpisany pakiet AAB (Gradle, target SDK 36 z szablonu Godota 4.7.2), a nie APK.
+
+Jednorazowo:
+
+1. Utwórz klucz wysyłania (upload key). Trzymaj go poza repo, z kopią zapasową w bezpiecznym miejscu:
+
+   ```bash
+   keytool -genkeypair -v -keystore dunhold-upload.keystore -alias upload -keyalg RSA -keysize 4096 -validity 10000
+   ```
+
+   Godot podaje jedno hasło dla keystore'a i klucza, więc ustaw oba tak samo (PKCS12 i tak to wymusza).
+2. W repozytorium: **Settings → Secrets and variables → Actions → Secrets** dodaj
+   `ANDROID_UPLOAD_KEYSTORE_BASE64` (wynik `base64 -w0 dunhold-upload.keystore`),
+   `ANDROID_UPLOAD_KEY_ALIAS` (`upload`) i `ANDROID_UPLOAD_KEY_PASSWORD`.
+3. W [Play Console](https://play.google.com/console) utwórz aplikację, włącz **Play App Signing**
+   (Google trzyma klucz aplikacji, Ty tylko klucz wysyłania) i uzupełnij politykę prywatności, ocenę treści
+   oraz sekcję Bezpieczeństwo danych (gra łączy się z Supabase: anonimowe konto i stan zamku).
+
+Każde wydanie:
+
+1. Tag `vX.Y.Z` (albo **Actions → Wydanie → Run workflow**) buduje job **AAB do Google Play**, który zapisuje
+   artefakt `dunhold-X.Y.Z-google-play-aab`. Bez sekretów job tylko ostrzega i pomija AAB.
+2. Pobierz `.aab` z artefaktów i wgraj go w Play Console: **Testowanie → Test wewnętrzny** (do 100 osób, od razu)
+   albo **Test zamknięty** (lista testerów lub grupa Google). `version/code` rośnie z wersją, więc każdy kolejny
+   AAB musi mieć wyższą wersję niż poprzedni.
+
+Lokalnie: **Project → Install Android Build Template**, w Editor Settings ustaw release keystore, potem
+**Project → Export → Android (Google Play AAB)** (odznacz *Export With Debug*).
+
 ## Testy
 
 Wymagają Godota 4.7.2 w PATH jako `godot`. Na Windows użyj `Godot_v4.7.2-stable_win64_console.exe` i Git Bash.

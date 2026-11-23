@@ -126,6 +126,23 @@ class BumpTest(unittest.TestCase):
         with mock.patch("sys.stdout"):
             version.cmd_check(None)
 
+    def test_bump_updates_every_preset(self) -> None:
+        gen = changelog.group([pr(82, "Pakiet do Google Play", "feat/pakiet-google-play")])
+        with mock.patch.object(changelog, "generated_section", return_value=gen), \
+                mock.patch("sys.stdout"):
+            version.cmd_bump("patch")
+        text = (self.dir / "export_presets.cfg").read_text(encoding="utf-8")
+        self.assertGreaterEqual(len(version.RE_NAME.findall(text)), 2, "debug APK i AAB")
+        self.assertEqual(set(version.RE_NAME.findall(text)), {"0.0.2"})
+        self.assertEqual(set(version.RE_CODE.findall(text)), {"2"})
+
+    def test_check_fails_on_presets_out_of_sync(self) -> None:
+        pre = self.dir / "export_presets.cfg"
+        pre.write_text(version.RE_CODE.sub("version/code=7", pre.read_text(encoding="utf-8"), count=1),
+                       encoding="utf-8")
+        with mock.patch("sys.stderr"), self.assertRaises(SystemExit):
+            version.cmd_check(None)
+
     def test_bump_without_changes_fails(self) -> None:
         with mock.patch.object(changelog, "generated_section", return_value=changelog.group([])), \
                 mock.patch("sys.stderr"), self.assertRaises(SystemExit):
