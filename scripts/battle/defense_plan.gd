@@ -15,7 +15,11 @@ extends RefCounted
 ##   bramy przejeżdża;
 ## - Przy donżonie: oddział stoi jak przed #19;
 ## - Gaszenie pożarów (#35, piechota lekka, gdy zamek ma Studnię): oddział czeka przy wskazanej Studni
-##   i gasi płonące budynki w jej pobliżu (Battle._firefight_act).
+##   i gasi płonące budynki w jej pobliżu (Battle._firefight_act);
+## - Garnizon Dworu (#81): oddział stacjonuje w Dworze. W bitwie stoi przy donżonie (strzelcy na nim),
+##   ma +BattleConfig.GARRISON_HP_PERCENT wytrzymałości i nie idzie do ataku (pilnuje tego też serwer
+##   w begin_attack). Dwór mieści RecruitmentConfig.garrison_capacity() jednostek; oddziały ponad
+##   pojemność (w kolejności armii) stoją przy donżonie bez premii.
 ## Oddział bez ustawionego zadania dostaje w bitwie zadanie domyślne według klasy (default_order,
 ## plan zatwierdzony przez właściciela): strzelcy na mur przy bramie, piechota przy bramie, konnica
 ## na wypad, specjalni przy donżonie. Bez bramy i murów wszyscy stoją przy donżonie. Priorytet celów
@@ -27,15 +31,15 @@ extends RefCounted
 ## nie przejmuje cudzego zadania. Układ to same liczby całkowite, więc ten sam układ i ten sam seed
 ## dają ten sam przebieg bitwy (powtórka, weryfikacja PvP).
 
-enum Task { HOLD, PATROL, SORTIE, KEEP, FIELD, FIREFIGHT }
+enum Task { HOLD, PATROL, SORTIE, KEEP, FIELD, FIREFIGHT, GARRISON }
 ## Priorytet celów wież: najbliższy atakujący (jak dotąd), Taran, strzelcy, konnica. Wieża bierze
 ## najbliższego atakującego z wybranej grupy w swoim zasięgu, a gdy takiego nie ma, najbliższego.
 enum TowerPriority { NEAREST, RAM, RANGED, CAVALRY }
 
 const TASK_NAMES: Array[String] = ["Obrona odcinka", "Patrol", "Wypad konnicy", "Przy donżonie", "Przed murami",
-		"Gaszenie pożarów"]
+		"Gaszenie pożarów", "Garnizon Dworu"]
 ## Od której epoki zadanie jest dostępne (0 = I), z notatki Manewry i zadania.
-const TASK_AGE: Array[int] = [0, 0, 1, 0, 0, 0]
+const TASK_AGE: Array[int] = [0, 0, 1, 0, 0, 0, 0]
 const TOWER_PRIORITY_NAMES: Array[String] = ["najbliższy", "taran", "strzelcy", "konnica"]
 const NO_POST := Vector2i(-1, -1)
 ## Posterunek stoi najwyżej tyle kratek (w pionie i poziomie) od środka donżonu: obrona skupia się
@@ -92,9 +96,63 @@ func set_task(squad_id: int, task: int) -> Order:
 	if o.task != task:
 		o.route.clear()
 	o.task = task
-	if task == Task.KEEP:
-		o.post = NO_POST  # przy donżonie nie ma własnego miejsca (review #184)
+	if task == Task.KEEP or task == Task.GARRISON:
+		o.post = NO_POST  # przy donżonie nie ma własnego miejsca (review #184), garnizon też (#81)
 	return o
+
+
+## Czy oddział `squad_id` ma zadanie Garnizon Dworu (#81).
+func in_garrison(squad_id: int) -> bool:
+	var o := order_for(squad_id)
+	return o != null and o.task == Task.GARRISON
+
+
+## Id oddziałów w garnizonie, rosnąco (do zapisu i testów).
+func garrison_ids() -> Array[int]:
+	var out: Array[int] = []
+	for id: int in orders:
+		if orders[id].task == Task.GARRISON:
+			out.append(id)
+	out.sort()
+	return out
+
+
+## Jednostki w garnizonie: wyszkolone i szkolone do oddziałów garnizonu (#81).
+func garrison_units(recruitment: Recruitment) -> int:
+	var n := 0
+	for id in garrison_ids():
+		var s := recruitment.squad(id)
+		if s != null:
+			n += s.count + recruitment.pending_for(id)
+	return n
+
+
+## Czy oddział `squad_id` zmieści się w garnizonie Dworu zamku `grid` (#81). Oddział już w garnizonie
+## się mieści. Liczą się też jednostki w szkoleniu, żeby garnizon nie przerósł Dworu po szkoleniu.
+func garrison_fits(squad_id: int, recruitment: Recruitment, grid: BuildGrid) -> bool:
+	if in_garrison(squad_id):
+		return true
+	var s := recruitment.squad(squad_id)
+	if s == null or grid == null:
+		return false
+	var need := s.count + recruitment.pending_for(squad_id)
+	return garrison_units(recruitment) + need <= RecruitmentConfig.garrison_capacity(grid)
+
+
+## Oddziały z `ids` (Recruitment.battle_ids()) i `squads` ([rodzaj, liczba] w tej samej kolejności),
+## które w bitwie są garnizonem z premią (#81): z zadaniem Garnizon Dworu, w kolejności armii, dopóki
+## suma ich jednostek mieści się w pojemności Dworu. Przycina zapis spoza gry (kopia zamku z serwera),
+## więc garnizon nigdy nie jest większy niż Dwór. Bez `grid` (testy, podgląd) nikt nie ma premii.
+func battle_garrison(ids: Array[int], squads: Array, grid: BuildGrid) -> Array[bool]:
+	var out: Array[bool] = []
+	var room := RecruitmentConfig.garrison_capacity(grid) if grid != null else 0
+	for i in ids.size():
+		var n := int((squads[i] as Array)[1]) if i < squads.size() else 0
+		var ok := in_garrison(ids[i]) and n <= room
+		if ok:
+			room -= n
+		out.append(ok)
+	return out
 
 
 func post_for(squad_id: int) -> Vector2i:
@@ -153,18 +211,25 @@ func prune(recruitment: Recruitment) -> void:
 
 
 ## Zadania oddziałów bitwy w kolejności `ids` (Recruitment.battle_ids()); null to oddział przy
-## donżonie. Z `squads` (Recruitment.battle_squads(), ta sama kolejność) i `grid` oddział bez
+## donżonie, a zadanie Garnizon Dworu (bez miejsca) to garnizon z premią (battle_garrison, #81). Z `squads` (Recruitment.battle_squads(), ta sama kolejność) i `grid` oddział bez
 ## ustawionego zadania dostaje zadanie domyślne swojej klasy (default_order); bez nich zostaje przy
 ## donżonie. Patrol bez punktów trasy (sam start) to jeszcze nie pętla, więc idzie do bitwy jako
 ## Obrona odcinka na swoim miejscu (review #181). Lista idzie do Battle.create_squads (kopie: bitwa
 ## nie zmienia układu).
 func battle_orders(ids: Array[int], squads: Array = [], grid: BuildGrid = null, age: int = 0) -> Array[Order]:
 	var out: Array[Order] = []
+	var garrison := battle_garrison(ids, squads, grid)
 	for i in ids.size():
+		if garrison[i]:
+			# garnizon Dworu (#81): przy donżonie z premią wytrzymałości (Battle.create_squads)
+			var g := Order.new()
+			g.task = Task.GARRISON
+			out.append(g)
+			continue
 		var o := order_for(ids[i])
 		if o == null and grid != null and i < squads.size():
 			o = default_order(grid, UnitTypes.unit_class(int((squads[i] as Array)[0])), age)
-		if o == null or o.post == NO_POST or o.task == Task.KEEP:
+		if o == null or o.post == NO_POST or o.task == Task.KEEP or o.task == Task.GARRISON:
 			out.append(null)
 			continue
 		var c := Order.new()

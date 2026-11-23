@@ -116,6 +116,8 @@ var techs: Dictionary[int, Dictionary] = {Side.ATTACKER: {}, Side.DEFENDER: {}}
 ## Ustawienia obrony (#19, #20): zadanie oddziału obrońcy (klucz: numer oddziału), punkty patrolu
 ## (kratki, na których da się stanąć) i priorytet celów wież (DefensePlan.TowerPriority).
 var defence: Dictionary[int, DefensePlan.Order] = {}
+## Garnizon Dworu (#81): numery oddziałów obrońcy z premią wytrzymałości (DefensePlan.battle_garrison).
+var garrison: Dictionary[int, bool] = {}
 var tower_priority := 0
 var _patrol: Dictionary[int, Array] = {}
 ## Wypad konnicy (#20): brama oddziału (klucz: numer oddziału obrońcy) i oddziały, które już wyszły.
@@ -235,6 +237,10 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 	var anchors: Array[Vector2i] = []
 	for i in defenders.size():
 		var o: DefensePlan.Order = defender_orders[i] if i < defender_orders.size() else null
+		if o != null and o.task == DefensePlan.Task.GARRISON:
+			b.garrison[i + 1] = true  # garnizon Dworu (#81): przy donżonie, z premią wytrzymałości
+			anchors.append(home)
+			continue
 		if o == null or not b._terrain.in_bounds(o.post):
 			anchors.append(home)
 			continue
@@ -523,7 +529,7 @@ func squads_view(side: int) -> Array[Dictionary]:
 					"morale": squad_morale(side, f.squad)}
 			order.append(f.squad)
 		var v: Dictionary = by_squad[f.squad]
-		v["max_hp"] = int(v["max_hp"]) + UnitTypes.hp(f.unit)
+		v["max_hp"] = int(v["max_hp"]) + max_hp_of(f)
 		if f.alive():
 			v["alive"] = int(v["alive"]) + 1
 			v["hp"] = int(v["hp"]) + f.hp
@@ -650,6 +656,15 @@ func _setup_astar() -> void:
 ## sąsiednie posterunki nie stawiają ludzi na sobie. Z jednym punktem wynik jest taki jak dawniej.
 ## Jednostka z posterunku dostaje kratkę wycofania przy `at` (pod donżonem), reszta wycofuje się tam,
 ## gdzie stanęła.
+## Pełna wytrzymałość jednostki: z rodzaju, a w garnizonie Dworu (#81) z premią.
+func max_hp_of(f: Fighter) -> int:
+	var hp := UnitTypes.hp(f.unit)
+	if f.side == Side.DEFENDER and garrison.has(f.squad):
+		@warning_ignore("integer_division")
+		hp = hp * BattleConfig.GARRISON_HP_PERCENT / 100
+	return hp
+
+
 func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector2i] = []) -> void:
 	var units: Array[int] = []
 	var squad_of: Array[int] = []
@@ -673,7 +688,7 @@ func _spawn_squads(squads: Array, side: int, at: Vector2i, anchors: Array[Vector
 		_next_id += 1
 		f.unit = unit
 		f.side = side
-		f.hp = UnitTypes.hp(unit)
+		f.hp = max_hp_of(f)
 		var anchor := anchors[f.squad - 1] if f.squad - 1 < anchors.size() else at
 		var station := anchor
 		if _keep_station(side, f.squad, f.unit, anchor, at):

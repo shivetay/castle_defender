@@ -15,6 +15,8 @@ extends Control
 ## a Załoga wraca do oddziałów. Powtórki (#29) otwierają listę ostatnich obron: po obejrzeniu ataku
 ## gracz wraca tu i od razu poprawia obronę. Komendant (#31) przełącza komendanta obrony: brak, a potem
 ## każdy generał gracza poza generałem ataku. Komendant dowodzi całą obroną, nie stoi na mapie.
+## Zadanie Garnizon Dworu (#81) daje się wybrać tylko, gdy oddział mieści się w pojemności Dworu
+## (inaczej przycisk przeskakuje na Przy donżonie); opis pokazuje zajęte miejsca garnizonu.
 ## Dotknięcia poza przyciskami idą do mapy (kamera i tap()).
 
 ## Układ albo wybór zmienił się (mapa ma się przerysować, a gra zapisać).
@@ -49,6 +51,8 @@ var age := 0
 var trap_mode := false
 var trap_kind := 0
 var research: Research
+## Rekrutacja gracza (#81): do pojemności garnizonu liczą się też jednostki w szkoleniu.
+var recruitment: Recruitment
 var economy: Economy
 var goods: Goods
 ## Oddziały załogi [rodzaj, liczba] (Recruitment.battle_squads()) i ich id z rekrutacji.
@@ -180,7 +184,7 @@ static func commander_text(p: DefensePlan, g: Generals) -> String:
 static func task_text(o: DefensePlan.Order, g: BuildGrid = null) -> String:
 	if o == null:
 		return AT_KEEP
-	if o.task == DefensePlan.Task.KEEP:
+	if o.task == DefensePlan.Task.KEEP or o.task == DefensePlan.Task.GARRISON:
 		return DefensePlan.TASK_NAMES[o.task]
 	if o.post == DefensePlan.NO_POST:
 		return "%s: dotknij mapy" % DefensePlan.TASK_NAMES[o.task]
@@ -218,6 +222,8 @@ func describe(i: int) -> Array[String]:
 	var sq: Array = squads[i]
 	var o := plan.order_for(ids[i])
 	var text := task_text(o, castle) if o != null else default_text(castle, unit_class_of(i), age)
+	if o != null and o.task == DefensePlan.Task.GARRISON:
+		text += " " + garrison_text()
 	return ["%d. %s ×%d" % [i + 1, UnitTypes.unit_name(int(sq[0])), int(sq[1])], text]
 
 
@@ -241,6 +247,8 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 	var id := grid.building_at(cell) if grid.terrain.in_bounds(cell) else 0
 	if o != null and o.task == DefensePlan.Task.KEEP:
 		return "Przy donżonie: zmień Zadanie, żeby wskazać miejsce"
+	if o != null and o.task == DefensePlan.Task.GARRISON:
+		return "Garnizon Dworu: zmień Zadanie, żeby wskazać miejsce"
 	if o != null and o.task == DefensePlan.Task.FIREFIGHT:
 		# Gaszenie pożarów (#35) wskazuje się Studnią: oddział czeka tuż przy niej
 		if id == 0 or grid.kinds[id] != BuildingTypes.Kind.WELL or grid.levels[id] < 1 \
@@ -335,7 +343,8 @@ func trap_describe() -> Array[String]:
 
 ## Zadania do wyboru dla oddziału klasy `unit_class` w epoce `current_age`, w kolejności przycisku
 ## Zadanie: Obrona odcinka, Patrol, dla konnicy Przed murami i Wypad konnicy (od epoki II), dla piechoty
-## lekkiej Gaszenie pożarów, gdy zamek ma Studnię (`has_well`, #35), na końcu Przy donżonie.
+## lekkiej Gaszenie pożarów, gdy zamek ma Studnię (`has_well`, #35), Garnizon Dworu (#81), na końcu
+## Przy donżonie.
 static func task_options(unit_class: int, current_age: int, has_well: bool = false) -> Array[int]:
 	var out: Array[int] = [DefensePlan.Task.HOLD, DefensePlan.Task.PATROL]
 	if unit_class == RecruitmentConfig.UnitClass.FAST:
@@ -344,6 +353,7 @@ static func task_options(unit_class: int, current_age: int, has_well: bool = fal
 		out.append(DefensePlan.Task.SORTIE)
 	if unit_class == RecruitmentConfig.UnitClass.LIGHT and has_well:
 		out.append(DefensePlan.Task.FIREFIGHT)
+	out.append(DefensePlan.Task.GARRISON)
 	out.append(DefensePlan.Task.KEEP)
 	return out
 
@@ -355,6 +365,13 @@ static func next_task(o: DefensePlan.Order, unit_class: int = 0, current_age: in
 	if o == null:
 		return options[0]
 	return options[(options.find(o.task) + 1) % options.size()]
+
+
+## Zajęte miejsca garnizonu Dworu i pojemność (#81), np. „8/12”.
+func garrison_text() -> String:
+	if recruitment == null or castle == null:
+		return ""
+	return "%d/%d" % [plan.garrison_units(recruitment), RecruitmentConfig.garrison_capacity(castle)]
 
 
 static func tower_text(priority: int) -> String:
@@ -430,8 +447,23 @@ func activate(t: int) -> void:
 		Target.TASK:
 			if selected_id() != 0:
 				var well := castle != null and castle.has_built(BuildingTypes.Kind.WELL)
-				var o := plan.set_task(selected_id(), next_task(plan.order_for(selected_id()), unit_class_of(selected), age,
-						well))
+				var current := plan.order_for(selected_id())
+				var task := next_task(current, unit_class_of(selected), age, well)
+				var full := ""
+				if task == DefensePlan.Task.GARRISON and (recruitment == null
+						or not plan.garrison_fits(selected_id(), recruitment, castle)):
+					# Dwór pełny (#81): przycisk przeskakuje na następne zadanie
+					full = "Garnizon pełny %s, " % garrison_text()
+					var skip := DefensePlan.Order.new()
+					skip.task = task
+					task = next_task(skip, unit_class_of(selected), age, well)
+				var o := plan.set_task(selected_id(), task)
+				if not full.is_empty():
+					changed.emit("%sOddział %d: %s" % [full, selected + 1, task_text(o, castle)])
+					return
+				if o.task == DefensePlan.Task.GARRISON:
+					changed.emit("Oddział %d: Garnizon Dworu %s" % [selected + 1, garrison_text()])
+					return
 				if o.task == DefensePlan.Task.SORTIE or o.task == DefensePlan.Task.FIREFIGHT:
 					o.post = DefensePlan.NO_POST  # brama albo Studnia do wskazania
 				changed.emit("Oddział %d: %s" % [selected + 1, task_text(o, castle)])

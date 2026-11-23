@@ -26,7 +26,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 | Brak | Ticket | Uwagi |
 | --- | --- | --- |
 | Pełne efekty 34 technologii | #12 | drzewko i część premii są; reszta efektów otwarta |
-| Dwór przez epoki + garnizon UI | #81 | mechanika epoki jest (#261); wygląd / garnizon do domknięcia |
+| Dwór przez epoki + garnizon UI | #81 | w PR: 4 miejsca za poziom Dworu, +20% HP przy donżonie, bez ataku (decyzja 23.11.2026); liczby do testu na telefonie |
 | Wynik bitwy: % / gwiazdki / łup UI | #99 | odbudowa / ruiny są (#255); reszta UI otwarta |
 | Perki władcy | #32 | generałowie #31 gotowe |
 | Powiadomienia push | #30 | — |
