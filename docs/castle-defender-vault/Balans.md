@@ -68,20 +68,20 @@ Pełna lista w `BuildConfig.BASE_COST`.
 
 ### 1.3 Dwór — ulepszenia i przebudowa (restrukturyzacja epoki)
 
-| Poziom (narastająco) | Znaczenie | Koszt Dr/Ka/Ży | Czas |
+| Poziom (narastająco) | Znaczenie | Koszt Dr / Ka / Ży / **Zł** (kod dziś) | Czas |
 | --- | --- | --- | --- |
-| 1 | start | 0 | 0 |
-| 2 | I.2 | 300 / 200 / 200 | 10 min |
-| 3 | I.3 | 500 / 350 / 350 | 1 h |
-| 4 | I.4 | 750 / 550 / 550 | 4 h |
-| 5 | I.5 | 1000 / 800 / 800 | 12 h |
-| **6** | **przebudowa → epoka II** | **1000 / 1000 / 1000** | **12 h** |
-| 7 | II.2 | 600 / 400 / 400 | 20 min |
-| 8 | II.3 | 1000 / 700 / 700 | 2 h |
-| 9 | II.4 | 1500 / 1100 / 1100 | 8 h |
-| 10 | II.5 | 2000 / 1600 / 1600 | 24 h |
+| 1 | start | 0 / 0 / 0 / **0** | 0 |
+| 2 | I.2 | 300 / 200 / 200 / **0** | 10 min |
+| 3 | I.3 | 500 / 350 / 350 / **0** | 1 h |
+| 4 | I.4 | 750 / 550 / 550 / **0** | 4 h |
+| 5 | I.5 | 1000 / 800 / 800 / **0** | 12 h |
+| **6** | **przebudowa → epoka II** | **1000 / 1000 / 1000 / 0** | **12 h** |
+| 7 | II.2 | 600 / 400 / 400 / **0** | 20 min |
+| 8 | II.3 | 1000 / 700 / 700 / **0** | 2 h |
+| 9 | II.4 | 1500 / 1100 / 1100 / **0** | 8 h |
+| 10 | II.5 | 2000 / 1600 / 1600 / **0** | 24 h |
 
-Przebudowa L6 wymaga techów **O1 + G1 + A7** (`Ages.TRANSITION_TECHS`). Mieści się w magazynie grodu (1000) bez Magazynu. Poziomy 8–10 wymagają Magazynu. Premie produkcji / limitu armii w epoce II nadal liczą się jak poziom 5 (`Ages.bonus_level`) — #262.
+W kodzie (`BuildConfig.MANOR_COST`) złoto przy Dworze jest zawsze **0**. Opcja C dodaje cenę w Zł (niżej). Przebudowa L6 wymaga techów **O1 + G1 + A7**. Mieści się w magazynie grodu (1000) bez Magazynu. Poziomy 8–10 wymagają Magazynu. Premie epoki II: #262.
 
 ### 1.4 Produkcja surowców i badania
 
@@ -117,6 +117,7 @@ PvE wystarcza najwyżej do poziomu 2 (`PVE_LEVEL`). Vault [[Władca i generałow
 | Koszty jednostek Ży | vault podaje towary, rzadko ilości Ży | stałe 5–20 Ży | vault uzupełniony tą notatką |
 | Generałowie | zaktualizowane 22.11 | #273 | zgodne |
 | Utrzymanie Ży | opisane przy Wozie | pełna tablica `UPKEEP` | ta notatka |
+| Złoto przy ulepszeniu Dworu | brak w vaultu | `MANOR_COST` Zł = 0 | **Opcja C dodaje Zł** (tabela L2–L10) |
 
 ---
 
@@ -190,7 +191,8 @@ Cel: komfortowy F2P bez poczucia głodu i bez spamu taniej piechoty; wąskie gar
 | `ARMY_PER_MANOR_LEVEL` | 10 | 12 | 8 | **10** |
 | `ARMY_PER_BARRACKS_LEVEL` | 2 | 2 | 2 | **2** |
 | Produkcja Pola L1→L5 | 60…200 | bez zmian | 40…140 | **60…200** (bez cięcia Ży) |
-| Przebudowa Dworu L6 | 1000/1000/1000, 12 h | 600/600/600, 4 h | 1000+200 Zł, 12 h | **800/800/800, 8 h**, **0 Zł** |
+| Przebudowa Dworu L6 (Dr/Ka/Ży + czas) | 1000/1000/1000, 12 h | 600/600/600, 4 h | 1000/1000/1000, 12 h | **800/800/800, 8 h** |
+| **Złoto za ulepszenie Dworu** (L2…L10) | wszystko **0** | 0 (bez Zł) | tylko L6: **+200 Zł** | **patrz tabela Zł poniżej** |
 | `AGE_COST_PERCENT` / `AGE_TIME_MULT` ep. II | 200 / 2 | 150 / 1,5 | 200 / 2 | **175 / 2** (koszt −12,5% vs teraz; czas ×2 zostaje) |
 | Premie poziomów 6–10 | jak 5 | lokalny 1…5 | pełna tablica do 10 | **lokalny poziom epoki** (L6→1 … L10→5), klient + serwer |
 | `TIME_MULT` budowy L1…L5 | [1, 3, 10, 30, 90] | zostaje (vault→kod) | [1, 2, 5, 15, 40] | **[1, 2, 6, 20, 55]** (Wieża L5 ≈ 55 min zamiast 90; sesja offline wystarcza) |
@@ -198,12 +200,29 @@ Cel: komfortowy F2P bez poczucia głodu i bez spamu taniej piechoty; wąskie gar
 | Generał: rekrutacja / L2 / L3 | 50 / 80+100PD / 150+300PD | taniej | drożej | **50 / 80+100PD / 150+300PD** (bez zmian) |
 | `DESERT_MS` (głód) | 1 h | — | — | **1 h** (zostaje jako awaryjny zawór, nie główny balans) |
 
+**Złoto za aktualizację Dworu (Opcja C)** — 4. składowa `MANOR_COST` (dziś 0). Konkuruje z generałami o tę samą pulę Zł z łupu / PvE / PvP; start 50 Zł wystarcza na L2, dalej trzeba grać.
+
+| Poziom | Znaczenie | Dr / Ka / Ży (C) | **Zł (C)** | Czas (C) |
+| --- | --- | --- | --- | --- |
+| 2 | I.2 | 300 / 200 / 200 | **25** | 10 min |
+| 3 | I.3 | 500 / 350 / 350 | **50** | 1 h |
+| 4 | I.4 | 750 / 550 / 550 | **75** | 4 h |
+| 5 | I.5 | 1000 / 800 / 800 | **100** | 12 h → przy `TIME_MULT` C jak Dwór (osobny `MANOR_TIME_S`: bez zmian poza L6) |
+| 6 | przebudowa → II | **800 / 800 / 800** | **150** | **8 h** |
+| 7 | II.2 | 600 / 400 / 400 | **60** | 20 min |
+| 8 | II.3 | 1000 / 700 / 700 | **100** | 2 h |
+| 9 | II.4 | 1500 / 1100 / 1100 | **150** | 8 h |
+| 10 | II.5 | 2000 / 1600 / 1600 | **200** | 24 h |
+
+Suma Zł na samą ścieżkę Dworu I→II.5 (L2…L10): **910 Zł** — F2P zbiera z bitew; sklep może dołożyć pakiet startowy, ale nie jest wymagany do L6 (150 Zł osiągalne z PvE + early PvP).
+
 **Anti-spam bez głodu (reguły C):**
 
 1. Utrzymanie Ży/h **nie rośnie** — gracz z Polem L3+ komfortowo trzyma pełny limit miejsc.
 2. Spam Chłopami / tanią piechotą hamują: wyższy koszt Ży Chłopa (8), dłuższe szkolenie tanich trzech, oraz **łańcuch towarów** dla reszty (bez zmian przepisów).
 3. Limit miejsc (Dwór 10 + Koszary 2/poziom) zostaje — nie dokręcamy slotów jak w B.
-4. Epoka II: przebudowa osiągalna z magazynu grodu (800 < 1000); Magazyn nadal potrzebny na L8–L10 (1500+).
+4. Epoka II: przebudowa 800 Dr/Ka/Ży mieści się w grodzie; **150 Zł** na L6; Magazyn nadal na L8–L10 (1500+ surowców).
+5. Złoto przy Dworze daje sens łupowi i sklepowi bez paywallu epoki (techy O1/G1/A7 zostają obowiązkowe).
 
 #### Monetizacja w Opcji C (zasada)
 
@@ -213,7 +232,7 @@ Cel: komfortowy F2P bez poczucia głodu i bez spamu taniej piechoty; wąskie gar
 | --- | --- | --- |
 | Budowa / badania | L1–L3 w sesji; L4–L5 i L6 Dworu przez offline (`TIME_MULT` C + catch-up) | oglądania reklamy, żeby dokończyć |
 | Armia | pełny limit miejsc przy 1–2 źródłach Ży; jakość przez towary | płacenia Ży/h „pod korek” ani złota za żołnierza |
-| Epoka II | L6 za 800/800/800 w 8 h offline + techy | Zł z sklepu / reklamy |
+| Epoka II | L6 za 800/800/800 + **150 Zł** w 8 h offline + techy (Zł z łupu/PvE) | Zł wyłącznie ze sklepu / reklamy |
 | Generałowie | L1–L2 z PvE; L3 z PvP (jak #273) | reklamy na PD |
 
 | Reklama z nagrodą ([[Model wydania]], #33) | Efekt w C | Soft-lock? |
