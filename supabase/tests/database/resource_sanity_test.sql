@@ -9,7 +9,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(36);
+select plan(37);
 
 create temp table test_ids (id uuid primary key) on commit drop;
 insert into test_ids values
@@ -179,6 +179,14 @@ alter table public.castles enable trigger castles_resources;
 select throws_ok(
   $$select * from public.begin_attack('00000000-0000-0000-0000-0000000274a1', null, 0::smallint, '[[0, 10]]', 8)$$,
   'P0001', 'castle_invalid', 'atakujący ze złotem bez pokrycia nie zaczyna ataku');
+-- obrońca z takim zapisem nie jest celem (review #278)
+alter table public.castles disable trigger castles_resources;
+update public.castles set data = pg_temp.castle('[0, 0, 0, 99999]') where player_id = '00000000-0000-0000-0000-0000000274c1';
+alter table public.castles enable trigger castles_resources;
+select throws_ok(
+  $$select * from public.begin_attack('00000000-0000-0000-0000-0000000274b1', '00000000-0000-0000-0000-0000000274c1',
+    null, '[[0, 10]]', 10)$$,
+  'P0001', 'target_not_found', 'obrońca ze złotem bez pokrycia nie jest celem');
 
 select * from finish();
 rollback;

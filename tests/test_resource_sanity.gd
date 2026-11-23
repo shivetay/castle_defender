@@ -81,6 +81,8 @@ func test_bot_loot_without_gold() -> bool:
 func test_loot_message() -> bool:
 	assert_eq(MAIN.loot_message([50, 20, 0, 5] as Array[int]), "Łup z ataku: +50 Dr +20 Ka +5 Zł", "łup")
 	assert_eq(MAIN.loot_message([-50, 0, 0, 0] as Array[int]), "Straty z najazdu: -50 Dr", "strata")
+	assert_eq(MAIN.loot_message([50, -40, 0, 5] as Array[int]), "Zmiana zapasów: +50 Dr -40 Ka +5 Zł",
+			"łup i strata w jednym zapisie")
 	assert_eq(MAIN.loot_message([0, 0, 0, 0] as Array[int]), "", "bez zmiany bez komunikatu")
 	var worst := MAIN.loot_message([-9999, -9999, -9999, -9999] as Array[int])
 	assert_true(PixelFont.text_width(worst) <= Hud.MESSAGE_MAX_WIDTH, "najdłuższa strata w pasku")
