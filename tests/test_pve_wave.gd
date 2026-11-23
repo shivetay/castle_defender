@@ -77,6 +77,7 @@ func test_finish_retries() -> bool:
 	var body := w.finish(true)
 	var sent := 1
 	while w.on_finished(SupabaseClient.NETWORK_ERROR):
+		assert_true(not w.is_idle(), "między próbami zgłoszenie trwa (nowa fala go nie kasuje, review #290)")
 		assert_eq(w.retry_body(), body, "ponowienie tej samej treści")
 		sent += 1
 	assert_eq(sent, AttackFinish.RETRIES, "tyle prób")

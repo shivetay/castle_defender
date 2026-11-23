@@ -1649,9 +1649,13 @@ static func loot_message(got: Array[int]) -> String:
 
 ## Start fali: gdy gra jest połączona, ta sama fala zaczyna się na serwerze (`pve_wave`), żeby wygrana
 ## mogła dać nagrodę. Bez sieci (albo gdy kanał ataków jest zajęty) fala idzie bez serwera i bez nagrody.
+## Wynik poprzedniej fali w drodze albo czekający na ponowienie ma pierwszeństwo (review #290): wtedy nowa
+## fala idzie bez serwera, a zgłoszenia poprzedniej nie kasujemy.
 func _wave_begin(wave: int) -> void:
+	if _wave_sending or not _wave.is_idle():
+		return
 	_wave.clear()
-	if _wave_sending or net == null or identity == null or not net.is_online():
+	if net == null or identity == null or not net.is_online():
 		return
 	if net.start_wave(wave):
 		_wave.begin(wave)
