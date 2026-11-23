@@ -54,11 +54,12 @@ const RETRIES := 4
 const RETRY_S := 3.0
 
 
-## Dopisek w oknie wyniku, gdy serwer nie przyjął wyniku (#240): wtedy łupu nie ma.
+## Dopisek w oknie wyniku, gdy serwer nie przyjął wyniku (#240): wtedy łupu nie ma. Bez sieci wynik
+## czeka w `PendingFinish` i idzie na serwer po połączeniu (#99), więc łup może jeszcze przyjść.
 static func error_note(code: String) -> String:
 	match code:
 		"attack_expired":
 			return "Atak trwał za długo: bez łupu"
 		SupabaseClient.NETWORK_ERROR:
-			return "Brak połączenia: bez łupu"
+			return "Brak sieci: wynik wyślę później"
 	return "Serwer odrzucił wynik: bez łupu"
