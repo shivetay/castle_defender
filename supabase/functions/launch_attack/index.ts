@@ -7,6 +7,7 @@
 // liczy bitwę z nich, więc obrońca w powtórce widzi ten sam przebieg.
 // #31: żądanie może nieść rodzaj generała ataku (`general`, liczba 0..2). Poziom i perk serwer bierze
 // z zamku atakującego na serwerze (`private.castle_general`) i oddaje w odpowiedzi.
+// #32: perk władcy atakującego serwer bierze z zamku atakującego na serwerze (`ruler_perk` w odpowiedzi).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -108,6 +109,7 @@ Deno.serve(async (req) => {
     plan: row.plan ?? [],
     techs: row.techs ?? [],
     general: row.general ?? null,
+    ruler_perk: row.ruler_perk ?? -1,
   });
 });
 
