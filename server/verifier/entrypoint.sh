@@ -1,10 +1,10 @@
 #!/bin/sh
-# Minimal entrypoint for the Godot verifier image (#284).
+# Entrypoint for the Godot verifier image (#284 / #301).
 # Modes:
 #   smoke          — print Godot version and exit 0 (default; no DB / no secrets)
 #   godot [args…]  — run godot --headless with extra args
 #   verify-pack    — require PACKS_DIR/verify_<SIM_VERSION>.pck and run a pack smoke
-#                    (needs SIM_VERSION env; full claim/submit wrapper comes in a later PR)
+#   worker [args…] — Python claim/submit loop (needs VERIFIER_DATABASE_URL)
 set -eu
 
 mode="${1:-smoke}"
@@ -16,6 +16,8 @@ case "$mode" in
 	smoke)
 		echo "castle-defender-verifier: Godot $(godot --headless --version 2>/dev/null || true)"
 		echo "packs dir: ${PACKS_DIR:-/app/packs}"
+		python3 -c "import psycopg; print('psycopg', psycopg.__version__)" 2>/dev/null \
+			|| echo "psycopg: (not importable)"
 		ls -la "${PACKS_DIR:-/app/packs}" 2>/dev/null || true
 		exit 0
 		;;
@@ -28,13 +30,17 @@ case "$mode" in
 		if [ ! -f "$pack" ]; then
 			echo "missing pack: $pack" >&2
 			echo "mount or copy verify_*.pck into ${PACKS_DIR:-/app/packs}" >&2
+			echo "TODO(#301): export preset Verifier + CI pack build — see packs/README.md" >&2
 			exit 2
 		fi
-		# Pack-only smoke: load main pack; full --job/--out path lands with verify_main.gd.
+		# Pack-only smoke: load main pack; full --job/--out path needs verify_main.gd.
 		exec godot --headless --main-pack "$pack" --quit-after 1
 		;;
+	worker)
+		exec python3 /app/worker.py "$@"
+		;;
 	*)
-		echo "usage: entrypoint.sh smoke|godot|verify-pack [args…]" >&2
+		echo "usage: entrypoint.sh smoke|godot|verify-pack|worker [args…]" >&2
 		exit 64
 		;;
 esac

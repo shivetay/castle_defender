@@ -1,4 +1,4 @@
-# VPS smoke / later worker for #284.
+# VPS smoke / worker for #284 / #301.
 # Secrets only via env file on the host (never commit). Example:
 #   cp env.example .env   # fill VERIFIER_DATABASE_URL on the server only
 #   docker compose --env-file .env up -d
@@ -20,7 +20,11 @@ services:
       # Set only on the host; empty is fine for `smoke` / pack load tests.
       VERIFIER_DATABASE_URL: ${VERIFIER_DATABASE_URL:-}
       SIM_VERSION: ${SIM_VERSION:-}
-    # Default: smoke (Godot version). Switch to verify-pack when packs exist:
-    # command: ["verify-pack"]
+      PACKS_DIR: /app/packs
+      TMPDIR: /tmp/verifier
+    # Default: smoke (Godot + psycopg import). Switch when DB + pack ready:
+    #   command: ["worker"]
+    #   command: ["worker", "--once"]
+    #   command: ["verify-pack"]
     command: ["smoke"]
-    # No published ports — egress only to Supabase pooler when the wrapper lands.
+    # No published ports — egress only to Supabase pooler.

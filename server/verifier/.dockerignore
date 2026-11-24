@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 .git
 .gitignore
+test_worker_unit.py
+.dockerignore
