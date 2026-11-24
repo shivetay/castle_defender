@@ -1,0 +1,26 @@
+# VPS smoke / later worker for #284.
+# Secrets only via env file on the host (never commit). Example:
+#   cp env.example .env   # fill VERIFIER_DATABASE_URL on the server only
+#   docker compose --env-file .env up -d
+services:
+  verifier:
+    image: castle-defender-verifier:4.7.2
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp/verifier:uid=10001,gid=10001,mode=1777,size=256m
+    volumes:
+      # Optional: host packs override baked /app/packs
+      - ./packs:/app/packs:ro
+    environment:
+      WORKER_ID: ${WORKER_ID:-vps-1}
+      # Set only on the host; empty is fine for `smoke` / pack load tests.
+      VERIFIER_DATABASE_URL: ${VERIFIER_DATABASE_URL:-}
+      SIM_VERSION: ${SIM_VERSION:-}
+    # Default: smoke (Godot version). Switch to verify-pack when packs exist:
+    # command: ["verify-pack"]
+    command: ["smoke"]
+    # No published ports — egress only to Supabase pooler when the wrapper lands.
