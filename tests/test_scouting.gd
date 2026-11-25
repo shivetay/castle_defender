@@ -290,15 +290,41 @@ func test_picker_lines_and_buttons() -> bool:
 	assert_eq(MAIN.scout_card_info(s, T0), "Zwiad: Gród, %s" % Hud.format_time(ScoutConfig.duration_ms(0)), "karta budynku")
 	var left := float(Hud.CORNER_INSET)
 	var right := 320.0 - Hud.CORNER_INSET
-	var rects: Array[Rect2] = [TargetPicker.bots_rect(VIEW, left), TargetPicker.scout_time_rect(VIEW, left),
-			TargetPicker.scout_rect(VIEW, left), TargetPicker.plan_rect(VIEW, right), TargetPicker.close_rect(VIEW, right)]
-	for i in rects.size():
-		assert_true(rects[i].size.x >= 12 and rects[i].size.y >= 12, "cel dotyku co najmniej 12×12")
-		assert_true(rects[i].position.x >= left and rects[i].end.x <= right, "w treści")
-		for j in range(i + 1, rects.size()):
-			assert_true(not rects[i].intersects(rects[j]), "przyciski się nie nakładają")
-	assert_eq(TargetPicker.target_at(rects[2].get_center(), VIEW, left, right), TargetPicker.Target.SCOUT, "Zwiad")
-	assert_eq(TargetPicker.target_at(rects[1].get_center(), VIEW, left, right), TargetPicker.Target.SCOUT_TIME, "czas")
+	# przed kliknięciem Zwiad: tylko Boty i Zwiad obok siebie, bez czasu (#317)
+	var closed: Array[Rect2] = [TargetPicker.bots_rect(VIEW, left), TargetPicker.scout_rect(VIEW, left, false),
+			TargetPicker.plan_rect(VIEW, right), TargetPicker.close_rect(VIEW, right)]
+	for i in closed.size():
+		assert_true(closed[i].size.x >= 12 and closed[i].size.y >= 12, "cel dotyku co najmniej 12×12")
+		assert_true(closed[i].position.x >= left and closed[i].end.x <= right, "w treści")
+		for j in range(i + 1, closed.size()):
+			assert_true(not closed[i].intersects(closed[j]), "przyciski się nie nakładają")
+	assert_eq(TargetPicker.target_at(closed[1].get_center(), VIEW, left, right, false), TargetPicker.Target.SCOUT,
+			"Zwiad bez czasu (na miejscu czasu)")
+	assert_eq(TargetPicker.target_at(TargetPicker.scout_rect(VIEW, left, true).get_center(), VIEW, left, right, false),
+			TargetPicker.Target.NONE, "pusty slot czasu przed odsłonięciem")
+	# po odsłonięciu: Boty, czas, Zwiad
+	var open: Array[Rect2] = [TargetPicker.bots_rect(VIEW, left), TargetPicker.scout_time_rect(VIEW, left),
+			TargetPicker.scout_rect(VIEW, left, true), TargetPicker.plan_rect(VIEW, right),
+			TargetPicker.close_rect(VIEW, right)]
+	for i in open.size():
+		for j in range(i + 1, open.size()):
+			assert_true(not open[i].intersects(open[j]), "przyciski z czasem się nie nakładają")
+	assert_eq(TargetPicker.target_at(open[2].get_center(), VIEW, left, right, true), TargetPicker.Target.SCOUT, "Zwiad")
+	assert_eq(TargetPicker.target_at(open[1].get_center(), VIEW, left, right, true), TargetPicker.Target.SCOUT_TIME,
+			"czas po Zwiadzie")
+	var picker := TargetPicker.new()
+	var sent: Array = []
+	picker.scout_requested.connect(func(t: TargetSearch.Target, d: int) -> void: sent.append([t, d]))
+	picker.open(0, false)
+	picker.scout_enabled = true
+	assert_true(not picker.scout_time_open, "open() chowa czas")
+	picker._activate(TargetPicker.Target.SCOUT)
+	assert_true(picker.scout_time_open and sent.is_empty(), "pierwsze Zwiad odsłania czas, bez wysyłki")
+	picker._activate(TargetPicker.Target.SCOUT)
+	assert_eq(sent.size(), 1, "drugie Zwiad wysyła misję")
+	picker.open(0, false)
+	assert_true(not picker.scout_time_open, "ponowne open() chowa czas")
+	picker.free()
 	var y := TargetPicker.SCOUT_Y + 2 * PixelFont.LINE
 	assert_true(y < Hud.row_y(VIEW), "linie zwiadu nad przyciskami")
 	return true
