@@ -630,8 +630,9 @@ func _tick() -> void:
 		hud.message = "Ukończono: %s, poziom %s" % [BuildingTypes.NAMES[o.kind], Ages.short_level(o.level)]
 		if o.kind == BuildingTypes.Kind.MANOR and Ages.is_age_step(o.level):
 			_on_new_age(now)
-	if not researching.is_empty() and research.is_done(researching):
-		hud.message = "Zbadano: %s %s" % [researching, TechTree.tech_name(researching)]
+	# koniec badania to zmiana trwającego kodu (poziom doktryny był zbadany już wcześniej)
+	if not researching.is_empty() and research.active != researching and research.is_done(researching):
+		hud.message = "Zbadano: %s" % ResearchPanel.title_of(research, researching)
 		_save()
 	if research_panel != null:
 		research_panel.now_ms = now
@@ -2168,7 +2169,7 @@ func _on_research_requested(code: String) -> void:
 	if result == Research.Result.NO_BUILDING:
 		hud.message = Research.building_hint(code)
 	elif result == Research.Result.OK:
-		hud.message = "Badanie: %s, %s" % [TechTree.tech_name(code), Hud.format_time(research.duration_ms)]
+		hud.message = "Badanie: %s, %s" % [ResearchPanel.title_of(research, code, true), Hud.format_time(research.duration_ms)]
 		_save()
 	else:
 		hud.message = Research.MESSAGES[result]
