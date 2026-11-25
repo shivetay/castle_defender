@@ -4,6 +4,8 @@ extends RefCounted
 ## Surowce w kolejności EconomyConfig.Res: drewno (dwa bale), kamień, żywność (jabłko), złoto (moneta).
 ## Klasy (#87) w kolejności RecruitmentConfig.UnitClass: lekka (topór), ciężka (tarcza z umbem),
 ## strzelecka (łuk ze strzałą), szybka (podkowa), specjalna (płomień).
+## Jednostki (#309) mają własne ikony (UNITS), żeby jednostki tej samej klasy (Chłop, Topornik,
+## Oszczepnik, Włócznik) dało się odróżnić. Ikona klasy zostaje dla zwiadu, który zna tylko klasę.
 ## Atlas wszystkich ikon powstaje raz, przy pierwszym użyciu, i jest trzymany w cache.
 
 const SIZE := 5
@@ -29,6 +31,30 @@ const CLASSES: Array = [
 	["..wT.", ".w.T.", "wlllT", ".w.T.", "..wT."],
 	["ll.ll", "l...l", "l...l", "ll.ll", ".lll."],
 	["..a..", ".aa..", ".aTa.", "aaTaa", ".aaa."],
+]
+
+## Ikony jednostek 5×5 w kolejności UnitTypes.Unit (#309): topornik (topór), oszczepnik (dwa
+## oszczepy), łucznik (łuk ze strzałą), tarczownik (tarcza z umbem), podpalacz (płomień), tropiciel
+## (ślady stóp), jeździec (podkowa), włócznik (włócznia z grotem), drużynnik (hełm z nosalem),
+## strzelec z łukiem refleksyjnym (łuk z wygiętymi końcami), kopijnik (kopia z proporcem), taran
+## (belka z okuciem na kołach), kopacz (łopata), chłop (widły), zwiadowca (oko), wóz (wóz z workiem).
+const UNITS: Array = [
+	[".LLk.", "LLLk.", ".LLk.", "...k.", "...k."],
+	["L..L.", ".w..w", "..w..", ".w.w.", "w...."],
+	["..wT.", ".w.T.", "wlllT", ".w.T.", "..wT."],
+	[".mmm.", "mmmmm", "mmamm", "mmmmm", ".mmm."],
+	["..a..", ".aa..", ".aTa.", "aaTaa", ".aaa."],
+	["ii...", "ii.ii", "...ii", "ii...", "ii..."],
+	["ll.ll", "l...l", "l...l", "ll.ll", ".lll."],
+	["..L..", ".LLL.", "..w..", "..w..", "..w.."],
+	[".LLL.", "LLLLL", "LLsLL", "L.s.L", "L...L"],
+	["TT.T.", "..TT.", "lllla", "..TT.", "TT.T."],
+	["....L", "aaaw.", "aaw..", ".w...", "w...."],
+	[".....", "wwwwL", "mmmmL", ".k.k.", "....."],
+	["..w..", "..w..", ".LLL.", ".LLL.", "..L.."],
+	["l.l.l", "l.l.l", "lllll", "..w..", "..w.."],
+	[".....", ".LLL.", "LLiLL", ".LLL.", "....."],
+	[".tt..", "wttww", "wwwww", ".k.k.", "....."],
 ]
 
 ## Towary 5×5 w kolejności GoodsConfig.Good (pasek zapasu zbrojowni w Wojsku): surowe skóry,
@@ -77,6 +103,7 @@ static var _atlas: ImageTexture
 static var _class_atlas: ImageTexture
 static var _menu_atlas: ImageTexture
 static var _goods_atlas: ImageTexture
+static var _unit_atlas: ImageTexture
 
 
 ## Obraz atlasu: ikony obok siebie, każda w kratce SIZE×SIZE (domyślnie surowce).
@@ -132,6 +159,32 @@ static func draw_class_badge(ci: CanvasItem, pos: Vector2, unit_class: int) -> v
 	var at := pos.floor()
 	ci.draw_rect(Rect2(at - Vector2.ONE, Vector2(SIZE + 2, SIZE + 2)), Palette.SHADOW)
 	draw_class(ci, at, unit_class)
+
+
+## Fragment atlasu jednostek dla `unit` (UnitTypes.Unit); pusty dla jednostki spoza zakresu.
+static func unit_region(unit: int) -> Rect2:
+	if unit < 0 or unit >= UNITS.size():
+		return Rect2()
+	return Rect2(unit * SIZE, 0, SIZE, SIZE)
+
+
+## Rysuje ikonę jednostki `unit` lewym górnym rogiem w `pos`; dla jednostki bez ikony nic nie rysuje.
+static func draw_unit(ci: CanvasItem, pos: Vector2, unit: int) -> void:
+	var region := unit_region(unit)
+	if not region.has_area():
+		return
+	if _unit_atlas == null:
+		_unit_atlas = ImageTexture.create_from_image(make_atlas(UNITS))
+	ci.draw_texture_rect_region(_unit_atlas, Rect2(pos.floor(), Vector2(SIZE, SIZE)), region)
+
+
+## Ikona jednostki na ciemnym tle SIZE+2, jak draw_class_badge.
+static func draw_unit_badge(ci: CanvasItem, pos: Vector2, unit: int) -> void:
+	if not unit_region(unit).has_area():
+		return
+	var at := pos.floor()
+	ci.draw_rect(Rect2(at - Vector2.ONE, Vector2(SIZE + 2, SIZE + 2)), Palette.SHADOW)
+	draw_unit(ci, at, unit)
 
 
 ## Rysuje ikonę `i` z MENU lewym górnym rogiem w `pos`.

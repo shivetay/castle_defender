@@ -56,3 +56,37 @@ func test_one_icon_per_good() -> bool:
 		seen[a.get_region(Rect2i(i * PixelIcons.SIZE, 0, PixelIcons.SIZE, PixelIcons.SIZE)).get_data()] = true
 	assert_eq(seen.size(), GoodsConfig.count(), "każda ikona towaru jest inna")
 	return true
+
+
+## Ikony jednostek (#309): jedna na jednostkę, wzory 5×5 z legendy, kolory z palety, każda inna,
+## także Chłop, Topornik, Oszczepnik i Włócznik z tej samej klasy lekkiej.
+func test_one_icon_per_unit() -> bool:
+	assert_eq(PixelIcons.UNITS.size(), UnitTypes.UNITS.size(), "ikona dla każdej jednostki")
+	var allowed := {}
+	for col: Color in Palette.AGE_I + Palette.UI:
+		allowed[col.to_rgba32()] = true
+	var a := PixelIcons.make_atlas(PixelIcons.UNITS)
+	assert_eq(a.get_data(), PixelIcons.make_atlas(PixelIcons.UNITS).get_data(), "atlas powtarzalny")
+	var seen := {}
+	for i in PixelIcons.UNITS.size():
+		var rows: Array = PixelIcons.UNITS[i]
+		assert_eq(rows.size(), PixelIcons.SIZE, "jednostka %d ma 5 wierszy" % i)
+		var filled := 0
+		for row: String in rows:
+			assert_eq(row.length(), PixelIcons.SIZE, "jednostka %d: wiersz „%s” ma 5 znaków" % [i, row])
+			for ch in row:
+				assert_true(ch == "." or PixelIcons.LEGEND.has(ch), "jednostka %d: znak „%s” w legendzie" % [i, ch])
+				if ch != ".":
+					filled += 1
+		assert_true(filled >= 7, "jednostka %d jest czytelna (≥7 pikseli)" % i)
+		var icon := a.get_region(Rect2i(PixelIcons.unit_region(i)))
+		for y in PixelIcons.SIZE:
+			for x in PixelIcons.SIZE:
+				var col := icon.get_pixel(x, y)
+				if col.a > 0.0:
+					assert_true(allowed.has(col.to_rgba32()), "jednostka %d: kolor z palety" % i)
+		seen[icon.get_data()] = true
+	assert_eq(seen.size(), UnitTypes.UNITS.size(), "każda ikona jednostki jest inna")
+	assert_true(not PixelIcons.unit_region(-1).has_area(), "brak ikony poza zakresem")
+	assert_true(not PixelIcons.unit_region(UnitTypes.UNITS.size()).has_area(), "brak ikony poza zakresem")
+	return true

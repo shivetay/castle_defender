@@ -200,11 +200,10 @@ static func draw_squad(ci: CanvasItem, sq: Dictionary, side: int, top: Vector2i)
 	ci.draw_rect(Rect2(at.x, at.y, BADGE, BADGE), col)
 	ci.draw_rect(Rect2(at.x + 1, at.y + 1, BADGE - 2, BADGE - 2), Palette.SHADOW)
 	var unit := int(sq["unit"])
-	var cls := UnitTypes.unit_class(unit)
-	if PixelIcons.class_region(cls).has_area():
-		PixelIcons.draw_class(ci, Vector2(at + Vector2i.ONE), cls)
+	if PixelIcons.unit_region(unit).has_area():
+		PixelIcons.draw_unit(ci, Vector2(at + Vector2i.ONE), unit)
 	else:
-		# inżynieria nie ma ikony klasy: pierwsza litera nazwy
+		# jednostka bez ikony: pierwsza litera nazwy
 		PixelFont.draw_centered(ci, Rect2(at.x, at.y, BADGE, BADGE), UnitTypes.SHORT_NAMES[unit].left(1), Palette.INK)
 	ci.draw_rect(Rect2(at.x, at.y + BADGE, BADGE, BAR_H), Palette.SHADOW)
 	ci.draw_rect(Rect2(at.x, at.y + BADGE, hp_fill(sq), BAR_H), Palette.VALID)
