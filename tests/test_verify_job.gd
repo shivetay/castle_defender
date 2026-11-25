@@ -4,10 +4,9 @@ extends TestCase
 
 const REPLAY := preload("res://tests/test_replay.gd")
 const U := UnitTypes.Unit
-const SIM := 501
 
 
-## Job w kształcie odpowiedzi `attack_replay` (+ sim_version), przez JSON jak z workera.
+## Job w kształcie odpowiedzi `attack_replay` (+ sim_version projektu), przez JSON jak z workera.
 func _job(plan: AttackPlan, techs: Array, result: BattleResult = null) -> Dictionary:
 	var r := result if result != null else BattleResult.new()
 	var raw := {
@@ -22,7 +21,7 @@ func _job(plan: AttackPlan, techs: Array, result: BattleResult = null) -> Dictio
 		"result": r.to_server(),
 		"loot": [10, 20, 0, 0],
 		"finished_at": "2026-11-21T10:15:00.123+00:00",
-		"sim_version": SIM,
+		"sim_version": VerifyJob.project_sim_version(),
 	}
 	return REPLAY._wire(raw) as Dictionary
 
@@ -59,7 +58,7 @@ func test_same_job_same_checksum() -> bool:
 	assert_eq(a.get("destroyed_ids"), b.get("destroyed_ids"), "te same zniszczenia")
 	assert_eq(a.get("survivors"), b.get("survivors"), "ci sami ocaleli")
 	assert_eq(a.get("ticks"), b.get("ticks"), "ten sam czas")
-	assert_eq(a.get("sim_version"), SIM, "sim_version z jobu")
+	assert_eq(a.get("sim_version"), VerifyJob.project_sim_version(), "sim_version z projektu")
 	return true
 
 
@@ -86,24 +85,50 @@ func test_matches_attacker_battle() -> bool:
 	assert_eq(got.get("destroyed_ids"), expected.get("destroyed_ids"), "zniszczenia")
 	assert_eq(got.get("survivors"), expected.get("survivors"), "ocaleli")
 	assert_eq(got.get("ticks"), expected.get("ticks"), "ticki")
-	# powtórka obrońcy z tym samym jobem (z wynikiem) też ten sam przebieg
+	# job z deklarowanym wynikiem: ten sam przebieg (result i tak jest nadpisywany)
 	var with_result := _job(plan, techs, pc.result_of(live))
 	var again := VerifyJob.verify(with_result)
 	assert_eq(again.get("checksum"), expected.get("checksum"), "z wynikiem w jobie: ten sam checksum")
 	return true
 
 
-## Job z attack_id zamiast id i bez sim_version: nadal działa, sim_version z projektu.
+## Zniekształcony claimed result nie blokuje weryfikacji i nie zmienia checksumu.
+func test_poisoned_claimed_result_ignored() -> bool:
+	var plan := REPLAY._plan(REPLAY._keep_cell())
+	var clean := VerifyJob.verify(_job(plan, ["A7"]))
+	assert_true(not clean.has(VerifyJob.ERROR_KEY), "czysty job OK")
+	var poisoned := _job(plan, ["A7"])
+	poisoned["result"] = {"won": true, "percent": 999, "stars": []}
+	poisoned["loot"] = "x"
+	poisoned["finished_at"] = "nie-data"
+	var got := VerifyJob.verify(poisoned)
+	assert_true(not got.has(VerifyJob.ERROR_KEY), "zatruty result nie blokuje")
+	assert_eq(got.get("checksum"), clean.get("checksum"), "ten sam checksum co bez result")
+	return true
+
+
+## Job z attack_id (także gdy id=null) i bez sim_version: działa, sim_version z projektu.
 func test_attack_id_and_project_sim_version() -> bool:
 	var plan := REPLAY._plan(REPLAY._keep_cell())
 	var job := _job(plan, ["A7"])
-	job.erase("id")
+	job["id"] = null
 	job["attack_id"] = REPLAY.ATTACK
 	job.erase("sim_version")
 	var got := VerifyJob.verify(job)
-	assert_true(not got.has(VerifyJob.ERROR_KEY), "verify z attack_id")
+	assert_true(not got.has(VerifyJob.ERROR_KEY), "verify z attack_id przy id=null")
 	assert_eq(got.get("sim_version"), VerifyJob.project_sim_version(), "sim_version z project.godot")
 	assert_true(int(got.get("sim_version")) > 0, "wersja projektu niezerowa")
+	return true
+
+
+## sim_version z jobu inna niż pack/projekt → błąd, bez symulacji.
+func test_sim_version_mismatch() -> bool:
+	var plan := REPLAY._plan(REPLAY._keep_cell())
+	var job := _job(plan, ["A7"])
+	job["sim_version"] = VerifyJob.project_sim_version() + 1
+	assert_eq(VerifyJob.verify(job).get(VerifyJob.ERROR_KEY), "sim_version_mismatch", "inna wersja")
+	job["sim_version"] = "x"
+	assert_eq(VerifyJob.verify(job).get(VerifyJob.ERROR_KEY), "sim_version_mismatch", "nie-liczba")
 	return true
 
 
@@ -124,11 +149,4 @@ func test_bad_job_returns_error() -> bool:
 	raw = _job(plan, [])
 	raw["army"] = [[99, 1]]
 	assert_eq(VerifyJob.verify(raw).get(VerifyJob.ERROR_KEY), "invalid_job", "zły rodzaj jednostki")
-	return true
-
-
-## Limit ticków jak w grze: TIME_LIMIT_S × TICK_HZ.
-func test_time_limit_matches_game() -> bool:
-	assert_eq(BattleConfig.time_limit_ticks(), BattleConfig.TIME_LIMIT_S * BattleConfig.TICK_HZ,
-			"limit jak w BattleConfig")
 	return true

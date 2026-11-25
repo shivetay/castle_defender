@@ -112,7 +112,7 @@ def run_godot_job(
 			"--out",
 			str(out_path),
 		]
-		# TODO(#301): verify_main.gd must accept --job/--out; pack export is still a stub.
+		# Pack export / preset „Verifier” = #305; verify_main.gd already accepts --job/--out (#303).
 		proc = subprocess.run(
 			cmd,
 			capture_output=True,
