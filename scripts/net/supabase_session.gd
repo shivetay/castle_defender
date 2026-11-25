@@ -53,23 +53,39 @@ static func from_dict(d: Dictionary) -> SupabaseSession:
 	return from_auth_response(d, 0)
 
 
+## Zapis atomowy jak w `SaveGame.write`: pełny plik tymczasowy, poprzedni plik → .bak, .tmp → plik.
+## Gra zabita w trakcie zapisu (Android ubija aplikację w tle) zostawia całą sesję w jednym z tych
+## plików (`load_from` je sprawdza), a nie pusty plik, po którym klient założyłby nowe konto.
+## `rename` nie nadpisuje istniejącego pliku na każdej platformie, więc stary plik najpierw odchodzi.
 func save(path: String = PATH) -> Error:
-	var f := FileAccess.open(path, FileAccess.WRITE)
+	var tmp := path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
 	if f == null:
 		return FileAccess.get_open_error()
 	f.store_string(JSON.stringify(to_dict()))
 	f.close()
-	return OK
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path + ".bak")
+		var err := DirAccess.rename_absolute(path, path + ".bak")
+		if err != OK:
+			return err
+	return DirAccess.rename_absolute(tmp, path)
 
 
-## Sesja z pliku; null, gdy pliku nie ma albo jest nieczytelny.
+## Sesja z pliku, a gdy go nie ma albo jest nieczytelny, z pełnego .tmp (najnowszy) albo z .bak
+## (zapis przerwany między zmianami nazw). Null, gdy żaden plik nie daje ważnej sesji.
 static func load_from(path: String = PATH) -> SupabaseSession:
-	if not FileAccess.file_exists(path):
-		return null
-	var data: Variant = SupabaseConfig.parse_json(FileAccess.get_file_as_string(path))
-	return from_dict(data as Dictionary) if data is Dictionary else null
+	for p: String in [path, path + ".tmp", path + ".bak"]:
+		if not FileAccess.file_exists(p):
+			continue
+		var data: Variant = SupabaseConfig.parse_json(FileAccess.get_file_as_string(p))
+		var s: SupabaseSession = from_dict(data as Dictionary) if data is Dictionary else null
+		if s != null:
+			return s
+	return null
 
 
 static func clear(path: String = PATH) -> void:
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
+	for p: String in [path, path + ".tmp", path + ".bak"]:
+		if FileAccess.file_exists(p):
+			DirAccess.remove_absolute(p)
