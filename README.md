@@ -533,8 +533,14 @@ w sekcji „Następny etap”.
     `anon` nie czyta danych graczy, a serwer zapisuje ataki, tarcze i nagrody.
 - Klient Supabase (#22, `scripts/net/`): przy starcie gra zakłada anonimowe konto gracza
   (`/auth/v1/signup`), trzyma sesję w `user://session.json` i odświeża token przed wygaśnięciem.
+  Sesja zapisuje się atomowo (plik tymczasowy i podmiana), więc gra ubita w trakcie zapisu nie gubi konta.
   - **Offline:** bez sieci gra działa jak dotąd, a klient ponawia próby co 5 s, 15 s, 30 s… do 5 min.
-    Odrzucony token odświeżania oznacza nowe konto (anonimowego nie da się odzyskać).
+    Nowe konto powstaje tylko wtedy, gdy Auth odrzuci token odświeżania kodem na stałe
+    (`refresh_token_not_found`, `invalid_grant` itp., `SupabaseClient.refresh_token_dead`); inna odmowa
+    to ponowienie z zachowaniem sesji.
+  - **Czyszczenie gości (migracja `purge_inactive_guests`):** pg_cron raz na dobę (03:23 UTC) usuwa
+    anonimowe konta „Gracz” bez zamku, ataków, fal PvE, zwiadu i nagród po 7 dniach bez aktywności
+    (założenie, logowanie, odświeżenie tokenu). Kaskada kasuje wiersz gracza; zapis na telefonie zostaje.
     „Zacznij od nowa” zostawia konto (ten sam gracz), a nowy zamek nadpisuje stary na serwerze.
   - **Seed mapy (#166):** pierwszy zapis zakłada `castles` z `map_seed` (INSERT); kolejne zmieniają
     tylko `save_version` i `data`. Edge Function `start_attack` zwraca `map_seed`
