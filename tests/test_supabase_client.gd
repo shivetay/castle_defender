@@ -103,11 +103,49 @@ func test_network_error_keeps_session_and_backs_off() -> bool:
 func test_rejected_refresh_starts_new_account() -> bool:
 	var c := _client()
 	c.handle_auth(C.Call.SIGNUP, HTTPRequest.RESULT_SUCCESS, 200, _auth_body("t1", 3600))
-	c.handle_auth(C.Call.REFRESH, HTTPRequest.RESULT_SUCCESS, 400, "{}")
+	c.handle_auth(C.Call.REFRESH, HTTPRequest.RESULT_SUCCESS, 400,
+			JSON.stringify({"code": 400, "error_code": "refresh_token_not_found", "msg": "Invalid Refresh Token"}))
 	assert_true(c.session == null and SupabaseSession.load_from(PATH) == null, "stara sesja usunięta")
 	assert_eq(c._retry_left, 0.0, "nowe konto bez czekania")
 	c.handle_auth(C.Call.SIGNUP, HTTPRequest.RESULT_SUCCESS, 422, "{}")
 	assert_true(c._retry_left > 0.0, "odrzucone zakładanie konta czeka (np. wyłączone konta anonimowe)")
+	c.free()
+	return true
+
+
+## Sesja przetrwa ponowne uruchomienie: nowy klient czyta ją z pliku i nie zakłada drugiego konta.
+func test_session_survives_restart() -> bool:
+	var c := _client()
+	c.handle_auth(C.Call.SIGNUP, HTTPRequest.RESULT_SUCCESS, 200, _auth_body("t1", 3600))
+	c.free()
+	assert_true(not FileAccess.file_exists(PATH + ".tmp"), "po zapisie nie zostaje plik tymczasowy")
+	var back := SupabaseSession.load_from(PATH)
+	assert_true(back != null, "sesja na telefonie po restarcie")
+	assert_eq(back.user_id, "00000000-0000-0000-0000-00000000000a", "to samo konto")
+	assert_eq(back.refresh_token, "r-t1", "ten sam token odświeżania")
+	# drugi zapis (po odświeżeniu) podmienia plik w całości
+	var s2 := SupabaseSession.from_auth_response(JSON.parse_string(_auth_body("t2", 3600)) as Dictionary, 0)
+	assert_eq(s2.save(PATH), OK, "podmiana sesji")
+	assert_eq(SupabaseSession.load_from(PATH).access_token, "t2", "nowy token po podmianie")
+	SupabaseSession.clear(PATH)
+	return true
+
+
+## Odmowa bez kodu Auth (np. pośrednik w sieci) nie kasuje konta: ponowienie jak przy braku sieci.
+func test_unknown_refresh_rejection_keeps_account() -> bool:
+	var c := _client()
+	c.handle_auth(C.Call.SIGNUP, HTTPRequest.RESULT_SUCCESS, 200, _auth_body("t1", 3600))
+	c.handle_auth(C.Call.REFRESH, HTTPRequest.RESULT_SUCCESS, 400, "{}")
+	assert_true(c.session != null and SupabaseSession.load_from(PATH) != null, "sesja zostaje")
+	assert_eq(c._retry_left, 5.0, "ponowienie z przerwą")
+	c.handle_auth(C.Call.REFRESH, HTTPRequest.RESULT_SUCCESS, 404, "<html>")
+	assert_true(c.session != null, "404 z HTML też nie kasuje")
+	assert_true(C.refresh_token_dead(400, JSON.stringify({"error": "invalid_grant"})), "starszy format GoTrue")
+	assert_true(C.refresh_token_dead(403, JSON.stringify({"error_code": "user_not_found"})), "konto usunięte")
+	assert_true(not C.refresh_token_dead(500, JSON.stringify({"error_code": "session_not_found"})), "5xx nigdy")
+	assert_true(not C.refresh_token_dead(400, JSON.stringify({"error_code": "over_request_rate_limit"})),
+			"inny kod nie kasuje")
+	SupabaseSession.clear(PATH)
 	c.free()
 	return true
 

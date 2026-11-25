@@ -53,13 +53,17 @@ static func from_dict(d: Dictionary) -> SupabaseSession:
 	return from_auth_response(d, 0)
 
 
+## Zapis atomowy: najpierw plik tymczasowy, potem podmiana. Gra zabita w trakcie zapisu (Android
+## ubija aplikację w tle) zostawia starą, całą sesję, a nie pusty plik, po którym klient założyłby
+## nowe konto, a stare zostałoby bez gracza.
 func save(path: String = PATH) -> Error:
-	var f := FileAccess.open(path, FileAccess.WRITE)
+	var tmp := path + ".tmp"
+	var f := FileAccess.open(tmp, FileAccess.WRITE)
 	if f == null:
 		return FileAccess.get_open_error()
 	f.store_string(JSON.stringify(to_dict()))
 	f.close()
-	return OK
+	return DirAccess.rename_absolute(tmp, path)
 
 
 ## Sesja z pliku; null, gdy pliku nie ma albo jest nieczytelny.
@@ -71,5 +75,6 @@ static func load_from(path: String = PATH) -> SupabaseSession:
 
 
 static func clear(path: String = PATH) -> void:
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
+	for p: String in [path, path + ".tmp"]:
+		if FileAccess.file_exists(p):
+			DirAccess.remove_absolute(p)
