@@ -9,8 +9,34 @@ verification worker.
 - Writable only `/tmp/verifier` (compose uses `read_only` + tmpfs)
 - Wrapper: `worker.py` → `private.claim_verification` / `private.submit_verification`
 
-SQL functions and `verify_*.pck` / `verify_main.gd` are **later #284 steps**. Until they
-exist on the project, `worker` cannot claim real jobs — use `smoke` on the VPS.
+SQL queue and functions: migration `supabase/migrations/*_attack_verification.sql` (#304).
+`verify_main.gd` is in the repo (#303); the `verify_*.pck` export is #305. Until the migration is
+applied to the project (owner's approval) and a pack is on the host, use `smoke` on the VPS.
+
+## SQL contract (#304)
+
+| Call | Returns |
+| --- | --- |
+| `select private.claim_verification(:worker_id)` | one job (`jsonb`, shape of `attack_replay` + `attack_id`, `sim_version`) or `null` when the queue is empty |
+| `select private.submit_verification(:attack_id::uuid, :result::jsonb)` | `verified`, `mismatch` or `rejected` (bad shape: job stays queued with `last_error = 'bad_result'`) |
+
+- `worker_id`: `[A-Za-z0-9_.-]{1,64}` (`WORKER_ID`), otherwise `bad_worker`.
+- Lease 5 min, max 3 attempts; after that the attack is `failed` (no loot, target unlocked).
+- `submit_verification` without a valid lease raises `lease_expired`; a second result raises `not_pending`.
+- Mode `private.settings.verification_mode`: `shadow` (default; worker only compares) or `enforce`
+  (loot, rating, shield and ruins only from the worker result; needs Edge/client §6 first).
+
+## Role `verifier` (owner, on the Supabase project — never in git/PR/logs)
+
+The migration creates `verifier` as `NOLOGIN` with only `USAGE` on `private` and `EXECUTE` on the two
+functions above. To let the worker log in (SQL editor, as `postgres`):
+
+```sql
+alter role verifier login password '<generated, stored only in server/verifier/.env on the VPS>';
+```
+
+Connection string: Supabase pooler with user `verifier.<project-ref>` → `VERIFIER_DATABASE_URL`.
+Rotate: run the same `alter role` with a new password and update `.env`.
 
 ## Image tag
 
