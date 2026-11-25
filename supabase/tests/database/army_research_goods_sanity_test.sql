@@ -115,6 +115,8 @@ select is(private.castle_goods_problem(pg_temp.castle(pg_temp.goods(1001))), 'go
 select is(private.research_need_ms('{}', '{A1}'), 60000::numeric, 'pierwsza technologia epoki I: 60 s');
 select is(private.research_need_ms('{A1}', '{A1,A2,O1}'), 120000::numeric, 'druga i trzecia: po 60 s (czas stały w epoce)');
 select is(private.research_need_ms('{}', '{G4}'), 1800000::numeric, 'pierwsza technologia epoki II: 30 min');
+select is(private.research_need_ms('{}', '{A1,A2,O1,G1,G2,O2,G18,G21,U1}'), 540000::numeric,
+  'nowe konto: 9 technologii to 9 min, mniej niż 6 h zapasu gry bez sieci');
 select is(private.train_ms(0, 1), 20000::bigint, 'topornik w Koszarach 1: 20 s');
 select is(private.train_ms(0, 5), 10000::bigint, 'Koszary 5: dwa razy szybciej');
 select is(private.train_ms(0, 9), 10000::bigint, 'poziomy epoki II jak 5');
@@ -123,8 +125,6 @@ select is(private.train_ms(0, 9), 10000::bigint, 'poziomy epoki II jak 5');
 set local role authenticated;
 select pg_temp.as_a();
 select throws_ok($$select private.castle_research_problem('{}')$$, '42501', null, 'gracz nie woła funkcji serwera');
-select is(private.research_need_ms('{}', '{A1,A2,O1,G1,G2,O2,G18,G21,U1}'), 540000::numeric,
-  'nowe konto: 9 technologii to 9 min, mniej niż 6 h zapasu gry bez sieci');
 select lives_ok(
   $$insert into public.castles (player_id, map_seed, save_version, data)
     values ('00000000-0000-0000-0000-0000000281a1', 2810, 12, pg_temp.castle())$$,
