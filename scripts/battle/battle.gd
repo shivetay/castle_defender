@@ -288,7 +288,7 @@ func apply_research(side: int, research: Research) -> void:
 	if research != null:
 		for code: String in battle_tech_codes():
 			if research.is_done(code):
-				known[code] = true
+				known[code] = research.level(code)
 	techs[side] = known
 	if side == Side.DEFENDER:
 		_fortify()
@@ -375,6 +375,17 @@ func has_tech(side: int, code: String) -> bool:
 	return techs[side].has(code)
 
 
+## Poziom technologii strony w bitwie: 0 bez niej, 1 zbadana, wyżej poziom doktryny (TechTree).
+func tech_level(side: int, code: String) -> int:
+	return int(techs[side].get(code, 0))
+
+
+## Procent premii doktryny strony: `base` na poziomie 1 i TechTree.DOCTRINE_LEVEL_PERCENT za każdy
+## kolejny (np. A1 115 → 120 → 125).
+func doctrine_percent(side: int, code: String, base: int) -> int:
+	return base + TechTree.DOCTRINE_LEVEL_PERCENT * maxi(0, tech_level(side, code) - 1)
+
+
 ## Krok ruchu jednostki na tick w podjednostkach: z UnitTypes, a konnica strony z A7 Strzemię
 ## +25% (#12), w całych podjednostkach w dół. Spowolnienia (kolczatka, fosa) liczą się od tej wartości.
 func step_of(f: Fighter) -> int:
@@ -399,7 +410,7 @@ func range_of(f: Fighter) -> int:
 	var r := UnitTypes.attack_range(f.unit)
 	if (f.unit == UnitTypes.Unit.ARCHER or f.unit == UnitTypes.Unit.REFLEX_ARCHER) and has_tech(f.side, "A2"):
 		@warning_ignore("integer_division")
-		r = r * BattleConfig.A2_RANGE_PERCENT / 100
+		r = r * doctrine_percent(f.side, "A2", BattleConfig.A2_RANGE_PERCENT) / 100
 	return r
 
 
@@ -1077,7 +1088,7 @@ func _strike_structure(f: Fighter, s: Structure) -> void:
 	var dmg := structure_damage(f.unit, s.kind)
 	if f.unit == UnitTypes.Unit.AXE_WARRIOR and BuildingTypes.is_wooden(s.kind) and has_tech(f.side, "A1"):
 		@warning_ignore("integer_division")
-		dmg = dmg * BattleConfig.A1_WOOD_PERCENT / 100
+		dmg = dmg * doctrine_percent(f.side, "A1", BattleConfig.A1_WOOD_PERCENT) / 100
 	s.hp -= _roll(morale_damage(f, _conqueror(f, dmg)))
 	f.charged = true  # szarża to pierwsze uderzenie w ogóle, także w umocnienie
 	if record_fx:

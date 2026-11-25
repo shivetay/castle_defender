@@ -29,6 +29,8 @@ const DETAIL_Y := GRID_Y + 3 * (TILE_H + GAP) + 2
 const DETAIL_LINES := 5
 const LINE_STEP := PixelFont.LINE + 2
 const START_LABEL := "Badaj"
+## Przycisk startu dla kolejnego poziomu zbadanej doktryny.
+const LEVEL_UP_LABEL := "Ulepsz"
 const CLOSE_LABEL := "Zamknij"
 
 var research: Research
@@ -137,10 +139,12 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, tile
 
 ## Stan technologii po polsku, np. „zbadana”, „w toku 0:42”, „Epoka II”.
 static func state_text(r: Research, code: String, current_age: int, now: int, grid: BuildGrid = null) -> String:
-	if r.is_done(code):
-		return "zbadana"
 	if r.active == code:
 		return "w toku %s" % Hud.format_time(r.remaining_ms(now))
+	if r.is_done(code):
+		if TechTree.is_leveled(code):
+			return "poziom %d/%d" % [r.level(code), TechTree.max_level(code, current_age)]
+		return "zbadana"
 	if TechTree.age(code) > current_age:
 		return TechTree.age_label(TechTree.age(code))
 	if not r.missing(code).is_empty():
@@ -148,6 +152,51 @@ static func state_text(r: Research, code: String, current_age: int, now: int, gr
 	if grid != null and not Research.has_building(code, grid):
 		return "brak budynku"
 	return "dostępna"
+
+
+## Kod i nazwa technologii, przy doktrynie z poziomami z poziomem: obecnym albo (`next`) tym,
+## który da badanie, np. „G1 Karczowanie lasu, poziom 2”.
+static func title_of(r: Research, code: String, next: bool = false) -> String:
+	var title := "%s %s" % [code, TechTree.tech_name(code)]
+	if TechTree.is_leveled(code):
+		var lv := r.level(code)
+		if next:
+			lv += 1
+		if lv > 1:
+			title += ", poziom %d" % lv
+	return title
+
+
+## Premia doktryny z poziomami jako tekst, np. „Premia +25%, następny poziom +30%”; pusty dla innych.
+static func level_text(r: Research, code: String, current_age: int) -> String:
+	var base := doctrine_base(code)
+	if not TechTree.is_leveled(code) or base <= 0:
+		return ""
+	var lv := r.level(code)
+	var now_text := "Premia +%d%%" % r.doctrine_percent(code, base) if lv > 0 else "Premia +%d%%" % base
+	if lv == 0 or lv >= TechTree.max_level(code, current_age):
+		return now_text if lv > 0 else ""
+	return "%s, następny poziom +%d%%" % [now_text, base + TechTree.DOCTRINE_LEVEL_PERCENT * lv]
+
+
+## Premia doktryny na poziomie 1 w punktach procentowych: produkcja (G1, G2) z TechTree, bitwa (A1, A2)
+## z BattleConfig; 0 dla innych.
+static func doctrine_base(code: String) -> int:
+	if TechTree.PRODUCTION_BONUS.has(code):
+		return int((TechTree.PRODUCTION_BONUS[code] as Array)[1])
+	match code:
+		"A1":
+			return BattleConfig.A1_WOOD_PERCENT - 100
+		"A2":
+			return BattleConfig.A2_RANGE_PERCENT - 100
+	return 0
+
+
+## Czy technologię da się jeszcze badać (niezbadana albo doktryna poniżej najwyższego poziomu w epoce).
+static func can_research_more(r: Research, code: String, current_age: int) -> bool:
+	if r.active == code:
+		return false
+	return not r.is_done(code) or (TechTree.is_leveled(code) and r.level(code) < TechTree.max_level(code, current_age))
 
 
 ## Wymagania jako tekst: budynek badań gałęzi (#165, gdy to nie Dwór, który stoi zawsze) i kody
@@ -242,7 +291,8 @@ func _draw() -> void:
 	_draw_details()
 	var can_start := research.check(selected, age, grid) == Research.Result.OK \
 			and economy != null and economy.can_afford(research.cost_of(selected))
-	Hud.paint_button(self, start_rect(view, content_right), START_LABEL, _pressed == Target.START, not can_start)
+	var label := LEVEL_UP_LABEL if research.is_level_up(selected) else START_LABEL
+	Hud.paint_button(self, start_rect(view, content_right), label, _pressed == Target.START, not can_start)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
 
 
@@ -252,6 +302,11 @@ func _draw_tile(r: Rect2, code: String, active: bool, frame: Color) -> void:
 	if research.is_done(code):
 		# zbadana: zielony kafelek z jasnym kodem i znaczkiem w lewym górnym rogu
 		draw_rect(Rect2(r.position.x + 1, r.position.y + 1, 2, 2), Palette.VALID)
+		# kolejne poziomy doktryny: znaczek za każdy poziom ponad pierwszy w lewym dolnym rogu
+		for i in research.level(code) - 1:
+			draw_rect(Rect2(r.position.x + 1 + 3 * i, r.end.y - 3, 2, 2), Palette.VALID)
+		if research.active == code:
+			col = Palette.THATCH[2]
 	elif research.active == code:
 		col = Palette.THATCH[2]
 	elif TechTree.age(code) > age or not research.missing(code).is_empty() \
@@ -309,13 +364,16 @@ static func tile_color(done: bool, active: bool) -> Color:
 static func detail_lines(r: Research, code: String, current_age: int, now: int, width: int,
 		amounts: Array[int] = [], grid: BuildGrid = null) -> Array:
 	var head: Array = []
-	var title := "%s %s" % [code, TechTree.tech_name(code)]
+	var title := title_of(r, code)
 	if TechTree.is_key(code):
 		title += " (kluczowa)"
 	var state := state_text(r, code, current_age, now, grid)
 	head.append([fit_text(title, width - PixelFont.text_width(state) - 6), Palette.INK, state])
 	var effect := PixelFont.wrap(TechTree.effect(code), width, 2)
-	if not r.is_done(code) and r.active != code:
+	var bonus := level_text(r, code, current_age)
+	if not bonus.is_empty():
+		head.append([fit_text(bonus, width), Palette.VALID, ""])
+	if can_research_more(r, code, current_age):
 		head.append([fit_text("%s, %s, %s" % [TechTree.age_label(TechTree.age(code)), Hud.cost_text(r.cost_of(code)),
 				Hud.format_time(r.time_of(code))], width), Palette.INK, "", Hud.missing_tokens(r.cost_of(code), amounts)])
 	var links: Array = []

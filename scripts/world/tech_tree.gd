@@ -59,6 +59,13 @@ const TECHS: Array = [
 ## budynków, jednostek i manewrów. Tylko one drożeją z każdą kolejną doktryną tej samej epoki
 ## (ResearchConfig.cost); pozostałe technologie mają stały koszt epoki (decyzja właścicielki).
 const DOCTRINES: Array[String] = ["A1", "A2", "G1", "G2"]
+## Doktryny, które da się badać ponownie na kolejne poziomy: gospodarcze (produkcja) i ataku (bitwa,
+## Battle.tech_level; poziom atakującego przychodzi z serwera w `techs` jako „A1:3”).
+const LEVELED_DOCTRINES: Array[String] = ["A1", "A2", "G1", "G2"]
+## Premia każdego poziomu doktryny ponad pierwszy, w punktach procentowych (poziom 1 to efekt z TECHS).
+const DOCTRINE_LEVEL_PERCENT := 5
+## Najwyższy poziom doktryny w epoce zamku (indeks = epoka): w epoce I 3, w epoce II 5.
+const DOCTRINE_MAX_LEVEL: Array[int] = [3, 5]
 
 ## Efekty, które już działają: kod → [surowiec (EconomyConfig.Res), premia do produkcji w %].
 const PRODUCTION_BONUS := {
@@ -128,12 +135,29 @@ static func effect(code: String) -> String:
 	return row[6] as String if row.size() > 0 else ""
 
 
-## Napis epoki, np. „Epoka II”.
 ## Czy technologia jest doktryną (DOCTRINES), czyli drożeje z każdą kolejną doktryną epoki.
 static func is_doctrine(code: String) -> bool:
 	return DOCTRINES.has(code)
 
 
+## Czy doktrynę `code` da się badać na kolejne poziomy (LEVELED_DOCTRINES).
+static func is_leveled(code: String) -> bool:
+	return LEVELED_DOCTRINES.has(code)
+
+
+## Najwyższy poziom technologii `code` w epoce zamku `castle_age`: 1 dla zwykłej technologii.
+static func max_level(code: String, castle_age: int) -> int:
+	if not is_leveled(code):
+		return 1
+	return DOCTRINE_MAX_LEVEL[clampi(castle_age, 0, DOCTRINE_MAX_LEVEL.size() - 1)]
+
+
+## Najwyższy poziom doktryny w ogóle (ostatnia epoka), do walidacji zapisu.
+static func max_level_any(code: String) -> int:
+	return max_level(code, DOCTRINE_MAX_LEVEL.size() - 1)
+
+
+## Napis epoki, np. „Epoka II”.
 static func age_label(tech_age: int) -> String:
 	return "Epoka %s" % AGE_NUMERALS[clampi(tech_age, 0, AGE_NUMERALS.size() - 1)]
 
