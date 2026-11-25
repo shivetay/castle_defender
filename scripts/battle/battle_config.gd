@@ -106,7 +106,8 @@ const CHARGE_PERCENT := 200
 ## Wojownik z toporem: ×1,5 obrażeń przeciw drewnu (budynki poza wałem ziemnym).
 const AXE_VS_WOOD_PERCENT := 150
 ## Technologie w bitwie (#12, notatka Drzewko technologiczne): A1 Hartowane topory (wojownik z toporem
-## +15% przeciw drewnu), A2 Łuk kompozytowy (łuki +20% zasięgu, w całych kratkach w dół),
+## +15% przeciw drewnu), A2 Łuk kompozytowy (łuki +20% zasięgu, w całych kratkach w dół); obie na
+## poziomie 1, każdy kolejny poziom doktryny +5 punktów (Battle.doctrine_percent),
 ## A7 Strzemię (konnica +25% szybkości), O2 Zaostrzone pale (palisada obrońcy +20% wytrzymałości).
 const A1_WOOD_PERCENT := 115
 const A2_RANGE_PERCENT := 120

@@ -262,9 +262,10 @@ w sekcji „Następny etap”.
 - `scripts/world/research_config.gd` (`ResearchConfig`): koszt i czas badań. Koszt jest stały w epoce,
   drożeją tylko doktryny (`TechTree.DOCTRINES`: A1, A2, G1, G2, technologie z samą procentową premią),
   ×1,6 za każdą wcześniejszą doktrynę epoki. Czas badania też jest stały w epoce. Doktryny gospodarcze
-  G1 i G2 (`TechTree.LEVELED_DOCTRINES`) bada się ponownie na kolejne poziomy: +5 punktów procentowych
+  G1 i G2 oraz doktryny ataku A1 i A2 (`TechTree.LEVELED_DOCTRINES`) bada się ponownie na kolejne poziomy: +5 punktów procentowych
   premii za poziom, najwyżej 3 poziomy w epoce I i 5 w epoce II; każdy poziom kosztuje jak kolejna
-  doktryna epoki. A1 i A2 dostaną poziomy razem z symulacją bitwy i jej weryfikacją. Bazowe liczby
+  doktryna epoki. Doktryny ataku A1 i A2 też mają poziomy: +5 punktów do premii w bitwie za poziom
+  (`Battle.doctrine_percent`), a poziom atakującego przychodzi z serwera w `techs` jako „A1:3”. Bazowe liczby
   (epoka I: 100 Dr 50 Ka 50 Ży, 1 min) są tymczasowe. Serwer liczy wydatki tym samym wzorem
   (`supabase/migrations/20261125110000_research_fixed_cost.sql`).
 - `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga

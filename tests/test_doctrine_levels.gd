@@ -45,7 +45,7 @@ func test_levels_raise_bonus_up_to_age_limit() -> bool:
 func test_only_leveled_doctrines_repeat() -> bool:
 	var r := Research.new()
 	_finish(r, "A1")
-	assert_eq(r.check("A1", 0), Research.Result.ALREADY_DONE, "A1 bez poziomów (bitwa) jeszcze nie")
+	assert_eq(r.check("A1", 0), Research.Result.OK, "A1 (doktryna ataku) też ma poziomy")
 	_finish(r, "A39")
 	assert_eq(r.check("A39", 0), Research.Result.ALREADY_DONE, "zwykła technologia raz")
 	assert_eq(r.level("A39"), 1, "zwykła technologia: poziom 1")

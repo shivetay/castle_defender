@@ -59,9 +59,9 @@ const TECHS: Array = [
 ## budynków, jednostek i manewrów. Tylko one drożeją z każdą kolejną doktryną tej samej epoki
 ## (ResearchConfig.cost); pozostałe technologie mają stały koszt epoki (decyzja właścicielki).
 const DOCTRINES: Array[String] = ["A1", "A2", "G1", "G2"]
-## Doktryny, które da się badać ponownie na kolejne poziomy. Na razie gospodarcze; A1 i A2 dojdą
-## razem z poziomami w symulacji bitwy i jej weryfikacji na serwerze.
-const LEVELED_DOCTRINES: Array[String] = ["G1", "G2"]
+## Doktryny, które da się badać ponownie na kolejne poziomy: gospodarcze (produkcja) i ataku (bitwa,
+## Battle.tech_level; poziom atakującego przychodzi z serwera w `techs` jako „A1:3”).
+const LEVELED_DOCTRINES: Array[String] = ["A1", "A2", "G1", "G2"]
 ## Premia każdego poziomu doktryny ponad pierwszy, w punktach procentowych (poziom 1 to efekt z TECHS).
 const DOCTRINE_LEVEL_PERCENT := 5
 ## Najwyższy poziom doktryny w epoce zamku (indeks = epoka): w epoce I 3, w epoce II 5.
