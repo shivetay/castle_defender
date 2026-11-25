@@ -6,9 +6,9 @@ extends Node2D
 ## puste miejsca, a bez sieci wszystkie trzy, zajmują zamki-boty. Boty otwiera dotychczasową listę
 ## 20 zamków-botów (BotPicker), Planuj plan ataku na wybranym celu, a Wróć wraca do mapy.
 ## Planuj na karcie gracza zaczyna atak na serwerze (`start_attack`, #240) i otwiera plan na kopii
-## jego zamku. Zwiad (#28) wysyła Tropicieli na wybrany cel na czas z przycisku obok (2, 10 albo
-## 30 min); pod kartami są stan i koszt zwiadu, które podaje main (scout_lines). Panel sam obsługuje
-## dotyk, więc nic nie trafia do kamery ani do HUD.
+## jego zamku. Zwiad (#28): pierwsze kliknięcie Zwiad odsłania przycisk czasu (2, 10 albo 30 min,
+## #317), kolejne wysyła Tropicieli na wybrany cel; pod kartami są stan i koszt zwiadu, które
+## podaje main (scout_lines). Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
 @warning_ignore_start("integer_division")
 
 signal bot_chosen(index: int)
@@ -49,9 +49,11 @@ var selected := 0
 var search: int = Search.OFFLINE
 var beaten := 0
 ## Zwiad (#28): długość wybrana przyciskiem obok Zwiadu, czy da się go wysłać na wybrany cel
-## i dwie linie stanu pod kartami (ustawia main).
+## i dwie linie stanu pod kartami (ustawia main). Przycisk czasu widać dopiero po kliknięciu
+## Zwiad (#317).
 var scout_duration := 1
 var scout_enabled := false
+var scout_time_open := false
 var scout_lines: Array[String] = []
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
@@ -66,6 +68,7 @@ func open(beaten_count: int, online: bool) -> void:
 	targets = TargetSearch.fill([] as Array[TargetSearch.Target], beaten)
 	search = Search.SEARCHING if online else Search.OFFLINE
 	selected = 0
+	scout_time_open = false
 	visible = true
 	_pressed = Target.NONE
 	queue_redraw()
@@ -135,26 +138,27 @@ static func bots_rect(view: Vector2, left: float) -> Rect2:
 	return Rect2(Vector2(left, Hud.row_y(view)), Hud.BUTTON_SIZE)
 
 
-## Długość zwiadu (#28): na prawo od Botów.
+## Długość zwiadu (#28): na prawo od Botów (tylko gdy `scout_time_open`, #317).
 static func scout_time_rect(view: Vector2, left: float) -> Rect2:
 	return Rect2(Vector2(left + Hud.BUTTON_SIZE.x + Hud.BUTTON_GAP, Hud.row_y(view)), Hud.BUTTON_SIZE)
 
 
-## Zwiad (#28): na prawo od długości zwiadu, z dala od Planuj.
-static func scout_rect(view: Vector2, left: float) -> Rect2:
-	return Rect2(Vector2(left + 2 * (Hud.BUTTON_SIZE.x + Hud.BUTTON_GAP), Hud.row_y(view)), Hud.BUTTON_SIZE)
+## Zwiad (#28): obok Botów, a po odsłonięciu czasu (#317) na prawo od długości, z dala od Planuj.
+static func scout_rect(view: Vector2, left: float, time_open: bool = true) -> Rect2:
+	var slot := 2 if time_open else 1
+	return Rect2(Vector2(left + slot * (Hud.BUTTON_SIZE.x + Hud.BUTTON_GAP), Hud.row_y(view)), Hud.BUTTON_SIZE)
 
 
-static func target_at(p: Vector2, view: Vector2, left: float, right: float) -> int:
+static func target_at(p: Vector2, view: Vector2, left: float, right: float, time_open: bool = true) -> int:
 	if plan_rect(view, right).has_point(p):
 		return Target.PLAN
 	if close_rect(view, right).has_point(p):
 		return Target.CLOSE
 	if bots_rect(view, left).has_point(p):
 		return Target.BOTS
-	if scout_time_rect(view, left).has_point(p):
+	if time_open and scout_time_rect(view, left).has_point(p):
 		return Target.SCOUT_TIME
-	if scout_rect(view, left).has_point(p):
+	if scout_rect(view, left, time_open).has_point(p):
 		return Target.SCOUT
 	var cards := card_rects(left, right)
 	for i in cards.size():
@@ -204,12 +208,18 @@ func _activate(t: int) -> void:
 		selected = t - Target.CARD
 		scout_changed.emit()
 	elif t == Target.SCOUT_TIME:
-		scout_duration = (scout_duration + 1) % ScoutConfig.duration_count()
-		scout_changed.emit()
+		if scout_time_open:
+			scout_duration = (scout_duration + 1) % ScoutConfig.duration_count()
+			scout_changed.emit()
 	elif t == Target.SCOUT:
-		var target := selected_target()
-		if target != null and scout_enabled:
-			scout_requested.emit(target, scout_duration)
+		# pierwsze kliknięcie tylko odsłania czas (#317); wysyłka od drugiego
+		if not scout_time_open:
+			scout_time_open = true
+			scout_changed.emit()
+		else:
+			var target := selected_target()
+			if target != null and scout_enabled:
+				scout_requested.emit(target, scout_duration)
 	elif t == Target.PLAN:
 		var target := selected_target()
 		if target == null:
@@ -240,7 +250,7 @@ func _input(event: InputEvent) -> void:
 	if touch.position.y < Hud.BAR_H or touch.position.y >= view.y - Hud.BAR_H:
 		return
 	get_viewport().set_input_as_handled()
-	var t := target_at(touch.position, view, content_left, content_right)
+	var t := target_at(touch.position, view, content_left, content_right, scout_time_open)
 	if touch.pressed:
 		_pressed = t
 		queue_redraw()
@@ -269,9 +279,11 @@ func _draw() -> void:
 			target == null or not target.is_bot)
 	Hud.paint_button(self, close_rect(view, content_right), CLOSE_LABEL, _pressed == Target.CLOSE, false)
 	Hud.paint_button(self, bots_rect(view, content_left), BOTS_LABEL, _pressed == Target.BOTS, false)
-	Hud.paint_button(self, scout_time_rect(view, content_left), ScoutConfig.DURATION_LABELS[scout_duration],
-			_pressed == Target.SCOUT_TIME, false)
-	Hud.paint_button(self, scout_rect(view, content_left), SCOUT_LABEL, _pressed == Target.SCOUT, not scout_enabled)
+	if scout_time_open:
+		Hud.paint_button(self, scout_time_rect(view, content_left), ScoutConfig.DURATION_LABELS[scout_duration],
+				_pressed == Target.SCOUT_TIME, false)
+	Hud.paint_button(self, scout_rect(view, content_left, scout_time_open), SCOUT_LABEL,
+			_pressed == Target.SCOUT, not scout_enabled)
 	var w := int(content_right - content_left)
 	for i in mini(scout_lines.size(), 2):
 		PixelFont.draw_text(self, Vector2(content_left, SCOUT_Y + i * (PixelFont.LINE + 1)), fit(scout_lines[i], w),
