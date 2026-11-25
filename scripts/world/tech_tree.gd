@@ -158,6 +158,11 @@ static func max_level_any(code: String) -> int:
 
 
 ## Napis epoki, np. „Epoka II”.
+## Czy technologia jest doktryną (DOCTRINES), czyli drożeje z każdą kolejną doktryną epoki.
+static func is_doctrine(code: String) -> bool:
+	return DOCTRINES.has(code)
+
+
 static func age_label(tech_age: int) -> String:
 	return "Epoka %s" % AGE_NUMERALS[clampi(tech_age, 0, AGE_NUMERALS.size() - 1)]
 
