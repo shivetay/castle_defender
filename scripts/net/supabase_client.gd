@@ -646,7 +646,10 @@ func handle_auth(call: int, result: int, code: int, body: String) -> void:
 				if data is Dictionary else null
 		if s != null:
 			session = s
-			session.save(session_path)
+			if session.save(session_path) != OK:
+				# bez treści i tokenów (skill `user-data-privacy`): sesja zostaje w pamięci, a następny
+				# zapis (odświeżenie) spróbuje znowu
+				push_warning("Nie udało się zapisać sesji konta na telefonie")
 			_failures = 0
 			_set_state(State.ONLINE)
 			return

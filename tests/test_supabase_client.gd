@@ -127,7 +127,23 @@ func test_session_survives_restart() -> bool:
 	var s2 := SupabaseSession.from_auth_response(JSON.parse_string(_auth_body("t2", 3600)) as Dictionary, 0)
 	assert_eq(s2.save(PATH), OK, "podmiana sesji")
 	assert_eq(SupabaseSession.load_from(PATH).access_token, "t2", "nowy token po podmianie")
+	assert_true(FileAccess.file_exists(PATH + ".bak"), "poprzednia sesja odłożona do .bak (rename bez nadpisania)")
+	# przerwa między zmianami nazw: plik główny już w .bak, a nowa sesja jeszcze w .tmp
+	var s3 := SupabaseSession.from_auth_response(JSON.parse_string(_auth_body("t3", 3600)) as Dictionary, 0)
+	var f := FileAccess.open(PATH + ".tmp", FileAccess.WRITE)
+	f.store_string(JSON.stringify(s3.to_dict()))
+	f.close()
+	DirAccess.remove_absolute(PATH + ".bak")
+	DirAccess.rename_absolute(PATH, PATH + ".bak")
+	assert_eq(SupabaseSession.load_from(PATH).access_token, "t3", "najnowsza sesja z .tmp")
+	DirAccess.remove_absolute(PATH + ".tmp")
+	assert_eq(SupabaseSession.load_from(PATH).access_token, "t2", "bez .tmp: sesja z .bak")
+	assert_eq(s3.save(PATH), OK, "zapis bez pliku głównego")
+	assert_eq(SupabaseSession.load_from(PATH).access_token, "t3", "plik główny znowu najnowszy")
 	SupabaseSession.clear(PATH)
+	assert_true(not FileAccess.file_exists(PATH + ".bak") and not FileAccess.file_exists(PATH + ".tmp"),
+			"czyszczenie usuwa też .bak i .tmp")
+	assert_true(SupabaseSession.load_from(PATH) == null, "po czyszczeniu brak sesji")
 	return true
 
 

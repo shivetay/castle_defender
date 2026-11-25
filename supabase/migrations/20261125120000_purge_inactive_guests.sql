@@ -9,7 +9,8 @@
 -- - jest anonimowe (`auth.users.is_anonymous`), więc konta z logowaniem (Google, etap 9+) zostają;
 -- - nick to domyślny „Gracz” (gracz po onboardingu ma własny nick);
 -- - nie ma zamku, obrony, ataków (jako atakujący i obrońca), fal PvE, nagród PvE, zwiadu, tarczy,
---   nagród za reklamy ani łupu do scalenia, czyli nie rozegrało żadnej gry, którą serwer zna;
+--   nagród za reklamy, łupu do scalenia ani szukania przeciwnika, czyli nie rozegrało żadnej gry,
+--   którą serwer zna;
 -- - ostatnia aktywność (założenie, logowanie, odświeżenie tokenu, zmiana wiersza gracza) jest starsza
 --   niż `p_idle`.
 -- Usunięcie wiersza z `auth.users` kasuje kaskadą `players` i wszystko, co do niego należy.
@@ -51,6 +52,7 @@ begin
       and not exists (select 1 from public.shields sh where sh.player_id = u.id)
       and not exists (select 1 from public.ad_rewards ar where ar.player_id = u.id)
       and not exists (select 1 from public.castle_loot_pending lp where lp.player_id = u.id)
+      and not exists (select 1 from private.target_searches ts where ts.player_id = u.id)
     order by u.created_at
     limit greatest(p_limit, 0)
   )
@@ -63,7 +65,8 @@ revoke all on function private.purge_inactive_guests(interval, integer) from pub
 comment on function private.purge_inactive_guests(interval, integer) is
   'Usuwa anonimowe konta „Gracz” bez żadnej gry po p_idle bez aktywności (pg_cron, raz na dobę). Zwraca liczbę kont.';
 
--- Harmonogram: codziennie o 03:23 UTC (poza godzinami szczytu). `cron.schedule` z nazwą podmienia
--- istniejące zadanie, więc migracja jest powtarzalna.
+-- Harmonogram: codziennie o 03:23 UTC (poza godzinami szczytu). Nazwa zadania w pg_cron jest unikalna,
+-- więc stare zadanie o tej nazwie najpierw znika; migrację da się wtedy bezpiecznie powtórzyć.
 create extension if not exists pg_cron with schema pg_catalog;
+select cron.unschedule(jobid) from cron.job where jobname = 'purge_inactive_guests';
 select cron.schedule('purge_inactive_guests', '23 3 * * *', 'select private.purge_inactive_guests()');

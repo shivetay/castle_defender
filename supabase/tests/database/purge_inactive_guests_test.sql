@@ -8,17 +8,17 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(13);
+select plan(14);
 
 -- G stary gość (do usunięcia), F świeży gość, R stary gość z niedawnym odświeżeniem tokenu,
 -- C stary gość z zamkiem, A stary gość, który zaatakował bota, N stary gość z własnym nickiem,
--- E stare konto nieanonimowe.
+-- S stary gość, który szukał przeciwnika, E stare konto nieanonimowe.
 create temp table test_ids (tag text primary key, id uuid not null) on commit drop;
 insert into test_ids values
   ('G', '00000000-0000-0000-0000-0000000022a1'), ('F', '00000000-0000-0000-0000-0000000022a2'),
   ('R', '00000000-0000-0000-0000-0000000022a3'), ('C', '00000000-0000-0000-0000-0000000022a4'),
   ('A', '00000000-0000-0000-0000-0000000022a5'), ('N', '00000000-0000-0000-0000-0000000022a6'),
-  ('E', '00000000-0000-0000-0000-0000000022a7');
+  ('E', '00000000-0000-0000-0000-0000000022a7'), ('S', '00000000-0000-0000-0000-0000000022a8');
 
 insert into auth.users (id, is_anonymous) select id, tag <> 'E' from test_ids;
 update public.players set nickname = 'Wojsław' where id = (select id from test_ids where tag = 'N');
@@ -29,6 +29,8 @@ insert into public.castles (player_id, map_seed, save_version, data)
   select id, 2222, 12, '{}'::jsonb from test_ids where tag = 'C';
 insert into public.attacks (attacker_id, bot_idx, map_seed, battle_seed)
   select id, 0, 1, 1 from test_ids where tag = 'A';
+insert into private.target_searches (player_id, window_start, searches)
+  select id, now() - interval '30 days', 1 from test_ids where tag = 'S';
 -- Wszyscy poza F nieaktywni od 30 dni (czasy ustawiamy bez wyzwalacza `touch_updated_at`).
 update auth.users set created_at = now() - interval '30 days', updated_at = now() - interval '30 days',
   last_sign_in_at = now() - interval '30 days'
@@ -68,6 +70,8 @@ select is((select count(*)::int from auth.users where id = (select id from test_
   'gość z atakiem zostaje');
 select is((select count(*)::int from auth.users where id = (select id from test_ids where tag = 'N')), 1,
   'gość z własnym nickiem zostaje');
+select is((select count(*)::int from auth.users where id = (select id from test_ids where tag = 'S')), 1,
+  'gość, który szukał przeciwnika, zostaje');
 select is((select count(*)::int from auth.users where id = (select id from test_ids where tag = 'E')), 1,
   'konto nieanonimowe zostaje');
 
