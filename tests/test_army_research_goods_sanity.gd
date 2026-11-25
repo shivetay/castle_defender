@@ -59,25 +59,12 @@ func test_tech_tree_matches_game() -> bool:
 	return true
 
 
-## Czas badania na serwerze to ResearchConfig.time_ms; k nowych po m starych to BASE × (2^(m+k) − 2^m).
+## Czas badań na serwerze jest od migracji `*_research_fixed_cost.sql` stały w epoce
+## (tests/test_research_fixed_cost.gd); tu zostaje sprawdzenie liczby badaczy.
 func test_research_time_matches_game() -> bool:
 	var sql := _sql()
 	assert_true(sql.contains("BASE_TIME_S = %s" % str(ResearchConfig.BASE_TIME_S)), "czasy epok w komentarzu")
-	assert_true(sql.contains("TIME_STEP = %d" % ResearchConfig.TIME_STEP), "wzrost czasu w komentarzu")
 	assert_true(sql.contains("RESEARCHERS = %d" % ResearchConfig.RESEARCHERS), "jeden badacz")
-	var ms: Array[String] = []
-	for s in ResearchConfig.BASE_TIME_S:
-		ms.append(str(s * 1000))
-	assert_true(sql.contains("(array[%s])[a.age + 1]" % ", ".join(ms)), "czasy epok w funkcji")
-	assert_eq(ResearchConfig.TIME_STEP, 2, "wzór z potęgą 2 w funkcji")
-	for age in ResearchConfig.BASE_TIME_S.size():
-		for m in 4:
-			for k in 4:
-				var game := 0
-				for s in range(m, m + k):
-					game += ResearchConfig.time_ms(age, s)
-				var server := ResearchConfig.BASE_TIME_S[age] * 1000 * ((1 << (m + k)) - (1 << m))
-				assert_eq(server, game, "epoka %d: %d nowych po %d" % [age, k, m])
 	return true
 
 

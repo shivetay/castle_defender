@@ -1,7 +1,8 @@
 extends TestCase
 ## Stały koszt technologii na serwerze. Migracja `*_research_fixed_cost.sql` liczy wydatki na badania
 ## jak Research.cost_of: zwykła technologia po koszcie epoki, doktryny (TechTree.DOCTRINES) ×1,6
-## za każdą wcześniejszą doktrynę epoki. Test szuka listy doktryn w komentarzu i w funkcji migracji.
+## za każdą wcześniejszą doktrynę epoki, a czas każdej technologii jest stały w epoce. Test szuka
+## listy doktryn i czasów epok w komentarzu i w funkcjach migracji.
 
 const MIGRATION := "res://supabase/migrations/20261125110000_research_fixed_cost.sql"
 
@@ -57,4 +58,18 @@ func test_server_formula_matches_game() -> bool:
 	assert_eq(game, server, "suma kosztów jak na serwerze")
 	assert_eq(server, [100 * 3 + 100 + 160 + 256 + 409, 50 * 3 + 50 + 80 + 128 + 204, 50 * 3 + 50 + 80 + 128 + 204, 0] as Array[int],
 			"liczby z testu pgTAP")
+	return true
+
+
+func test_server_time_matches_game() -> bool:
+	var sql := _sql()
+	assert_true(sql.contains("BASE_TIME_S = %s" % str(ResearchConfig.BASE_TIME_S)), "czasy epok w komentarzu")
+	var ms: Array[String] = []
+	for s in ResearchConfig.BASE_TIME_S:
+		ms.append(str(s * 1000))
+	assert_true(sql.contains("sum((array[%s])[a.age + 1] * a.k)" % ", ".join(ms)), "czas nowych technologii w funkcji")
+	assert_true(sql.contains("return (array[%s])[v_age + 1]" % ", ".join(ms)), "czas badania w toku w funkcji")
+	var r := Research.new()
+	assert_eq(r.time_of("A1"), ResearchConfig.BASE_TIME_S[0] * 1000, "epoka I")
+	assert_eq(r.time_of("A46"), ResearchConfig.BASE_TIME_S[1] * 1000, "epoka II")
 	return true

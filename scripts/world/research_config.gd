@@ -3,22 +3,19 @@ extends RefCounted
 ## Koszty i czasy badań w jednym miejscu. Koszt to tablica ilości surowców w kolejności
 ## EconomyConfig.Res (drewno, kamień, żywność, złoto). Zmiana balansu badań to zmiana tylko tego pliku.
 ##
-## Koszt technologii jest stały w epoce (BASE_COST). Drożeją tylko doktryny (TechTree.DOCTRINES,
-## technologie z samą procentową premią): ×1,6 za każdą wcześniej rozpoczętą doktrynę tej samej epoki
-## (decyzja właścicielki). Czas badań nadal rośnie ×2 z każdą technologią epoki, jak w notatce
-## Drzewko technologiczne. Bazowe liczby są tymczasowe (balans).
+## Koszt i czas technologii są stałe w epoce (BASE_COST, BASE_TIME_S). Drożeją tylko doktryny
+## (TechTree.DOCTRINES, technologie z samą procentową premią): ×1,6 kosztu za każdą wcześniej
+## rozpoczętą doktrynę tej samej epoki (decyzja właścicielki). Bazowe liczby są tymczasowe (balans).
 
 ## Koszt pierwszej technologii w epoce (indeks = epoka, 0 = I). TYMCZASOWE.
 const BASE_COST: Array = [
 	[100, 50, 50, 0],
 	[400, 300, 200, 0],
 ]
-## Czas pierwszej technologii w epoce w sekundach. TYMCZASOWE.
+## Czas technologii epoki w sekundach. TYMCZASOWE.
 const BASE_TIME_S: Array[int] = [60, 30 * 60]
 ## Wzrost kosztu doktryny na każdą wcześniej rozpoczętą doktrynę tej samej epoki, w procentach (×1,6).
 const COST_STEP_PERCENT := 160
-## Wzrost czasu na każdą wcześniej rozpoczętą technologię tej samej epoki (×2).
-const TIME_STEP := 2
 ## Jedno badanie naraz (drugie miejsce da U10 Kwatermistrzostwo w epoce V).
 const RESEARCHERS := 1
 
@@ -53,12 +50,9 @@ static func cost(tech_age: int, step: int) -> Array[int]:
 	return out
 
 
-## Czas technologii epoki `tech_age` w milisekundach, gdy rozpoczęto już `step` technologii tej epoki.
-static func time_ms(tech_age: int, step: int) -> int:
-	var t := BASE_TIME_S[clampi(tech_age, 0, BASE_TIME_S.size() - 1)] * 1000
-	for i in maxi(0, step):
-		t *= TIME_STEP
-	return t
+## Czas technologii epoki `tech_age` w milisekundach, stały w epoce.
+static func time_ms(tech_age: int) -> int:
+	return BASE_TIME_S[clampi(tech_age, 0, BASE_TIME_S.size() - 1)] * 1000
 
 
 ## Budynek, w którym bada się technologię `code`: ostatni budynek jej gałęzi dostępny w jej epoce,

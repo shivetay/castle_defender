@@ -1,4 +1,4 @@
--- Stały koszt technologii w epoce, drożeją tylko doktryny.
+-- Stały koszt i czas technologii w epoce, drożeją tylko doktryny.
 --
 -- Do tej pory serwer liczył koszt badań jak gra: RESEARCH_BASE_COST epoki razy 160 procent za każdą
 -- wcześniej rozpoczętą technologię tej samej epoki. Teraz gra (ResearchConfig.cost, Research.cost_of)
@@ -8,8 +8,12 @@
 -- wydatki na badania i odrzucałby uczciwe zapisy jako economy_too_fast.
 --
 -- `private.research_cost(age, step)` się nie zmienia (baza epoki × 1,6^step); zmienia się tylko to,
--- jakie kroki liczy `private.research_spend`. Czas badań (`research_need_ms`, `research_head_ms`) nadal
--- rośnie ×2 z każdą technologią epoki, jak w grze.
+-- jakie kroki liczy `private.research_spend`.
+--
+-- Czas badań (ResearchConfig.time_ms) jest teraz stały w epoce: BASE_TIME_S = [60, 1800], bez ×2 za
+-- każdą wcześniejszą technologię. `private.research_need_ms` (reguła research_too_fast) i
+-- `private.research_head_ms` (kredyt badania w toku) liczą go tak samo; bez tego serwer odrzucałby
+-- uczciwe zapisy jako research_too_fast.
 -- Liczby pilnuje test gry (`tests/test_research_fixed_cost.gd`) po znacznikach w komentarzach.
 
 -- Kody doktryn (TechTree.DOCTRINES).
@@ -53,5 +57,48 @@ as $$
   select array(select coalesce((select sum(c.c[i]) from c), 0)::bigint from generate_series(1, 4) i order by i)
 $$;
 
+-- Czas (ms) badania technologii z `p_new`, których nie ma w `p_old`: stały czas epoki razy ich liczba.
+create or replace function private.research_need_ms(p_old text[], p_new text[])
+returns numeric
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(sum((array[60000, 1800000])[a.age + 1] * a.k), 0)
+  from (
+    select (t.value ->> 0)::integer as age,
+      count(*) filter (where t.key = any (p_new) and t.key <> all (p_old)) as k
+    from jsonb_each(private.tech_tree()) t
+    group by 1
+  ) a
+$$;
+
+-- Pełny czas (ms) badania w toku w zapisie (`research.active.code`) według drzewka, gdy da się je zacząć.
+create or replace function private.research_head_ms(p_castle jsonb)
+returns bigint
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  v_done text[] := coalesce(private.research_codes(p_castle), '{}');
+  v_code text;
+  v_age integer;
+begin
+  if jsonb_typeof(p_castle -> 'research' -> 'active' -> 'code') is distinct from 'string' then
+    return 0;
+  end if;
+  v_code := p_castle -> 'research' -> 'active' ->> 'code';
+  if not private.tech_tree() ? v_code or v_code = any (v_done)
+      or exists (select 1 from jsonb_array_elements_text(private.tech_tree() -> v_code -> 1) r where r <> all (v_done)) then
+    return 0;
+  end if;
+  v_age := (private.tech_tree() -> v_code ->> 0)::integer;
+  return (array[60000, 1800000])[v_age + 1];
+end;
+$$;
+
 revoke all on function private.research_doctrines() from public, anon, authenticated;
 revoke all on function private.research_spend(jsonb, jsonb) from public, anon, authenticated;
+revoke all on function private.research_need_ms(text[], text[]) from public, anon, authenticated;
+revoke all on function private.research_head_ms(jsonb) from public, anon, authenticated;

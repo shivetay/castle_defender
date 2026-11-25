@@ -135,8 +135,8 @@ func test_regular_technology_has_fixed_age_cost() -> bool:
 	_finish(r, "G18", e)
 	_finish(r, "A1", e)
 	assert_eq(r.cost_of("G19"), c0, "zwykła technologia nie drożeje po innych technologiach")
-	assert_eq(r.time_of("G19"), t0 * ResearchConfig.TIME_STEP * ResearchConfig.TIME_STEP * ResearchConfig.TIME_STEP,
-			"czas nadal ×2 z każdą technologią epoki")
+	assert_eq(r.time_of("G19"), t0, "czas też stały w epoce")
+	assert_eq(r.time_of("A46"), ResearchConfig.time_ms(1), "epoka II ma własny stały czas")
 	assert_eq(r.cost_of("A46"), ResearchConfig.cost(1, 0), "epoka II ma własny stały koszt")
 	return true
 

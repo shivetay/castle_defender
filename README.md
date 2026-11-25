@@ -261,7 +261,7 @@ w sekcji „Następny etap”.
   przejście do epoki III, która jest poza MVP.
 - `scripts/world/research_config.gd` (`ResearchConfig`): koszt i czas badań. Koszt jest stały w epoce,
   drożeją tylko doktryny (`TechTree.DOCTRINES`: A1, A2, G1, G2, technologie z samą procentową premią),
-  ×1,6 za każdą wcześniejszą doktrynę epoki. Czas rośnie ×2 z każdą technologią epoki (#12). Bazowe liczby
+  ×1,6 za każdą wcześniejszą doktrynę epoki. Czas badania też jest stały w epoce. Bazowe liczby
   (epoka I: 100 Dr 50 Ka 50 Ży, 1 min) są tymczasowe. Serwer liczy wydatki tym samym wzorem
   (`supabase/migrations/20261125110000_research_fixed_cost.sql`).
 - `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga

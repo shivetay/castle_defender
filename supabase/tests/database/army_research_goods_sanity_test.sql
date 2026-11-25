@@ -113,7 +113,7 @@ select is(private.castle_goods_problem(pg_temp.castle(pg_temp.goods(0, 21))), 'b
 select is(private.castle_goods_problem(pg_temp.castle(pg_temp.goods(1001))), 'goods_over_capacity',
   'towar ponad zbrojownię');
 select is(private.research_need_ms('{}', '{A1}'), 60000::numeric, 'pierwsza technologia epoki I: 60 s');
-select is(private.research_need_ms('{A1}', '{A1,A2,O1}'), 360000::numeric, 'druga i trzecia: 120 s + 240 s');
+select is(private.research_need_ms('{A1}', '{A1,A2,O1}'), 120000::numeric, 'druga i trzecia: po 60 s (czas stały w epoce)');
 select is(private.research_need_ms('{}', '{G4}'), 1800000::numeric, 'pierwsza technologia epoki II: 30 min');
 select is(private.train_ms(0, 1), 20000::bigint, 'topornik w Koszarach 1: 20 s');
 select is(private.train_ms(0, 5), 10000::bigint, 'Koszary 5: dwa razy szybciej');
@@ -123,11 +123,8 @@ select is(private.train_ms(0, 9), 10000::bigint, 'poziomy epoki II jak 5');
 set local role authenticated;
 select pg_temp.as_a();
 select throws_ok($$select private.castle_research_problem('{}')$$, '42501', null, 'gracz nie woła funkcji serwera');
-select throws_ok(
-  $$insert into public.castles (player_id, map_seed, save_version, data)
-    values ('00000000-0000-0000-0000-0000000281a1', 2810, 12,
-      pg_temp.castle('{"research": {"done": ["A1", "A2", "O1", "G1", "G2", "O2", "G18", "G21", "U1"]}}'))$$,
-  'PT422', 'research_too_fast', 'nowe konto nie zbada 9 technologii (8,5 h)');
+select is(private.research_need_ms('{}', '{A1,A2,O1,G1,G2,O2,G18,G21,U1}'), 540000::numeric,
+  'nowe konto: 9 technologii to 9 min, mniej niż 6 h zapasu gry bez sieci');
 select lives_ok(
   $$insert into public.castles (player_id, map_seed, save_version, data)
     values ('00000000-0000-0000-0000-0000000281a1', 2810, 12, pg_temp.castle())$$,
@@ -138,10 +135,10 @@ select throws_ok($$update public.castles set train_credit_ms = '{"18": 9999999}'
 select throws_ok($$update public.castles set goods_credit = '[9999999]'$$, '42501', null, 'gracz nie ustawi kredytu towarów');
 
 -- badania: jeden badacz
-select throws_ok($$select pg_temp.push('{"research": {"done": ["A1", "A2", "O1", "G1"]}}')$$,
-  'PT422', 'research_too_fast', 'trzy technologie (14 min) zaraz po zapisie odrzucone');
-select lives_ok($$select pg_temp.push('{"research": {"done": ["A1", "A2"]}}')$$, 'A2 (2 min) w tolerancji');
-select is((select research_credit_ms from public.castles), -120000::bigint, 'tolerancja schodzi z kredytu');
+select throws_ok($$select pg_temp.push('{"research": {"done": ["A1", "A2", "O1", "G1", "G2", "O2", "G18"]}}')$$,
+  'PT422', 'research_too_fast', 'sześć technologii (6 min) zaraz po zapisie odrzucone');
+select lives_ok($$select pg_temp.push('{"research": {"done": ["A1", "A2"]}}')$$, 'A2 (1 min) w tolerancji');
+select is((select research_credit_ms from public.castles), -60000::bigint, 'tolerancja schodzi z kredytu');
 select lives_ok($$select pg_temp.push('{"research": {"done": ["A1", "A2"], "active": {"code": "O1"}}}')$$,
   'zapis z badaniem O1 w toku');
 reset role;
@@ -151,8 +148,8 @@ set local role authenticated;
 select pg_temp.as_a();
 select lives_ok($$select pg_temp.push('{"research": {"done": ["A1", "A2"], "active": {"code": "O1"}}}')$$,
   'zapis 10 minut później');
-select is((select research_credit_ms from public.castles), 240000::bigint,
-  'kredyt: najwyżej czas badania w toku (trzecia technologia epoki: 4 min), nie z zapisu');
+select is((select research_credit_ms from public.castles), 60000::bigint,
+  'kredyt: najwyżej czas badania w toku (1 min, stały w epoce), nie z zapisu');
 
 -- wojsko: Koszary 1 szkolą topornika 20 s
 select throws_ok($$select pg_temp.push('{"recruitment": {"squads": [[1, 0, 10], [2, 0, 10], [3, 0, 5]]}}')$$,
