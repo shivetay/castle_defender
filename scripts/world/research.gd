@@ -70,26 +70,28 @@ func finish_ms() -> int:
 	return start_ms + duration_ms if is_busy() else -1
 
 
-## Ile technologii epoki `tech_age` zbadano albo właśnie się bada. Od tego rośnie koszt i czas.
-func step(tech_age: int) -> int:
+## Ile doktryn (TechTree.DOCTRINES) epoki `tech_age` zbadano albo właśnie się bada. Od tego rośnie
+## koszt kolejnej doktryny.
+func doctrine_step(tech_age: int) -> int:
 	var n := 0
 	for code: String in done:
-		if TechTree.age(code) == tech_age:
+		if TechTree.is_doctrine(code) and TechTree.age(code) == tech_age:
 			n += 1
-	if is_busy() and TechTree.age(active) == tech_age:
+	if is_busy() and TechTree.is_doctrine(active) and TechTree.age(active) == tech_age:
 		n += 1
 	return n
 
 
-## Koszt rozpoczęcia technologii `code` przy obecnym stanie badań.
+## Koszt rozpoczęcia technologii `code` przy obecnym stanie badań: stały w epoce, a dla doktryny
+## rośnie z każdą wcześniejszą doktryną tej epoki.
 func cost_of(code: String) -> Array[int]:
 	var a := TechTree.age(code)
-	return ResearchConfig.cost(a, step(a))
+	return ResearchConfig.cost(a, doctrine_step(a) if TechTree.is_doctrine(code) else 0)
 
 
+## Czas badania technologii `code`: stały w jej epoce.
 func time_of(code: String) -> int:
-	var a := TechTree.age(code)
-	return ResearchConfig.time_ms(a, step(a))
+	return ResearchConfig.time_ms(TechTree.age(code))
 
 
 ## Czy technologię można teraz zacząć badać w epoce `current_age` (bez sprawdzania surowców).

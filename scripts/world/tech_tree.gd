@@ -55,6 +55,11 @@ const TECHS: Array = [
 	["S3", "Dom zwiadowców", Branch.SPECIAL, 1, false, ["S1"], "Chata tropicieli staje się Domem zwiadowców, jednostka Zwiadowca, zwiad +10% zasięgu i szansy"],
 ]
 
+## Doktryny: technologie, których cały efekt to procentowa premia (atak, zasięg, produkcja), bez nowych
+## budynków, jednostek i manewrów. Tylko one drożeją z każdą kolejną doktryną tej samej epoki
+## (ResearchConfig.cost); pozostałe technologie mają stały koszt epoki (decyzja właścicielki).
+const DOCTRINES: Array[String] = ["A1", "A2", "G1", "G2"]
+
 ## Efekty, które już działają: kod → [surowiec (EconomyConfig.Res), premia do produkcji w %].
 const PRODUCTION_BONUS := {
 	"G1": [EconomyConfig.Res.WOOD, 20],
@@ -124,6 +129,11 @@ static func effect(code: String) -> String:
 
 
 ## Napis epoki, np. „Epoka II”.
+## Czy technologia jest doktryną (DOCTRINES), czyli drożeje z każdą kolejną doktryną epoki.
+static func is_doctrine(code: String) -> bool:
+	return DOCTRINES.has(code)
+
+
 static func age_label(tech_age: int) -> String:
 	return "Epoka %s" % AGE_NUMERALS[clampi(tech_age, 0, AGE_NUMERALS.size() - 1)]
 

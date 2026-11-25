@@ -3,22 +3,19 @@ extends RefCounted
 ## Koszty i czasy badań w jednym miejscu. Koszt to tablica ilości surowców w kolejności
 ## EconomyConfig.Res (drewno, kamień, żywność, złoto). Zmiana balansu badań to zmiana tylko tego pliku.
 ##
-## Według notatki Drzewko technologiczne koszt i czas badań rosną jak budowa: ok. 1,6× koszt
-## i 2× czas na każdą kolejną technologię w epoce. Bazowych liczb notatka nie podaje (to decyzja
-## balansowa), więc te poniżej są tymczasowe. Przy 27 technologiach epoki I w MVP wzrost ×1,6
-## na każdą kolejną szybko przekracza pojemność magazynu: do decyzji właściciela.
+## Koszt i czas technologii są stałe w epoce (BASE_COST, BASE_TIME_S). Drożeją tylko doktryny
+## (TechTree.DOCTRINES, technologie z samą procentową premią): ×1,6 kosztu za każdą wcześniej
+## rozpoczętą doktrynę tej samej epoki (decyzja właścicielki). Bazowe liczby są tymczasowe (balans).
 
 ## Koszt pierwszej technologii w epoce (indeks = epoka, 0 = I). TYMCZASOWE.
 const BASE_COST: Array = [
 	[100, 50, 50, 0],
 	[400, 300, 200, 0],
 ]
-## Czas pierwszej technologii w epoce w sekundach. TYMCZASOWE.
+## Czas technologii epoki w sekundach. TYMCZASOWE.
 const BASE_TIME_S: Array[int] = [60, 30 * 60]
-## Wzrost kosztu na każdą wcześniej rozpoczętą technologię tej samej epoki, w procentach (×1,6).
+## Wzrost kosztu doktryny na każdą wcześniej rozpoczętą doktrynę tej samej epoki, w procentach (×1,6).
 const COST_STEP_PERCENT := 160
-## Wzrost czasu na każdą wcześniej rozpoczętą technologię tej samej epoki (×2).
-const TIME_STEP := 2
 ## Jedno badanie naraz (drugie miejsce da U10 Kwatermistrzostwo w epoce V).
 const RESEARCHERS := 1
 
@@ -41,7 +38,8 @@ const BRANCH_BUILDINGS: Array = [
 ]
 
 
-## Koszt technologii epoki `tech_age`, gdy w tej epoce rozpoczęto już `step` technologii.
+## Koszt technologii epoki `tech_age`. Dla doktryny `step` to liczba doktryn tej epoki rozpoczętych
+## wcześniej; zwykła technologia ma zawsze `step` = 0 (Research.cost_of).
 static func cost(tech_age: int, step: int) -> Array[int]:
 	var out: Array[int] = []
 	out.assign(BASE_COST[clampi(tech_age, 0, BASE_COST.size() - 1)])
@@ -52,12 +50,9 @@ static func cost(tech_age: int, step: int) -> Array[int]:
 	return out
 
 
-## Czas technologii epoki `tech_age` w milisekundach, gdy rozpoczęto już `step` technologii tej epoki.
-static func time_ms(tech_age: int, step: int) -> int:
-	var t := BASE_TIME_S[clampi(tech_age, 0, BASE_TIME_S.size() - 1)] * 1000
-	for i in maxi(0, step):
-		t *= TIME_STEP
-	return t
+## Czas technologii epoki `tech_age` w milisekundach, stały w epoce.
+static func time_ms(tech_age: int) -> int:
+	return BASE_TIME_S[clampi(tech_age, 0, BASE_TIME_S.size() - 1)] * 1000
 
 
 ## Budynek, w którym bada się technologię `code`: ostatni budynek jej gałęzi dostępny w jej epoce,
