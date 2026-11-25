@@ -31,6 +31,8 @@ mkdir -p "$DATA" "$SOCK"
 if [ "${#as_pg[@]}" -gt 0 ]; then
 	chown -R postgres:postgres "$WORK"
 fi
+# Uwierzytelnianie trust tylko przez gniazdo w katalogu dostępnym wyłącznie dla właściciela klastra.
+chmod 700 "$SOCK"
 
 cleanup() {
 	"${as_pg[@]}" "$PG_BIN/pg_ctl" -D "$DATA" -m immediate stop >/dev/null 2>&1 || true
