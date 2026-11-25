@@ -13,7 +13,7 @@ func _rich_economy() -> Economy:
 	return e
 
 
-## Bada technologię od razu do końca; zapasy uzupełnia, bo koszt rośnie z każdą technologią.
+## Bada technologię od razu do końca; zapasy uzupełnia, bo koszt doktryn rośnie.
 func _finish(r: Research, code: String, economy: Economy) -> bool:
 	for res in EconomyConfig.count():
 		economy.amounts[res] = 1 << 50
@@ -125,17 +125,40 @@ func test_cost_is_spent_and_research_ends_on_time() -> bool:
 	return true
 
 
-func test_each_next_technology_in_age_costs_more() -> bool:
+func test_regular_technology_has_fixed_age_cost() -> bool:
 	var r := Research.new()
 	var e := _rich_economy()
-	var c0 := r.cost_of("A1")
-	var t0 := r.time_of("A1")
+	var c0 := r.cost_of("A39")
+	var t0 := r.time_of("A39")
 	assert_eq(c0, ResearchConfig.cost(0, 0), "pierwsza technologia epoki I po koszcie bazowym")
+	_finish(r, "A39", e)
+	_finish(r, "G18", e)
 	_finish(r, "A1", e)
-	var c1 := r.cost_of("A4")
-	assert_eq(c1[0], c0[0] * ResearchConfig.COST_STEP_PERCENT / 100, "druga ×1,6")
-	assert_eq(r.time_of("A4"), t0 * ResearchConfig.TIME_STEP, "druga ×2 dłużej")
-	assert_eq(r.cost_of("A46"), ResearchConfig.cost(1, 0), "epoka II liczy się osobno")
+	assert_eq(r.cost_of("G19"), c0, "zwykła technologia nie drożeje po innych technologiach")
+	assert_eq(r.time_of("G19"), t0 * ResearchConfig.TIME_STEP * ResearchConfig.TIME_STEP * ResearchConfig.TIME_STEP,
+			"czas nadal ×2 z każdą technologią epoki")
+	assert_eq(r.cost_of("A46"), ResearchConfig.cost(1, 0), "epoka II ma własny stały koszt")
+	return true
+
+
+func test_doctrine_cost_grows_with_each_doctrine() -> bool:
+	var r := Research.new()
+	var e := _rich_economy()
+	assert_true(TechTree.is_doctrine("A1") and TechTree.is_doctrine("G2"), "A1 i G2 to doktryny")
+	assert_true(not TechTree.is_doctrine("A39"), "A39 nie jest doktryną")
+	for code in TechTree.DOCTRINES:
+		assert_true(TechTree.has(code), "doktryna %s jest w drzewku" % code)
+	var c0 := r.cost_of("A1")
+	assert_eq(c0, ResearchConfig.cost(0, 0), "pierwsza doktryna po koszcie bazowym")
+	_finish(r, "A39", e)
+	assert_eq(r.cost_of("A1"), c0, "zwykła technologia nie podnosi kosztu doktryny")
+	_finish(r, "A1", e)
+	var c1 := r.cost_of("A2")
+	assert_eq(c1[0], c0[0] * ResearchConfig.COST_STEP_PERCENT / 100, "druga doktryna ×1,6")
+	assert_eq(c1, ResearchConfig.cost(0, 1), "druga doktryna to krok 1")
+	r.start("A2", 1, e, T0)
+	assert_eq(r.cost_of("G2"), ResearchConfig.cost(0, 2), "doktryna w toku też podnosi koszt")
+	assert_eq(r.cost_of("G18"), c0, "zwykła technologia dalej po koszcie bazowym")
 	assert_eq(ResearchConfig.cost(0, 5), ResearchConfig.cost(0, 5), "deterministycznie")
 	return true
 

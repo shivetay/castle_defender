@@ -95,7 +95,7 @@ Przebudowa L6 wymaga techów **O1 + G1 + A7** (`Ages.TRANSITION_TECHS`). Mieści
 | Start zapasu | 500 Dr, 300 Ka, 300 Ży, 50 Zł |
 | Pojemność grodu | 1000 / 1000 / 1000 / ∞ (złoto) |
 
-Badania (`ResearchConfig`): baza epoki I **100/50/50/0**, 60 s; epoka II **400/300/200/0**, 30 min; potem ×1,6 kosztu i ×2 czasu na każde wcześniejsze badanie w epoce.
+Badania (`ResearchConfig`): baza epoki I **100/50/50/0**, 60 s; epoka II **400/300/200/0**, 30 min; koszt stały w epoce, a ×1,6 kosztu tylko dla doktryn (A1, A2, G1, G2: sama procentowa premia) za każdą wcześniejszą doktrynę epoki; czas ×2 na każde wcześniejsze badanie w epoce.
 
 ### 1.5 Generałowie
 
