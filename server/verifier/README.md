@@ -22,7 +22,9 @@ applied to the project (owner's approval) and a pack is on the host, use `smoke`
 
 - `worker_id`: `[A-Za-z0-9_.-]{1,64}` (`WORKER_ID`), otherwise `bad_worker`.
 - Lease 5 min, max 3 attempts; after that the attack is `failed` (no loot, target unlocked).
-- `submit_verification` without a valid lease raises `lease_expired`; a second result raises `not_pending`.
+- `submit_verification` raises `lease_expired` (no valid lease) or `not_pending` (attack already has a
+  result); the wrapper rolls back and the lease runs out.
+- A job is claimable once the phone's ruins arrive (`record_destroyed`) or 15 s after `finish_attack`.
 - Mode `private.settings.verification_mode`: `shadow` (default; worker only compares) or `enforce`
   (loot, rating, shield and ruins only from the worker result; needs Edge/client §6 first).
 

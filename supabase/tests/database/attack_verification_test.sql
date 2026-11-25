@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(86);
+select plan(88);
 
 -- A1..A4 atakują D1..D4, A1 jeszcze D5 (uczciwy wynik). Ranking w paśmie 62 000 (bez prawdziwych graczy), bo testy biegną też na projekcie
 -- w chmurze, w transakcji, która się cofa. Kolejka i tryb też wracają po rollbacku.
@@ -271,6 +271,9 @@ select is((select status from public.end_attack('00000000-0000-0000-0000-0000000
     '{"won": true, "percent": 100, "stars": [true, true, true]}', '[30, 30, 30, 3]', '[10, 10]')),
   'verifying', 'enforce: druga bitwa w weryfikacji');
 reset role;
+-- bez zgłoszonych ruin job czeka (15 s), żeby nie wyprzedzić record_destroyed z finish_attack
+select is(pg_temp.claim('worker-1'), '<null>', 'job czeka na ruiny z telefonu');
+update private.attack_verifications set not_before = now();
 select is(pg_temp.claim('worker-1')::jsonb ->> 'attack_id', (select attack_id::text from runs where n = 3),
   'worker bierze drugi job');
 select is(pg_temp.submit(3, pg_temp.worker(true, 100, '[1, 2, 3, 9]', '[4, 0]')), 'mismatch',
@@ -307,6 +310,7 @@ select is((select status from public.end_attack('00000000-0000-0000-0000-0000000
     '{"won": true, "percent": 100, "stars": [true, true, true]}', '[30, 30, 30, 3]', '[10, 10]')),
   'verifying', 'enforce: trzecia bitwa w weryfikacji');
 reset role;
+update private.attack_verifications set not_before = now();
 -- trzy claimy bez wyniku (now() w transakcji stoi, więc lease wygasza się ręcznie)
 select isnt(pg_temp.claim('worker-1'), '<null>', 'próba 1');
 update private.attack_verifications set leased_until = now() - interval '1 second';
@@ -323,6 +327,8 @@ select ok((select loot is null and outcome_applied_at is null from public.attack
   'failed: bez łupu i skutków');
 select ok((select count(*) = 0 from public.attacks a where a.defender_id = '00000000-0000-0000-0000-0000000284d4'
     and a.verification = 'pending' and a.outcome_applied_at is null), 'failed: cel odblokowany');
+select is((select row(queue_length, verified_24h, failed_24h)::text from private.verification_health), '(0,1,1)',
+  'verification_health: jeden wiersz z pustą kolejką');
 select private.requeue_verification((select attack_id from runs where n = 4));
 select is((select row(attempts, last_error)::text from private.attack_verifications), '(0,)',
   'requeue wrzuca job od nowa');

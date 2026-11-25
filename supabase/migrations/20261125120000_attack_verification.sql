@@ -128,6 +128,9 @@ create table private.attack_verifications (
   leased_by text check (leased_by is null or char_length(leased_by) <= 64),
   -- tylko kod błędu (np. bad_result, lease_expired), nigdy treść jobu ani dane gracza
   last_error text check (last_error is null or last_error ~ '^[a-z_]{1,32}$'),
+  -- finish_attack woła record_destroyed zaraz po end_attack: job czeka na zgłoszone ruiny (albo 15 s, gdy
+  -- klient ich nie wysyła), żeby porównanie nie przegapiło różnicy w ruinach
+  not_before timestamptz not null default now() + interval '15 seconds',
   created_at timestamptz not null default now()
 );
 comment on table private.attack_verifications is 'Kolejka weryfikacji ataków PvP (#284): czyta i pisze tylko claim/submit/apply w schemacie private.';
@@ -147,6 +150,20 @@ as $$
 $$;
 revoke all on function private.enqueue_verification(uuid) from public, anon, authenticated;
 grant execute on function private.enqueue_verification(uuid) to service_role;
+
+-- Job gotowy od razu (wołane z record_destroyed, gdy ruiny z telefonu już są w claimed_result).
+create function private.verification_ready(p_attack uuid)
+returns void
+language sql
+volatile
+security definer
+set search_path = ''
+as $$
+  update private.attack_verifications v set not_before = now()
+  where v.attack_id = p_attack and v.not_before > now();
+$$;
+revoke all on function private.verification_ready(uuid) from public, anon, authenticated;
+grant execute on function private.verification_ready(uuid) to service_role;
 
 -- ---- łup z wyniku (port BattleResult / PlayerCastle.result_of) ----
 
@@ -367,7 +384,7 @@ begin
   from gone where t.id = gone.attack_id and t.verification = 'pending';
 
   select * into q from private.attack_verifications v
-  where v.attempts < 3 and (v.leased_until is null or v.leased_until <= now())
+  where v.attempts < 3 and (v.leased_until is null or v.leased_until <= now()) and v.not_before <= now()
   order by v.created_at, v.attack_id
   limit 1
   for update skip locked;
@@ -469,7 +486,9 @@ begin
     raise exception 'attack_not_found' using errcode = 'P0001';
   end if;
   insert into private.attack_verifications (attack_id) values (p_attack)
-  on conflict (attack_id) do update set attempts = 0, leased_until = null, leased_by = null, last_error = null;
+  on conflict (attack_id) do update set attempts = 0, leased_until = null, leased_by = null, last_error = null,
+    not_before = now();
+  update private.attack_verifications v set not_before = now() where v.attack_id = p_attack;
 end;
 $$;
 revoke all on function private.requeue_verification(uuid) from public, anon, authenticated, service_role;
@@ -478,14 +497,19 @@ revoke all on function private.requeue_verification(uuid) from public, anon, aut
 create view private.verification_health
 with (security_invoker = true)
 as
+-- zawsze jeden wiersz: długość kolejki widać także wtedy, gdy w 24 h nic się nie zweryfikowało
 select
   (select count(*) from private.attack_verifications) as queue_length,
   (select extract(epoch from now() - min(v.created_at))::integer from private.attack_verifications v) as oldest_pending_s,
-  count(*) filter (where t.verification = 'verified') as verified_24h,
-  count(*) filter (where t.verification = 'mismatch') as mismatch_24h,
-  count(*) filter (where t.verification = 'failed') as failed_24h
-from public.attacks t
-where t.verified_at > now() - interval '24 hours';
+  d.verified_24h, d.mismatch_24h, d.failed_24h
+from (
+  select
+    count(*) filter (where t.verification = 'verified') as verified_24h,
+    count(*) filter (where t.verification = 'mismatch') as mismatch_24h,
+    count(*) filter (where t.verification = 'failed') as failed_24h
+  from public.attacks t
+  where t.verified_at > now() - interval '24 hours'
+) as d;
 revoke all on private.verification_health from public, anon, authenticated, service_role;
 
 -- ---- rola workera ----
@@ -766,6 +790,7 @@ begin
   if a.claimed_result is not null then
     update public.attacks t set claimed_result = t.claimed_result || jsonb_build_object('destroyed_ids', to_jsonb(v_ids))
     where t.id = a.id;
+    perform private.verification_ready(a.id);
   end if;
   if a.outcome_applied_at is not null then
     update public.attacks t set destroyed = v_ids where t.id = a.id;
