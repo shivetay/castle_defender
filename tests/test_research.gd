@@ -96,10 +96,11 @@ func test_requirements_and_age_block_research() -> bool:
 	assert_eq(r.start("A2", 0, e, T0), Research.Result.OK, "A2 bez wymagań")
 	assert_eq(r.start("G18", 0, e, T0), Research.Result.BUSY, "jedno badanie naraz")
 	r.update(T0 + r.duration_ms)
-	assert_eq(r.start("A2", 0, e, T0), Research.Result.ALREADY_DONE, "drugi raz nie")
+	assert_eq(r.check("A2", 0), Research.Result.OK, "A2 to doktryna: można badać kolejny poziom")
 	assert_eq(r.check("A43", 0), Research.Result.MISSING_REQUIREMENTS, "Rymarstwo wymaga Garbarstwa")
 	for code: String in ["G18", "G19", "A43"]:
 		_finish(r, code, e)
+	assert_eq(r.check("G18", 0), Research.Result.ALREADY_DONE, "zwykła technologia drugi raz nie")
 	assert_eq(r.check("A7", 0), Research.Result.OK, "po A2 i A43 Strzemię dostępne")
 	assert_eq(r.check("A47", 1), Research.Result.OK, "w epoce II A47 (po A2) dostępne")
 	assert_eq(r.check("A47", 0), Research.Result.WRONG_AGE, "ale nie w epoce I")

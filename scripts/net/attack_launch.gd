@@ -23,23 +23,39 @@ static func request(attack_id: String, plan: AttackPlan, general: int = -1) -> D
 	return d
 
 
-## Badania z odpowiedzi serwera: tylko kody, które działają w bitwie po stronie atakującego, bez powtórek.
+## Badania z odpowiedzi serwera: tylko kody, które działają w bitwie po stronie atakującego (A1, A2, A7),
+## i poziomy doktryn ataku jako „A1:3” (TechTree.LEVELED_DOCTRINES, 2..najwyższy poziom), bez powtórek.
 static func parse_techs(raw: Variant) -> Array[String]:
 	var out: Array[String] = []
 	if not raw is Array:
 		return out
 	for v: Variant in raw as Array:
 		var code := str(v) if v is String else ""
-		if code in ["A1", "A2", "A7"] and not out.has(code):
+		if (code in ["A1", "A2", "A7"] or _level_token(code) > 0) and not out.has(code):
 			out.append(code)
 	return out
 
 
-## Badania atakującego jako Research z samymi zbadanymi kodami (do Battle.apply_research).
+## Poziom z wpisu „A1:3” albo 0, gdy to nie jest poprawny poziom doktryny ataku.
+static func _level_token(token: String) -> int:
+	var parts := token.split(":")
+	if parts.size() != 2 or not parts[0] in ["A1", "A2"] or not parts[1].is_valid_int():
+		return 0
+	var n := int(parts[1])
+	return n if n >= 2 and n <= TechTree.max_level_any(parts[0]) else 0
+
+
+## Badania atakującego jako Research z samymi zbadanymi kodami i poziomami (do Battle.apply_research).
 static func research_of(techs: Array[String]) -> Research:
 	var r := Research.new()
 	for code in techs:
-		r.done[code] = true
+		if TechTree.has(code):
+			r.done[code] = true
+	for token in techs:
+		var n := _level_token(token)
+		var code := token.split(":")[0]
+		if n > 0 and r.is_done(code):
+			r.levels[code] = maxi(n, r.level(code))
 	return r
 
 

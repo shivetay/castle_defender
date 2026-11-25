@@ -169,14 +169,27 @@ static func title_of(r: Research, code: String, next: bool = false) -> String:
 
 ## Premia doktryny z poziomami jako tekst, np. „Premia +25%, następny poziom +30%”; pusty dla innych.
 static func level_text(r: Research, code: String, current_age: int) -> String:
-	if not TechTree.is_leveled(code) or not TechTree.PRODUCTION_BONUS.has(code):
+	var base := doctrine_base(code)
+	if not TechTree.is_leveled(code) or base <= 0:
 		return ""
-	var base := int((TechTree.PRODUCTION_BONUS[code] as Array)[1])
 	var lv := r.level(code)
 	var now_text := "Premia +%d%%" % r.doctrine_percent(code, base) if lv > 0 else "Premia +%d%%" % base
 	if lv == 0 or lv >= TechTree.max_level(code, current_age):
 		return now_text if lv > 0 else ""
 	return "%s, następny poziom +%d%%" % [now_text, base + TechTree.DOCTRINE_LEVEL_PERCENT * lv]
+
+
+## Premia doktryny na poziomie 1 w punktach procentowych: produkcja (G1, G2) z TechTree, bitwa (A1, A2)
+## z BattleConfig; 0 dla innych.
+static func doctrine_base(code: String) -> int:
+	if TechTree.PRODUCTION_BONUS.has(code):
+		return int((TechTree.PRODUCTION_BONUS[code] as Array)[1])
+	match code:
+		"A1":
+			return BattleConfig.A1_WOOD_PERCENT - 100
+		"A2":
+			return BattleConfig.A2_RANGE_PERCENT - 100
+	return 0
 
 
 ## Czy technologię da się jeszcze badać (niezbadana albo doktryna poniżej najwyższego poziomu w epoce).

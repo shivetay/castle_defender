@@ -4,6 +4,8 @@ extends TestCase
 ## i w funkcjach migracji.
 
 const MIGRATION := "res://supabase/migrations/20261125130000_doctrine_levels.sql"
+## Lista doktryn z poziomami z doktrynami ataku (najnowsza wersja `private.research_leveled`).
+const ATTACK_MIGRATION := "res://supabase/migrations/20261125140000_attack_doctrine_levels.sql"
 
 
 func _sql() -> String:
@@ -18,8 +20,15 @@ func test_constants_match_game() -> bool:
 	for c in TechTree.LEVELED_DOCTRINES:
 		json.append("\"%s\"" % c)
 		arr.append("'%s'" % c)
-	assert_true(sql.contains("LEVELED = [%s]" % ", ".join(json)), "doktryny z poziomami w komentarzu")
-	assert_true(sql.contains("array[%s]::text[]" % ", ".join(arr)), "doktryny z poziomami w funkcji")
+	var attack := FileAccess.get_file_as_string(ATTACK_MIGRATION)
+	assert_true(attack.contains("LEVELED = [%s]" % ", ".join(json)), "doktryny z poziomami w komentarzu")
+	assert_true(attack.contains("select array[%s]::text[]" % ", ".join(arr)), "doktryny z poziomami w funkcji")
+	# poziomy doktryn ataku w `attacker_techs`: każdy poziom 2..najwyższy jako „A1:N”
+	for code in ["A1", "A2"]:
+		assert_true(TechTree.is_leveled(code), "%s z poziomami" % code)
+		for n in range(2, TechTree.max_level_any(code) + 1):
+			assert_true(attack.contains("'%s:%d'" % [code, n]), "%s:%d w ograniczeniu kolumny" % [code, n])
+	assert_true(attack.contains("cardinality(attacker_techs) <= %d" % (3 + 2)), "najwyżej 3 kody i 2 poziomy")
 	assert_true(sql.contains("DOCTRINE_MAX_LEVEL = %s" % str(TechTree.DOCTRINE_MAX_LEVEL)), "limity epok w komentarzu")
 	assert_eq(TechTree.DOCTRINE_MAX_LEVEL.size(), 2, "dwie epoki, jak least(..., 1) w funkcji")
 	assert_true(sql.contains("select (array[%d, %d])[least(" % [TechTree.DOCTRINE_MAX_LEVEL[0], TechTree.DOCTRINE_MAX_LEVEL[1]]),
