@@ -612,6 +612,30 @@ static func edge_error(result: int, code: int, body: String) -> String:
 	return text if safe else REJECTED_ERROR
 
 
+## Kody Auth, po których token odświeżania na pewno nie wróci: unieważniony, zużyty, sesja albo
+## konto usunięte (także przez czyszczenie nieaktywnych kont gości, migracja `purge_inactive_guests`).
+const DEAD_REFRESH_CODES: Array[String] = [
+	"refresh_token_not_found", "refresh_token_already_used", "session_not_found", "session_expired",
+	"user_not_found", "user_banned", "bad_jwt",
+]
+
+
+## Serwer Auth odrzucił token odświeżania na stałe (400/401/403 z kodem GoTrue `error_code` albo
+## starszym `"error": "invalid_grant"`). Inne odmowy nie kasują sesji. Treści odpowiedzi nie logujemy.
+static func refresh_token_dead(code: int, body: String) -> bool:
+	if code != 400 and code != 401 and code != 403:
+		return false
+	var data: Variant = SupabaseConfig.parse_json(body)
+	if not data is Dictionary:
+		return false
+	var d := data as Dictionary
+	var error_code: Variant = d.get("error_code")
+	if error_code is String and DEAD_REFRESH_CODES.has(error_code as String):
+		return true
+	var error: Variant = d.get("error")
+	return error is String and (error as String) == "invalid_grant"
+
+
 ## Obsługa odpowiedzi Auth (bez sieci, wołana też z testów).
 func handle_auth(call: int, result: int, code: int, body: String) -> void:
 	_pending = Call.NONE
@@ -622,11 +646,18 @@ func handle_auth(call: int, result: int, code: int, body: String) -> void:
 				if data is Dictionary else null
 		if s != null:
 			session = s
-			session.save(session_path)
+			if session.save(session_path) != OK:
+				# bez treści i tokenów (skill `user-data-privacy`): sesja zostaje w pamięci, a następny
+				# zapis (odświeżenie) spróbuje znowu
+				push_warning("Nie udało się zapisać sesji konta na telefonie")
 			_failures = 0
 			_set_state(State.ONLINE)
 			return
 		outcome = Outcome.NETWORK  # niepełna odpowiedź: spróbujemy jeszcze raz
+	if outcome == Outcome.REJECTED and call == Call.REFRESH and not refresh_token_dead(code, body):
+		# Odmowa bez znanego kodu Auth (np. pośrednik w sieci): sesji nie wyrzucamy, bo nowe konto
+		# oznacza utratę zamku na serwerze. Ponawiamy jak przy braku sieci.
+		outcome = Outcome.NETWORK
 	if outcome == Outcome.REJECTED and call == Call.REFRESH:
 		# Konta anonimowego nie da się odzyskać bez tokenu odświeżania: zakładamy nowe.
 		session = null
