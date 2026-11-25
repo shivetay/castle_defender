@@ -12,5 +12,6 @@ Logika gry w GDScript. Wejście aplikacji: `main.gd` (scena `scenes/main.tscn`).
 | `gfx/` | Proceduralne rysowanie i cache tekstur |
 | `camera/` | Pan/zoom kamery (gesty) |
 | `net/` | Klient Supabase i synchronizacja PvP |
+| `server/` | Weryfikacja PvP headless (`VerifyJob`, bez sieci) |
 
 Szczegóły w `README.md` każdego podfolderu. Zasady kodu: `CLAUDE.md` (typowanie, determinizm, grafika).
