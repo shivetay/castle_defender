@@ -449,11 +449,10 @@ w sekcji „Następny etap”.
     dopiero z odpowiedzi `finish_attack` (przy odrzuceniu albo braku sieci po 4 próbach wynik jest bez łupu).
     Zajęty cel, tarcza, limit startów i brak sieci kończą się komunikatem, a armia zostaje nietknięta.
     Plan ma 7 minut od startu (serwer przyjmuje wynik do 10 minut), a armia musi być ta sama co przy starcie.
-  - **Lista botów (`scripts/ui/bot_picker.gd`):** najpierw zwarta lista odblokowanych zamków (mniej
-    ekranu); Planuj rozwija siatkę 5×4 z numerami (zdobyte na zielono, epoka II z czerwonym znacznikiem)
-    i opisem, kolejne Planuj otwiera plan ataku. Zamek odblokowuje się po zdobyciu poprzedniego.
-    Zdobyte można atakować znowu, bo po ataku zamek wraca do pełnego stanu, więc gracz zawsze ma cel.
-    Wybrany cel jest w zapisie (`attack.target`).
+  - **Lista botów (`scripts/ui/bot_picker.gd`):** od razu siatka 5×4 z numerami (zdobyte na zielono,
+    epoka II z czerwonym znacznikiem) i opisem; Planuj otwiera plan ataku (#312). Zamek odblokowuje
+    się po zdobyciu poprzedniego. Zdobyte można atakować znowu, bo po ataku zamek wraca do pełnego
+    stanu, więc gracz zawsze ma cel. Wybrany cel jest w zapisie (`attack.target`).
   - **Zamek-cel:** `BotCastle` buduje zamek z listy: Dwór i donżon w palisadzie (albo wale) z bramą
     od strony drogi, chaty, wieże i budynki rekrutacji poza pierścieniem oraz załogę. Pierścień jest
     szczelny: tam, gdzie przecina go droga, stoi odcinek muru (bez drugiej bramy).
