@@ -20,4 +20,15 @@ supabase start
 supabase test db
 ```
 
+Bez Dockera i bez CLI Supabase (to samo robi job „Testy bazy (pgTAP)” w CI):
+
+```bash
+sudo apt-get install postgresql-16 postgresql-16-pgtap libtap-parser-sourcehandler-pgtap-perl
+bash .github/scripts/run_pgtap.sh
+```
+
+Skrypt stawia świeży, tymczasowy klaster (tylko gniazdo Unix), wgrywa zaślepkę platformy
+(`.github/scripts/pgtap_supabase_stub.sql`), potem po kolei migracje i uruchamia `pg_prove`.
+Nowa zależność od platformy (rola, schemat, funkcja `auth.*`) trafia do zaślepki.
+
 Klient gry: `scripts/net/`. W kliencie tylko klucz publishable.
