@@ -1,4 +1,4 @@
-# Godot 4.7.2 headless verifier image for castle_defender (#284).
+# Godot 4.7.2 headless verifier image for castle_defender (#284 / #301).
 # Build (repo root or this directory context — see README):
 #   docker build -t castle-defender-verifier:4.7.2 -f server/verifier/Dockerfile server/verifier
 #
@@ -19,6 +19,8 @@ RUN apt-get update \
 		unzip \
 		libfontconfig1 \
 		libglu1-mesa \
+		python3 \
+		python3-venv \
 	&& rm -rf /var/lib/apt/lists/*
 
 WORKDIR /opt/godot
@@ -36,13 +38,19 @@ RUN set -eu; \
 # Non-root; packs can be baked in or bind-mounted at /app/packs.
 RUN groupadd --system --gid 10001 verifier \
 	&& useradd --system --uid 10001 --gid verifier --home-dir /app --shell /usr/sbin/nologin verifier \
-	&& mkdir -p /app/packs /tmp/verifier \
+	&& mkdir -p /app/packs /tmp/verifier /app/venv \
 	&& chown -R verifier:verifier /app /tmp/verifier
 
+COPY --chown=verifier:verifier requirements.txt /app/requirements.txt
+RUN python3 -m venv /app/venv \
+	&& /app/venv/bin/pip install --no-cache-dir -r /app/requirements.txt \
+	&& chown -R verifier:verifier /app/venv
+
 COPY --chown=verifier:verifier entrypoint.sh /app/entrypoint.sh
+COPY --chown=verifier:verifier worker.py /app/worker.py
 COPY --chown=verifier:verifier packs/ /app/packs/
 
-RUN chmod 0755 /app/entrypoint.sh
+RUN chmod 0755 /app/entrypoint.sh /app/worker.py
 
 USER verifier
 WORKDIR /app
@@ -50,7 +58,9 @@ WORKDIR /app
 # Runtime: mount packs and/or set VERIFIER_DATABASE_URL on the host — never bake secrets.
 ENV PACKS_DIR=/app/packs \
 	TMPDIR=/tmp/verifier \
-	WORKER_ID=
+	WORKER_ID= \
+	PATH=/app/venv/bin:/usr/local/bin:/usr/bin:/bin \
+	VIRTUAL_ENV=/app/venv
 
 VOLUME ["/tmp/verifier"]
 

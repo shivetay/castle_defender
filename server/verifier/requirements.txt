@@ -1,0 +1,3 @@
+# Verifier claim/submit wrapper (#301 / #284).
+# Pin for reproducible image builds; bump deliberately.
+psycopg[binary]==3.2.13
