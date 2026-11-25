@@ -23,7 +23,29 @@ create table auth.users (
   raw_app_meta_data jsonb,
   is_anonymous boolean not null default false,
   created_at timestamptz default now(),
+  updated_at timestamptz default now(),
   last_sign_in_at timestamptz
+);
+
+-- Sesje i tokeny odświeżania w kształcie z Supabase Auth (tylko kolumny, których używają migracje
+-- i testy). W Supabase refresh_tokens.user_id to varchar, stąd porównania z u.id::text.
+create table auth.sessions (
+  id uuid primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  created_at timestamptz,
+  updated_at timestamptz,
+  refreshed_at timestamp,
+  not_after timestamptz
+);
+create table auth.refresh_tokens (
+  id bigserial primary key,
+  token varchar(255) unique,
+  user_id varchar(255),
+  revoked boolean,
+  created_at timestamptz,
+  updated_at timestamptz,
+  parent varchar(255),
+  session_id uuid references auth.sessions (id) on delete cascade
 );
 
 -- auth.uid()/auth.role()/auth.jwt() czytają request.jwt.claims, jak w Supabase.

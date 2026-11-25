@@ -2469,7 +2469,8 @@ func _draw_defence() -> void:
 		order.append(defense_panel.selected)
 	for i in order:
 		var o := defense.order_for(defense_panel.ids[i])
-		var cls := UnitTypes.unit_class(int((defense_panel.squads[i] as Array)[0]))
+		var unit := int((defense_panel.squads[i] as Array)[0])
+		var cls := UnitTypes.unit_class(unit)
 		var post := defense.post_for(defense_panel.ids[i])
 		# oddział bez zadania: miejsce zadania domyślnego jego klasy, w przygaszonej ramce (#20)
 		var fallback := o == null
@@ -2485,8 +2486,7 @@ func _draw_defence() -> void:
 			col = Palette.WOOD[0]
 		draw_rect(Rect2(at.x, at.y, TerrainMap.CELL, TerrainMap.CELL), Color(Palette.SHADOW, 0.7))
 		CastleView.draw_frame(self, Rect2i(at, Vector2i.ONE * TerrainMap.CELL), Palette.ACCENT if blocked else col)
-		if PixelIcons.class_region(cls).has_area():
-			PixelIcons.draw_class(self, Vector2(at + Vector2i(2, 2)), cls)
+		PixelIcons.draw_unit(self, Vector2(at + Vector2i(2, 2)), unit)
 	# pułapki (#100): znak rodzaju na ciemnym polu w czerwonej ramce
 	for t in defense.traps:
 		var tp := t.cell * TerrainMap.CELL

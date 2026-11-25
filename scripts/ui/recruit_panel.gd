@@ -662,9 +662,7 @@ func _draw_tile(r: Rect2, unit: int, active: bool) -> void:
 	var available := recruitment.availability(unit, grid, research, age) == Recruitment.Result.OK
 	var col: Color = Palette.INK if available else Palette.WOOD[0]
 	var icon_y := r.position.y + floorf((r.size.y - PixelIcons.SIZE) / 2.0)
-	var unit_class := UnitTypes.unit_class(unit)
-	if unit_class >= 0:
-		PixelIcons.draw_class_badge(self, Vector2(r.position.x + 2, icon_y), unit_class)
+	PixelIcons.draw_unit_badge(self, Vector2(r.position.x + 2, icon_y), unit)
 	var text_y := r.position.y + floorf((r.size.y - PixelFont.LINE) / 2.0)
 	PixelFont.draw_text(self, Vector2(r.position.x + 9, text_y), UnitTypes.SHORT_NAMES[unit], col)
 	var count := tile_count_text(recruitment.army_of(unit), recruitment.in_training(unit),
