@@ -4,7 +4,7 @@
 # Klaster powstaje od zera przy każdym uruchomieniu i znika na końcu, więc role globalne
 # (np. verifier z migracji) nie zostają z poprzednich przebiegów. Bez sieci i bez sekretów.
 #
-# Wymaga: postgresql-16, postgresql-16-pgtap, libtap-parser-sourcehandler-pgtap-perl (pg_prove).
+# Wymaga: postgresql-16, postgresql-16-pgtap, postgresql-16-cron, libtap-parser-sourcehandler-pgtap-perl (pg_prove).
 # Lokalnie: bash .github/scripts/run_pgtap.sh (jako root uruchamia Postgresa przez użytkownika postgres).
 set -euo pipefail
 
@@ -44,8 +44,10 @@ trap cleanup EXIT
 echo "::group::Klaster Postgres 16"
 "${as_pg[@]}" "$PG_BIN/initdb" -D "$DATA" -U postgres --auth=trust --encoding=UTF8 --locale=C.UTF-8 >/dev/null
 # Tylko gniazdo Unix w katalogu tymczasowym: brak nasłuchu TCP.
+# pg_cron (jak w Supabase) musi być w shared_preload_libraries, inaczej CREATE EXTENSION odmawia.
+# Zadania uruchamia przez background workery, bez połączeń libpq (TCP i tak jest wyłączone).
 "${as_pg[@]}" "$PG_BIN/pg_ctl" -D "$DATA" -l "$WORK/postgres.log" -w \
-	-o "-c listen_addresses='' -k $SOCK -p $PG_PORT" start
+	-o "-c listen_addresses='' -k $SOCK -p $PG_PORT -c shared_preload_libraries=pg_cron -c cron.database_name=postgres -c cron.use_background_workers=on" start
 "${as_pg[@]}" "$PG_BIN/postgres" --version
 echo "::endgroup::"
 

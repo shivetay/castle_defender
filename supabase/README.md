@@ -23,7 +23,7 @@ supabase test db
 Bez Dockera i bez CLI Supabase (to samo robi job „Testy bazy (pgTAP)” w CI):
 
 ```bash
-sudo apt-get install postgresql-16 postgresql-16-pgtap libtap-parser-sourcehandler-pgtap-perl
+sudo apt-get install postgresql-16 postgresql-16-pgtap postgresql-16-cron libtap-parser-sourcehandler-pgtap-perl
 bash .github/scripts/run_pgtap.sh
 ```
 
