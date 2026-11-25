@@ -42,3 +42,28 @@ jobs:
           name: logi-ci
           path: build/logs/
           retention-days: 7
+
+  pgtap:
+    name: Testy bazy (pgTAP)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      # Pakiety z oficjalnego repozytorium Ubuntu 24.04 (bez dodatkowych repozytoriów i obrazów).
+      - name: Instalacja Postgresa 16 i pgTAP
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends \
+            postgresql-16 postgresql-16-pgtap libtap-parser-sourcehandler-pgtap-perl
+
+      - name: Migracje i testy pgTAP
+        run: bash .github/scripts/run_pgtap.sh
+
+      - name: Logi
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: logi-pgtap
+          path: build/logs/
+          retention-days: 7
