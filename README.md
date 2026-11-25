@@ -339,7 +339,7 @@ w sekcji „Następny etap”.
 - `scripts/ui/recruit_panel.gd` (`RecruitPanel`): ekran Wojsko. Przycisk Wojsko w HUD (obok Oblężenia)
   pokazuje wszystkie jednostki; Szkol na karcie budynku rekrutacji tylko jednostki tego budynku.
   Nagłówek: zajęte miejsca i limit armii oraz utrzymanie względem produkcji Ży („Wojsko 12/22 Ży 14/60 (?)”);
-  w szczegółach jednostki jest jej utrzymanie. Kafelki z ikoną klasy, liczbą w armii
+  w szczegółach jednostki jest jej utrzymanie. Kafelki z ikoną jednostki (#309), liczbą w armii
   i w szkoleniu; zablokowane przygaszone z powodem (technologia, epoka, brak budynku); brakujące towary
   na czerwono z budynkiem, który je robi. Długie teksty (nazwa, koszt, braki) zawijają się po słowach
   (`PixelFont.wrap`) w 4 liniach szczegółów; braki towarów, pogrupowane według budynku, który je robi,
@@ -377,7 +377,7 @@ w sekcji „Następny etap”.
   (−25% wręcz), Kopijnik (szarża ×2 w pierwszym uderzeniu), Wojownik z toporem (×1,5 w drewno),
   Taran (bije tylko bramy, jedzie do najbliższej), Jeździec (omija wolne cele), Oszczepnik (rzut
   z 3 kratek), Podpalacz (podpala drewniane budynki na 10 s). Wartości w `BattleConfig`, część
-  tymczasowa. `BattleView`: jednostki nie są ludzikami, oddział to ikona klasy w ramce koloru strony,
+  tymczasowa. `BattleView`: jednostki nie są ludzikami, oddział to ikona jednostki (#309) w ramce koloru strony,
   liczba żywych i pasek zdrowia; odznaka stoi na jednej z jednostek oddziału (nie w jego średniej), a każda
   jednostka ma kropkę 2×2 w kolorze strony. Odznaki nie nachodzą na siebie, a zepchnięta niżej trzyma wiersz
   (bez skakania co klatkę). Mapa w bitwie rysuje stan zniszczeń budynków (pęknięcia, wyłomy, gruz). Podgląd w wersji debug:
@@ -670,7 +670,9 @@ w sekcji „Następny etap”.
   się z zegara systemowego, więc rośnie też, gdy gra jest w tle. Po powrocie komunikat podaje przyrost.
 - `scripts/gfx/pixel_icons.gd` (`PixelIcons`): ikony surowców 5×5 zapisane w kodzie jako wzory znaków
   (dwa bale, kamień, jabłko, moneta), kolory z palety, atlas w cache. Ikony 7×7 głównej kolumny HUD-u (#150):
-  młotek, księga, hełm, tarcza, klepsydra, zębatka (#177).
+  młotek, księga, hełm, tarcza, klepsydra, zębatka (#177). Każda jednostka ma własną ikonę 5×5
+  (`PixelIcons.UNITS`, #309), więc Chłop, Topornik, Oszczepnik i Włócznik z klasy lekkiej różnią się na
+  kafelkach Wojska, pasku ataku i obrony, posterunkach i w bitwie; zwiad zna tylko klasę, więc pokazuje ikonę klasy.
 - `scripts/ui/hud.gd`: interfejs na jeden kciuk w poziomie. Treść trzyma się 12 px od bocznych krawędzi
   (zaokrąglone narożniki), a wycięcia ekranu odsuwają ją dalej. U góry surowce z ikonami (pełny magazyn
   ma żółtą liczbę), a z prawej czas budowy z liczbą czekających zleceń oraz epoka i rok. U dołu komunikat

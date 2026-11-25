@@ -360,10 +360,9 @@ func _draw() -> void:
 		if planner.selected == i + 1:
 			CastleView.draw_frame(self, Rect2i(r), Palette.INK)
 		var unit := int(sq[0])
-		var cls := UnitTypes.unit_class(unit)
 		var at := r.position + Vector2(3, 5)
-		if PixelIcons.class_region(cls).has_area():
-			PixelIcons.draw_class_badge(self, at, cls)
+		if PixelIcons.unit_region(unit).has_area():
+			PixelIcons.draw_unit_badge(self, at, unit)
 		else:
 			PixelFont.draw_text(self, at - Vector2(0, 2), UnitTypes.SHORT_NAMES[unit].left(1), Palette.INK)
 		PixelFont.draw_text(self, r.position + Vector2(10, 3), "%d×%d" % [i + 1, int(sq[1])], Palette.INK)
