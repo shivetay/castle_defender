@@ -57,3 +57,34 @@ func test_hud_content_avoids_rounded_corners() -> bool:
 	assert_true(rects[0].position.x >= Hud.CORNER_INSET and rects[-1].end.x <= 320 - Hud.CORNER_INSET,
 			"karta budynku mieści się między narożnikami")
 	return true
+
+
+## Liczba zapalonych pikseli glifu (bez akcentów).
+func _ink(ch: String) -> int:
+	var n := 0
+	for row: String in PixelFont.GLYPHS[ch]:
+		n += row.count("#")
+	return n
+
+
+## #327: lżejsze glify przy tych samych szerokościach, więc układ paneli się nie zmienia.
+func test_glyphs_are_light_and_keep_widths() -> bool:
+	var widths := {"0": 3, "1": 3, "2": 3, "3": 3, "5": 3, "6": 3, "8": 3, "9": 3,
+			"B": 4, "E": 4, "G": 4, "S": 4, "W": 5, "M": 5, "I": 3, "O": 4}
+	for ch: String in widths:
+		assert_eq(PixelFont.glyph_width(ch), int(widths[ch]), "„%s” ma tę samą szerokość" % ch)
+	for ch: String in PixelFont.GLYPHS:
+		var rows: Array = PixelFont.GLYPHS[ch]
+		assert_true(rows.size() == 5 or rows.size() == 6, "„%s” ma 5 wierszy (+ogonek)" % ch)
+		for row: String in rows:
+			assert_eq(row.length(), (rows[0] as String).length(), "„%s”: równe wiersze" % ch)
+	for d in ["0", "3", "6", "8", "9"]:
+		assert_true(_ink(d) <= 10, "cyfra „%s” nie jest pełnym prostokątem" % d)
+		var top: String = PixelFont.GLYPHS[d][0]
+		assert_true(top[0] == "." or top[2] == ".", "cyfra „%s” ma zaokrąglony górny róg" % d)
+	assert_true(PixelFont.GLYPHS["1"] != PixelFont.GLYPHS["I"], "1 różni się od I")
+	assert_eq(PixelFont.GLYPHS["1"][4], ".#.", "1 bez dolnej belki")
+	assert_true(PixelFont.GLYPHS["5"] != PixelFont.GLYPHS["S"], "5 różni się od S")
+	for ch in ["B", "E"]:
+		assert_eq(PixelFont.GLYPHS[ch][2], "##..", "„%s” ma krótszą środkową belkę" % ch)
+	return true
