@@ -8,7 +8,9 @@ extends RefCounted
 ## obok (.broken), żeby następny zapis nie zrobił z niego kopii. Zapis z nowszej wersji gry
 ## też nie jest nadpisywany, tylko odkładany, a gra zaczyna od nowa.
 ## Zapisuje się tylko to, czego nie da się odtworzyć: seed terenu, budynki, surowce, towary, kolejkę, badania, armię,
-## plany ataku, ustawienia obrony, sprawdzanie szczelności z Komendy umocnień, zwiad, generałów i perk władcy.
+## plany ataku, ustawienia obrony, sprawdzanie szczelności z Komendy umocnień, zwiad, generałów, perk władcy
+## i dzienny licznik płatnych odświeżeń celów (#313; wpis `refresh` opcjonalny, bez podbicia wersji:
+## brak wpisu to licznik od zera, a starsza gra go pomija).
 
 const FORMAT_VERSION := 12
 const PATH := "user://castle.json"
@@ -41,6 +43,8 @@ class State:
 	var scouting := Scouting.new()
 	## Generałowie (#31) i generał ataku.
 	var generals := Generals.new()
+	## Płatne odświeżenia celów Wyprawy (#313).
+	var target_refresh := TargetRefresh.new()
 	var grid: BuildGrid
 	var economy: Economy
 	var queue: BuildQueue
@@ -56,7 +60,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		research: Research = null, goods: Goods = null, recruitment: Recruitment = null, pve_cleared: int = 0,
 		attack_plan: AttackPlan = null, bots_beaten: int = 0, defense: DefensePlan = null,
 		attack_target: int = 0, seal: SealCheck = null, scouting: Scouting = null,
-		generals: Generals = null) -> Dictionary:
+		generals: Generals = null, target_refresh: TargetRefresh = null) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -73,6 +77,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		"seal": seal.save_data() if seal != null else {},
 		"scout": scouting.save_data() if scouting != null else {},
 		"generals": generals.save_data() if generals != null else {},
+		"refresh": target_refresh.save_data() if target_refresh != null else {},
 	}
 
 
@@ -117,6 +122,8 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	if not s.generals.has_general(s.defense.commander):
 		s.defense.commander = -1
 	s.generals.set_attack(s.generals.attack_kind, s.defense.commander)
+	var refresh: Variant = d.get("refresh", {})
+	s.target_refresh.load_data(refresh as Dictionary if refresh is Dictionary else {})
 	return s
 
 
