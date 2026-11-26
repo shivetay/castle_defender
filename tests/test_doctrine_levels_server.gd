@@ -3,9 +3,9 @@ extends TestCase
 ## (TechTree.LEVELED_DOCTRINES, DOCTRINE_MAX_LEVEL, DOCTRINE_LEVEL_PERCENT): test szuka ich w komentarzu
 ## i w funkcjach migracji.
 
-const MIGRATION := "res://supabase/migrations/20261125130000_doctrine_levels.sql"
+const MIGRATION := "res://supabase/migrations/20261126065715_doctrine_levels.sql"
 ## Lista doktryn z poziomami z doktrynami ataku (najnowsza wersja `private.research_leveled`).
-const ATTACK_MIGRATION := "res://supabase/migrations/20261125140000_attack_doctrine_levels.sql"
+const ATTACK_MIGRATION := "res://supabase/migrations/20261126065756_attack_doctrine_levels.sql"
 
 
 func _sql() -> String:

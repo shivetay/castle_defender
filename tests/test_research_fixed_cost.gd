@@ -4,7 +4,7 @@ extends TestCase
 ## za każdą wcześniejszą doktrynę epoki, a czas każdej technologii jest stały w epoce. Test szuka
 ## listy doktryn i czasów epok w komentarzu i w funkcjach migracji.
 
-const MIGRATION := "res://supabase/migrations/20261125110000_research_fixed_cost.sql"
+const MIGRATION := "res://supabase/migrations/20261126065622_research_fixed_cost.sql"
 
 
 func _sql() -> String:

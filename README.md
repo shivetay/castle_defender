@@ -267,7 +267,7 @@ w sekcji „Następny etap”.
   doktryna epoki. Doktryny ataku A1 i A2 też mają poziomy: +5 punktów do premii w bitwie za poziom
   (`Battle.doctrine_percent`), a poziom atakującego przychodzi z serwera w `techs` jako „A1:3”. Bazowe liczby
   (epoka I: 100 Dr 50 Ka 50 Ży, 1 min) są tymczasowe. Serwer liczy wydatki tym samym wzorem
-  (`supabase/migrations/20261125110000_research_fixed_cost.sql`).
+  (`supabase/migrations/20261126065622_research_fixed_cost.sql`).
 - `scripts/world/research.gd` (`Research`): zbadane technologie i jedno badanie naraz. Badanie wymaga
   epoki i zbadanych zależności, koszt schodzi przy starcie, a koniec liczy się z zegara, także w tle.
   Kolejka budowy kończy budowy i badanie w porządku czasu, więc premia liczy się od chwili zbadania.
