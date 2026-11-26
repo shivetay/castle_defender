@@ -37,7 +37,7 @@ signal ranking_loaded(kind: int, rows: Array[RankingBoard.Row], ok: bool)
 ## Ostatnie obrony gracza (#99, DefenseLog.parse_response): zniszczone budynki i koniec ataku.
 ## `ok` false: błąd sieci albo serwera.
 signal defenses_loaded(rows: Array[Dictionary], ok: bool)
-## Raporty ostatnich obron (#29, DefenseLog.parse_reports). `ok` false: błąd sieci albo serwera.
+## Historia obron (#29, #328, DefenseLog.parse_history). `ok` false: błąd sieci albo serwera.
 signal defense_reports_loaded(reports: Array[DefenseLog.Report], ok: bool)
 ## Odpowiedź `attack_replay` (#29): AttackReplay.parse_response albo pusty słownik z kodem błędu.
 signal replay_loaded(replay: Dictionary, error: String)
@@ -365,25 +365,28 @@ func handle_defenses(result: int, code: int, body: String) -> void:
 	defenses_loaded.emit(DefenseLog.parse_response(SupabaseConfig.parse_json(body)), true)
 
 
-## Raporty ostatnich obron gracza (#29); odpowiedź w `defense_reports_loaded`. False: brak sieci albo
-## poprzednie żądanie jeszcze trwa.
+## Historia obron gracza (#328, Edge Function `defense_history`); odpowiedź w `defense_reports_loaded`.
+## Id gracza serwer bierze z tokenu, więc treść jest pusta. False: brak sieci albo poprzednie żądanie
+## jeszcze trwa (wtedy jego odpowiedź też przyjdzie w `defense_reports_loaded`).
 func load_defense_reports() -> bool:
-	if _reports_pending or not is_online():
-		return false
-	var p := DefenseLog.reports_path(user_id())
-	if p.is_empty():
+	if _reports_pending or not is_online() or user_id().is_empty():
 		return false
 	_reports_pending = true
 	if fake_transport:
-		sent_requests.append({"path": p})
+		sent_requests.append({"path": DefenseLog.HISTORY_PATH, "body": {}})
 		return true
 	if _reports == null:
 		_reports_pending = false
 		return false
-	var err := _reports.request(config.url + p, rest_headers(), HTTPClient.METHOD_GET)
+	var err := _reports.request(config.url + DefenseLog.HISTORY_PATH, rest_headers(), HTTPClient.METHOD_POST, "{}")
 	if err != OK:
 		handle_reports(HTTPRequest.RESULT_CANT_CONNECT, 0, "")
 	return true
+
+
+## Czy historia obron jest w drodze.
+func is_reports_pending() -> bool:
+	return _reports_pending
 
 
 ## Obsługa odpowiedzi z raportami obron (bez sieci, wołana też z testów).
@@ -392,7 +395,7 @@ func handle_reports(result: int, code: int, body: String) -> void:
 	if outcome_of(result, code) != Outcome.OK:
 		defense_reports_loaded.emit([] as Array[DefenseLog.Report], false)
 		return
-	defense_reports_loaded.emit(DefenseLog.parse_reports(SupabaseConfig.parse_json(body)), true)
+	defense_reports_loaded.emit(DefenseLog.parse_history(SupabaseConfig.parse_json(body)), true)
 
 
 ## Dane powtórki obrony `attack_id` (#29); odpowiedź w `replay_loaded`. False: brak sieci albo inne
