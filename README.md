@@ -943,3 +943,6 @@ i przywrócenie zamku z serwera (łup i tak dojdzie z `loot_applied`). Fale PvE 
 `pve_wave_results` i nowa Edge Function `pve_wave`) czekają na wgranie razem z wydaniem klienta: stara wersja
 gry dolicza nagrodę fali sama, więc po migracji taki zapis trafi na odrzut i przywrócenie zamku z serwera
 (bez nagrody). Wygląd Dworu w epokach III–VI dojdzie z tymi epokami (#38, #43, #46, #51).
+Weryfikacja ataków PvP przez worker (#284, #304): migracja `attack_verification` jest na projekcie w trybie
+`shadow` (skutki ataku jak dotąd, worker tylko porównuje). Worker na VPS (`server/verifier/`) czeka na hasło roli
+`verifier` i pack `verify_501.pck` (#305).
