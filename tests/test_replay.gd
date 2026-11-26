@@ -231,41 +231,31 @@ func test_replay_response_is_checked() -> bool:
 
 
 func test_defense_reports() -> bool:
-	assert_eq(DefenseLog.reports_path("zły"), "", "zły uuid nie idzie do sieci")
-	var path := DefenseLog.reports_path(UID)
-	assert_true(path.contains("defender_id=eq.%s" % UID) and path.contains("status=eq.finished"), "tylko obrony")
-	assert_true(path.contains("select=id,result,loot,finished_at"), "bez kopii i bez danych atakującego")
-	assert_true(path.contains("orders=neq.%5B%5D"), "bez ataków sprzed #29 (bez planu nie ma powtórki)")
-	var rows := DefenseLog.parse_reports(_wire([
-		{"id": ATTACK, "result": {"won": true, "percent": 66, "stars": [false, true, true]}, "loot": [5, 0, 1.0, 0],
-			"finished_at": "2026-11-21T10:15:00+01:00"},
-		{"id": "zły", "result": {"won": true, "percent": 1, "stars": [false, false, false]}, "loot": [],
+	# historia z Edge Function defense_history (#328): wynik, czas i gwiazdki; nick i siła w test_defense_history.gd
+	var rows := DefenseLog.parse_history(_wire({"rows": [
+		{"id": ATTACK, "result": {"won": true, "percent": 66, "stars": [false, true, true]}, "has_replay": true,
+			"finished_at": "2026-11-21T10:15:00+01:00", "nickname": "Ala", "army": []},
+		{"id": "zły", "result": {"won": true, "percent": 1, "stars": [false, false, false]},
 			"finished_at": "2026-11-21T10:15:00Z"},
-		{"id": ATTACK, "result": {"won": true}, "loot": [], "finished_at": "2026-11-21T10:15:00Z"},
+		{"id": ATTACK, "result": {"won": true}, "finished_at": "2026-11-21T10:15:00Z"},
 		"śmieć",
-	]))
+	]}))
 	assert_eq(rows.size(), 1, "złe wiersze pominięte")
 	assert_eq(rows[0].result.percent, 66, "procent")
 	assert_eq(rows[0].result.stars, [false, true, true] as Array[bool], "gwiazdki")
-	assert_eq(rows[0].loot, [5, 0, 1, 0] as Array[int], "łup")
 	assert_eq(rows[0].at_s, Time.get_unix_time_from_datetime_string("2026-11-21T09:15:00"), "czas w UTC")
 	assert_eq(ReplayPanel.row_text(rows[0], 60), "21.11 10:15 Zdobyty 66%", "wiersz listy w czasie telefonu")
 	rows[0].result.won = false
 	assert_eq(ReplayPanel.row_text(rows[0], 0), "21.11 09:15 Odparty 66%", "odparty atak")
-	assert_true(PixelFont.text_width(ReplayPanel.row_text(rows[0], 0)) + 30 < int(ReplayPanel.SIZE.x) - 12,
-			"wiersz z gwiazdkami mieści się w oknie")
 	return true
 
 
 func test_replay_panel_touch() -> bool:
 	var view := Vector2(320, 180)
-	assert_eq(ReplayPanel.target_at(ReplayPanel.row_rect(view, 0).get_center(), view, 2), 0, "pierwszy wiersz")
-	assert_eq(ReplayPanel.target_at(ReplayPanel.row_rect(view, 1).get_center(), view, 2), 1, "drugi wiersz")
-	assert_eq(ReplayPanel.target_at(ReplayPanel.row_rect(view, 2).get_center(), view, 2), -1, "pusty wiersz")
-	assert_eq(ReplayPanel.target_at(ReplayPanel.close_rect(view).get_center(), view, 2), -2, "Wróć")
-	var last := ReplayPanel.row_rect(view, DefenseLog.REPORTS_LIMIT - 1)
-	assert_true(last.end.y < ReplayPanel.close_rect(view).position.y, "wiersze nad przyciskiem")
-	assert_true(last.size.y >= 12 and last.size.x >= 12, "cel dotyku co najmniej 12×12")
+	assert_eq(ReplayPanel.target_at(ReplayPanel.row_rect(view, 0).get_center(), view, 2, 0), 0, "pierwszy wiersz")
+	assert_eq(ReplayPanel.target_at(ReplayPanel.row_rect(view, 1).get_center(), view, 2, 0), 1, "drugi wiersz")
+	assert_eq(ReplayPanel.target_at(ReplayPanel.row_rect(view, 2).get_center(), view, 2, 0), -1, "pusty wiersz")
+	assert_eq(ReplayPanel.target_at(ReplayPanel.close_rect(view).get_center(), view, 2, 0), ReplayPanel.CLOSE, "Wróć")
 	assert_eq(ReplayPanel.status_text(ReplayPanel.State.READY, 0), ReplayPanel.EMPTY_TEXT, "bez obron")
 	assert_eq(ReplayPanel.status_text(ReplayPanel.State.FAILED, 0), ReplayPanel.FAILED_TEXT, "bez sieci")
 	assert_eq(ReplayPanel.status_text(ReplayPanel.State.READY, 2), "", "lista")
@@ -302,8 +292,8 @@ func test_defense_report_panel() -> bool:
 func test_defense_panel_has_replays() -> bool:
 	var view := Vector2(320, 180)
 	var i := DefensePanel.COLUMN.find(DefensePanel.Target.REPLAYS)
-	assert_true(i >= 0, "Powtórki w kolumnie obrony")
-	assert_eq(DefensePanel.LABELS[i], "Powtórki", "napis")
+	assert_true(i >= 0, "Historia w kolumnie obrony")
+	assert_eq(DefensePanel.LABELS[i], "Historia", "napis")
 	assert_true(PixelFont.text_width(DefensePanel.LABELS[i]) <= int(Hud.BUTTON_SIZE.x) - 4, "napis mieści się")
 	assert_eq(DefensePanel.target_at(Hud.column_rect(300, i).get_center(), view, 12, 300, 1, 0),
 			DefensePanel.Target.REPLAYS, "dotknięcie")
@@ -334,8 +324,8 @@ func test_client_requests() -> bool:
 	c.replay_loaded.connect(func(d: Dictionary, e: String) -> void: replays.append([d, e]))
 	assert_true(c.load_defense_reports(), "raporty idą")
 	assert_true(not c.load_defense_reports(), "drugie żądanie czeka")
-	assert_eq(c.sent_requests[-1]["path"], DefenseLog.reports_path(UID), "ścieżka raportów")
-	c.handle_reports(HTTPRequest.RESULT_SUCCESS, 200, "[]")
+	assert_eq(c.sent_requests[-1]["path"], DefenseLog.HISTORY_PATH, "ścieżka historii obron")
+	c.handle_reports(HTTPRequest.RESULT_SUCCESS, 200, '{"rows": []}')
 	assert_true(reports[0][1] and (reports[0][0] as Array).is_empty(), "pusta lista")
 	c.load_defense_reports()
 	c.handle_reports(HTTPRequest.RESULT_CANT_CONNECT, 0, "")

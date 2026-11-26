@@ -12,7 +12,7 @@ extends Control
 ## to podaje. Wieże zmieniają priorytet celów wież, Zdejmij wraca do zadania domyślnego. Mapę i zadania
 ## rysuje main; ten węzeł rysuje tylko przyciski. Pułapki (#100) przełączają pasek na rodzaje pułapek:
 ## dotknięcie kratki stawia wybraną (koszt schodzi od razu), dotknięcie pułapki ją usuwa (bez zwrotu),
-## a Załoga wraca do oddziałów. Powtórki (#29) otwierają listę ostatnich obron: po obejrzeniu ataku
+## a Załoga wraca do oddziałów. Historia (#29, #328) otwiera listę ostatnich obron: po obejrzeniu ataku
 ## gracz wraca tu i od razu poprawia obronę. Komendant (#31) przełącza komendanta obrony: brak, a potem
 ## każdy generał gracza poza generałem ataku. Komendant dowodzi całą obroną, nie stoi na mapie.
 ## Zadanie Garnizon Dworu (#81) daje się wybrać tylko, gdy oddział mieści się w pojemności Dworu
@@ -22,12 +22,12 @@ extends Control
 ## Układ albo wybór zmienił się (mapa ma się przerysować, a gra zapisać).
 signal changed(message: String)
 signal back_requested
-## Powtórki (#29): lista ostatnich obron.
+## Historia (#29, #328): lista ostatnich obron.
 signal replays_requested
 
 enum Target { NONE = -1, CLEAR, BACK, TASK, TOWERS, TRAPS, CREW, REPLAYS, COMMANDER, MORE = 50, SQUAD = 100 }
 const COLUMN: Array[int] = [Target.TASK, Target.TOWERS, Target.TRAPS, Target.CLEAR, Target.REPLAYS, Target.BACK]
-const LABELS: Array[String] = ["Zadanie", "Wieże", "Pułapki", "Zdejmij", "Powtórki", "Gotowe"]
+const LABELS: Array[String] = ["Zadanie", "Wieże", "Pułapki", "Zdejmij", "Historia", "Gotowe"]
 ## Przycisk komendanta (#31) w lewym górnym rogu (AttackPanel.general_rect), poza trybem pułapek.
 const COMMANDER_LABEL := "Komend."
 ## Kolumna w trybie pułapek (#100).

@@ -4,7 +4,8 @@ extends RefCounted
 ## (`attacks.destroyed`, zapisuje ją serwer w `public.record_destroyed`). Klient czyta je przez REST
 ## (RLS: gracz widzi tylko ataki, w których brał udział) i robi z nich ruiny w odbudowie (Ruins).
 ## Pobiera tylko id budynków i czas końca ataku; kto atakował, gra tu nie potrzebuje.
-## Raporty obron (#29): wynik, łup i id ataku do powtórki (AttackReplay) dla ekranu powtórek.
+## Historia obron (#29, #328): wynik, nick i siła armii napastnika oraz id ataku do powtórki
+## (AttackReplay) z Edge Function `defense_history`.
 
 const PATH := "/rest/v1/attacks"
 ## Najwięcej obron w jednej odpowiedzi (starsze i tak są już odbudowane).
@@ -70,38 +71,37 @@ static func parse_timestamp(text: String) -> int:
 	return int(base) - sign * offset_s
 
 
-# --- Raporty obron (#29) -----------------------------------------------------------------------
+# --- Historia obron (#29, #328) ----------------------------------------------------------------
 
-## Ile ostatnich obron pokazuje ekran powtórek.
-const REPORTS_LIMIT := 5
+## Edge Function historii obron (#328): ostatnie zakończone ataki na zamek gracza z nickiem napastnika.
+const HISTORY_PATH := "/functions/v1/defense_history"
+## Ile ostatnich obron pokazuje historia (HISTORY_LIMIT w migracji i Edge Function).
+const REPORTS_LIMIT := 10
+## Nick napastnika, którego serwer nie podał (albo nie przeszedł reguł nazw).
+const UNKNOWN_NICK := "?"
 
 
-## Raport jednej obrony: id ataku (do powtórki), wynik z serwera, łup, który zabrał atakujący,
-## i koniec ataku (unix s). Kto atakował, gra tu nie pobiera.
+## Raport jednej obrony: id ataku (do powtórki), wynik z serwera, koniec ataku (unix s), nick
+## napastnika, siła armii, z którą przyszedł (#328, ten sam wskaźnik co na ekranie Wojsko), i czy
+## obrona ma powtórkę (ataki sprzed #29 nie mają zapisanego planu).
 class Report:
 	extends RefCounted
 	var id := ""
 	var result: BattleResult
-	var loot: Array[int] = []
 	var at_s := 0
+	var nickname := UNKNOWN_NICK
+	var army_power := 0
+	var has_replay := false
 
 
-## Ścieżka zapytania: ostatnie zakończone obrony gracza `user_id`, od najnowszej (RLS: gracz widzi tylko
-## ataki, w których brał udział). Tylko z zapisanym planem (`orders` różne od `[]`): ataki sprzed #29
-## nie mają powtórki, więc nie zajmują miejsc na liście (review #266). Pusty tekst, gdy id nie wygląda jak UUID.
-static func reports_path(user_id: String) -> String:
-	if not _is_uuid(user_id):
-		return ""
-	return "%s?select=id,result,loot,finished_at&defender_id=eq.%s&status=eq.finished&orders=neq.%%5B%%5D&order=finished_at.desc&limit=%d" \
-			% [PATH, user_id, REPORTS_LIMIT]
-
-
-## Odpowiedź REST z raportami. Wiersze bez poprawnego id, wyniku albo czasu są pomijane.
-static func parse_reports(data: Variant) -> Array[Report]:
+## Odpowiedź `defense_history` ({"rows": [...]}), od najnowszej. Wiersze bez poprawnego id, wyniku
+## albo czasu są pomijane. Nick pochodzi od innego gracza, więc przechodzi przez reguły nazw
+## z onboardingu; armia ze złym wpisem daje siłę 0.
+static func parse_history(data: Variant) -> Array[Report]:
 	var out: Array[Report] = []
-	if not data is Array:
+	if not data is Dictionary or not (data as Dictionary).get("rows") is Array:
 		return out
-	for row: Variant in data as Array:
+	for row: Variant in (data as Dictionary)["rows"] as Array:
 		if not row is Dictionary or out.size() >= REPORTS_LIMIT:
 			continue
 		var d := row as Dictionary
@@ -109,10 +109,39 @@ static func parse_reports(data: Variant) -> Array[Report]:
 		r.id = str(d.get("id", ""))
 		r.result = parse_result(d.get("result"))
 		r.at_s = parse_timestamp(str(d.get("finished_at", "")))
-		r.loot = parse_loot(d.get("loot"))
-		if _is_uuid(r.id) and r.result != null and r.at_s >= 0:
+		if not _is_uuid(r.id) or r.result == null or r.at_s < 0:
+			continue
+		var nick := TargetSearch.safe_name(str(d.get("nickname", "")), PlayerProfile.NAME_MAX)
+		r.nickname = nick if not nick.is_empty() else UNKNOWN_NICK
+		r.army_power = army_power(AttackReplay.parse_army(d.get("army")))
+		r.has_replay = d.get("has_replay") == true
+		out.append(r)
+	return out
+
+
+## Siła armii [[rodzaj, liczba], …]: suma Strength.unit_power, jak na ekranie Wojsko.
+static func army_power(army: Array) -> int:
+	var total := 0
+	for squad: Variant in army:
+		total += int((squad as Array)[1]) * Strength.unit_power(int((squad as Array)[0]))
+	return total
+
+
+## Obrony zakończone po `seen_s` (koniec ostatnio obejrzanej obrony, unix s), od najnowszej.
+static func new_since(list: Array[Report], seen_s: int) -> Array[Report]:
+	var out: Array[Report] = []
+	for r in list:
+		if r.at_s > seen_s:
 			out.append(r)
 	return out
+
+
+## Koniec najnowszej obrony z listy (unix s), 0 dla pustej listy.
+static func newest_s(list: Array[Report]) -> int:
+	var best := 0
+	for r in list:
+		best = maxi(best, r.at_s)
+	return best
 
 
 ## Wynik z serwera (`attacks.result`, BattleResult.to_server): wygrana atakującego, procent 0..100

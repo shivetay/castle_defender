@@ -10,6 +10,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Gaszenie pożarów + Studnia weszły z #35 / #20.
 - Generał nie stoi na siatce; PvE max poziom 2; awans w Dworze za PD i złoto (#31 / #273).
 - Przejście I → II: Dwór 5 + O1 + G1 + A7; przebudowa L6; budynki max→lvl1 z bonusami (#34 / #261). **Liczby tymczasowe** → #262 / [[Balans]].
+- Historia obron (26.11.2026, #328): okno po połączeniu z liczbą ataków, lista z nickiem i siłą armii atakującego z serwera; siła obrony atakującego odłożona do #293. [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika|ADR 0003]].
 
 ## Pytania otwarte
 

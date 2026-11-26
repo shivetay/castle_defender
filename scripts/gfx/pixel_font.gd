@@ -66,6 +66,8 @@ const GLYPHS := {
 	"?": ["###", "..#", ".##", "...", ".#."],
 	"'": ["#", "#", ".", ".", "."],
 	"\"": ["#.#", "#.#", "...", "...", "..."],
+	"<": ["..#", ".#.", "#..", ".#.", "..#"],
+	">": ["#..", ".#.", "..#", ".#.", "#.."],
 }
 ## Polskie litery: litera bazowa i znak diakrytyczny (kreska, kropka albo ogonek).
 const ACCENTED := {

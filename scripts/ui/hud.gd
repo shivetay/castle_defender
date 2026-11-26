@@ -149,6 +149,8 @@ var goal_text := ""
 var ruler_id := ""
 ## Zlecenia budowy i szkolenia razem (licznik na przycisku Kolejka).
 var queue_count := 0
+## Nowe ataki na zamek od ostatniego obejrzenia Historii (#328): czerwona kropka nad Obroną.
+var defence_alert := false
 ## Napis przycisku tempa, np. „Tempo ×2”.
 var speed_label := "Tempo ×1"
 ## Przycisk do podświetlenia przez mini-samouczek (#251, TutorialHints): Target, przycisk karty jako
@@ -649,6 +651,8 @@ func _draw() -> void:
 						queue_count if targets[i] == Target.QUEUE else 0)
 			else:
 				_draw_button(column_rect(content_right, i), label, _pressed == targets[i], false)
+			if targets[i] == Target.DEFENCE and defence_alert:
+				draw_rect(alert_rect(column_rect(content_right, i, icons)), Palette.ACCENT)
 	if not overlay:
 		var hint := target_rect(hint_target, view, content_right, building, is_card_open(), card_recruit, battle,
 				card_pve, card_seal, card_plain)
@@ -659,6 +663,11 @@ func _draw() -> void:
 	PixelFont.draw_text(self, Vector2(content_left, view.y - BAR_H + 1), message, Palette.INK)
 	PixelFont.draw_right(self, content_right, view.y - BAR_H + 1, "%d FPS" % Engine.get_frames_per_second(),
 			Palette.WOOD[3])
+
+
+## Kropka nowych ataków (#328): 4×4 w prawym górnym rogu przycisku `r`, nad ikoną.
+static func alert_rect(r: Rect2) -> Rect2:
+	return Rect2(r.end.x - 5, r.position.y + 1, 4, 4)
 
 
 static func column_label(t: int) -> String:

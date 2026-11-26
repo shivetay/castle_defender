@@ -31,7 +31,7 @@ Etap 7 (#129) to plan ataku z manewrami (#18) i ekranem planu (#17), a etap 8 (#
 z #19 (posterunki załogi wokół donżonu), zadania obrony (#20) i pułapki (#100). Trwa etap 9 (#131): backend
 Supabase i PvP, czyli schemat bazy z RLS (#21), anonimowe konto gracza (#22), synchronizacja zamku
 z obroną (#23), dobór przeciwnika z ekranem 3 celów (#24) oraz start i koniec ataku z łupem i tarczami (#25), atak na gracza w kliencie (#240), ranking PvP ataku i obrony (#27), osobny ranking PvE za zamki-boty (#242) oraz odbudowa zamku obrońcy po ataku (#99). Z etapu 10 (#132) jest
-zwiad (#28) oraz raport i powtórka obrony (#29). Z etapu 13 (#135) są już pozostałe budynki MVP (#35):
+zwiad (#28), raport i powtórka obrony (#29) oraz historia obron z powiadomieniem o ataku (#328). Z etapu 13 (#135) są już pozostałe budynki MVP (#35):
 Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom i Wieża sygnałowa, oraz życie w zamku (#36):
 mieszkańcy, straż na murach, łopoczące proporce i pora dnia. Stan i kolejne kroki są
 w sekcji „Następny etap”.
@@ -630,8 +630,15 @@ w sekcji „Następny etap”.
     te same seedy, kopie zamku i obrony z chwili startu, armię, plan i badania. Obie strony budują bitwę
     tą samą drogą (`PlayerCastle`), więc przebieg jest identyczny (test krok po kroku w `test_replay.gd`).
     Domyślne zadania załogi liczą się z epoki obrońcy z kopii, a nie z epoki atakującego.
-  - **Ekran:** Obrona → Powtórki pokazuje 5 ostatnich obron (data, odparty albo zdobyty, procent,
-    gwiazdki atakującego). Dotknięcie wiersza odtwarza bitwę na zamku z chwili ataku, bez sterowania,
+  - **Ekran:** Obrona → Historia (#328) pokazuje 10 ostatnich obron, po 4 na stronę. Wiersz ma datę,
+    wynik (odparty albo zdobyty), procent i 3 tarcze obrońcy (pęknięta to gwiazdka atakującego), a pod
+    spodem nick napastnika, siłę jego armii (`Strength.unit_power` z armii zapisanej przez serwer) i „Obr. ?”
+    (siła obrony jego zamku przyjdzie z #293). Obrony bez powtórki (sprzed #29) są wyszarzone.
+    Historię oddaje Edge Function `defense_history` (tylko własne obrony, bez id i nazwy zamku napastnika).
+  - **Powiadomienie (#328):** po połączeniu z serwerem okienko „Zaatakowano Cię N× od ostatniej wizyty”
+    z przyciskami Historia i OK, a czerwona kropka nad Obroną świeci, dopóki gracz nie otworzy Historii.
+    Co jest nowe, wie znacznik w profilu na telefonie (`PlayerProfile.read_seen_defense`), nie serwer.
+  - **Powtórka:** dotknięcie wiersza odtwarza bitwę na zamku z chwili ataku, bez sterowania,
     z tempem x1, x2 i x4. Na końcu raport obrony: wynik i gwiazdki atakującego, stracony łup (z serwera)
     i Do obrony, które od razu otwiera ustawienia obrony. Gdy powtórka da inny wynik niż serwer, raport to mówi.
   - **Dostęp:** powtórkę dostaje tylko obrońca zakończonego ataku; ataki sprzed #29 nie mają zapisanego
@@ -920,7 +927,9 @@ Raport i powtórka obrony (#29) są w kodzie. Migracja `attack_replay`, nowa wer
 `launch_attack` (z planem) i nowa `attack_replay` są na projekcie. Stara wersja gry nie zatwierdzi już
 ataku na gracza (`bad_plan`), więc trzeba grać z APK z #29 lub nowszego. Stara funkcja SQL
 `launch_attack(uuid, uuid)` zostaje do osobnej migracji, która ją usunie. Powtórkę ma tylko obrońca
-(atakujący widział bitwę na żywo); powiadomienia o ataku (#30) zostają na osobny ticket.
+(atakujący widział bitwę na żywo). Historia obron z nickiem napastnika i okienkiem o nowych atakach (#328)
+jest w kodzie; migracja `defense_history` i Edge Function `defense_history` są na projekcie.
+Push o ataku (#30) zostaje na osobny ticket.
 Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa Dworu z poziomu 5
 z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoką gracza na serwerze
 (`players.age`, ranking i dobór przeciwnika) zajmuje się migracja `castle_age`: po każdym zapisie zamku

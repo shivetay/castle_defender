@@ -171,6 +171,17 @@ static func write_tutorial(path: String, state: int) -> Error:
 	return _write(path, {"tutorial": TutorialHints.state_name(state)})
 
 
+## Koniec ostatnio obejrzanej obrony (#328, unix s): obrony po nim są nowe (okienko po połączeniu
+## i kropka nad Obroną). Tylko na telefonie, bez serwera; bez pola wszystkie obrony są nowe.
+static func read_seen_defense(path: String) -> int:
+	var v: Variant = read(path).get("seen_defense_s", 0)
+	return maxi(0, int(v)) if v is int or v is float else 0
+
+
+static func write_seen_defense(path: String, at_s: int) -> Error:
+	return _write(path, {"seen_defense_s": maxi(0, at_s)})
+
+
 ## Usuwa profil (w testach).
 static func delete(path: String) -> void:
 	SaveGame.delete(path)
