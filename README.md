@@ -446,9 +446,9 @@ w sekcji „Następny etap”.
     do 77 obrońców). Zamki 16–20 to epoka II: bronią ich też Włócznicy, Drużynnicy, Strzelcy z łukiem
     refleksyjnym i Kopijnicy. Liczby tymczasowe.
   - **Trzy cele (#24, `scripts/ui/target_picker.gd`):** Wyprawa otwiera najpierw 3 karty celów. Karta ma
-    portret władcy, imię gracza, epokę, nazwę zamku, miniaturę zamku 32×32 (teren z seeda i zarys
-    budynków jednym kolorem, bez rodzajów, wojska i pułapek, które odsłoni zwiad z #28), ranking
-    (u bota trudność) i szacowany łup. Graczy dobiera serwer; brakujące karty, a bez sieci wszystkie,
+    tylko portret władcy, imię gracza, nazwę zamku i siłę obrony (#310): u bota liczoną w kliencie
+    (załoga i umocnienia, `Strength.bot_defense`), u gracza „Siła ?”, dopóki serwer jej nie poda (#293).
+    Szacowanego łupu karta już nie pokazuje. Graczy dobiera serwer; brakujące karty, a bez sieci wszystkie,
     zajmują boty: bieżący cel kampanii, potem zdobyte zamki, a nowy gracz dostaje kolejne z listy.
     Boty otwiera pełną listę 20 zamków (niżej), Planuj plan ataku na bocie. Planuj na karcie gracza
     (#240, `scripts/battle/player_castle.gd`) zaczyna atak na serwerze (`start_attack`) i otwiera plan
