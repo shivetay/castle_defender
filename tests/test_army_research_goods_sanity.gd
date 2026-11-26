@@ -5,8 +5,8 @@ extends TestCase
 ## co w grze; test składa je z klas gry i szuka w komentarzu i w funkcji migracji.
 
 const MIGRATION := "res://supabase/migrations/20261124150000_army_research_goods_sanity.sql"
-## Najnowsza wersja `private.tech_tree` (#308: technologie perków władcy).
-const TREE_MIGRATION := "res://supabase/migrations/20261126121609_ruler_perk_research.sql"
+## Najnowsza wersja `private.tech_tree` (#315: G4 Kamieniarstwo w epoce I).
+const TREE_MIGRATION := "res://supabase/migrations/20261126150000_quarry_age_one.sql"
 
 
 func _sql() -> String:
