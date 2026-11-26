@@ -264,10 +264,12 @@ func rest_headers() -> PackedStringArray:
 
 ## Pobiera politykę wersji (#336); wynik w `version_policy_loaded`. Działa też bez konta i przy
 ## kłopotach z logowaniem (tylko klucz publishable), bo stary klient ma się dowiedzieć o blokadzie.
-## False, gdy serwer nie jest skonfigurowany albo sprawdzenie już trwa.
+## False, gdy serwer nie jest skonfigurowany; gdy sprawdzenie już trwa, sygnał przyjdzie z tamtego.
 func check_version() -> bool:
-	if _version_pending or config == null or not config.is_ready():
+	if config == null or not config.is_ready():
 		return false
+	if _version_pending:
+		return true
 	_version_pending = true
 	if fake_transport:
 		sent_requests.append({"path": ClientVersion.POLICY_PATH, "body": {}})

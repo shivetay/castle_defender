@@ -1767,7 +1767,8 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	_finish_result = null
 	_finish_body = {}
 	_finish_resumed = false
-	if error == SupabaseClient.NETWORK_ERROR:
+	# update_required (#336): wynik czeka w pliku jak przy braku sieci i wróci na serwer po aktualizacji
+	if error == SupabaseClient.NETWORK_ERROR or error == ClientVersion.UPDATE_REQUIRED_ERROR:
 		_resume_poll_s = Time.get_ticks_msec() / 1000.0 + RESUME_POLL_S
 		if resumed:
 			hud.message = ""  # zaległy wynik nadal czeka; okno pokazało się już po bitwie

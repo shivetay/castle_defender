@@ -15,6 +15,8 @@ const POLICY_PATH := "/rest/v1/rpc/client_version_policy"
 const HEADER := "X-Client-Version"
 ## Odpowiedź serwera na zbyt starą wersję (Edge Functions i wyzwalacze zapisu, SQLSTATE PT426).
 const HTTP_UPDATE_REQUIRED := 426
+## Kod błędu w odpowiedzi Edge Function (`{"error": "update_required"}`).
+const UPDATE_REQUIRED_ERROR := "update_required"
 const STORE_URL := "market://details?id=com.shivetay.dunhold"
 const STORE_WEB_URL := "https://play.google.com/store/apps/details?id=com.shivetay.dunhold"
 ## Miękki komunikat o tej samej wersji najwyżej raz na tyle sekund.
