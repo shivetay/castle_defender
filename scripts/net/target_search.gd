@@ -40,8 +40,10 @@ class Target:
 	var footprint: Array[Rect2i] = []
 	## Szacowany łup w kolejności EconomyConfig.Res.
 	var loot: Array[int] = []
+	## Siła obrony na karcie (#310): bot ze Strength.bot_defense, gracz -1 (nieznana do #293).
+	var strength := -1
 
-	## Klucz do cache miniatur.
+	## Klucz celu (raporty zwiadu, #28).
 	func key() -> String:
 		return "bot:%d" % bot_idx if is_bot else "gracz:" + player_id
 
@@ -117,7 +119,7 @@ static func parse_footprint(raw: Variant) -> Array[Rect2i]:
 	return out
 
 
-## Cel-bot `i` (0–19): zamek z listy BotRoster, jego zarys i szacowany łup ze skarbca (z cache).
+## Cel-bot `i` (0–19): zamek z listy BotRoster, jego zarys, siła i szacowany łup ze skarbca (z cache).
 static func bot_target(i: int) -> Target:
 	if _bots.has(i):
 		return _bots[i]
@@ -132,6 +134,7 @@ static func bot_target(i: int) -> Target:
 	var bot := BotRoster.generate(i)
 	for id: int in bot.grid.buildings:
 		t.footprint.append(bot.grid.buildings[id])
+	t.strength = Strength.bot_defense(bot)
 	_bots[i] = t
 	return t
 

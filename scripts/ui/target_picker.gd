@@ -1,15 +1,14 @@
 class_name TargetPicker
 extends Node2D
 ## Wybór celu ataku (#24), pierwszy ekran Wyprawy ze Strażnicy: zawsze 3 karty celów. Karta ma
-## portret władcy, imię gracza, epokę, nazwę zamku, miniaturę zamku (teren i zarys budynków),
-## ranking obrony (bot: trudność) i szacowany łup. Graczy dobiera serwer (TargetSearch, `find_targets`);
+## tylko portret władcy, imię gracza, nazwę zamku i siłę obrony (#310): bot liczy ją w kliencie
+## (Strength.bot_defense), a gracz ma „?”, dopóki serwer jej nie poda (#293). Graczy dobiera serwer (TargetSearch, `find_targets`);
 ## puste miejsca, a bez sieci wszystkie trzy, zajmują zamki-boty. Boty otwiera dotychczasową listę
 ## 20 zamków-botów (BotPicker), Planuj plan ataku na wybranym celu, a Wróć wraca do mapy.
 ## Planuj na karcie gracza zaczyna atak na serwerze (`start_attack`, #240) i otwiera plan na kopii
 ## jego zamku. Zwiad (#28): pierwsze kliknięcie Zwiad odsłania przycisk czasu (2, 10 albo 30 min,
 ## #317), kolejne wysyła Tropicieli na wybrany cel; pod kartami są stan i koszt zwiadu, które
 ## podaje main (scout_lines). Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
-@warning_ignore_start("integer_division")
 
 signal bot_chosen(index: int)
 signal player_chosen(target: TargetSearch.Target)
@@ -32,15 +31,17 @@ const PLAN_LABEL := "Planuj"
 const CLOSE_LABEL := "Wróć"
 const BOTS_LABEL := "Boty"
 const SCOUT_LABEL := "Zwiad"
-## Karta gracza: jego punkty rankingu obrony (#27).
-const DEFENSE_RATING_LABEL := "Obrona"
+## Siła obrony celu (#310); siły gracza klient jeszcze nie zna (#293).
+const STRENGTH_LABEL := "Siła"
+const UNKNOWN_STRENGTH_TEXT := "Siła ?"
 const CARD_Y := Hud.BAR_H + 12
 const CARD_GAP := 4
-const CARD_H := 90
+## Portret, a pod nim nazwa zamku.
+const CARD_H := 38
 ## Odstęp treści od brzegu karty.
 const PAD := 2
-const MINI_Y := 36
-const LOOT_Y := 70
+## Wiersz nazwy zamku, pod portretem.
+const CASTLE_Y := PAD + PortraitArt.SIZE + 3
 ## Pierwsza linia stanu zwiadu (#28) pod kartami.
 const SCOUT_Y := CARD_Y + CARD_H + 3
 
@@ -64,7 +65,6 @@ var _pressed: int = Target.NONE
 ## Otwiera ekran z 3 botami; `online`: trwa szukanie graczy, wynik da `set_players`.
 func open(beaten_count: int, online: bool) -> void:
 	beaten = beaten_count
-	MinimapArt.clear_cache()
 	targets = TargetSearch.fill([] as Array[TargetSearch.Target], beaten)
 	search = Search.SEARCHING if online else Search.OFFLINE
 	selected = 0
@@ -167,40 +167,27 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, time
 	return Target.NONE
 
 
-## Linie tekstu karty [pozycja względem karty, tekst, kolor], przycięte do szerokości karty.
+## Linie tekstu karty [pozycja względem karty, tekst, kolor], przycięte do szerokości karty:
+## imię i siła obok portretu, nazwa zamku pod nim.
 static func card_lines(t: TargetSearch.Target, w: int) -> Array:
-	var side := w - PortraitArt.SIZE - 2 * PAD - 2
-	var stats_x := PAD + MinimapArt.SIZE + 3
-	var stats_w := w - stats_x - PAD
-	var out: Array = [
-		[Vector2(PAD + PortraitArt.SIZE + 2, 3), fit(t.player_name, side), Palette.INK],
-		[Vector2(PAD + PortraitArt.SIZE + 2, 13), TargetSearch.age_label(t.age), Palette.THATCH[2]],
-		[Vector2(PAD, 26), fit(t.castle_name, w - 2 * PAD), Palette.THATCH[2]],
+	var side_x := PAD + PortraitArt.SIZE + 2
+	var side := w - side_x - PAD
+	return [
+		[Vector2(side_x, 3), fit(t.player_name, side), Palette.INK],
+		[Vector2(side_x, 13), fit(strength_text(t), side), Palette.THATCH[2]],
+		[Vector2(PAD, CASTLE_Y), fit(t.castle_name, w - 2 * PAD), Palette.THATCH[2]],
 	]
-	if t.is_bot:
-		out.append([Vector2(stats_x, MINI_Y), fit("Trudność", stats_w), Palette.THATCH[1]])
-		out.append([Vector2(stats_x, MINI_Y + 9), "%d/%d" % [t.bot_idx + 1, BotRoster.COUNT], Palette.INK])
-	else:
-		# ranking obrony celu (#27): z nim mierzy się ranking ataku gracza
-		out.append([Vector2(stats_x, MINI_Y), fit(DEFENSE_RATING_LABEL, stats_w), Palette.THATCH[1]])
-		out.append([Vector2(stats_x, MINI_Y + 9), str(t.rating), Palette.INK])
-	out.append([Vector2(stats_x, MINI_Y + 20), fit("Łup ok.", stats_w), Palette.THATCH[1]])
-	for res in t.loot.size():
-		var at := loot_pos(res, w) + Vector2(PixelIcons.SIZE + 2, -1)
-		out.append([at, str(t.loot[res]), Palette.INK])
-	return out
+
+
+## Napis siły na karcie, np. „Siła 245”, albo „Siła ?”, gdy jej nie znamy.
+static func strength_text(t: TargetSearch.Target) -> String:
+	return UNKNOWN_STRENGTH_TEXT if t.strength < 0 else "%s %d" % [STRENGTH_LABEL, t.strength]
 
 
 ## Jedna linia najwyżej `width` px (z „...”, gdy się nie mieści); pusty tekst zostaje pusty.
 static func fit(text: String, width: int) -> String:
 	var lines := PixelFont.wrap(text, width, 1)
 	return lines[0] if not lines.is_empty() else ""
-
-
-## Lewy górny róg ikony surowca `res` na karcie: dwa wiersze po dwa surowce.
-static func loot_pos(res: int, w: int) -> Vector2:
-	var col_w := (w - 2 * PAD) / 2
-	return Vector2(PAD + (res % 2) * col_w, LOOT_Y + 1 + (res / 2) * (PixelFont.LINE + 1))
 
 
 func _activate(t: int) -> void:
@@ -295,11 +282,8 @@ func _draw_card(r: Rect2, t: TargetSearch.Target, i: int) -> void:
 	draw_rect(r, ResearchPanel.tile_color(false, active))
 	var o := r.position
 	draw_texture(PortraitArt.ruler_texture(t.ruler), o + Vector2(PAD, PAD))
-	draw_texture(MinimapArt.castle_texture(t.key(), t.map_seed, t.footprint), o + Vector2(PAD, MINI_Y))
 	for line: Array in card_lines(t, int(r.size.x)):
 		PixelFont.draw_text(self, o + (line[0] as Vector2), line[1] as String, line[2] as Color)
-	for res in t.loot.size():
-		PixelIcons.draw_resource(self, o + loot_pos(res, int(r.size.x)), res)
 	if t.is_bot:
 		# znacznik zamku-bota w prawym górnym rogu (epoka II jak na liście botów: czerwony)
 		draw_rect(Rect2(r.end.x - 4, r.position.y + 2, 2, 2),

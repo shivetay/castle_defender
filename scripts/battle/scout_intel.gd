@@ -1,7 +1,7 @@
 class_name ScoutIntel
 extends RefCounted
 ## Co plan ataku widzi z zamku-celu (#28, mgła wojny bez animacji). Bez zwiadu widać tylko zarys
-## budynków (jak miniatura na karcie celu): bez rodzajów, poziomów, załogi, patroli i pułapek.
+## budynków: bez rodzajów, poziomów, załogi, patroli i pułapek.
 ## Raport zwiadu odsłania prostokąt `region` w obrębie zabudowy, który zajmuje tyle procent jej
 ## obszaru, ile daje raport (Scouting.Report.percent). W nim widać budynki, miejsca oddziałów
 ## załogi, trasy patroli i pułapki (pole „odsłonięta” z #100). Nawet pełny sukces odsłania tylko
