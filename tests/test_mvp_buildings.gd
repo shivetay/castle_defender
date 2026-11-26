@@ -346,4 +346,13 @@ func test_quarry_available_in_age_one_after_g4() -> bool:
 	r.done["G1"] = true
 	assert_eq(r.check("G4", 0), Research.Result.OK, "po G1 G4 da się badać w epoce I")
 	assert_eq(BuildConfig.required_tech(K.QUARRY), "G4", "Kamieniołom nadal wymaga G4")
+	# Budowa w zamku z epoki I (Dwór 1): bez G4 zablokowana w panelu, z G4 dostępna i staje na siatce.
+	var grid := _castle()
+	assert_eq(Ages.of_level(grid.manor_level()), 0, "zamek w epoce I")
+	assert_true(not BuildConfig.is_unlocked(K.QUARRY, r), "z samą G1 Kamieniołomu nie ma")
+	assert_eq(BuildPanel.state_text(K.QUARRY, r), "zbadaj G4", "panel budowy: zbadaj G4")
+	r.done["G4"] = true
+	assert_true(BuildConfig.is_unlocked(K.QUARRY, r), "z G4 Kamieniołom odblokowany")
+	assert_eq(BuildPanel.state_text(K.QUARRY, r), "dostępny", "panel budowy: dostępny")
+	assert_true(grid.place(_spot(grid, K.QUARRY), K.QUARRY, 1) != 0, "Kamieniołom staje w zamku z epoki I")
 	return true
