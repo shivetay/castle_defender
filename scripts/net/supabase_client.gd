@@ -14,6 +14,9 @@ signal state_changed(state: int)
 ## Serwer ma zamek, który trzeba przywrócić na telefon (#23): zapis w kształcie `SaveGame.to_dict`
 ## i tożsamość z onboardingu (`Identity.to_dict`, pusty słownik, gdy jej nie ma).
 signal castle_restored(save: Dictionary, profile: Dictionary)
+## Odczyt zamku z serwera skończył się i nic nie wraca na telefon (zamek zostaje, idzie na serwer
+## albo odczyt się nie udał). Po nim zasłona ładowania na starcie może zejść (#316).
+signal castle_checked
 ## Odpowiedź doboru przeciwnika (#24): cele-gracze z serwera (0–3). `ok` false: błąd sieci albo
 ## serwera; gra zostaje wtedy przy samych zamkach-botach.
 ## `limited`: serwer odrzucił szukanie z limitu (20 na 10 minut).
@@ -736,11 +739,14 @@ func handle_castle_rest(call: int, result: int, code: int, body: String) -> void
 			_castle_rejected(call)
 			return
 		_castle_failed(call, code)
+		if call == CastleCall.GET:
+			castle_checked.emit()
 		return
 	var rows: Variant = SupabaseConfig.parse_json(body)
 	match call:
 		CastleCall.GET:
-			_castle_on_get(CastleSync.first_row(rows))
+			if not _castle_on_get(CastleSync.first_row(rows)):
+				castle_checked.emit()
 		CastleCall.INSERT, CastleCall.PUSH:
 			var revision := CastleSync.revision_from_rows(rows)
 			if revision < 0:
@@ -787,13 +793,14 @@ func _castle_pump() -> void:
 		_defense_push()
 
 
-func _castle_on_get(row: Dictionary) -> void:
+## Decyzja po odczycie zamku; true, gdy zamek wraca z serwera (`castle_restored`).
+func _castle_on_get(row: Dictionary) -> bool:
 	var uid := user_id()
 	_checked_user = uid
 	if not row.is_empty() and int(row.get("save_version", 0)) > SaveGame.FORMAT_VERSION:
 		# zamek zapisała nowsza wersja gry: nie nadpisujemy go do końca sesji
 		_castle_hold = true
-		return
+		return false
 	# nieudane przywrócenie z poprzedniej sesji liczy się jak start bez zapisu
 	var fresh := local_fresh or sync_state.restore_pending_for(uid)
 	var action := CastleSync.decide(_castle_map_seed, sync_state.revision_for(uid), fresh,
@@ -804,7 +811,7 @@ func _castle_on_get(row: Dictionary) -> void:
 		if CastleSync.save_from_row(row).is_empty():
 			_castle_hold = true
 			_castle_dirty = false
-			return
+			return false
 		action = CastleSync.Action.PULL
 	match action:
 		CastleSync.Action.INSERT:
@@ -830,10 +837,12 @@ func _castle_on_get(row: Dictionary) -> void:
 			sync_state.save(sync_path)
 			var id := CastleSync.identity_from_row(row)
 			castle_restored.emit(CastleSync.save_from_row(row), id.to_dict() if id != null else {})
+			return true
 		_:
 			# bez tożsamości: zamek zostaje na telefonie; odczytamy go znowu przy następnym zapisie
 			_checked_user = ""
 			_castle_dirty = false
+	return false
 
 
 func _castle_push() -> void:
