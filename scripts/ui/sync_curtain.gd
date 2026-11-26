@@ -17,7 +17,7 @@ const MIN_VISIBLE_S := 0.8
 ## Co ile sekund zmienia się tekst klimatyczny i przybywa kropka w tytule.
 const LINE_S := 1.6
 const DOT_S := 0.4
-const STARTUP_TITLE := "Łączę z serwerem"
+const STARTUP_TITLE := "Otwieramy bramy grodu"
 const RESTORE_TITLE := "Wczytuję zamek z serwera"
 ## Teksty klimatyczne, po kolei w kółko (zawsze od pierwszego).
 const LINES: Array[String] = [
