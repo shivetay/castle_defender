@@ -9,3 +9,4 @@ numer, a stary zmienia tylko status na „zastąpiony przez”.
 |---|---|---|---|
 | [[ADR/0001-grillowanie-i-adr-w-pracy-z-ai\|0001]] | Grillowanie i ADR w pracy z AI | przyjęty | brak |
 | [[ADR/0002-perki-wladcy-z-technologii\|0002]] | Perki władcy z technologii zamiast wyboru z listy | przyjęty | #308 |
+| [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika\|0003]] | Historia obron z nickiem atakującego i siłą jego armii | przyjęty | #328 |

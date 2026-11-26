@@ -21,6 +21,6 @@ Trzy elementy na stałe, reszta ekranu należy do zamku. Orientacja pozioma, obs
 | Zwiad | animacja zwiadowcy, potem mapa z mgłą wojny i odsłoniętym obszarem |
 | Planowanie ataku | siatka ze strefami rozstawienia; dolny pasek z oddziałami; dotknięcie oddziału otwiera listę manewrów i ich parametry (cel, trasa, start, odwrót); strzałki pokazują plan |
 | Bitwa | widok na żywo bez sterowania, przewijanie czasu ×2 i ×4 |
-| Raport i powtórka | wynik, gwiazdki, łup; obrońca może obejrzeć powtórkę i od razu poprawić obronę |
+| Raport i powtórka | wynik, gwiazdki, łup; obrońca może obejrzeć powtórkę i od razu poprawić obronę; historia obron (okno po połączeniu z liczbą ataków, przycisk Historia, czerwona kropka nad Obroną, tarcze zamiast gwiazdek) [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika\|ADR 0003]] |
 
 Powiązane: [[Widok zamku]], [[Koncept gry]]
