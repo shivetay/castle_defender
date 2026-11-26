@@ -20,5 +20,6 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 - [[Plan MVP]]
 - [[Roadmapa do 1.0]]
 - [[Otwarte pytania]] — pytania do decyzji oraz braki względem planu
+- [[ADR/README|ADR]] — przyjęte decyzje projektowe; vault idzie za nimi
 
 #castle-defender

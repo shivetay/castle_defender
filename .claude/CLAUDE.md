@@ -12,6 +12,8 @@ Główne reguły projektu są w `CLAUDE.md` w katalogu głównym. Ten plik mówi
 | Zamykanie issue, podsumowanie stanu / PR | `issue-triage` | `haiku` | Komentarze, checklisty, status |
 | Feature, bugfix, refactor, merge conflicts | `implementer` | `opus` | Kod gry, testy, CI |
 | Niepewne / mieszane (docs + kod) | `implementer` | `opus` | Gdy wchodzi logika GDScript |
+| Grillowanie ticketu / pomysłu | sesja główna | — | Rozmowa z właścicielką, skill `grilling` |
+| ADR + aktualizacja vaultu | `issue-triage` | `haiku` | Skill `adr`, gdy decyzja już ustalona |
 
 ## Zasady
 
