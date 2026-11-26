@@ -109,6 +109,13 @@ var replay_panel: ReplayPanel
 var _replay: BattleReplay
 var _replaying := false
 var _replay_loading := false
+## Historia obron (#328): ostatnia lista z serwera, okienko o nowych atakach, koniec najnowszej obrony,
+## o której okienko już mówiło w tej sesji (żeby nie wracało przy każdym powrocie do gry), i czy
+## Historię otworzyło okienko (Wróć zamyka ją wtedy bez ustawień obrony).
+var _defense_history: Array[DefenseLog.Report] = []
+var defense_notice: DefenseNotice
+var _noticed_s := 0
+var _history_from_notice := false
 var planner: AttackPlanner
 var attack_panel: AttackPanel
 ## Okienko z informacją (produkcja surowca, limit armii).
@@ -302,6 +309,10 @@ func _ready() -> void:
 	layer.add_child(replay_panel)
 	replay_panel.closed.connect(_on_replays_closed)
 	replay_panel.replay_requested.connect(_on_replay_requested)
+	defense_notice = DefenseNotice.new()
+	layer.add_child(defense_notice)
+	defense_notice.history_requested.connect(_on_notice_history)
+	defense_notice.closed.connect(_on_overlay_closed)
 
 	defense_panel = DefensePanel.new()
 	defense_panel.research = research
@@ -551,9 +562,11 @@ func _on_net_state(st: int) -> void:
 		_resume_finish()
 
 
-## Pyta serwer o obrony z czasu, w którym ruiny mogą jeszcze stać (#99).
+## Pyta serwer o obrony z czasu, w którym ruiny mogą jeszcze stać (#99), i o historię obron (#328),
+## z której wychodzi okienko o nowych atakach i kropka nad Obroną.
 func _load_defenses() -> void:
 	if net != null and net.is_online():
+		net.load_defense_reports()
 		@warning_ignore("integer_division")
 		net.load_defenses(_now_s() - Ruins.rebuild_ms(grid.age()) / 1000)
 
@@ -1805,27 +1818,84 @@ func _on_defence_changed(message: String) -> void:
 	_save()
 
 
-## Powtórki (#29) z ustawień obrony: lista ostatnich obron z serwera. Bez sieci lista pokazuje błąd.
+## Historia (#29, #328) z ustawień obrony: lista ostatnich obron z serwera. Bez sieci lista pokazuje błąd.
 func _on_replays_pressed() -> void:
+	_history_from_notice = false
+	_open_history()
+
+
+## Historia z okienka o nowych atakach: bez ustawień obrony (gracz nie musi mieć armii).
+func _on_notice_history() -> void:
+	_history_from_notice = true
+	_open_history()
+
+
+func _open_history() -> void:
 	defense_panel.visible = false
+	_selected_id = 0
+	hud.hide_card()
 	_save()
 	replay_panel.open()
 	hud.overlay = true
 	hud.message = "Wybierz obronę do obejrzenia"
-	if net == null or not net.is_online() or not net.load_defense_reports():
+	if net == null or not net.is_online():
 		replay_panel.show_reports([] as Array[DefenseLog.Report], false)
+		return
+	if not _defense_history.is_empty():
+		replay_panel.show_reports(_defense_history, true)
+		_mark_defenses_seen()
+	# trwające żądanie (np. ze startu gry) też odpowie w _on_defense_reports
+	if not net.load_defense_reports() and not net.is_reports_pending():
+		replay_panel.show_reports(_defense_history, not _defense_history.is_empty())
 
 
+## Historia z serwera: przy otwartej liście ją odświeża i oznacza jako obejrzaną, a w innym razie
+## sprawdza nowe ataki od ostatniego obejrzenia (kropka nad Obroną i okienko, raz na nową obronę).
 func _on_defense_reports(reports: Array[DefenseLog.Report], ok: bool) -> void:
+	if not ok:
+		if replay_panel.visible and _defense_history.is_empty():
+			replay_panel.show_reports(reports, false)
+		return
+	_defense_history = reports
 	if replay_panel.visible:
-		replay_panel.show_reports(reports, ok)
+		replay_panel.show_reports(reports, true)
+		_mark_defenses_seen()
+		return
+	var fresh := DefenseLog.new_since(reports, PlayerProfile.read_seen_defense(PlayerProfile.PATH))
+	hud.defence_alert = not fresh.is_empty()
+	var newest := DefenseLog.newest_s(fresh)
+	if newest > _noticed_s and _can_show_notice():
+		_noticed_s = newest
+		defense_notice.open(DefenseNotice.text(fresh))
+		hud.overlay = true
+	hud.queue_redraw()
 
 
-## Wróć z listy powtórek: z powrotem do ustawień obrony.
+## Okienko nie przykrywa bitwy, onboardingu ani innego otwartego ekranu; wtedy zostaje sama kropka.
+func _can_show_notice() -> bool:
+	return not hud.overlay and not hud.battle and battle_view == null \
+			and (onboarding == null or not onboarding.visible)
+
+
+## Gracz zobaczył historię: znacznik w profilu przesuwa się na najnowszą obronę, kropka gaśnie.
+func _mark_defenses_seen() -> void:
+	var newest := DefenseLog.newest_s(_defense_history)
+	if newest > PlayerProfile.read_seen_defense(PlayerProfile.PATH):
+		var err := PlayerProfile.write_seen_defense(PlayerProfile.PATH, newest)
+		if err != OK:
+			push_warning("Nie udało się zapisać obejrzanych obron: %s" % error_string(err))
+	_noticed_s = maxi(_noticed_s, newest)
+	hud.defence_alert = false
+	hud.queue_redraw()
+
+
+## Wróć z historii: do ustawień obrony, a gdy otworzyło ją okienko, z powrotem do zamku.
 func _on_replays_closed() -> void:
 	_replay_loading = false
 	_on_overlay_closed()
-	_on_defence_pressed()
+	if not _history_from_notice:
+		_on_defence_pressed()
+	_history_from_notice = false
 
 
 func _on_replay_requested(attack_id: String) -> void:
