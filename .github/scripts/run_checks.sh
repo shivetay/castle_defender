@@ -38,7 +38,8 @@ step "Testy narzędzi" python3 -m unittest discover -s tools -p "test_*.py"
 step "Import projektu" timeout 300 "$GODOT" --headless --path . --import
 step "Kompilacja skryptów" timeout 120 "$GODOT" --headless --path . --script res://tests/check_compile.gd
 step "Test dymny (300 klatek)" smoke
-step "Testy logiki" timeout 300 "$GODOT" --headless --path . --script res://tests/run_tests.gd
+# Limit z zapasem: na main testy trwają ok. 230 s, a wolniejszy runner bywa 1,5× wolniejszy.
+step "Testy logiki" timeout 600 "$GODOT" --headless --path . --script res://tests/run_tests.gd
 step "Pack weryfikacji (Verifier)" env GODOT="$GODOT" LOG_DIR="$LOG_DIR" bash .github/scripts/build_verify_pack.sh --check build/verifier
 
 exit $status
