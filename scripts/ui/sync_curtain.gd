@@ -14,11 +14,12 @@ enum Mode { HIDDEN, STARTUP, RESTORE }
 const STARTUP_MAX_S := 10.0
 ## Najkrótszy czas na ekranie (s).
 const MIN_VISIBLE_S := 0.8
-## Co ile sekund zmienia się tekst klimatyczny i przybywa kropka w tytule.
+## Co ile sekund zmienia się tekst klimatyczny i klatka kowala (SmithIcon).
 const LINE_S := 1.6
-const DOT_S := 0.4
-const STARTUP_TITLE := "Otwieramy bramy grodu"
-const RESTORE_TITLE := "Wczytuję zamek z serwera"
+const HAMMER_S := 0.2
+## Kolejność klatek kowala: zamach, uderzenie z iskrami, powrót.
+const HAMMER_CYCLE: Array[int] = [SmithIcon.Frame.UP, SmithIcon.Frame.MID, SmithIcon.Frame.HIT,
+		SmithIcon.Frame.HIT, SmithIcon.Frame.MID]
 ## Teksty klimatyczne, po kolei w kółko (zawsze od pierwszego).
 const LINES: Array[String] = [
 	"Rozkręcamy życie na zamku",
@@ -93,10 +94,9 @@ func advance(delta: float) -> bool:
 	return false
 
 
-## Tytuł z kropkami (0–3, w kółko).
-func title() -> String:
-	var base := RESTORE_TITLE if mode == Mode.RESTORE else STARTUP_TITLE
-	return base + ".".repeat(int(elapsed / DOT_S) % 4)
+## Klatka kowala (SmithIcon.Frame) w tej chwili.
+func smith_frame() -> int:
+	return HAMMER_CYCLE[int(elapsed / HAMMER_S) % HAMMER_CYCLE.size()]
 
 
 func line() -> String:

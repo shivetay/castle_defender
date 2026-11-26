@@ -1,17 +1,19 @@
 class_name SyncLoaderPanel
 extends Node2D
-## Zasłona ładowania przy synchronizacji z serwerem (#316): pełny ekran w kolorze cienia, tytuł
-## z kropkami i zmieniające się teksty klimatyczne. Kiedy się pokazuje i znika, decyduje SyncCurtain.
+## Zasłona ładowania przy synchronizacji z serwerem (#316): pełny ekran w kolorze cienia, kowal
+## walący w kowadło (SmithIcon) i zmieniające się teksty klimatyczne. Kiedy się pokazuje i znika, decyduje SyncCurtain.
 ## Dopóki stoi, łapie każdy dotyk (stoi nad wszystkim, także nad onboardingiem).
 
 ## Pozycje tekstów względem środka ekranu (całe piksele).
-const TITLE_DY := -14
+## Kowal w skali 2× (całkowitej, piksele zostają ostre), żeby był czytelny na telefonie.
+const ICON_SCALE := 2
+const ICON_DY := -40
 const LINE_DY := 4
 const RULE_W := 60
 
 var curtain := SyncCurtain.new()
 
-var _title := ""
+var _frame := -1
 var _line := ""
 
 
@@ -58,10 +60,10 @@ func _refresh() -> void:
 	visible = curtain.is_visible()
 	if not visible:
 		return
-	var t := curtain.title()
+	var f := curtain.smith_frame()
 	var l := curtain.line()
-	if t != _title or l != _line:
-		_title = t
+	if f != _frame or l != _line:
+		_frame = f
 		_line = l
 		queue_redraw()
 
@@ -77,9 +79,7 @@ func _draw() -> void:
 	var view := get_viewport_rect().size
 	draw_rect(Rect2(Vector2.ZERO, view), Palette.SHADOW)
 	var mid := floorf(view.y / 2.0)
-	# tytuł bez przesuwania przy kropkach: wyśrodkowany bez nich, kropki dopisane z prawej
-	var base := _title.trim_suffix(".").trim_suffix(".").trim_suffix(".")
-	var x := floorf((view.x - float(PixelFont.text_width(base))) / 2.0)
-	PixelFont.draw_text(self, Vector2(x, mid + TITLE_DY), _title.to_upper(), Palette.THATCH[2])
+	SmithIcon.draw(self, Vector2(floorf((view.x - SmithIcon.W * ICON_SCALE) / 2.0), mid + ICON_DY), _frame,
+			ICON_SCALE)
 	draw_rect(Rect2(floorf(view.x / 2.0) - RULE_W / 2.0, mid - 2, RULE_W, 1), Palette.WOOD[2])
 	PixelFont.draw_centered(self, Rect2(0, mid + LINE_DY, view.x, 10), _line, Palette.WOOD[3])

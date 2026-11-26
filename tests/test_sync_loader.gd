@@ -108,18 +108,16 @@ func test_restore_stays_until_scene_reload_and_ignores_startup_events() -> bool:
 func test_texts_rotate_deterministically_and_fit() -> bool:
 	var s := SyncCurtain.new()
 	s.start_waiting()
-	assert_eq(s.title(), SyncCurtain.STARTUP_TITLE, "bez kropek na starcie")
+	assert_eq(s.smith_frame(), SmithIcon.Frame.UP, "kowal zaczyna od zamachu")
 	assert_eq(s.line(), SyncCurtain.LINES[0], "pierwszy tekst")
-	s.advance(SyncCurtain.DOT_S * 2.0)
-	assert_eq(s.title(), SyncCurtain.STARTUP_TITLE + "..", "kropki rosną")
+	s.advance(SyncCurtain.HAMMER_S * 2.0 + 0.01)
+	assert_eq(s.smith_frame(), SmithIcon.Frame.HIT, "potem uderza w kowadło")
 	s.advance(SyncCurtain.LINE_S)
 	assert_eq(s.line(), SyncCurtain.LINES[1], "kolejny tekst")
 	s.advance(SyncCurtain.LINE_S * float(SyncCurtain.LINES.size() - 1))
 	assert_eq(s.line(), SyncCurtain.LINES[0], "teksty idą w kółko")
-	s.start_restore()
-	assert_true(s.title().begins_with(SyncCurtain.RESTORE_TITLE), "inny tytuł przy przywracaniu")
 	assert_true(SyncCurtain.LINES.size() >= 5, "kilka tekstów")
-	for text: String in SyncCurtain.LINES + [SyncCurtain.STARTUP_TITLE + "...", SyncCurtain.RESTORE_TITLE + "..."]:
+	for text: String in SyncCurtain.LINES:
 		assert_true(PixelFont.text_width(text) <= 300, "mieści się w 320 px: %s" % text)
 		assert_true(not PixelFont._normalize(text).contains("?"), "font zna wszystkie znaki: %s" % text)
 	return true
@@ -166,4 +164,22 @@ func test_failed_restore_ends_startup_wait() -> bool:
 	s.finish()
 	s.advance(SyncCurtain.MIN_VISIBLE_S)
 	assert_true(not s.is_visible(), "zasłona schodzi po minimalnym czasie")
+	return true
+
+
+func test_smith_icon_frames_differ_and_use_palette() -> bool:
+	var img := SmithIcon.make_atlas()
+	assert_eq(img.get_size(), Vector2i(SmithIcon.W * 3, SmithIcon.H), "trzy klatki")
+	assert_eq(SmithIcon.BASE.size(), SmithIcon.H, "wysokość wzoru")
+	for row in SmithIcon.BASE:
+		assert_eq(row.length(), SmithIcon.W, "szerokość wiersza")
+	for arm: Array in SmithIcon.ARMS:
+		for row: String in arm:
+			assert_eq(row.length(), SmithIcon.W, "szerokość ręki")
+			for ch in row:
+				assert_true(ch == "." or SmithIcon.LEGEND.has(ch), "znak w legendzie: %s" % ch)
+	var frames: Array[PackedByteArray] = []
+	for f in 3:
+		frames.append(img.get_region(Rect2i(f * SmithIcon.W, 0, SmithIcon.W, SmithIcon.H)).get_data())
+	assert_true(frames[0] != frames[1] and frames[1] != frames[2], "klatki się różnią")
 	return true
