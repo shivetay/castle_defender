@@ -13,6 +13,7 @@ Gdzie co robisz:
 | 3. Worker | **VPS** (SSH) |
 | 3.3 i 5 (SQL) | Supabase → SQL Editor, liczby wpisujesz ręcznie |
 | 4. Google Play | przeglądarka |
+| 6. Progi wersji (SQL) | Supabase → SQL Editor, po publikacji w Play |
 
 W każdym terminalu, w którym wykonujesz polecenia (komputer, VPS), najpierw ustaw zmienne. `export` działa
 tylko w bieżącym oknie, więc po każdym nowym logowaniu przez SSH ustawiasz je od nowa. W katalogu repo,
@@ -106,6 +107,10 @@ supabase functions deploy launch_attack --project-ref wabeqpqrllwolhsceycd
 ```
 
 Najpierw migracje, potem funkcje, bo funkcja może wołać nową wersję funkcji SQL.
+
+Jeśli lista zawiera `_shared` (wspólny kod funkcji, np. sprawdzanie wersji klienta z #336), to nie jest
+osobna funkcja: wgraj wtedy wszystkie funkcje, bo każda ma ten kod w swojej paczce
+(`supabase functions deploy --project-ref wabeqpqrllwolhsceycd` bez nazwy wgrywa wszystkie).
 
 ---
 
@@ -238,13 +243,45 @@ Na koniec zamknij issues, które to wydanie domknęło.
 
 ---
 
+## 6. Progi wersji klienta
+
+**Gdzie:** Supabase → SQL Editor. Dopiero gdy nowa wersja jest w Play (krok 4).
+
+Gra porównuje swój kod wersji (`$SIM`, np. 600 dla 0.6.0) z dwoma progami w `private.client_versions`
+(#336, ADR 0005):
+
+- `recommended_code`: starsza wersja dostaje okienko „Dostępna nowa wersja” z linkiem do sklepu
+  (najwyżej raz na 24 h), ale gra dalej;
+- `min_code`: starsza wersja ma ekran blokady i nie zagra ani online, ani offline. Serwer odrzuca jej
+  zapisy zamku i Edge Functions kodem `update_required`, także w wersjach sprzed #336.
+
+Zaraz po statusie „Dostępna dla testerów” (albo po publikacji w produkcji) podnieś rekomendację:
+
+```sql
+update private.client_versions set recommended_code = 600, updated_at = now();  -- tu $SIM
+```
+
+Po 48 h, gdy wersja jest dostępna dla wszystkich (stopniowe wdrażanie skończone), podnieś minimum.
+Wartość nie może być wyższa niż wersja w sklepie, bo zablokujesz wszystkich:
+
+```sql
+update private.client_versions set min_code = 600, updated_at = now();  -- tu $SIM
+select public.client_version_policy();
+```
+
+Gra pyta o progi przy starcie i po powrocie z tła (najwyżej co godzinę), a Edge Functions trzymają
+minimum w pamięci do minuty.
+
+---
+
 ## Rollback
 
 **Gdzie:** podane w każdym wierszu: Play Console (przeglądarka), VPS (SSH) albo SQL Editor (przeglądarka).
 
 | Problem | Co zrobić |
 |---|---|
-| Nowy klient psuje grę | **Play Console:** **Zatrzymaj wdrażanie** wersji; testerzy zostają na poprzedniej |
+| Nowy klient psuje grę | **Play Console:** **Zatrzymaj wdrażanie** wersji; testerzy zostają na poprzedniej. Jeśli `min_code` już wskazuje tę wersję, obniż go (wiersz niżej) |
+| Zbyt wysokie `min_code` (gracze bez dostępnej aktualizacji są zablokowani) | **SQL Editor:** `update private.client_versions set min_code = <poprzedni $SIM>, updated_at = now();` Gra zdejmie blokadę po „Sprawdź ponownie” |
 | Worker sypie błędami | **VPS:** `systemctl stop castle-defender-verifier` (albo `docker compose stop verifier`), `VERIFIER_COMMAND=smoke` w `.env`. Kolejka czeka, joby wracają po 5 min od restartu |
 | Zły pack | **SQL Editor:** wyłącz wersję: `update private.sim_versions set supported = false where version = 600;` a na **VPS** wgraj poprawny pack. Ataki ze statusem `failed` wrócą do kolejki przez `select private.requeue_verification('<attack_id>');` |
 | Odciąć worker od bazy | **SQL Editor:** `alter role verifier nologin;` |
