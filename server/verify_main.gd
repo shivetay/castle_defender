@@ -1,13 +1,21 @@
+class_name VerifyMain
 extends SceneTree
 ## Punkt wejścia workera Godot headless (#284 / #303): czyta `--job`, woła VerifyJob.verify, zapisuje
 ## `--out`, kończy 0 (sukces) albo 1 (błąd / złe argumenty). Bez sieci — DB tylko przez wrapper Python.
 ##
 ##   godot --headless --path . --script res://server/verify_main.gd -- --job in.json --out out.json
 ##   godot --headless --main-pack packs/verify_<sim_version>.pck -- --job in.json --out out.json
+##   godot --headless --main-pack packs/verify_<sim_version>.pck -- --check   (wypisuje sim_version packa)
+## W packu (preset „Verifier”, cecha `verifier`) to główna pętla gry: `run/main_loop_type.verifier`
+## w project.godot, a `server/verify_main.tscn` to pusta scena główna, bo bez niej Godot nie wystartuje.
 
 
 func _initialize() -> void:
 	var args := OS.get_cmdline_user_args()
+	if args.has("--check"):
+		print("sim_version=%d" % VerifyJob.project_sim_version())
+		quit(0)
+		return
 	var job_path := _arg_value(args, "--job")
 	var out_path := _arg_value(args, "--out")
 	if job_path.is_empty() or out_path.is_empty():
