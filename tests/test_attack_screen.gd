@@ -293,3 +293,34 @@ func test_manoeuvre_picker() -> bool:
 	panel.free()
 	planner.free()
 	return true
+
+
+## Ostrzał (#314): mapa pokazuje obszar postoju w tej samej kratce, którą wyznaczy bitwa; bez linii
+## marszu strzałki nie ma (sam postój), a punkty trasy prowadzą linię od postoju do celu.
+func test_ranged_shows_hold_area() -> bool:
+	var bot := BotCastle.generate(BotCastle.seed_for(1337, 0), 0)
+	var o := AttackPlan.Order.new()
+	o.manoeuvre = M.RANGED
+	var hold := AttackPlanner.fire_hold(o, bot, U.ARCHER)
+	assert_true(hold != AttackPlan.NO_TARGET, "łucznicy mają punkt postoju")
+	var battle := Battle.create_squads(bot.grid, bot.objective, [[U.ARCHER, 3]], [], bot.spawn, 1)
+	var keep: Battle.Structure = battle.structures[bot.objective]
+	assert_eq(battle._fire_hold_cell(99, keep, battle.range_of(battle.fighters[0])), hold, "ten sam punkt co w bitwie")
+	assert_eq(AttackPlanner.fire_hold(o, bot, U.PEASANT), AttackPlan.NO_TARGET, "Chłop bez postoju")
+	var reach := AttackPlanner.unit_range(U.ARCHER)
+	assert_eq(AttackPlanner.arrow_cells(o, bot, AttackPlan.NO_TARGET, hold, reach), [hold] as Array[Vector2i],
+			"bez linii marszu: tylko obszar postoju")
+	assert_eq(AttackPlanner.hold_rect(hold, bot.grid.terrain.size).size, Vector2i(3, 3), "obszar 3×3")
+	var grass := Vector2i(-1, -1)
+	for dx in range(3, 12):
+		var c := hold + Vector2i(dx, 0)
+		if bot.grid.terrain.is_walkable(c) and bot.grid.building_at(c) == 0:
+			grass = c
+			break
+	assert_true(grass.x >= 0, "trawa obok postoju")
+	assert_eq(AttackPlanner.tap(o, bot.grid, grass), "Marsz od postoju: punkt 1 z 3", "punkt linii marszu")
+	var line := AttackPlanner.arrow_cells(o, bot, AttackPlan.NO_TARGET, hold, reach)
+	assert_eq(line, [hold, grass, AttackPlanner.end_cell(o, bot)] as Array[Vector2i], "linia od postoju do celu")
+	o.manoeuvre = M.FRONTAL
+	assert_eq(AttackPlanner.fire_hold(o, bot, U.ARCHER), AttackPlan.NO_TARGET, "Szturm bez postoju")
+	return true

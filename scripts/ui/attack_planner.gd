@@ -19,6 +19,8 @@ const HINT := "Dotknij budynku: cel, trawy: punkt trasy"
 ## Cel w budynku spoza odsłoniętego fragmentu: bez rodzaju (#28).
 const HIDDEN_TARGET := "Cel: nieznany budynek"
 const WAGON_HINT := "Wóz: dotknij trawy, ostatni punkt to postój"
+## Ostrzał (#314): obszar postoju łuczników na mapie, kratki wokół punktu postoju (3×3).
+const HOLD_RADIUS := 1
 ## Połowa celu dotyku końca strzałki (min. 12×12 px logicznych).
 const END_HIT := 6
 ## Mgła (#28): ukryty budynek jako sam zarys, jednym kolorem z ciemną obwódką.
@@ -149,7 +151,8 @@ static func tap(o: AttackPlan.Order, grid: BuildGrid, cell: Vector2i, scout: Sco
 	if o.waypoints.size() >= AttackPlan.MAX_WAYPOINTS:
 		o.waypoints.clear()
 	o.waypoints.append(cell)
-	return "Trasa: punkt %d z %d" % [o.waypoints.size(), AttackPlan.MAX_WAYPOINTS]
+	var label := "Marsz od postoju" if o.manoeuvre == AttackPlan.Manoeuvre.RANGED else "Trasa"
+	return "%s: punkt %d z %d" % [label, o.waypoints.size(), AttackPlan.MAX_WAYPOINTS]
 
 
 ## Kratka końca strzałki: wskazany cel albo środek donżonu (domyślny koniec). Tabor: ostatni punkt
@@ -228,9 +231,59 @@ static func describe(o: AttackPlan.Order) -> Array[String]:
 	return [AttackPlan.MANOEUVRE_NAMES[o.manoeuvre], "Start: %s  Odwrót: %s" % [start_text(o), retreat_text(o.retreat_percent)]]
 
 
+## Zasięg jednostki `unit` w kratkach, jak w bitwie (Battle.range_of): łucznicy z badaniem A2
+## strzelają dalej.
+static func unit_range(unit: int, research: Research = null) -> int:
+	var r := UnitTypes.attack_range(unit)
+	if research != null and (unit == UnitTypes.Unit.ARCHER or unit == UnitTypes.Unit.REFLEX_ARCHER) \
+			and research.is_done("A2"):
+		@warning_ignore("integer_division")
+		r = r * research.doctrine_percent("A2", BattleConfig.A2_RANGE_PERCENT) / 100
+	return r
+
+
+## Punkt postoju Ostrzału (#314): ta sama kratka, którą wyznaczy bitwa (Battle.fire_hold_cell),
+## dla celu rozkazu (albo `end_override` przy przeciąganiu). NO_TARGET, gdy rozkaz to nie Ostrzał,
+## jednostka nie strzela z dystansu albo nie ma celu.
+static func fire_hold(o: AttackPlan.Order, b: BotCastle, unit: int, research: Research = null,
+		end_override: Vector2i = AttackPlan.NO_TARGET) -> Vector2i:
+	if o.manoeuvre != AttackPlan.Manoeuvre.RANGED or unit < 0:
+		return AttackPlan.NO_TARGET
+	var r := unit_range(unit, research)
+	if r < BattleConfig.RANGED_MIN_RANGE:
+		return AttackPlan.NO_TARGET
+	var goal := end_override if end_override != AttackPlan.NO_TARGET else end_cell(o, b)
+	var id := b.grid.building_at(goal) if goal != AttackPlan.NO_TARGET else 0
+	if id == 0:
+		return AttackPlan.NO_TARGET
+	var grid := b.grid
+	var free := func(c: Vector2i) -> bool: return grid.terrain.is_walkable(c) and grid.building_at(c) == 0
+	return Battle.fire_hold_cell(b.spawn, grid.buildings[id], r, grid.terrain.size, free)
+
+
+## Obszar postoju Ostrzału w kratkach: 3×3 wokół punktu `hold`, przycięty do mapy.
+static func hold_rect(hold: Vector2i, size: int) -> Rect2i:
+	var r := Rect2i(hold - Vector2i.ONE * HOLD_RADIUS, Vector2i.ONE * (2 * HOLD_RADIUS + 1))
+	return r.intersection(Rect2i(0, 0, size, size))
+
+
 ## Punkty strzałki rozkazu w kratkach: wejście, trasa (z punktem obejścia dla Oskrzydlenia
 ## bez trasy) i cel (wskazany budynek albo donżon). Z `end_override` zamiast celu (podgląd przeciągania).
-static func arrow_cells(o: AttackPlan.Order, b: BotCastle, end_override: Vector2i = AttackPlan.NO_TARGET) -> Array[Vector2i]:
+## Ostrzał z punktem postoju `hold` (#314): strzałka zaczyna się na postoju. Bez linii marszu i z celem
+## w zasięgu postoju to sam postój (na mapie tylko obszar); z linią marszu albo celem poza zasięgiem
+## linia biegnie z postoju przez punkty trasy do celu, jak przy wyznaczaniu celu.
+static func arrow_cells(o: AttackPlan.Order, b: BotCastle, end_override: Vector2i = AttackPlan.NO_TARGET,
+		hold: Vector2i = AttackPlan.NO_TARGET, unit_reach: int = 0) -> Array[Vector2i]:
+	if hold != AttackPlan.NO_TARGET:
+		var out_hold: Array[Vector2i] = [hold]
+		var goal_cell := end_override if end_override != AttackPlan.NO_TARGET else end_cell(o, b)
+		var id := b.grid.building_at(goal_cell)
+		var reach := maxi(BattleConfig.RANGED_MIN_RANGE, unit_reach)
+		if o.waypoints.is_empty() and id != 0 and Battle.cell_rect_in_range(hold, b.grid.buildings[id], reach):
+			return out_hold
+		out_hold.append_array(o.waypoints)
+		out_hold.append(goal_cell)
+		return out_hold
 	var out: Array[Vector2i] = [b.spawn]
 	if o.manoeuvre == AttackPlan.Manoeuvre.CONVOY:
 		# Tabor: sama trasa, z podglądem przenoszonego postoju
@@ -355,7 +408,17 @@ func _draw_fog(hidden: Dictionary) -> void:
 
 func _draw_arrow(o: AttackPlan.Order, col: Color) -> void:
 	var preview := drag_end_cell if o.squad == selected else AttackPlan.NO_TARGET
-	var cells := arrow_cells(o, bot, preview)
+	var unit := unit_of(o.squad)
+	var hold := fire_hold(o, bot, unit, research, preview)
+	var cells := arrow_cells(o, bot, preview, hold, unit_range(unit, research) if unit >= 0 else 0)
+	if hold != AttackPlan.NO_TARGET:
+		# Ostrzał (#314): obszar postoju łuczników, jasna zieleń
+		var area := hold_rect(hold, bot.grid.terrain.size)
+		var px := Rect2i(area.position * TerrainMap.CELL, area.size * TerrainMap.CELL)
+		draw_rect(Rect2(px), Color(Palette.VALID, 0.35))
+		CastleView.draw_frame(self, px, Palette.VALID)
+		if cells.size() < 2:
+			return
 	for i in range(1, cells.size()):
 		# kreska 2 px, żeby nie rwała się przy oddaleniu 0,5×
 		for p in line_pixels(cell_center_px(cells[i - 1]), cell_center_px(cells[i])):
