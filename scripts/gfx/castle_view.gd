@@ -17,7 +17,7 @@ static func draw_buildings(ci: CanvasItem, grid: BuildGrid, textures: BuildingTe
 			continue
 		var kind := grid.kinds[id]
 		var sh := textures.shadow(kind, grid.levels[id], int(states.get(id, BuildingTypes.State.INTACT)),
-				grid.wall_mask(id), grid.is_vertical(id), lean_of(grid, id))
+				grid.wall_mask(id), grid.is_vertical(id), lean_of(grid, id), grid.cells_of(id))
 		ci.draw_texture(sh, Vector2(texture_origin(grid.buildings[id].position, kind) + attach_offset(grid, textures, id)))
 	for id in grid.draw_order():
 		if hidden.has(id):
@@ -25,7 +25,7 @@ static func draw_buildings(ci: CanvasItem, grid: BuildGrid, textures: BuildingTe
 		var kind := grid.kinds[id]
 		draw_wall_stubs(ci, grid, textures, id, states, hidden)
 		var tex := textures.draw_building(kind, grid.levels[id], int(states.get(id, BuildingTypes.State.INTACT)),
-				grid.wall_mask(id), grid.is_vertical(id), lean_of(grid, id))
+				grid.wall_mask(id), grid.is_vertical(id), lean_of(grid, id), grid.cells_of(id))
 		ci.draw_texture(tex, Vector2(texture_origin(grid.buildings[id].position, kind) + attach_offset(grid, textures, id)))
 
 
@@ -42,7 +42,8 @@ static func attach_offset(grid: BuildGrid, textures: BuildingTextures, id: int) 
 	if dir == Vector2i.ZERO:
 		return Vector2i.ZERO
 	var kind := grid.kinds[id]
-	var b_used := textures.used_rect(kind, grid.levels[id], BuildingTypes.State.INTACT, 0, false, lean_of(grid, id))
+	var b_used := textures.used_rect(kind, grid.levels[id], BuildingTypes.State.INTACT, 0, false, lean_of(grid, id),
+			grid.cells_of(id))
 	var b := Rect2i(texture_origin(grid.buildings[id].position, kind) + b_used.position, b_used.size)
 	var wc: Vector2i = side[1]
 	var wid := grid.building_at(wc)
