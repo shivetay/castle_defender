@@ -267,6 +267,55 @@ func test_plan_hides_buildings_outside_the_region() -> bool:
 	return true
 
 
+## #355: mgła to jeden ciągły prostokąt zabudowy + 1 kratka, bez dziur między budynkami;
+## odsłonięty fragment jest z niej wycięty, a kawałki mgły się nie nakładają.
+func test_fog_covers_whole_castle_area_without_holes() -> bool:
+	var bot := BotRoster.generate(3)
+	var map := Rect2i(0, 0, bot.grid.terrain.size, bot.grid.terrain.size)
+	var area := AttackPlanner.fog_area(bot.grid)
+	assert_eq(area, ScoutIntel.castle_rect(bot.grid).grow(1).intersection(map), "zabudowa + 1 kratka")
+	assert_eq(AttackPlanner.fog_rects(area, ScoutIntel.NONE), [area] as Array[Rect2i], "bez zwiadu: cała mgła")
+	assert_eq(AttackPlanner.fog_rects(area, area.grow(3)).size(), 0, "pełny zwiad: bez mgły")
+	assert_eq(AttackPlanner.fog_rects(area, Rect2i(-5, -5, 2, 2)), [area] as Array[Rect2i], "zwiad obok: cała mgła")
+	var inner := Rect2i(area.position + Vector2i(2, 3), Vector2i(3, 2))
+	for region: Rect2i in [inner, Rect2i(area.position, Vector2i(4, 4)), Rect2i(area.end - Vector2i(2, 2), Vector2i(5, 5))]:
+		var parts := AttackPlanner.fog_rects(area, region)
+		assert_true(parts.size() <= 4, "najwyżej 4 kawałki")
+		assert_eq(parts, AttackPlanner.fog_rects(area, region), "deterministycznie")
+		for y in range(area.position.y, area.end.y):
+			for x in range(area.position.x, area.end.x):
+				var c := Vector2i(x, y)
+				var n := 0
+				for r in parts:
+					if r.has_point(c):
+						n += 1
+				assert_eq(n, 0 if region.has_point(c) else 1, "kratka %s: mgła raz albo wycięta" % c)
+	# przy krawędzi mapy margines się przycina
+	var edge := BuildGrid.new(bot.grid.terrain)
+	edge.buildings[1] = Rect2i(0, 0, 2, 2)
+	assert_eq(AttackPlanner.fog_area(edge), Rect2i(0, 0, 3, 3), "przycięte do mapy")
+	assert_eq(AttackPlanner.fog_area(BuildGrid.new(bot.grid.terrain)), ScoutIntel.NONE, "bez budynków: bez mgły")
+	return true
+
+
+## #355: ramka ukrytego celu obejmuje tylko dotkniętą kratkę, żeby nie zdradzać kształtu budynku.
+func test_hidden_target_frame_is_one_cell() -> bool:
+	var bot := BotRoster.generate(3)
+	var keep := bot.grid.buildings[bot.objective]
+	var cell := keep.position + Vector2i.ONE
+	assert_eq(AttackPlanner.target_frame(bot.grid, ScoutIntel.new(), cell), Rect2i(cell, Vector2i.ONE), "we mgle: kratka")
+	var intel := ScoutIntel.new()
+	intel.region = keep
+	assert_eq(AttackPlanner.target_frame(bot.grid, intel, cell), keep, "odsłonięty: cały budynek")
+	var empty := Vector2i(-1, -1)
+	for y in bot.grid.terrain.size:
+		if bot.grid.building_at(Vector2i(0, y)) == 0:
+			empty = Vector2i(0, y)
+			break
+	assert_eq(AttackPlanner.target_frame(bot.grid, intel, empty), ScoutIntel.NONE, "pusta kratka: bez ramki")
+	return true
+
+
 func test_picker_lines_and_buttons() -> bool:
 	var bot := TargetSearch.Target.new()
 	bot.is_bot = true

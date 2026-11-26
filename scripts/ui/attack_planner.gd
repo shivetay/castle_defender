@@ -5,7 +5,7 @@ extends Node2D
 ## (AttackPanel). Gracz wybiera oddział, przyciskami ustawia manewr, start i odwrót, a dotykiem mapy
 ## cel (budynek) i trasę (do 3 punktów na trawie); koniec strzałki (domyślnie donżon) przeciąga
 ## na inny budynek. Plan zapisuje się w grze (SaveGame, wersja 6).
-## Mgła wojny (#28): przy planowaniu widać tylko zarys budynków; odsłonięty przez zwiad fragment
+## Mgła wojny (#28, #355): przy planowaniu cały obszar zamku zakrywa jednolita mgła; odsłonięty przez zwiad fragment
 ## zamku (ScoutIntel) pokazuje budynki, oddziały załogi, patrole i pułapki. W bitwie mgła znika.
 ## Ten węzeł rysuje mapę w pikselach świata; logika edycji planu to funkcje statyczne.
 
@@ -23,9 +23,10 @@ const WAGON_HINT := "Wóz: dotknij trawy, ostatni punkt to postój"
 const HOLD_RADIUS := 1
 ## Połowa celu dotyku końca strzałki (min. 12×12 px logicznych).
 const END_HIT := 6
-## Mgła (#28): ukryty budynek jako sam zarys, jednym kolorem z ciemną obwódką.
-const FOG_BUILDING: Color = Palette.THATCH[2]
-const FOG_BUILDING_EDGE: Color = Palette.WOOD[0]
+## Mgła (#28, #355): jeden pełny prostokąt na całym obszarze zamku, bez zarysów budynków.
+const FOG: Color = Palette.THATCH[2]
+## Margines mgły wokół zabudowy, w kratkach (#355).
+const FOG_MARGIN := 1
 
 var bot: BotCastle
 var plan: AttackPlan
@@ -44,7 +45,7 @@ var _terrain_tex: ImageTexture
 var states: Dictionary = {}
 ## Podgląd przeciąganego końca strzałki (kratka); NO_TARGET = bez przeciągania.
 var drag_end_cell := AttackPlan.NO_TARGET
-## Co odsłonił zwiad (#28); pusty obszar = sam zarys budynków.
+## Co odsłonił zwiad (#28); pusty obszar = cały zamek we mgle.
 var intel := ScoutIntel.new()
 
 
@@ -339,9 +340,11 @@ func _draw() -> void:
 		return
 	draw_texture(_terrain_tex, Vector2.ZERO)
 	if show_plan:
-		var hidden := hidden_ids(bot.grid, intel)
-		CastleView.draw_buildings(self, bot.grid, textures, states, hidden)
-		_draw_fog(hidden)
+		# najpierw mgła, na niej odsłonięte budynki: budynek częściowo w obszarze zwiadu widać w całości
+		for r in fog_rects(fog_area(bot.grid), intel.region):
+			draw_rect(Rect2(r.position * TerrainMap.CELL, r.size * TerrainMap.CELL), FOG)
+		CastleView.draw_buildings(self, bot.grid, textures, states, hidden_ids(bot.grid, intel))
+		_draw_intel()
 	else:
 		CastleView.draw_buildings(self, bot.grid, textures, states)
 	var zone := zone_rect(bot.spawn, bot.grid.terrain.size)
@@ -358,9 +361,8 @@ func _draw() -> void:
 		_draw_arrow(sel, Palette.INK)
 		var mark := drag_end_cell if drag_end_cell != AttackPlan.NO_TARGET else sel.target
 		if mark != AttackPlan.NO_TARGET:
-			var id := bot.grid.building_at(mark)
-			if id != 0:
-				var r := bot.grid.buildings[id]
+			var r := target_frame(bot.grid, intel, mark)
+			if r.has_area():
 				CastleView.draw_frame(self, Rect2i(r.position * TerrainMap.CELL, r.size * TerrainMap.CELL), Palette.ACCENT)
 
 
@@ -373,14 +375,51 @@ static func hidden_ids(grid: BuildGrid, scout: ScoutIntel) -> Dictionary:
 	return out
 
 
-## Mgła (#28): ukryte budynki jako sam zarys (FOG_BUILDING), a odsłonięty fragment
-## w ramce, z oddziałami załogi, patrolami i pułapkami (jak na ekranie obrony).
-func _draw_fog(hidden: Dictionary) -> void:
-	for id: int in hidden:
-		var r := bot.grid.buildings[id]
-		var px := Rect2(r.position * TerrainMap.CELL, r.size * TerrainMap.CELL)
-		draw_rect(px, FOG_BUILDING)
-		CastleView.draw_frame(self, Rect2i(px), FOG_BUILDING_EDGE)
+## Obszar mgły (#355): prostokąt zabudowy powiększony o FOG_MARGIN, przycięty do mapy.
+static func fog_area(grid: BuildGrid) -> Rect2i:
+	var box := ScoutIntel.castle_rect(grid)
+	if not box.has_area():
+		return ScoutIntel.NONE
+	return box.grow(FOG_MARGIN).intersection(Rect2i(0, 0, grid.terrain.size, grid.terrain.size))
+
+
+## Mgła `area` bez odsłoniętego obszaru `region` (#355): najwyżej 4 rozłączne prostokąty
+## (pas górny, dolny, lewy, prawy), które razem pokrywają resztę bez dziur.
+static func fog_rects(area: Rect2i, region: Rect2i) -> Array[Rect2i]:
+	var out: Array[Rect2i] = []
+	if not area.has_area():
+		return out
+	var cut := area.intersection(region) if region.has_area() else ScoutIntel.NONE
+	if not cut.has_area():
+		out.append(area)
+		return out
+	var parts: Array[Rect2i] = [
+		Rect2i(area.position.x, area.position.y, area.size.x, cut.position.y - area.position.y),
+		Rect2i(area.position.x, cut.end.y, area.size.x, area.end.y - cut.end.y),
+		Rect2i(area.position.x, cut.position.y, cut.position.x - area.position.x, cut.size.y),
+		Rect2i(cut.end.x, cut.position.y, area.end.x - cut.end.x, cut.size.y),
+	]
+	for r in parts:
+		if r.has_area():
+			out.append(r)
+	return out
+
+
+## Ramka celu na kratce `cell` (#355): odsłonięty budynek w całości, ukryty tylko jako ta kratka,
+## żeby mgła nie zdradzała kształtu; pusta kratka bez ramki.
+static func target_frame(grid: BuildGrid, scout: ScoutIntel, cell: Vector2i) -> Rect2i:
+	var id := grid.building_at(cell)
+	if id == 0:
+		return ScoutIntel.NONE
+	var r := grid.buildings[id]
+	if scout == null or not scout.shows(r):
+		return Rect2i(cell, Vector2i.ONE)
+	return r
+
+
+## Odsłonięty przez zwiad fragment (#28) w ramce, z oddziałami załogi, patrolami i pułapkami
+## (jak na ekranie obrony).
+func _draw_intel() -> void:
 	if intel.is_empty():
 		return
 	CastleView.draw_frame(self, Rect2i(intel.region.position * TerrainMap.CELL, intel.region.size * TerrainMap.CELL),
