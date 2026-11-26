@@ -11,7 +11,8 @@ Asynchroniczne PvP wymaga serwera, który przechowuje zamki i układy obrony, do
 | Przebieg ataku | Edge Function `start_attack` blokuje cel i zwraca kopię obrony, seed terenu obrońcy i seed bitwy; `finish_attack` zapisuje wynik, łup i tarczę |
 | Powiadomienia | Firebase Cloud Messaging wywoływany z Edge Function („Twój zamek został zaatakowany”) |
 | Powtórki | zapis seeda i rozkazów; powtórka to ponowne uruchomienie symulacji, nie nagranie wideo |
-| Historia obron | Edge Function `defense_history` (funkcja SQL tylko dla `service_role`) zwraca tylko własne obrony: nick atakującego i siłę jego armii z `attacks.attacker_army`, bez id i nazwy zamku atakującego ([[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika\|ADR 0003]]) |
+| Historia obron | Edge Function `defense_history` (funkcja SQL tylko dla `service_role`) zwraca tylko własne obrony: nick atakującego i siłę jego armii z `attacks.attacker_army`, bez id i nazwy zamku atakującego ([[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika\|ADR 0003]]), oraz przedział siły obrony jego zamku |
+| Siła celu | `match_targets` i `defense_history` liczą siłę obrony z kopii zamku na serwerze (`private.defense_strength`, wzór jak `Strength.defense`) i oddają tylko dolną granicę przedziału o stałych granicach (krok 50 / 100 / 500), bez szumu ([[ADR/0004-sila-celu-pvp-przedzial-z-serwera\|ADR 0004]]) |
 
 ## Symulacja deterministyczna
 Bitwa liczy się w stałym kroku 30 Hz, na liczbach całkowitych (bez floatów w logice) i z seedem z serwera. Ta sama bitwa zawsze daje ten sam wynik: działają powtórki i można weryfikować oszustwa. W MVP serwer ufa wynikowi klienta i sprawdza tylko limity (np. łup nie większy niż możliwy). Później ten sam kod GDScript uruchomiony jako Godot headless na workerze (np. Railway) odtwarza bitwę i zatwierdza wynik.

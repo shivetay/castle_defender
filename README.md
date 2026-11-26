@@ -573,6 +573,9 @@ w sekcji „Następny etap”.
     i same boty z napisem „Za często”). Odpowiedź ma nick, nazwę zamku, władcę, epokę, ranking,
     seed terenu, zarys budynków i łup szacowany jako 5% zapasów (w dół do dziesiątek). Klient czyści
     nazwy jak w onboardingu i przycina liczby oraz zarys, bo to dane od innych graczy.
+    Siłę obrony celu (#293, ADR 0004) liczy serwer (`private.defense_strength`, wzór jak `Strength.defense`)
+    z kopii zamku i układu obrony, a odpowiedź ma tylko dolną granicę przedziału o stałych granicach
+    (krok 50 do 500, 100 do 2000, wyżej 500). Karta pokazuje np. „Siła 200-250”, także u botów i po zwiadzie.
   - **Ranking PvP (#27, `RankingBoard`, ekran `scripts/ui/ranking_panel.gd`):** dwa osobne rankingi,
     ataku i obrony, w puli tej samej epoki. Punkty to Elo (start 1000, K = 32): bitwa to pojedynek
     rankingu ataku atakującego z rankingiem obrony obrońcy, atakujący dostaje +d, obrońca -d. Odparty
@@ -632,8 +635,8 @@ w sekcji „Następny etap”.
     Domyślne zadania załogi liczą się z epoki obrońcy z kopii, a nie z epoki atakującego.
   - **Ekran:** Obrona → Historia (#328) pokazuje 10 ostatnich obron, po 4 na stronę. Wiersz ma datę,
     wynik (odparty albo zdobyty), procent i 3 tarcze obrońcy (pęknięta to gwiazdka atakującego), a pod
-    spodem nick napastnika, siłę jego armii (`Strength.unit_power` z armii zapisanej przez serwer) i „Obr. ?”
-    (siła obrony jego zamku przyjdzie z #293). Obrony bez powtórki (sprzed #29) są wyszarzone.
+    spodem nick napastnika, siłę jego armii (`Strength.unit_power` z armii zapisanej przez serwer) i przedział
+    siły obrony jego zamku z serwera (#293, np. „Obr. 200-250”; „Obr. ?”, gdy zamku już nie ma). Obrony bez powtórki (sprzed #29) są wyszarzone.
     Historię oddaje Edge Function `defense_history` (tylko własne obrony, bez id i nazwy zamku napastnika).
   - **Powiadomienie (#328):** po połączeniu z serwerem okienko „Zaatakowano Cię N× od ostatniej wizyty”
     z przyciskami Historia i OK, a czerwona kropka nad Obroną świeci, dopóki gracz nie otworzy Historii.
@@ -929,6 +932,8 @@ ataku na gracza (`bad_plan`), więc trzeba grać z APK z #29 lub nowszego. Stara
 `launch_attack(uuid, uuid)` zostaje do osobnej migracji, która ją usunie. Powtórkę ma tylko obrońca
 (atakujący widział bitwę na żywo). Historia obron z nickiem napastnika i okienkiem o nowych atakach (#328)
 jest w kodzie; migracja `defense_history` i Edge Function `defense_history` są na projekcie.
+Siła celu PvP jako przedział z serwera (#293) jest w kodzie. Migracja `target_strength` i nowe wersje Edge Functions
+`find_targets` i `defense_history` czekają na wgranie na projekt (do tego czasu karta gracza pokazuje „Siła ?”).
 Push o ataku (#30) zostaje na osobny ticket.
 Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa Dworu z poziomu 5
 z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoką gracza na serwerze

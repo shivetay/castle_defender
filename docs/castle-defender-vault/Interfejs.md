@@ -17,10 +17,10 @@ Trzy elementy na stałe, reszta ekranu należy do zamku. Orientacja pozioma, obs
 | Ekran | Co robisz |
 | --- | --- |
 | Ustawienia obrony | widok własnego zamku w trybie edycji: przeciągasz załogę i pułapki, rysujesz strefy patroli, ustawiasz priorytety wież |
-| Wybór celu | 3 karty przeciwników: portret władcy, imię, nazwa zamku, siła (bot z klienta, gracz „?” do #293; #310) |
+| Wybór celu | 3 karty przeciwników: portret władcy, imię, nazwa zamku, siła jako przedział, np. „Siła 200-250” (bot z klienta, gracz z serwera; #310, #293, [[ADR/0004-sila-celu-pvp-przedzial-z-serwera\|ADR 0004]]) |
 | Zwiad | animacja zwiadowcy, potem mapa z mgłą wojny i odsłoniętym obszarem |
 | Planowanie ataku | siatka ze strefami rozstawienia; dolny pasek z oddziałami; dotknięcie oddziału otwiera listę manewrów i ich parametry (cel, trasa, start, odwrót); strzałki pokazują plan |
 | Bitwa | widok na żywo bez sterowania, przewijanie czasu ×2 i ×4 |
-| Raport i powtórka | wynik, gwiazdki, łup; obrońca może obejrzeć powtórkę i od razu poprawić obronę; historia obron (okno po połączeniu z liczbą ataków, przycisk Historia, czerwona kropka nad Obroną, tarcze zamiast gwiazdek) [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika\|ADR 0003]] |
+| Raport i powtórka | wynik, gwiazdki, łup; obrońca może obejrzeć powtórkę i od razu poprawić obronę; historia obron (okno po połączeniu z liczbą ataków, przycisk Historia, czerwona kropka nad Obroną, tarcze zamiast gwiazdek) [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika\|ADR 0003]]; wiersz z przedziałem siły obrony zamku napastnika („Obr. 200-250”, [[ADR/0004-sila-celu-pvp-przedzial-z-serwera\|ADR 0004]]) |
 
 Powiązane: [[Widok zamku]], [[Koncept gry]]
