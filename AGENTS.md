@@ -23,6 +23,8 @@ bezpieczeństwo, PR-y) są w `CLAUDE.md`. Opis gry i stan etapów: `README.md`.
 | `scripts/net/` | Klient Supabase, sesja, sync zamku, start ataku |
 | `tests/` | Testy headless (`TestCase`, `run_tests.gd`) |
 | `docs/castle-defender-vault/` | Notatki projektowe (Obsidian; Godot je pomija) |
+| `docs/castle-defender-vault/ADR/` | Decyzje (ADR); vault idzie za nimi |
+| `docs/PRACA-Z-AI.md` | Który skill kiedy: ticket → grillowanie → ADR → TDD → PR |
 | `config/` | Wzór `supabase.example.json` (prawdziwy plik poza gitem) |
 | `supabase/` | Migracje, Edge Functions, testy RLS (pgTAP) |
 | `tools/` | `version.py`, `changelog.py` |

@@ -108,8 +108,12 @@ Czego nie da się sprawdzić bez telefonu (dotyk, FPS, APK), zostaje do ręczneg
 - **Najpierw zapytaj**, gdy chodzi o: decyzje projektowe gry (balans, mechaniki, kolejność etapów),
   zmianę wersji Godota, nowe addony lub zależności, zmiany w `export_presets.cfg` i ustawieniach
   wyświetlania w `project.godot`.
-- Przy niejasnej specyfikacji zaproponuj jedną konkretną opcję z uzasadnieniem, zamiast wymieniać
-  pięć.
+- **Niejasne się grilluje.** Po przeczytaniu ticketu, przy niejasnej prośbie i przed każdą decyzją
+  projektową agent uruchamia skill `grilling`: sam ustala fakty (issue, kod, vault, ADR-y), pyta
+  w rundach z rekomendacją przy każdym pytaniu i nie pisze kodu przed potwierdzeniem. Przy tickecie
+  zawsze co najmniej jedna runda. Ustalenia idą do komentarza w issue, a decyzje trudne do odwrócenia
+  do ADR-a (skill `adr`, `docs/castle-defender-vault/ADR/`), na podstawie którego aktualizuje się
+  vault. Mapa przepływu: `docs/PRACA-Z-AI.md`.
 
 ## Bezpieczeństwo
 
@@ -154,7 +158,8 @@ tylko do nich odsyłają, więc aktualizujesz je, gdy zmienia się lista skilli 
 
 ## Skille AI
 
-W `.claude/skills/` są 4 własne skille bezpieczeństwa i 15 skilli skopiowanych z
+W `.claude/skills/` jest 13 własnych skilli (4 bezpieczeństwa i 9 pracy z AI, te drugie po angielsku)
+i 15 skilli skopiowanych z
 [gamedev-skills/awesome-gamedev-agent-skills](https://github.com/gamedev-skills/awesome-gamedev-agent-skills)
 (Apache-2.0, commit `c6ca6c4`, licencja i NOTICE obok). Claude Code wczytuje je sam, gdy pasują
 do zadania. Są pisane pod Godot 4.7, czyli pod naszą wersję.
@@ -175,6 +180,12 @@ do zadania. Są pisane pod Godot 4.7, czyli pod naszą wersję.
 | `pvp-anti-cheat` (własny) | klient niezaufany: wynik, łup, ranking i tarcze z serwera, limity |
 | `user-data-privacy` (własny) | dane graczy, RODO, usuwanie konta, logi bez danych osobowych, sekrety |
 | `security-review` (własny) | lista kontrolna review z wagą uwag (🔴/🟠/🟡) |
+| `grilling`, `/grill-me` (własne) | wywiad w rundach przed pracą: ticket, niejasna prośba, decyzja projektowa |
+| `adr` (własny) | zapis decyzji w `docs/castle-defender-vault/ADR/` i aktualizacja vaultu |
+| `implement` (własny) | ticket → grillowanie → gałąź → TDD → checks → review → PR |
+| `tdd` (własny) | pętla red → green na testach headless, testy determinizmu |
+| `/to-spec`, `/to-tickets` (własne) | rozmowa → specyfikacja w issue → sub-issues z „Blokowane przez” |
+| `/handoff`, `writing-for-agents` (własne) | przekazanie sesji; pisanie skilli i `CLAUDE.md` |
 
 Zasady:
 

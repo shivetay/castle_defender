@@ -24,6 +24,12 @@ publishable, nigdy `service_role`; wynik, łup, ranking i tarcze liczy albo wery
 danych osobowych i tokenów w logach; sekretów nie commitujesz; zmian na projekcie Supabase
 w chmurze nie robisz bez zgody właścicielki.
 
+## Przepływ pracy
+
+Przed pracą nad ticketem albo niejasną prośbą przeczytaj i stosuj `.claude/skills/grilling/SKILL.md`
+(pytania w rundach z rekomendacją, kod dopiero po potwierdzeniu), a decyzje zapisuj według
+`.claude/skills/adr/SKILL.md`. Mapa skilli: `docs/PRACA-Z-AI.md`.
+
 ## Review
 
 Review zaczyna się od bezpieczeństwa według `.claude/skills/security-review/SKILL.md`, z wagami
