@@ -1,6 +1,7 @@
 // defense_history (#328): historia obron gracza. Id gracza idzie wyłącznie z tokenu, a
 // `public.defense_history` oddaje tylko ataki na jego zamek: id ataku, koniec, wynik z serwera, armię
-// napastnika z chwili startu (klient liczy z niej wskaźnik siły), czy jest powtórka i nick napastnika.
+// napastnika z chwili startu (klient liczy z niej wskaźnik siły), czy jest powtórka, nick napastnika
+// i dolną granicę przedziału siły obrony jego zamku (#293, mgła: nigdy dokładna liczba; null bez zamku).
 // Bez id napastnika i nazwy jego zamku. Treść żądania: {} (pusta). Niczego nie zapisuje.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -60,6 +61,7 @@ Deno.serve(async (req) => {
     army: Array.isArray(row.attacker_army) ? row.attacker_army : [],
     has_replay: row.has_replay === true,
     nickname: typeof row.nickname === "string" ? row.nickname.slice(0, MAX_NICK) : "",
+    defense: Number.isInteger(row.defense) ? row.defense : null,
   }));
   return json({ rows });
 });

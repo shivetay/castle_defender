@@ -65,18 +65,24 @@ func test_card_text_fits() -> bool:
 	return true
 
 
-## Treść karty (#310): bez epoki, łupu i rankingu; siła gracza nieznana do #293, siła bota
-## z Strength.bot_defense.
+## Treść karty (#310, #293): bez epoki, łupu i rankingu; siła jako przedział (mgła wojny): gracza
+## z serwera, bota z Strength.bot_defense; gracz bez siły z serwera ma „?”.
 func test_card_content() -> bool:
 	var w := int(TargetPicker.card_width(LEFT, RIGHT))
 	var player := _player(1234)
 	var texts: Array[String] = []
 	for line: Array in TargetPicker.card_lines(player, w):
 		texts.append(line[1] as String)
-	assert_eq(texts[1], TargetPicker.UNKNOWN_STRENGTH_TEXT, "siła gracza: znak zapytania")
+	assert_eq(texts[1], TargetPicker.UNKNOWN_STRENGTH_TEXT, "siła gracza bez serwera: znak zapytania")
+	player.strength = 250
+	assert_eq(TargetPicker.card_lines(player, w)[1][1], "Siła 250-300", "siła gracza: przedział")
+	player.strength = Strength.MAX_RANGE_LOW
+	var widest: Array = TargetPicker.card_lines(player, w)[1]
+	assert_true((widest[0] as Vector2).x + PixelFont.text_width(widest[1] as String) <= w, "najszerszy przedział mieści się")
 	assert_true(not "1234" in texts and not TargetSearch.age_label(player.age) in texts, "bez rankingu i epoki")
 	var bot := TargetSearch.bot_target(5)
-	var expected := "%s %d" % [TargetPicker.STRENGTH_LABEL, Strength.bot_defense(BotRoster.generate(5))]
+	var expected := "%s %s" % [TargetPicker.STRENGTH_LABEL, Strength.range_text(Strength.bot_defense(BotRoster.generate(5)))]
+	assert_true(expected.contains("-"), "bot też w przedziale")
 	assert_eq(TargetPicker.card_lines(bot, w)[1][1], expected, "siła bota")
 	assert_eq(TargetPicker.strength_text(TargetSearch.bot_target(5)), expected, "ta sama siła z cache")
 	return true

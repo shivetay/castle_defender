@@ -2,6 +2,7 @@
 // (bez tarczy, epoka ±1, ranking ±100, nieatakowanych przez gracza w 24 h, limit 20 szukań na
 // 10 minut: odpowiedź 429). Id atakującego idzie
 // wyłącznie z tokenu, nigdy z treści żądania. Mniej niż 3 celów gra uzupełnia zamkami-botami.
+// Karta dostaje siłę obrony celu tylko jako dolną granicę przedziału (#293, `strength`, mgła wojny).
 // Zapisuje tylko licznik szukań (limit); blokada celu i tarcze po ataku są w start_attack / finish_attack (#25).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
@@ -67,6 +68,7 @@ Deno.serve(async (req) => {
     map_seed: Number(row.map_seed ?? 0),
     footprint: Array.isArray(row.footprint) ? row.footprint.slice(0, MAX_FOOTPRINT) : [],
     loot: Array.isArray(row.loot) ? row.loot : [],
+    strength: Number.isInteger(row.strength) ? row.strength : null,
   }));
   return json({ targets });
 });

@@ -113,3 +113,55 @@ static func bot_defense(bot: BotCastle) -> int:
 	for d: Array in bot.defenders:
 		total += int(d[1]) * unit_power(int(d[0]))
 	return total
+
+
+# --- Mgła wojny na cudzym zamku (#293, ADR 0004) -------------------------------------------------
+
+## Siłę cudzego zamku (karta celu, historia obron) widać tylko jako przedział o stałych granicach,
+## bez szumu, więc kolejne wyszukiwania nie zdradzą dokładnej liczby. Krok 50 do 500, 100 do 2000,
+## wyżej 500. U gracza dolną granicę liczy serwer (`private.strength_range_low`), u bota gra.
+const RANGE_STEPS: Array[int] = [50, 100, 500]
+const RANGE_LIMITS: Array[int] = [500, 2000]
+## Najwyższa siła, jaką gra przyjmie z serwera (wyżej przycina; karta i tak więcej nie zmieści).
+const MAX_RANGE_LOW := 99500
+
+
+## Szerokość przedziału, w którym leży siła `value`.
+static func range_step(value: int) -> int:
+	for i in RANGE_LIMITS.size():
+		if value < RANGE_LIMITS[i]:
+			return RANGE_STEPS[i]
+	return RANGE_STEPS[RANGE_STEPS.size() - 1]
+
+
+## Dolna granica przedziału siły `value` (0 dla wartości ujemnych).
+static func range_low(value: int) -> int:
+	var v := clampi(value, 0, MAX_RANGE_LOW)
+	var step := range_step(v)
+	@warning_ignore("integer_division")
+	return v / step * step
+
+
+## Przedział jako tekst, np. „200-250”, z dolnej granicy (dowolna liczba trafia do swojego przedziału).
+static func range_text(value: int) -> String:
+	var low := range_low(value)
+	return "%d-%d" % [low, low + range_step(low)]
+
+
+## Siła każdej jednostki (UnitTypes.Unit) przy `hp_percent` wytrzymałości: tablica
+## dla serwera (`private.defense_strength`), której zgodności pilnuje test.
+static func unit_powers(hp_percent: int = 100) -> Array[int]:
+	var out: Array[int] = []
+	for u in UnitTypes.count():
+		out.append(unit_power(u, hp_percent))
+	return out
+
+
+## Siła umocnień FORTS na poziomach 1..BattleConfig.LEVEL_HP_PERCENT.size(), rodzaj po rodzaju,
+## jedna płaska tablica dla serwera.
+static func fort_powers() -> Array[int]:
+	var out: Array[int] = []
+	for kind in FORTS:
+		for lv in range(1, BattleConfig.LEVEL_HP_PERCENT.size() + 1):
+			out.append(fort_power(kind, lv))
+	return out

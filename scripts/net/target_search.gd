@@ -40,7 +40,9 @@ class Target:
 	var footprint: Array[Rect2i] = []
 	## Szacowany łup w kolejności EconomyConfig.Res.
 	var loot: Array[int] = []
-	## Siła obrony na karcie (#310): bot ze Strength.bot_defense, gracz -1 (nieznana do #293).
+	## Siła obrony na karcie (#310, #293): bot ze Strength.bot_defense, gracz z serwera tylko jako dolna
+	## granica przedziału (mgła wojny); karta pokazuje przedział (Strength.range_text). -1: nieznana
+	## (serwer jej nie podał).
 	var strength := -1
 
 	## Klucz celu (raporty zwiadu, #28).
@@ -71,7 +73,16 @@ static func target_from_row(row: Dictionary) -> Target:
 	t.map_seed = map_seed
 	t.footprint = parse_footprint(row.get("footprint", []))
 	t.loot = _parse_loot(row.get("loot", []))
+	t.strength = parse_strength(row.get("strength"))
 	return t
+
+
+## Siła z serwera (dolna granica przedziału, #293): nieujemna liczba całkowita przycięta
+## do Strength.MAX_RANGE_LOW i sprowadzona do granicy przedziału, inaczej -1 (nieznana).
+static func parse_strength(raw: Variant) -> int:
+	if not _is_number(raw) or float(raw) < 0.0:
+		return -1
+	return Strength.range_low(int(clampf(float(raw), 0.0, float(Strength.MAX_RANGE_LOW))))
 
 
 ## Cele-gracze z odpowiedzi `find_targets` (`{"targets": [...]}`), najwyżej COUNT, bez powtórzeń.
