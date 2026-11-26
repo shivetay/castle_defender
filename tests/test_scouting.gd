@@ -324,7 +324,7 @@ func test_picker_lines_and_buttons() -> bool:
 	var s := Scouting.new()
 	var units: Dictionary[int, int] = {U.TRACKER: 2}
 	var lines: Array[String] = MAIN.scout_lines(bot, s, RES.OK, units, 1, false, T0)
-	assert_eq(lines[0], "Bez zwiadu: plan pokaże tylko zarys budynków", "bez zwiadu")
+	assert_eq(lines[0], "Bez zwiadu: zamek zakryje mgła", "bez zwiadu")
 	assert_eq(lines[1], "2 zwiad., 40% zamku, koszt 20 Ży 20 Zł", "co da zwiad")
 	var player := TargetSearch.Target.new()
 	player.player_id = "00000000-0000-0000-0000-000000000001"
