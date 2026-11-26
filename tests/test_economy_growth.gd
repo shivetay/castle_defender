@@ -194,8 +194,8 @@ func test_spend_tables_match_game() -> bool:
 	assert_true(sql.contains("sum(%d" % Generals.RECRUIT_GOLD), "werbunek generała")
 	assert_true(sql.contains(">= 2 then %d" % Generals.LEVEL_GOLD[2]), "awans generała na 2")
 	assert_true(sql.contains(">= 3 then %d" % Generals.LEVEL_GOLD[3]), "awans generała na 3")
-	assert_true(sql.contains("%d * greatest(new.ruler_perk_paid - old.ruler_perk_paid, 0)" % RulerPerks.CHANGE_GOLD),
-			"płatna zmiana perka")
+	# płatna zmiana perka z listy (#32, 50 zł) już nie rośnie od #308, ale zostaje w budżecie złota
+	assert_true(sql.contains("50 * greatest(new.ruler_perk_paid - old.ruler_perk_paid, 0)"), "płatna zmiana perka")
 	var inputs := _goods_inputs()
 	assert_true(sql.contains("GOODS_INPUTS = " + inputs), "wejścia wytwórców w komentarzu")
 	assert_true(sql.contains("'" + inputs + "'::jsonb"), "wejścia wytwórców w funkcji")

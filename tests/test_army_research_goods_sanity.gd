@@ -5,6 +5,8 @@ extends TestCase
 ## co w grze; test składa je z klas gry i szuka w komentarzu i w funkcji migracji.
 
 const MIGRATION := "res://supabase/migrations/20261124150000_army_research_goods_sanity.sql"
+## Najnowsza wersja `private.tech_tree` (#308: technologie perków władcy).
+const TREE_MIGRATION := "res://supabase/migrations/20261126121609_ruler_perk_research.sql"
 
 
 func _sql() -> String:
@@ -51,7 +53,7 @@ static func _producer_kind(producer: String) -> int:
 
 
 func test_tech_tree_matches_game() -> bool:
-	var sql := _sql()
+	var sql := FileAccess.get_file_as_string(TREE_MIGRATION)
 	assert_true(not sql.is_empty(), "migracja jest")
 	var tree := _tech_tree()
 	assert_true(sql.contains("TECH_TREE = " + tree), "drzewko w komentarzu")

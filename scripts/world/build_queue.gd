@@ -177,6 +177,8 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 			goods.update(at, Goods.producers(grid), economy)
 		if take_research:
 			research.update(at)
+			# technologia perka władcy (#308) działa od chwili ukończenia
+			grid.ruler_perk = RulerPerks.from_research(research, grid.age())
 			continue
 		var o: Order = orders.pop_front()
 		if grid.buildings.has(o.building_id):

@@ -49,7 +49,7 @@ $$;
 select is(private.production_max(pg_temp.castle('[0, 0, 0, 0]'), pg_temp.castle('[0, 0, 0, 0]')), '{80, 20, 20, 0}'::bigint[],
   'produkcja: gród i Chata drwala 1');
 select is(private.production_max(pg_temp.castle('[0, 0, 0, 0]'),
-    pg_temp.castle('[0, 0, 0, 0]', '{"research": {"done": ["G1"]}, "ruler": {"perk": 3}}')),
+    pg_temp.castle('[0, 0, 0, 0]', '{"research": {"done": ["G1", "G25"]}}')),
   '{104, 22, 22, 0}'::bigint[], 'produkcja z G1 i Gospodarnym z któregokolwiek zapisu');
 select is(private.production_max(pg_temp.castle('[0, 0, 0, 0]'), pg_temp.castle('[0, 0, 0, 0]',
     '{"grid": {"buildings": [[1, 5, 2, 30, 30, 4, 4], [5, 6, 2, 10, 20, 2, 2]]}}')),

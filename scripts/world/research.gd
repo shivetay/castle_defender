@@ -8,12 +8,13 @@ extends RefCounted
 ## ponownie na kolejne poziomy, do TechTree.max_level w epoce zamku. Efekty działają razem z budynkami,
 ## jednostkami i bitwą; premia do produkcji (G1, G2) rośnie z poziomem doktryny.
 
-enum Result { OK, BUSY, ALREADY_DONE, WRONG_AGE, MISSING_REQUIREMENTS, NO_RESOURCES, UNKNOWN, NO_BUILDING, MAX_LEVEL }
+enum Result { OK, BUSY, ALREADY_DONE, WRONG_AGE, MISSING_REQUIREMENTS, NO_RESOURCES, UNKNOWN, NO_BUILDING, MAX_LEVEL,
+		RULER_PERK_LOCKED }
 
 ## Komunikaty dla gracza (indeks = Result).
 const MESSAGES: Array[String] = ["", "Trwa inne badanie", "Już zbadane", "Wymaga późniejszej epoki",
 		"Najpierw zbadaj wymagane technologie", "Brak surowców", "Nieznana technologia",
-		"Najpierw postaw budynek badań", "Najwyższy poziom w tej epoce"]
+		"Najpierw postaw budynek badań", "Najwyższy poziom w tej epoce", "Wybrano już perk władcy"]
 
 ## Zbadane kody (kod → true).
 var done: Dictionary = {}
@@ -129,6 +130,8 @@ func check(code: String, current_age: int, grid: BuildGrid = null) -> Result:
 			return Result.ALREADY_DONE
 		if level(code) >= TechTree.max_level(code, current_age):
 			return Result.MAX_LEVEL
+	if RulerPerks.is_locked(code, done, active):
+		return Result.RULER_PERK_LOCKED
 	if is_busy():
 		return Result.BUSY
 	if TechTree.age(code) > current_age:

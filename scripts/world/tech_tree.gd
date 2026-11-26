@@ -1,6 +1,7 @@
 class_name TechTree
 extends RefCounted
-## Drzewko technologii MVP (#12): 34 z 131 technologii z notatki Drzewko technologiczne
+## Drzewko technologii MVP (#12): 34 z 131 technologii z notatki, S3 i 8 technologii perków władcy (#308,
+## RulerPerks.LINES). Technologie z notatki Drzewko technologiczne
 ## (docs/castle-defender-vault), w pięciu gałęziach, z epoką, oznaczeniem technologii kluczowej
 ## (★, warunek przejścia do następnej epoki, #34: O1, G1 i A7 dla I → II, G6 dla II → III), efektem i zależnościami.
 ## Zależności są według notatki, łącznie z jej sekcją „Zmienione zależności”
@@ -37,9 +38,13 @@ const TECHS: Array = [
 	["A22", "Kopia rycerska", Branch.ATTACK, 1, false, ["A7"], "jednostka Kopijnik"],
 	["A46", "Przeszywanica", Branch.ATTACK, 1, false, ["A45"], "jednostka Drużynnik w przeszywanicy"],
 	["A47", "Łuk refleksyjny", Branch.ATTACK, 1, false, ["A2"], "jednostka Strzelec z łukiem refleksyjnym"],
+	["A60", "Zdobywca", Branch.ATTACK, 0, false, [], "perk władcy: +10% obrażeń w ataku, wyklucza inne perki"],
+	["A61", "Łupieżca", Branch.ATTACK, 1, false, ["A60"], "perk władcy: Zdobywca i +15% łupu z PvP"],
 	["O1", "Sypanie kopców", Branch.DEFENSE, 0, true, [], "budynek Kopiec, warunek przejścia I → II"],
 	["O2", "Zaostrzone pale", Branch.DEFENSE, 0, false, [], "palisada +20% wytrzymałości, budynek Komenda umocnień"],
 	["O3", "Fosa z kolcami", Branch.DEFENSE, 0, false, ["O2"], "sucha fosa rani wrogów"],
+	["O23", "Gospodarz grodu", Branch.DEFENSE, 0, false, [], "perk władcy: budynki +10% wytrzymałości, wyklucza inne perki"],
+	["O24", "Gospodarz grodu II", Branch.DEFENSE, 1, false, ["O23"], "perk władcy: budynki +15% wytrzymałości"],
 	["G1", "Karczowanie lasu", Branch.ECONOMY, 0, true, [], "+20% drewna, warunek przejścia I → II"],
 	["G2", "Żarna", Branch.ECONOMY, 0, false, [], "+15% żywności"],
 	["G18", "Łowiectwo", Branch.ECONOMY, 0, false, [], "budynek Chata myśliwego"],
@@ -49,7 +54,11 @@ const TECHS: Array = [
 	["G24", "Smolarstwo", Branch.ECONOMY, 0, false, ["G1"], "budynek Smolarnia"],
 	["G4", "Kamieniarstwo", Branch.ECONOMY, 1, false, ["G1"], "budynek Kamieniołom"],
 	["G6", "Zaprawa wapienna", Branch.ECONOMY, 1, true, ["G4"], "warunek przejścia II → III"],
+	["G25", "Gospodarny", Branch.ECONOMY, 0, false, [], "perk władcy: +10% produkcji, wyklucza inne perki"],
+	["G26", "Budowniczy", Branch.ECONOMY, 1, false, ["G25"], "perk władcy: Gospodarny i budowa -10% czasu"],
 	["U1", "Wiec grodowy", Branch.UTILITY, 0, false, [], "+5 morale załogi"],
+	["U14", "Ukochany władca", Branch.UTILITY, 0, false, [], "perk władcy: +10 morale załogi, wyklucza inne perki"],
+	["U15", "Ukochany władca II", Branch.UTILITY, 1, false, ["U14"], "perk władcy: +15 morale załogi"],
 	["S1", "Tropiciele", Branch.SPECIAL, 0, false, [], "budynek Chata tropicieli, jednostka Tropiciel, zwiad odsłania 20% zamku przeciwnika"],
 	["S2", "Ogniska sygnałowe", Branch.SPECIAL, 0, false, [], "budynek Wieża sygnałowa"],
 	["S3", "Dom zwiadowców", Branch.SPECIAL, 1, false, ["S1"], "Chata tropicieli staje się Domem zwiadowców, jednostka Zwiadowca, zwiad +10% zasięgu i szansy"],

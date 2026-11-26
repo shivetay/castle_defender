@@ -4,10 +4,14 @@ Gracz jest władcą zamku i ma własne perki. Do tego dowodzą generałowie: jed
 
 ## Perki władcy
 
-- Miejsca na perki: 1 na start, 2. po przejściu do epoki III, 3. po przejściu do epoki V.
-- Perk z wyższej epoki odblokowuje się dopiero po wejściu do niej. Zmiana perka jest darmowa raz na 24 h, kolejne zmiany kosztują złoto.
+- Perków nie wybiera się z listy ([[ADR/0002-perki-wladcy-z-technologii|ADR 0002]], #308). Władca ma 0–1 perk wrodzony (osobna pula, dojdzie z nowymi władcami; Kasztelan nie ma żadnego) i 1 miejsce na perk z technologii.
+- Perki z technologii to linie z poziomami, po jednej technologii na poziom: Zdobywca → Łupieżca (A60, A61), Gospodarz grodu (O23, O24: 10 → 15% wytrzymałości), Gospodarny → Budowniczy (G25, G26), Ukochany władca (U14, U15: 10 → 15 morale). Poziom 1 jest w epoce I, poziom 2 w epoce II i wymaga poziomu 1. Łupieżca i Budowniczy dokładają swój efekt do poziomu 1.
+- Pierwsza technologia perkowa wybiera linię na stałe i blokuje pozostałe linie we wszystkich epokach. Okno 24 h i opłata za zmianę znikają. Serwer liczy perk z badań w zapisie zamku (jedna linia, poziom 2 od epoki II).
+- Miejsca na perki: 1 na start, 2. po przejściu do epoki III, 3. po przejściu do epoki V (później).
 - Perki władcy działają na cały zamek: w ataku, w obronie i w gospodarce.
-- W MVP (#32): 1 miejsce i 6 perków (Zdobywca, Łupieżca, Gospodarz grodu, Gospodarny, Budowniczy, Ukochany władca), wybór z portretu władcy w HUD-zie. Kolejna zmiana w ciągu 24 h kosztuje 50 zł (tymczasowo). Serwer sprawdza perk przy zapisie zamku (epoka, 24 h, pokrycie złota), bierze perk atakującego z zamku na serwerze, a Łupieżcę liczy w limicie łupu. Budowniczy skraca czas przy zleceniu budowy (budowy już w kolejce się nie zmieniają).
+- Wcześniej (#32): wybór 1 z 6 perków z portretu władcy, zmiana darmowa raz na 24 h, potem 50 zł; zastąpione przez ADR 0002. Utracone perki z listy: #349.
+
+Pełna lista perków z notatki (cel na 1.0; w grze są tylko 4 linie powyżej):
 
 | Perk | Kategoria | Od epoki | Efekt |
 | --- | --- | --- | --- |

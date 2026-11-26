@@ -161,7 +161,7 @@ var _sq_fire: Dictionary[int, Vector2i] = {}
 ## Generałowie (#31): strona → generał (kopia z Generals). Generał nie stoi na siatce: dowodzi całą
 ## stroną, a jego perki działają na wszystkie jej oddziały. Strona bez wpisu walczy bez generała.
 var generals: Dictionary[int, Generals.General] = {}
-## Perki władców (#32): strona → RulerPerks.Perk. Obrońca dostaje perk z siatki zamku (BuildGrid.ruler_perk)
+## Perki władców (#32, #308): strona → stan perka RulerPerks.Perk. Obrońca dostaje perk z siatki zamku (BuildGrid.ruler_perk)
 ## w create_squads, atakujący przez set_ruler_perk. Perki ataku działają tylko u atakującego, a obrony
 ## tylko u obrońcy.
 var ruler_perks: Dictionary[int, int] = {}
@@ -205,7 +205,7 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 	b.objective = objective_id
 	if RulerPerks.is_known(grid.ruler_perk):
 		b.ruler_perks[Side.DEFENDER] = grid.ruler_perk
-	var steward := b.ruler_perk_is(Side.DEFENDER, RulerPerks.Perk.STEWARD)
+	var steward := RulerPerks.steward_hp_percent(b.ruler_perk(Side.DEFENDER))
 	for id: int in grid.buildings:
 		if grid.levels[id] < 1:
 			continue  # plac budowy nie broni się
@@ -222,9 +222,9 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 		s.rect = grid.buildings[id]
 		s.level = grid.levels[id]
 		s.max_hp = BattleConfig.building_hp(s.kind, grid.levels[id])
-		if steward:
+		if steward != 100:
 			@warning_ignore("integer_division")
-			s.max_hp = s.max_hp * RulerPerks.STEWARD_HP_PERCENT / 100  # Gospodarz grodu (#32): +10%
+			s.max_hp = s.max_hp * steward / 100  # Gospodarz grodu (#32, #308): +10% albo +15%
 		s.base_hp = s.max_hp
 		s.hp = s.max_hp
 		b.structures[id] = s
@@ -255,8 +255,9 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 		if o.task == DefensePlan.Task.FIREFIGHT:
 			b._fire_well[i + 1] = b._well_near(o.post)
 	b._spawn_squads(defenders, Side.DEFENDER, home, anchors)
-	if b.ruler_perk_is(Side.DEFENDER, RulerPerks.Perk.BELOVED):
-		b.add_side_morale(Side.DEFENDER, RulerPerks.BELOVED_MORALE)  # Ukochany władca (#32): +10 morale załogi
+	var beloved := RulerPerks.beloved_morale(b.ruler_perk(Side.DEFENDER))
+	if beloved > 0:
+		b.add_side_morale(Side.DEFENDER, beloved)  # Ukochany władca (#32, #308): +10 albo +15 morale załogi
 	return b
 
 
@@ -338,14 +339,19 @@ func set_ruler_perk(side: int, perk: int) -> void:
 	ruler_perks[side] = perk
 
 
-## Czy władca strony `side` ma perk `perk`.
+## Czy władca strony `side` ma stan perka `perk`.
 func ruler_perk_is(side: int, perk: int) -> bool:
-	return int(ruler_perks.get(side, RulerPerks.Perk.NONE)) == perk
+	return ruler_perk(side) == perk
 
 
-## Zdobywca (#32): +10% obrażeń wszystkich oddziałów atakującego, w jednostki i w budynki.
+## Stan perka władcy strony `side` (RulerPerks.Perk).
+func ruler_perk(side: int) -> int:
+	return int(ruler_perks.get(side, RulerPerks.Perk.NONE))
+
+
+## Zdobywca (#32, oba poziomy linii): +10% obrażeń wszystkich oddziałów atakującego, w jednostki i w budynki.
 func _conqueror(f: Fighter, dmg: int) -> int:
-	if f.side == Side.ATTACKER and ruler_perk_is(Side.ATTACKER, RulerPerks.Perk.CONQUEROR):
+	if f.side == Side.ATTACKER and RulerPerks.has_conqueror(ruler_perk(Side.ATTACKER)):
 		@warning_ignore("integer_division")
 		return dmg * RulerPerks.CONQUEROR_DAMAGE_PERCENT / 100
 	return dmg
