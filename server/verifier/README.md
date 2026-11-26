@@ -10,8 +10,9 @@ verification worker.
 - Wrapper: `worker.py` → `private.claim_verification` / `private.submit_verification`
 
 SQL queue and functions: migration `supabase/migrations/*_attack_verification.sql` (#304).
-`verify_main.gd` is in the repo (#303); the `verify_*.pck` export is #305. Until the migration is
-applied to the project (owner's approval) and a pack is on the host, use `smoke` on the VPS.
+`verify_main.gd` is in the repo (#303); the `verify_*.pck` pack comes from the export preset
+„Verifier” (#305, `packs/README.md`). Until the migration is applied to the project (owner's
+approval) and a pack is on the host, use `smoke` on the VPS.
 
 ## SQL contract (#304)
 
@@ -89,7 +90,8 @@ docker run --rm \
   castle-defender-verifier:4.7.2 verify-pack
 ```
 
-**TODO (#301 checklist):** export preset „Verifier” + CI pack at `v*` — not in this PR.
+`verify-pack` runs the pack on its own (`-- --check`) and exits 0 only when the pack reports
+`sim_version=$SIM_VERSION`. Build the pack locally or take it from the release (`packs/README.md`).
 
 ## Security
 

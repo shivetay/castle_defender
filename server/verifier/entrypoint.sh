@@ -30,11 +30,20 @@ case "$mode" in
 		if [ ! -f "$pack" ]; then
 			echo "missing pack: $pack" >&2
 			echo "mount or copy verify_*.pck into ${PACKS_DIR:-/app/packs}" >&2
-			echo "TODO(#301): export preset Verifier + CI pack build — see packs/README.md" >&2
+			echo "build it: bash .github/scripts/build_verify_pack.sh — see packs/README.md" >&2
 			exit 2
 		fi
-		# Pack-only smoke: load main pack; full --job/--out path needs verify_main.gd.
-		exec godot --headless --main-pack "$pack" --quit-after 1
+		# Pack smoke: the pack starts on its own (VerifyMain) and reports the sim_version it computes.
+		out="$(godot --headless --main-pack "$pack" -- --check 2>&1)" || {
+			echo "$out" >&2
+			exit 1
+		}
+		echo "$out"
+		if ! printf '%s\n' "$out" | grep -qx "sim_version=${sim}"; then
+			echo "pack $pack does not report sim_version=${sim}" >&2
+			exit 1
+		fi
+		exit 0
 		;;
 	worker)
 		exec python3 /app/worker.py "$@"

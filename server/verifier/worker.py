@@ -112,7 +112,7 @@ def run_godot_job(
 			"--out",
 			str(out_path),
 		]
-		# Pack export / preset „Verifier” = #305; verify_main.gd already accepts --job/--out (#303).
+		# Pack z presetu „Verifier” (#305) startuje VerifyMain sam, bez --script (#303).
 		proc = subprocess.run(
 			cmd,
 			capture_output=True,
