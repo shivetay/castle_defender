@@ -161,6 +161,21 @@ Zmienione zależności: A21 Ściana tarcz wymaga A38, A7 Strzemię wymaga A43, A
 | U11 | Chirurgia polowa | VI | 50% rannych wraca | U7 |
 | U12 | Ordre de bataille | VI | +1 oddział w planie ataku | U9 |
 
+## Perki władcy (A60–A61, O23–O24, G25–G26, U14–U15)
+
+Technologie perków władcy ([[ADR/0002-perki-wladcy-z-technologii|ADR 0002]], #308). Każda linia to jeden perk z poziomami; pierwsza zbadana technologia perkowa wybiera linię na stałe i blokuje pozostałe linie we wszystkich epokach. Koszt i czas jak inne technologie epoki. Opis linii: [[Władca i generałowie]].
+
+| Kod | Technologia | Gałąź | Epoka | Efekt | Wymaga |
+| --- | --- | --- | --- | --- | --- |
+| A60 | Zdobywca | Atak | I | perk władcy: +10% obrażeń w ataku | — |
+| A61 | Łupieżca | Atak | II | perk władcy: Zdobywca i +15% łupu z PvP | A60 |
+| O23 | Gospodarz grodu | Obrona | I | perk władcy: budynki +10% wytrzymałości | — |
+| O24 | Gospodarz grodu II | Obrona | II | perk władcy: budynki +15% wytrzymałości | O23 |
+| G25 | Gospodarny | Gospodarka | I | perk władcy: +10% produkcji | — |
+| G26 | Budowniczy | Gospodarka | II | perk władcy: Gospodarny i budowa −10% czasu | G25 |
+| U14 | Ukochany władca | Użyteczne | I | perk władcy: +10 morale załogi | — |
+| U15 | Ukochany władca II | Użyteczne | II | perk władcy: +15 morale załogi | U14 |
+
 ## Specjalne (S)
 
 | Kod | Technologia | Epoka | Efekt | Wymaga |

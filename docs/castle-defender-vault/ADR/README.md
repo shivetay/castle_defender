@@ -8,3 +8,4 @@ numer, a stary zmienia tylko status na „zastąpiony przez”.
 | Nr | Decyzja | Status | Issue |
 |---|---|---|---|
 | [[ADR/0001-grillowanie-i-adr-w-pracy-z-ai\|0001]] | Grillowanie i ADR w pracy z AI | przyjęty | brak |
+| [[ADR/0002-perki-wladcy-z-technologii\|0002]] | Perki władcy z technologii zamiast wyboru z listy | przyjęty | #308 |
