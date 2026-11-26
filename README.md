@@ -928,8 +928,8 @@ Raport i powtórka obrony (#29) są w kodzie. Migracja `attack_replay`, nowa wer
 ataku na gracza (`bad_plan`), więc trzeba grać z APK z #29 lub nowszego. Stara funkcja SQL
 `launch_attack(uuid, uuid)` zostaje do osobnej migracji, która ją usunie. Powtórkę ma tylko obrońca
 (atakujący widział bitwę na żywo). Historia obron z nickiem napastnika i okienkiem o nowych atakach (#328)
-jest w kodzie; migracja `defense_history` i Edge Function `defense_history` czekają na wgranie na projekt
-(bez nich lista pokazuje „Brak połączenia z serwerem”). Push o ataku (#30) zostaje na osobny ticket.
+jest w kodzie; migracja `defense_history` i Edge Function `defense_history` są na projekcie.
+Push o ataku (#30) zostaje na osobny ticket.
 Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa Dworu z poziomu 5
 z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoką gracza na serwerze
 (`players.age`, ranking i dobór przeciwnika) zajmuje się migracja `castle_age`: po każdym zapisie zamku
