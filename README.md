@@ -932,8 +932,8 @@ ataku na gracza (`bad_plan`), więc trzeba grać z APK z #29 lub nowszego. Stara
 `launch_attack(uuid, uuid)` zostaje do osobnej migracji, która ją usunie. Powtórkę ma tylko obrońca
 (atakujący widział bitwę na żywo). Historia obron z nickiem napastnika i okienkiem o nowych atakach (#328)
 jest w kodzie; migracja `defense_history` i Edge Function `defense_history` są na projekcie.
-Siła celu PvP jako przedział z serwera (#293) jest w kodzie. Migracja `target_strength` jest na projekcie;
-nowe wersje Edge Functions `find_targets` i `defense_history` czekają na deploy (do tego czasu karta gracza pokazuje „Siła ?”).
+Siła celu PvP jako przedział z serwera (#293) jest w kodzie. Migracja `target_strength` i nowe wersje Edge Functions
+`find_targets` i `defense_history` są na projekcie (starsza wersja gry pomija nowe pola).
 Push o ataku (#30) zostaje na osobny ticket.
 Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa Dworu z poziomu 5
 z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoką gracza na serwerze
