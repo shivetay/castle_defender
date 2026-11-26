@@ -12,11 +12,12 @@ const SESSION_PATH := "user://test_defense_history_session.json"
 const SYNC_PATH := "user://test_defense_history_sync.json"
 const MIGRATION := "res://supabase/migrations/20261126180000_defense_history.sql"
 const FUNCTION := "res://supabase/functions/defense_history/index.ts"
+const STRENGTH_MIGRATION := "res://supabase/migrations/20261126200000_target_strength.sql"
 
 
 static func _row(id: String, won: bool, at: String, extra: Dictionary = {}) -> Dictionary:
 	var d := {"id": id, "finished_at": at, "has_replay": true, "nickname": "Mieszko",
-		"army": [[U.AXE_WARRIOR, 10], [U.RIDER, 5]],
+		"army": [[U.AXE_WARRIOR, 10], [U.RIDER, 5]], "defense": 237,
 		"result": {"won": won, "percent": 40, "stars": [true, false, false]}}
 	d.merge(extra, true)
 	return d
@@ -38,7 +39,7 @@ static func _report(at_s: int, won: bool) -> DefenseLog.Report:
 func test_parse_history() -> bool:
 	var rows := DefenseLog.parse_history(_wire({"rows": [
 		_row(ATTACK, true, "2026-11-21T10:15:00+01:00"),
-		_row(ATTACK2, false, "2026-11-21T08:00:00Z", {"has_replay": false, "nickname": "", "army": "zła"}),
+		_row(ATTACK2, false, "2026-11-21T08:00:00Z", {"has_replay": false, "nickname": "", "army": "zła", "defense": null}),
 		_row("zły", true, "2026-11-21T08:00:00Z"),
 		_row(ATTACK, true, "zły czas"),
 		_row(ATTACK, true, "2026-11-21T08:00:00Z", {"result": {"won": true}}),
@@ -53,6 +54,8 @@ func test_parse_history() -> bool:
 	assert_eq(rows[0].at_s, Time.get_unix_time_from_datetime_string("2026-11-21T09:15:00"), "czas w UTC")
 	assert_eq(rows[1].nickname, DefenseLog.UNKNOWN_NICK, "brak nicku to „?”")
 	assert_eq(rows[1].army_power, 0, "zła armia to siła 0")
+	assert_eq(rows[0].defense, 200, "siła obrony napastnika: granica przedziału")
+	assert_eq(rows[1].defense, -1, "bez zamku napastnika: „?”")
 	assert_true(not rows[1].has_replay, "bez powtórki")
 	assert_eq(DefenseLog.parse_history(null), [] as Array[DefenseLog.Report], "zła odpowiedź")
 	assert_eq(DefenseLog.parse_history({"rows": "x"}), [] as Array[DefenseLog.Report], "złe wiersze")
@@ -100,7 +103,10 @@ func test_history_rows() -> bool:
 	var r := DefenseLog.parse_history(_wire({"rows": [_row(ATTACK, true, "2026-11-21T10:15:00+01:00",
 			{"nickname": "Mieszkomiesz"})]}))[0]
 	assert_eq(ReplayPanel.row_text(r, 60), "21.11 10:15 Zdobyty 40%", "pierwsza linia")
-	assert_eq(ReplayPanel.detail_text(r), "Mieszkomiesz  Siła %d  Obr. ?" % r.army_power, "druga linia")
+	assert_eq(ReplayPanel.detail_text(r), "Mieszkomiesz  Siła %d  Obr. 200-250" % r.army_power, "druga linia")
+	r.defense = -1
+	assert_eq(ReplayPanel.detail_text(r), "Mieszkomiesz  Siła %d  Obr. ?" % r.army_power, "bez zamku napastnika")
+	r.defense = Strength.MAX_RANGE_LOW
 	var room := int(ReplayPanel.SIZE.x) - 12 - 6
 	assert_true(PixelFont.text_width("30.12 23:59 Zdobyty 100%") + ReplayPanel.shields_width() + 4 <= room,
 			"pierwsza linia z tarczami mieści się")
@@ -228,6 +234,12 @@ func test_server_contract() -> bool:
 			"limit w SQL jak w kliencie")
 	assert_true(ts.contains("HISTORY_LIMIT = %d" % DefenseLog.REPORTS_LIMIT), "limit w Edge Function")
 	assert_true(not ts.contains("attacker_id"), "Edge Function nie oddaje id napastnika")
+	var strength_sql := FileAccess.get_file_as_string(STRENGTH_MIGRATION)
+	assert_true(strength_sql.contains("HISTORY_LIMIT = %d" % DefenseLog.REPORTS_LIMIT)
+			and strength_sql.contains("limit %d" % DefenseLog.REPORTS_LIMIT), "nowa wersja funkcji: ten sam limit")
+	assert_true(strength_sql.contains("grant execute on function public.defense_history(uuid) to service_role"),
+			"nowa wersja funkcji: tylko service_role")
+	assert_true(ts.contains("defense: Number.isInteger(row.defense)"), "Edge Function oddaje przedział siły obrony")
 	assert_true(sql.contains("to service_role") and sql.contains("from public, anon, authenticated"),
 			"tylko service_role")
 	return true

@@ -92,6 +92,8 @@ class Report:
 	var nickname := UNKNOWN_NICK
 	var army_power := 0
 	var has_replay := false
+	## Siła obrony zamku napastnika (#293): dolna granica przedziału z serwera, -1 bez zamku.
+	var defense := -1
 
 
 ## Odpowiedź `defense_history` ({"rows": [...]}), od najnowszej. Wiersze bez poprawnego id, wyniku
@@ -115,6 +117,7 @@ static func parse_history(data: Variant) -> Array[Report]:
 		r.nickname = nick if not nick.is_empty() else UNKNOWN_NICK
 		r.army_power = army_power(AttackReplay.parse_army(d.get("army")))
 		r.has_replay = d.get("has_replay") == true
+		r.defense = TargetSearch.parse_strength(d.get("defense"))
 		out.append(r)
 	return out
 

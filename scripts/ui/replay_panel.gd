@@ -3,7 +3,7 @@ extends Node2D
 ## Historia obron (#29, #328) na środku ekranu: do DefenseLog.REPORTS_LIMIT ataków na zamek gracza, od
 ## najnowszego, po PER_PAGE na stronę ze strzałkami. Wiersz ma dwie linie: data i godzina końca ataku,
 ## wynik (odparty albo zdobyty, procent zniszczeń) i 3 tarcze obrońcy, a pod spodem nick napastnika,
-## siła jego armii i siła obrony jego zamku („Obr. ?”, dopóki nie poda jej serwer, #293). Dotknięcie
+## siła jego armii i przedział siły obrony jego zamku z serwera (#293, np. „Obr. 200-250”, „Obr. ?” bez zamku). Dotknięcie
 ## wiersza pyta serwer o powtórkę tej obrony; obrona bez powtórki (sprzed #29) jest wyszarzona i nic nie
 ## robi. Wróć zamyka okno. Okno samo obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
 @warning_ignore_start("integer_division")
@@ -31,7 +31,8 @@ const EMPTY_TEXT := "Nikt jeszcze nie atakował"
 const FAILED_TEXT := "Brak połączenia z serwerem"
 const HELD := "Odparty"
 const LOST := "Zdobyty"
-## Siła obrony zamku napastnika: liczy ją dopiero serwer (#293).
+## Siła obrony zamku napastnika: przedział z serwera (#293), „?”, gdy zamku już nie ma.
+const DEFENSE_LABEL := "Obr."
 const DEFENSE_UNKNOWN := "Obr. ?"
 ## Tarcza obrońcy 5×5 za każdy z 3 celów: pełna, gdy atakujący nie zdobył gwiazdki, pęknięta, gdy zdobył.
 const SHIELD: Array[String] = ["#####", "#####", "#####", ".###.", "..#.."]
@@ -136,7 +137,8 @@ static func row_text(r: DefenseLog.Report, bias_min: int) -> String:
 
 ## Druga linia wiersza: nick napastnika, siła jego armii i siła obrony jego zamku.
 static func detail_text(r: DefenseLog.Report) -> String:
-	return "%s  Siła %d  %s" % [r.nickname, r.army_power, DEFENSE_UNKNOWN]
+	var defense := DEFENSE_UNKNOWN if r.defense < 0 else "%s %s" % [DEFENSE_LABEL, Strength.range_text(r.defense)]
+	return "%s  Siła %d  %s" % [r.nickname, r.army_power, defense]
 
 
 static func shields_width() -> int:

@@ -1,8 +1,9 @@
 class_name TargetPicker
 extends Node2D
 ## Wybór celu ataku (#24), pierwszy ekran Wyprawy ze Strażnicy: zawsze 3 karty celów. Karta ma
-## tylko portret władcy, imię gracza, nazwę zamku i siłę obrony (#310): bot liczy ją w kliencie
-## (Strength.bot_defense), a gracz ma „?”, dopóki serwer jej nie poda (#293). Graczy dobiera serwer (TargetSearch, `find_targets`);
+## tylko portret władcy, imię gracza, nazwę zamku i siłę obrony (#310) jako przedział, np. „Siła 200-250”
+## (mgła wojny, #293): bot liczy ją w kliencie (Strength.bot_defense), gracza liczy serwer, a „?” znaczy,
+## że serwer jej nie podał. Graczy dobiera serwer (TargetSearch, `find_targets`);
 ## puste miejsca, a bez sieci wszystkie trzy, zajmują zamki-boty. Boty otwiera dotychczasową listę
 ## 20 zamków-botów (BotPicker), Planuj plan ataku na wybranym celu, a Wróć wraca do mapy.
 ## Planuj na karcie gracza zaczyna atak na serwerze (`start_attack`, #240) i otwiera plan na kopii
@@ -238,7 +239,7 @@ static func card_lines(t: TargetSearch.Target, w: int) -> Array:
 
 ## Napis siły na karcie, np. „Siła 245”, albo „Siła ?”, gdy jej nie znamy.
 static func strength_text(t: TargetSearch.Target) -> String:
-	return UNKNOWN_STRENGTH_TEXT if t.strength < 0 else "%s %d" % [STRENGTH_LABEL, t.strength]
+	return UNKNOWN_STRENGTH_TEXT if t.strength < 0 else "%s %s" % [STRENGTH_LABEL, Strength.range_text(t.strength)]
 
 
 ## Jedna linia najwyżej `width` px (z „...”, gdy się nie mieści); pusty tekst zostaje pusty.

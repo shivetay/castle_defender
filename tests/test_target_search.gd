@@ -9,13 +9,15 @@ const D := "00000000-0000-0000-0000-0000000000d1"
 const SESSION_PATH := "user://test_targets_session.json"
 const SYNC_PATH := "user://test_targets_sync.json"
 const MIGRATION := "res://supabase/migrations/20261119140714_match_targets.sql"
+const STRENGTH_MIGRATION := "res://supabase/migrations/20261126200000_target_strength.sql"
+const FUNCTION := "res://supabase/functions/find_targets/index.ts"
 
 
 func _row(id: String, nickname: String = "Bolko", castle: String = "Gród Bolka") -> Dictionary:
 	return {
 		"player_id": id, "nickname": nickname, "castle_name": castle, "ruler": Rulers.DEFAULT,
 		"age": 0, "rating": 1040, "map_seed": 777, "footprint": [[30, 30, 2, 2], [33, 30, 1, 1]],
-		"loot": [50, 20, 0, 0],
+		"loot": [50, 20, 0, 0], "strength": 250,
 	}
 
 
@@ -33,6 +35,32 @@ func test_parse_player_row() -> bool:
 	assert_eq(t.footprint, [Rect2i(30, 30, 2, 2), Rect2i(33, 30, 1, 1)] as Array[Rect2i], "zarys")
 	assert_eq(t.loot, [50, 20, 0, 0] as Array[int], "łup")
 	assert_eq(t.key(), "gracz:" + B, "klucz cache")
+	assert_eq(t.strength, 250, "siła obrony: dolna granica przedziału z serwera")
+	return true
+
+
+## Siła obrony z serwera (#293) jest niezaufana: tylko nieujemna liczba, przycięta i sprowadzona
+## do granicy przedziału; brak albo zła wartość to „?” (-1).
+func test_parse_strength() -> bool:
+	assert_eq(TargetSearch.parse_strength(250), 250, "granica przedziału")
+	assert_eq(TargetSearch.parse_strength(237.0), 200, "nie-granica wraca do granicy")
+	assert_eq(TargetSearch.parse_strength(1e12), Strength.MAX_RANGE_LOW, "przycięta")
+	assert_eq(TargetSearch.parse_strength(0), 0, "zero")
+	for bad: Variant in [null, -50, "250", [250], true]:
+		assert_eq(TargetSearch.parse_strength(bad), -1, "zła siła: %s" % str(bad))
+	var old := _row(C)
+	old.erase("strength")
+	assert_eq(TargetSearch.parse_response({"targets": [old]})[0].strength, -1, "serwer bez siły: „?”")
+	return true
+
+
+## Serwer liczy siłę obrony z własnej kopii zamku i oddaje tylko dolną granicę przedziału (#293).
+func test_server_returns_only_strength_range() -> bool:
+	var sql := FileAccess.get_file_as_string(STRENGTH_MIGRATION)
+	var ts := FileAccess.get_file_as_string(FUNCTION)
+	assert_true(sql.contains("private.strength_range_low(private.defense_strength(c.data"), "przedział z kopii zamku")
+	assert_true(sql.contains("grant execute on function public.match_targets(uuid) to service_role"), "match_targets tylko dla service_role")
+	assert_true(ts.contains("strength: Number.isInteger(row.strength)"), "Edge Function oddaje przedział")
 	return true
 
 

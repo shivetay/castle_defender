@@ -145,3 +145,86 @@ func test_bot_defense() -> bool:
 			"ostatni zamek silniejszy od pierwszego")
 	assert_eq(Strength.bot_defense(null), 0, "brak zamku")
 	return true
+
+
+# --- Mgła wojny i serwer (#293, ADR 0004) --------------------------------------------------------
+
+const SERVER_MIGRATION := "res://supabase/migrations/20261126200000_target_strength.sql"
+const SERVER_TEST := "res://supabase/tests/database/target_strength_test.sql"
+## Przykładowy zamek i układ obrony, które ten sam test pgTAP liczy w `private.defense_strength`:
+## budynki na terenie z seeda 1337, oddziały ze złymi wpisami (powtórzone id, zły rodzaj, liczba ponad
+## SQUAD_SIZE), garnizon z późniejszym rozkazem, który go zdejmuje, i pułapka na zajętej kratce.
+const SAMPLE_BUILDINGS := "[[1,5,1,32,32,2,2],[2,21,1,34,31,2,2],[4,3,3,31,28,2,2],[5,2,1,31,34,3,1],[6,0,0,33,28,1,1],[7,0,5,34,28,1,1],[8,4,2,34,34,2,2]]"
+const SAMPLE_SQUADS := "[[1,0,10],[2,3,7],[3,1,4],[4,5,3],[1,2,10],[5,99,3],[6,10,15]]"
+const SAMPLE_ORDERS := "[[3,6,40,40,[]],[1,0,30,30,[]],[2,6,0,0,[]],[2,0,1,1,[]]]"
+const SAMPLE_TRAPS := "[[0,10,10,0],[4,11,10,0],[3,10,10,0],[9,12,12,0]]"
+
+
+func test_range_has_fixed_bounds() -> bool:
+	assert_eq(Strength.range_low(0), 0, "0")
+	assert_eq(Strength.range_low(-7), 0, "ujemna to 0")
+	assert_eq(Strength.range_low(249), 200, "krok 50")
+	assert_eq(Strength.range_low(250), 250, "granica przedziału")
+	assert_eq(Strength.range_low(499), 450, "ostatni przedział z krokiem 50")
+	assert_eq(Strength.range_low(500), 500, "od 500 krok 100")
+	assert_eq(Strength.range_low(1999), 1900, "do 2000 krok 100")
+	assert_eq(Strength.range_low(2499), 2000, "od 2000 krok 500")
+	assert_eq(Strength.range_low(10000000), Strength.MAX_RANGE_LOW, "przycięta")
+	assert_eq(Strength.range_text(237), "200-250", "przedział jako tekst")
+	assert_eq(Strength.range_text(200), "200-250", "dolna granica daje ten sam przedział")
+	assert_eq(Strength.range_text(480), "450-500", "przedział kończy się na 500")
+	assert_eq(Strength.range_text(1950), "1900-2000", "przedział kończy się na 2000")
+	assert_eq(Strength.range_text(2000), "2000-2500", "krok 500")
+	for v in [0, 37, 450, 999, 2001, 77777]:
+		var low := Strength.range_low(v)
+		assert_eq(Strength.range_low(low), low, "%d: granica jest stała" % v)
+		assert_true(low <= v and v < low + Strength.range_step(low), "%d w swoim przedziale" % v)
+	return true
+
+
+## Tablice wag w migracji to te same liczby co w grze (jak CARRY ↔ private.unit_carry).
+func test_server_weights_match_game() -> bool:
+	var sql := FileAccess.get_file_as_string(SERVER_MIGRATION)
+	assert_true(not sql.is_empty(), "migracja siły celu jest w projekcie")
+	var unit := str(Strength.unit_powers())
+	var garrison := str(Strength.unit_powers(BattleConfig.GARRISON_HP_PERCENT))
+	var forts := str(Strength.fort_powers())
+	var traps := str(Strength.TRAP_POWER)
+	assert_true(sql.contains("UNIT_POWER = " + unit) and sql.contains("array" + unit), "siła jednostek")
+	assert_true(sql.contains("GARRISON_UNIT_POWER = " + garrison) and sql.contains("array" + garrison),
+			"siła jednostek w garnizonie")
+	assert_true(sql.contains("TRAP_POWER = " + traps) and sql.contains("array" + traps), "siła pułapek")
+	assert_true(sql.contains("FORT_POWER = " + forts) and sql.contains("array" + forts), "siła umocnień")
+	assert_eq(Strength.FORTS, [K.RAMPART, K.PALISADE, K.GATE, K.TOWER] as Array[int], "umocnienia 0..3 jak w SQL")
+	assert_true(K.RAMPART == 0 and K.TOWER == 3 and sql.contains("between 0 and 3"), "rodzaje umocnień w SQL")
+	assert_true(sql.contains("kind * %d" % BattleConfig.LEVEL_HP_PERCENT.size()), "poziomy w tablicy umocnień")
+	assert_true(sql.contains("between 0 and %d" % (UnitTypes.count() - 1)), "rodzaje jednostek")
+	assert_true(sql.contains("between 0 and %d" % (TrapConfig.count() - 1)), "rodzaje pułapek")
+	assert_true(sql.contains("SQUAD_SIZE = %d" % RecruitmentConfig.SQUAD_SIZE), "rozmiar oddziału")
+	assert_true(sql.contains("GARRISON_TASK = %d" % T.GARRISON) and sql.contains("o.task = %d" % T.GARRISON),
+			"zadanie garnizonu")
+	assert_true(sql.contains("RANGE_STEPS = " + str(Strength.RANGE_STEPS))
+			and sql.contains("RANGE_LIMITS = " + str(Strength.RANGE_LIMITS))
+			and sql.contains("MAX_RANGE_LOW = %d" % Strength.MAX_RANGE_LOW), "przedziały jak w grze")
+	assert_true(sql.contains("to service_role") and sql.contains("from public, anon, authenticated"),
+			"tylko service_role")
+	return true
+
+
+## Ten sam przykładowy zamek daje w grze tę samą siłę, jakiej test pgTAP oczekuje od serwera.
+func test_sample_castle_matches_server_test() -> bool:
+	var grid := BuildGrid.new(TerrainMap.generate(WorldSeed.first_playable(1337)))
+	assert_eq(grid.load_data({"buildings": JSON.parse_string(SAMPLE_BUILDINGS)}), 0, "budynki pasują do terenu")
+	var rec := Recruitment.new()
+	assert_eq(rec.load_data({"squads": JSON.parse_string(SAMPLE_SQUADS)}, grid, 0), 2,
+			"powtórzone id i zły rodzaj odpadają")
+	var plan := DefensePlan.from_dict({"orders": JSON.parse_string(SAMPLE_ORDERS), "traps": JSON.parse_string(SAMPLE_TRAPS)})
+	assert_eq(plan.garrison_ids(), [3] as Array[int], "późniejszy rozkaz zdejmuje oddział z garnizonu")
+	var expected := Strength.defense(rec, plan, grid)
+	assert_eq(expected, 532, "siła przykładowego zamku")
+	var test_sql := FileAccess.get_file_as_string(SERVER_TEST)
+	for part: String in [SAMPLE_BUILDINGS, SAMPLE_SQUADS, SAMPLE_ORDERS, SAMPLE_TRAPS]:
+		assert_true(test_sql.contains(part), "ten sam zamek w teście pgTAP")
+	assert_true(test_sql.contains("%d, 'siła przykładowego zamku jak w grze'" % expected), "ta sama liczba w pgTAP")
+	assert_true(test_sql.contains("%d, 'przedział przykładowego zamku'" % Strength.range_low(expected)), "ten sam przedział")
+	return true
