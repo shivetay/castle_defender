@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Pełna weryfikacja projektu: wersja, testy narzędzi, import, kompilacja, test dymny, testy logiki.
+# Pełna weryfikacja projektu: wersja, testy narzędzi, import, kompilacja, test dymny, testy logiki
+# i pack weryfikacji bitew (eksport presetu „Verifier” liczy fiksturę jak źródło).
 # Działa w CI i lokalnie (Linux, macOS, Git Bash na Windows): GODOT=ścieżka/do/godota bash .github/scripts/run_checks.sh
 set -uo pipefail
 
@@ -38,5 +39,6 @@ step "Import projektu" timeout 300 "$GODOT" --headless --path . --import
 step "Kompilacja skryptów" timeout 120 "$GODOT" --headless --path . --script res://tests/check_compile.gd
 step "Test dymny (300 klatek)" smoke
 step "Testy logiki" timeout 300 "$GODOT" --headless --path . --script res://tests/run_tests.gd
+step "Pack weryfikacji (Verifier)" env GODOT="$GODOT" LOG_DIR="$LOG_DIR" bash .github/scripts/build_verify_pack.sh --check build/verifier
 
 exit $status
