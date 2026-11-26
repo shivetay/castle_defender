@@ -10,7 +10,7 @@ const P := RulerPerks.Perk
 const RR := Research.Result
 const SIDE := Battle.Side
 const SPAWN := Vector2i(32, 60)
-const MIGRATION := "res://supabase/migrations/20261126120000_ruler_perk_research.sql"
+const MIGRATION := "res://supabase/migrations/20261126121609_ruler_perk_research.sql"
 const REPLAY := preload("res://tests/test_replay.gd")
 
 

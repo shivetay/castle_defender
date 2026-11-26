@@ -50,7 +50,7 @@ perk przypisany, a kolejny odblokowuje technologia ([[Władca i generałowie]], 
 - Klient: `RulerPerks` liczy stan perka z badań, `Research` blokuje inne linie
   (`RULER_PERK_LOCKED`, „Wybrano już perk władcy”), a panel władcy tylko pokazuje perk wrodzony
   i perk z technologii. Perk nie trafia już do zapisu gry.
-- Serwer (`20261126120000_ruler_perk_research.sql`): `castle_ruler_perk` liczy perk z badań, drzewko
+- Serwer (`20261126121609_ruler_perk_research.sql`): `castle_ruler_perk` liczy perk z badań, drzewko
   `tech_tree` zna 8 nowych technologii, a wyzwalacz okna 24 h i kolumna `ruler_perk_free_at` znikają.
   `ruler_perk_paid` zostaje w budżecie złota do decyzji w #349.
 - Drzewko w grze ma 43 technologie (34 z notatki MVP, S3 i 8 perków).

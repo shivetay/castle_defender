@@ -6,7 +6,7 @@ extends TestCase
 
 const MIGRATION := "res://supabase/migrations/20261124150000_army_research_goods_sanity.sql"
 ## Najnowsza wersja `private.tech_tree` (#308: technologie perków władcy).
-const TREE_MIGRATION := "res://supabase/migrations/20261126120000_ruler_perk_research.sql"
+const TREE_MIGRATION := "res://supabase/migrations/20261126121609_ruler_perk_research.sql"
 
 
 func _sql() -> String:
