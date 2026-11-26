@@ -36,7 +36,7 @@ const CLOSE_LABEL := "Wróć"
 const BOTS_LABEL := "Boty"
 const SCOUT_LABEL := "Zwiad"
 const REFRESH_LABEL := "Nowe"
-## Siła obrony celu (#310); siły gracza klient jeszcze nie zna (#293).
+## Siła obrony celu (#310) jako przedział (#293); „?”, gdy serwer jej nie podał.
 const STRENGTH_LABEL := "Siła"
 const UNKNOWN_STRENGTH_TEXT := "Siła ?"
 const CARD_Y := Hud.BAR_H + 12
@@ -237,7 +237,7 @@ static func card_lines(t: TargetSearch.Target, w: int) -> Array:
 	]
 
 
-## Napis siły na karcie, np. „Siła 245”, albo „Siła ?”, gdy jej nie znamy.
+## Napis siły na karcie jako przedział, np. „Siła 200-250”, albo „Siła ?”, gdy jej nie znamy.
 static func strength_text(t: TargetSearch.Target) -> String:
 	return UNKNOWN_STRENGTH_TEXT if t.strength < 0 else "%s %s" % [STRENGTH_LABEL, Strength.range_text(t.strength)]
 
