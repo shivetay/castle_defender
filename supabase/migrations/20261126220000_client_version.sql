@@ -1,10 +1,12 @@
 -- #336: wymuszenie aktualizacji wersji klienta (ADR 0005).
 --
--- `private.client_versions` (jeden wiersz) trzyma progi: `min_code` (wersja niższa blokuje grę),
+-- `public.client_versions` (jeden wiersz) trzyma progi: `min_code` (wersja niższa blokuje grę),
 -- `recommended_code` (niższa dostaje komunikat o nowej wersji) i `store_url` (link do sklepu).
 -- Kod wersji to MAJOR*10000 + MINOR*100 + PATCH (tools/version.py, jak `private.sim_versions`).
--- Progi zmienia właścicielka w SQL Editorze (docs/PO-WYDANIU.md). Klient czyta je tylko przez
--- `public.client_version_policy()` (anon i authenticated, bez prawa zapisu).
+-- Progi zmienia właścicielka w SQL Editorze (docs/PO-WYDANIU.md). Progi są publiczne z założenia
+-- (nic o graczu), więc anon i authenticated mają tylko SELECT na trzech kolumnach przez RLS
+-- „odczyt dla wszystkich” i czytają je przez `public.client_version_policy()` (SECURITY INVOKER).
+-- Zapisu nie ma nikt poza właścicielem tabeli (postgres).
 --
 -- Klient wysyła swoją wersję w nagłówku `X-Client-Version`. Zapisy gracza do `castles`,
 -- `defense_layouts` i `players` z wersją poniżej `min_code` albo bez nagłówka (wersje sprzed #336)
@@ -13,7 +15,7 @@
 -- weryfikacji i SQL Editor zapisują bez nagłówka. Nagłówek da się podrobić, więc to bariera dla
 -- starego APK, a nie zabezpieczenie przed oszustem (wynik ataku chroni weryfikacja powtórki).
 
-create table private.client_versions (
+create table public.client_versions (
   id boolean primary key default true check (id),
   min_code integer not null default 0 check (min_code >= 0),
   recommended_code integer not null default 0,
@@ -22,23 +24,27 @@ create table private.client_versions (
   updated_at timestamptz not null default now(),
   check (recommended_code >= min_code)
 );
-comment on table private.client_versions is
+comment on table public.client_versions is
   'Progi wersji klienta (#336, ADR 0005): min_code blokuje grę, recommended_code pokazuje komunikat. Zmiana tylko w SQL Editorze.';
-alter table private.client_versions enable row level security;
-revoke all on private.client_versions from public, anon, authenticated, service_role;
-insert into private.client_versions default values;
+alter table public.client_versions enable row level security;
+revoke all on public.client_versions from public, anon, authenticated, service_role;
+grant select (min_code, recommended_code, store_url) on public.client_versions to anon, authenticated, service_role;
+create policy "client_versions: odczyt dla wszystkich" on public.client_versions
+  for select to anon, authenticated, service_role
+  using (true);
+insert into public.client_versions default values;
 
 -- Polityka dla klienta: tylko progi i link, nic o graczu. Woła ją też gra bez konta (anon).
 create function public.client_version_policy()
 returns jsonb
 language sql
 stable
-security definer
+security invoker
 set search_path = ''
 as $$
   select coalesce(
     (select jsonb_build_object('min_code', v.min_code, 'recommended_code', v.recommended_code,
-      'store_url', v.store_url) from private.client_versions v where v.id),
+      'store_url', v.store_url) from public.client_versions v limit 1),
     '{"min_code": 0, "recommended_code": 0, "store_url": "market://details?id=com.shivetay.dunhold"}'::jsonb)
 $$;
 comment on function public.client_version_policy() is
@@ -54,7 +60,7 @@ stable
 security definer
 set search_path = ''
 as $$
-  select coalesce((select v.min_code from private.client_versions v where v.id), 0)
+  select coalesce((select v.min_code from public.client_versions v where v.id), 0)
 $$;
 revoke all on function private.client_min_code() from public, anon, authenticated;
 

@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(22);
+select plan(25);
 
 -- Zamki w tym teście nie mają zgodnego bilansu (jak w rls_test.sql): kredyt bez limitu.
 create function pg_temp.economy_free() returns trigger language plpgsql security definer set search_path = '' as $$
@@ -39,14 +39,16 @@ select is(public.client_version_policy() ->> 'min_code', '0', 'startowe minimum 
 select is(public.client_version_policy() ->> 'recommended_code', '0', 'startowa rekomendacja nikogo nie nęka');
 select is(public.client_version_policy() ->> 'store_url', 'market://details?id=com.shivetay.dunhold',
   'domyślny link do sklepu');
-select throws_ok($$insert into private.client_versions (id) values (false)$$, '23514', null,
+select throws_ok($$insert into public.client_versions (id) values (false)$$, '23514', null,
   'polityka ma tylko jeden wiersz');
-select throws_ok($$update private.client_versions set min_code = 700, recommended_code = 600$$, '23514', null,
+select throws_ok($$update public.client_versions set min_code = 700, recommended_code = 600$$, '23514', null,
   'rekomendowana wersja nie jest niższa niż minimum');
 
 set local role anon;
 select lives_ok($$select public.client_version_policy()$$, 'anon czyta politykę przed założeniem konta');
-select throws_ok($$select * from private.client_versions$$, '42501', null, 'anon nie czyta tabeli wprost');
+select is((select count(*)::int from public.client_versions), 1, 'anon czyta progi (publiczne z założenia)');
+select throws_ok($$select updated_at from public.client_versions$$, '42501', null, 'anon czyta tylko kolumny progów');
+select throws_ok($$update public.client_versions set min_code = 0$$, '42501', null, 'anon nie zmieni progów');
 reset role;
 
 -- ---- minimum 0: stary klient bez nagłówka nadal zapisuje ----
@@ -55,14 +57,16 @@ select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-000000
 select set_config('request.headers', '{}', true);
 select lives_ok($$update public.players set nickname = 'Bolko' where id = '00000000-0000-0000-0000-0000000336a1'$$,
   'przy minimum 0 zapis bez nagłówka przechodzi');
-select throws_ok($$update private.client_versions set min_code = 0$$, '42501', null,
+select throws_ok($$update public.client_versions set min_code = 0$$, '42501', null,
   'gracz nie zmieni progów');
 select throws_ok($$select private.require_client_version()$$, '42501', null,
   'gracz nie woła funkcji wyzwalacza');
+select throws_ok($$insert into public.client_versions (id) values (false)$$, '42501', null,
+  'gracz nie doda progów');
 reset role;
 
 -- ---- właścicielka podnosi minimum do 0.7.0 ----
-update private.client_versions set min_code = 700, recommended_code = 701;
+update public.client_versions set min_code = 700, recommended_code = 701;
 select is((public.client_version_policy() ->> 'min_code')::int, 700, 'polityka oddaje nowe minimum');
 
 set local role authenticated;

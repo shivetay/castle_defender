@@ -14,9 +14,11 @@ sprzed tej decyzji nie mają w kodzie żadnego sprawdzania.
 
 ## Decyzja
 
-- Progi trzyma Supabase w tabeli `private.client_versions` (jeden wiersz): `min_code` (twarda
-  blokada), `recommended_code` (miękki komunikat) i `store_url`. Klient czyta je tylko przez
-  funkcję `public.client_version_policy()` (anon i authenticated). Zmienia je właścicielka w SQL Editorze.
+- Progi trzyma Supabase w tabeli `public.client_versions` (jeden wiersz): `min_code` (twarda
+  blokada), `recommended_code` (miękki komunikat) i `store_url`. Progi są publiczne z założenia:
+  RLS daje anon i authenticated tylko SELECT na tych trzech kolumnach, a klient czyta je przez
+  `public.client_version_policy()` (SECURITY INVOKER). Zapisu nie ma nikt poza właścicielem tabeli,
+  więc zmienia je właścicielka w SQL Editorze.
 - Wersję porównujemy jako kod `MAJOR*10000 + MINOR*100 + PATCH` z `config/version`.
 - Kod < `recommended_code`: okienko „Dostępna nowa wersja” z przyciskami Aktualizuj i Później,
   najwyżej raz na 24 h dla danej wersji. Gra działa dalej.

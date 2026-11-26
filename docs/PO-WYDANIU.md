@@ -247,7 +247,7 @@ Na koniec zamknij issues, które to wydanie domknęło.
 
 **Gdzie:** Supabase → SQL Editor. Dopiero gdy nowa wersja jest w Play (krok 4).
 
-Gra porównuje swój kod wersji (`$SIM`, np. 600 dla 0.6.0) z dwoma progami w `private.client_versions`
+Gra porównuje swój kod wersji (`$SIM`, np. 600 dla 0.6.0) z dwoma progami w `public.client_versions`
 (#336, ADR 0005):
 
 - `recommended_code`: starsza wersja dostaje okienko „Dostępna nowa wersja” z linkiem do sklepu
@@ -258,14 +258,14 @@ Gra porównuje swój kod wersji (`$SIM`, np. 600 dla 0.6.0) z dwoma progami w `p
 Zaraz po statusie „Dostępna dla testerów” (albo po publikacji w produkcji) podnieś rekomendację:
 
 ```sql
-update private.client_versions set recommended_code = 600, updated_at = now();  -- tu $SIM
+update public.client_versions set recommended_code = 600, updated_at = now();  -- tu $SIM
 ```
 
 Po 48 h, gdy wersja jest dostępna dla wszystkich (stopniowe wdrażanie skończone), podnieś minimum.
 Wartość nie może być wyższa niż wersja w sklepie, bo zablokujesz wszystkich:
 
 ```sql
-update private.client_versions set min_code = 600, updated_at = now();  -- tu $SIM
+update public.client_versions set min_code = 600, updated_at = now();  -- tu $SIM
 select public.client_version_policy();
 ```
 
@@ -281,7 +281,7 @@ minimum w pamięci do minuty.
 | Problem | Co zrobić |
 |---|---|
 | Nowy klient psuje grę | **Play Console:** **Zatrzymaj wdrażanie** wersji; testerzy zostają na poprzedniej. Jeśli `min_code` już wskazuje tę wersję, obniż go (wiersz niżej) |
-| Zbyt wysokie `min_code` (gracze bez dostępnej aktualizacji są zablokowani) | **SQL Editor:** `update private.client_versions set min_code = <poprzedni $SIM>, updated_at = now();` Gra zdejmie blokadę po „Sprawdź ponownie” |
+| Zbyt wysokie `min_code` (gracze bez dostępnej aktualizacji są zablokowani) | **SQL Editor:** `update public.client_versions set min_code = <poprzedni $SIM>, updated_at = now();` Gra zdejmie blokadę po „Sprawdź ponownie” |
 | Worker sypie błędami | **VPS:** `systemctl stop castle-defender-verifier` (albo `docker compose stop verifier`), `VERIFIER_COMMAND=smoke` w `.env`. Kolejka czeka, joby wracają po 5 min od restartu |
 | Zły pack | **SQL Editor:** wyłącz wersję: `update private.sim_versions set supported = false where version = 600;` a na **VPS** wgraj poprawny pack. Ataki ze statusem `failed` wrócą do kolejki przez `select private.requeue_verification('<attack_id>');` |
 | Odciąć worker od bazy | **SQL Editor:** `alter role verifier nologin;` |
