@@ -123,8 +123,6 @@ var scouting := Scouting.new()
 ## Generałowie (#31): rekrutacja w Dworze, generał ataku i komendant obrony (DefensePlan.commander).
 var generals := Generals.new()
 var generals_panel: GeneralsPanel
-## Perk władcy (#32); działający perk jest też w grid.ruler_perk.
-var ruler := RulerPerks.new()
 var ruler_panel: RulerPanel
 ## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
 const ABANDONED_MESSAGE := "Atak porzucony: ten zamek znowu po dobie"
@@ -204,7 +202,6 @@ func _ready() -> void:
 		seal_check = saved.seal
 		scouting = saved.scouting
 		generals = saved.generals
-		ruler = saved.ruler
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -373,7 +370,6 @@ func _ready() -> void:
 	ruler_panel.visible = false
 	layer.add_child(ruler_panel)
 	ruler_panel.closed.connect(_on_overlay_closed)
-	ruler_panel.perk_requested.connect(_on_ruler_perk)
 	info_popup = InfoPopup.new()
 	layer.add_child(info_popup)  # dostaje dotyk przed panelami
 	identity = PlayerProfile.read_identity(PlayerProfile.PATH)
@@ -534,7 +530,7 @@ func _save() -> void:
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
 	var save := SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check, scouting, generals, ruler)
+			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check, scouting, generals)
 	var err := SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
@@ -2117,7 +2113,7 @@ func _tutorial_ui() -> TutorialHints.Ui:
 	return ui
 
 
-## Portret władcy w HUD-zie (#228): panel z władcą, graczem, zamkiem i perkiem władcy (#32).
+## Portret władcy w HUD-zie (#228): panel z władcą, graczem, zamkiem i perkami władcy (#32, #308).
 func _on_portrait_pressed() -> void:
 	if identity == null:
 		return
@@ -2127,34 +2123,17 @@ func _on_portrait_pressed() -> void:
 	_cursor = Rect2i()
 	hud.overlay = true
 	ruler_panel.open(Rulers.ruler_name(identity.ruler), "Gracz: %s · Zamek: %s" % [identity.player_name,
-			identity.castle_name], ruler, grid.age(), _now_ms())
+			identity.castle_name], Rulers.perk_text(identity.ruler), research, grid.age())
 	hud.message = "Złoto: %d" % economy.amounts[EconomyConfig.Res.GOLD]
-
-
-## Wybór perka władcy (#32): darmowy raz na 24 h, potem za złoto. Perk działa od razu w całym zamku.
-func _on_ruler_perk(perk: int) -> void:
-	_tick()
-	var now := _now_ms()
-	var gold := ruler.change_gold(now)
-	var r := ruler.choose(perk, grid.age(), economy, now)
-	if r == RulerPerks.Result.OK:
-		grid.ruler_perk = ruler.active(grid.age())
-		var paid := " (%d Zł)" % gold if gold > 0 else ""
-		hud.message = "Perk władcy: %s%s" % [RulerPerks.NAMES[perk], paid]
-		_save()
-	else:
-		hud.message = RulerPerks.MESSAGES[r]
-	ruler_panel.now_ms = now
-	ruler_panel.queue_redraw()
 
 
 ## Linie okienka władcy: kto rządzi którym zamkiem i jakie ma premie postaci (domyślny żadnych).
 static func ruler_info(id: PlayerProfile.Identity) -> PackedStringArray:
-	var perks := Rulers.perks(id.ruler)
+	var innate := Rulers.innate_perk(id.ruler)
 	return PackedStringArray([
 		"Gracz: %s" % id.player_name,
 		"Zamek: %s" % id.castle_name,
-		"Premie: brak" if perks.is_empty() else "Premie: %s" % ", ".join(perks),
+		"Premie: brak" if innate.is_empty() else "Premie: %s" % innate,
 	])
 
 

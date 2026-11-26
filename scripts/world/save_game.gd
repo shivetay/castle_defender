@@ -41,8 +41,6 @@ class State:
 	var scouting := Scouting.new()
 	## Generałowie (#31) i generał ataku.
 	var generals := Generals.new()
-	## Perk władcy (#32); działający perk jest też w grid.ruler_perk.
-	var ruler := RulerPerks.new()
 	var grid: BuildGrid
 	var economy: Economy
 	var queue: BuildQueue
@@ -58,7 +56,7 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		research: Research = null, goods: Goods = null, recruitment: Recruitment = null, pve_cleared: int = 0,
 		attack_plan: AttackPlan = null, bots_beaten: int = 0, defense: DefensePlan = null,
 		attack_target: int = 0, seal: SealCheck = null, scouting: Scouting = null,
-		generals: Generals = null, ruler: RulerPerks = null) -> Dictionary:
+		generals: Generals = null) -> Dictionary:
 	return {
 		"version": FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -75,7 +73,6 @@ static func to_dict(world_seed: int, grid: BuildGrid, economy: Economy, queue: B
 		"seal": seal.save_data() if seal != null else {},
 		"scout": scouting.save_data() if scouting != null else {},
 		"generals": generals.save_data() if generals != null else {},
-		"ruler": ruler.save_data() if ruler != null else {},
 	}
 
 
@@ -88,10 +85,6 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	s.world_seed = int(d["world_seed"])
 	s.grid = BuildGrid.new(TerrainMap.generate(s.world_seed))
 	s.skipped += s.grid.load_data(d.get("grid", {}) as Dictionary)
-	# perk władcy przed ekonomią i kolejką: Gospodarny liczy się w produkcji, Budowniczy w czasie budowy
-	var ruler: Variant = d.get("ruler", {})
-	s.skipped += s.ruler.load_data(ruler as Dictionary if ruler is Dictionary else {})
-	s.grid.ruler_perk = s.ruler.active(s.grid.age())
 	s.economy = Economy.new(now_ms)
 	# pojemność z Magazynów przed odczytem zapasów, bo odczyt przycina je do pojemności
 	s.economy.refresh_capacity(s.grid)
@@ -100,6 +93,9 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	s.skipped += s.queue.load_data(d.get("queue", {}) as Dictionary, s.grid, now_ms)
 	s.research = Research.new()
 	s.skipped += s.research.load_data(d.get("research", {}) as Dictionary, now_ms)
+	# perk władcy z badań (#308): Gospodarny liczy się w produkcji, Budowniczy w czasie budowy. Stary wpis
+	# `ruler` z perkiem wybranym z listy (#32) się pomija.
+	s.grid.ruler_perk = RulerPerks.from_research(s.research, s.grid.age())
 	s.goods = Goods.new(s.economy.last_update_ms)
 	s.goods.load_data(d.get("goods", {}) as Dictionary)
 	s.recruitment = Recruitment.new()

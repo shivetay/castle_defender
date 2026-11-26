@@ -19,8 +19,8 @@ func _identity(player: String, castle: String) -> PlayerProfile.Identity:
 
 func test_default_ruler_has_no_perks() -> bool:
 	assert_true(Rulers.is_known(Rulers.DEFAULT), "domyślny władca istnieje")
-	assert_eq(Rulers.perks(Rulers.DEFAULT), [] as Array[String], "bez premii")
-	assert_eq(Rulers.perks("nieznany"), [] as Array[String], "nieznany też bez premii")
+	assert_eq(Rulers.innate_perk(Rulers.DEFAULT), "", "bez perka wrodzonego")
+	assert_eq(Rulers.innate_perk("nieznany"), "", "nieznany też bez perka")
 	assert_eq(PlayerProfile.Identity.new().ruler, Rulers.DEFAULT, "nowa tożsamość ma domyślnego władcę")
 	return true
 

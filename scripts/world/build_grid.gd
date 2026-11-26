@@ -17,9 +17,10 @@ var levels: Dictionary[int, int] = {}
 ## Budynki w ruinie po ataku PvP (#99, Ruins.active_at): tylko obniżają produkcję (Economy.rates).
 ## Ustawia je BuildQueue.update; nie trafiają do zapisu.
 var ruined: Dictionary[int, bool] = {}
-## Perk władcy zamku (#32, RulerPerks.Perk): działa na cały zamek, więc czytają go produkcja
-## (Economy.rates), czas budowy (BuildQueue) i bitwa w obronie (Battle.create_squads). Ustawiają go
-## SaveGame.from_dict i main.gd po zmianie perka; nie trafia do zapisu siatki (jest w `ruler`).
+## Perk władcy zamku (#32, #308, RulerPerks.Perk): działa na cały zamek, więc czytają go produkcja
+## (Economy.rates), czas budowy (BuildQueue) i bitwa w obronie (Battle.create_squads). Liczy się
+## z badań (RulerPerks.from_research): ustawiają go SaveGame.from_dict i BuildQueue.update po ukończeniu
+## badania; nie trafia do zapisu.
 var ruler_perk: int = RulerPerks.Perk.NONE
 var _next_id := 1
 

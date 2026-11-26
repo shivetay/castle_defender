@@ -145,6 +145,8 @@ static func state_text(r: Research, code: String, current_age: int, now: int, gr
 		if TechTree.is_leveled(code):
 			return "poziom %d/%d" % [r.level(code), TechTree.max_level(code, current_age)]
 		return "zbadana"
+	if RulerPerks.is_locked(code, r.done, r.active):
+		return "inny perk władcy"
 	if TechTree.age(code) > current_age:
 		return TechTree.age_label(TechTree.age(code))
 	if not r.missing(code).is_empty():
