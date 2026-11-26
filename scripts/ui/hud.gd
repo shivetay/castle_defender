@@ -753,6 +753,12 @@ func _draw_icon_button(r: Rect2, icon: int, label: String, active: bool, count: 
 		PixelFont.draw_centered(self, tip, label, Palette.INK)
 
 
+## Tło ekranu przyciemniającego zamek (Generałowie, Władca, Ustawienia): cały widok bez dolnego paska,
+## żeby komunikat HUD-u był widoczny także pod otwartym ekranem (#318).
+static func backdrop_rect(view: Vector2) -> Rect2:
+	return Rect2(0, 0, view.x, view.y - BAR_H)
+
+
 ## Przycisk z desek: jaśniejszy, gdy wciśnięty; wyszarzony napis, gdy nieaktywny.
 static func paint_button(ci: CanvasItem, r: Rect2, label: String, active: bool, disabled: bool) -> void:
 	ci.draw_rect(r, Palette.WOOD[2] if active else Palette.WOOD[1])

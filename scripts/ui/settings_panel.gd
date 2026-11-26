@@ -187,7 +187,7 @@ func _input(event: InputEvent) -> void:
 
 func _draw() -> void:
 	var view := get_viewport_rect().size
-	draw_rect(Rect2(Vector2.ZERO, view), Color(Palette.SHADOW, 0.8))
+	draw_rect(Hud.backdrop_rect(view), Color(Palette.SHADOW, 0.8))
 	PixelFont.draw_centered(self, Rect2(0, 24, view.x, 10), head(), Palette.THATCH[2])
 	draw_rect(Rect2(floorf(view.x / 2.0) - 30, 36, 60, 1), Palette.WOOD[2])
 	var rects := button_rects(view, screen)
