@@ -12,7 +12,7 @@ config_version=5
 
 config/name="Castle Defender"
 config/description="Mobilna gra 2D pixelart z asynchronicznym PvP."
-config/version="0.5.1"
+config/version="0.6.0"
 run/main_scene="res://scenes/main.tscn"
 run/main_scene.verifier="res://server/verify_main.tscn"
 run/main_loop_type.verifier="VerifyMain"
