@@ -155,3 +155,15 @@ func test_client_reports_checked_castle() -> bool:
 	assert_eq(checked_e[0], 1, "błąd odczytu też kończy czekanie")
 	_done(e)
 	return true
+
+
+## Nieudane przywrócenie (main._restore_failed): gra zostaje przy zamku z telefonu, zasłona nie czeka
+## do STARTUP_MAX_S.
+func test_failed_restore_ends_startup_wait() -> bool:
+	var s := SyncCurtain.new()
+	s.start_waiting()
+	s.advance(0.5)
+	s.finish()
+	s.advance(SyncCurtain.MIN_VISIBLE_S)
+	assert_true(not s.is_visible(), "zasłona schodzi po minimalnym czasie")
+	return true

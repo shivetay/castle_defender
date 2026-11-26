@@ -610,7 +610,7 @@ func _sync_castle(save: Dictionary) -> void:
 func _on_castle_restored(save: Dictionary, profile: Dictionary) -> void:
 	if SaveGame.from_dict(save, _now_ms()) == null:
 		push_warning("Zamek z serwera jest nieczytelny, zostaje zamek z telefonu")
-		net.restore_failed()
+		_restore_failed()
 		return
 	# najpierw profil, na końcu zamek: plik zamku zmienia się tylko, gdy wszystko inne już się udało
 	# (seed zamku jest grywalny, więc jako seed gracza daje ten sam teren, first_playable)
@@ -621,7 +621,7 @@ func _on_castle_restored(save: Dictionary, profile: Dictionary) -> void:
 		err = SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać zamku z serwera: %s" % error_string(err))
-		net.restore_failed()
+		_restore_failed()
 		return
 	net.confirm_restore()
 	_restored_from_server = true
@@ -629,6 +629,15 @@ func _on_castle_restored(save: Dictionary, profile: Dictionary) -> void:
 	if sync_loader != null:
 		sync_loader.start_restore()
 	get_tree().reload_current_scene()
+
+
+
+## Zamek z serwera nie wrócił na telefon: gra zostaje przy zamku z telefonu, więc zasłona na starcie
+## (#316) nie ma już na co czekać.
+func _restore_failed() -> void:
+	net.restore_failed()
+	if sync_loader != null:
+		sync_loader.finish()
 
 
 static func _now_s() -> int:
