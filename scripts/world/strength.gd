@@ -102,3 +102,14 @@ static func forts(grid: BuildGrid) -> int:
 ## Siła obrony: załoga, pułapki i umocnienia.
 static func defense(r: Recruitment, plan: DefensePlan, grid: BuildGrid) -> int:
 	return crew(r, plan) + traps(plan) + forts(grid)
+
+
+## Siła obrony zamku-bota (#310), np. na karcie celu: załoga (BotCastle.defenders) i umocnienia jego
+## siatki. Bot nie ma pułapek ani garnizonu Dworu.
+static func bot_defense(bot: BotCastle) -> int:
+	if bot == null:
+		return 0
+	var total := forts(bot.grid)
+	for d: Array in bot.defenders:
+		total += int(d[1]) * unit_power(int(d[0]))
+	return total

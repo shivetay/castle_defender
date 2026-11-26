@@ -1,6 +1,7 @@
 extends TestCase
 ## Ekran 3 celów (#24): układ na 320×180, cele dotyku, teksty mieszczące się w kartach,
-## miniatura zamku i przebieg: boty od razu, gracze z serwera na pierwszych kartach.
+## treść karty (#310: portret, imię, zamek, siła) i przebieg: boty od razu, gracze z serwera
+## na pierwszych kartach.
 
 const VIEW := Vector2(320, 180)
 const LEFT := float(Hud.CORNER_INSET)
@@ -44,42 +45,40 @@ func test_layout_fits_screen() -> bool:
 	return true
 
 
-## Najdłuższe nazwy i liczby mieszczą się w karcie (8 px font, karta ok. 96 px).
+## Najdłuższe nazwy i liczby mieszczą się w karcie (8 px font, karta ok. 96 px), a karta pod portretem.
 func test_card_text_fits() -> bool:
 	var w := int(TargetPicker.card_width(LEFT, RIGHT))
 	var player := _player(TargetSearch.MAX_RATING)
+	assert_true(TargetPicker.CARD_H >= 2 * TargetPicker.PAD + PortraitArt.SIZE, "portret w karcie")
 	for t: TargetSearch.Target in [player, TargetSearch.bot_target(19), TargetSearch.bot_target(0)]:
 		var lines := TargetPicker.card_lines(t, w)
+		assert_eq(lines.size(), 3, "imię, siła i nazwa zamku")
 		for line: Array in lines:
 			var at := line[0] as Vector2
 			var text := line[1] as String
 			assert_true(not text.is_empty(), "tekst na karcie")
 			assert_true(at.x + PixelFont.text_width(text) <= w, "„%s” mieści się w szerokości" % text)
 			assert_true(at.y + PixelFont.LINE <= TargetPicker.CARD_H, "„%s” mieści się w wysokości" % text)
-		var texts: Array[String] = []
-		for line: Array in lines:
-			texts.append(line[1] as String)
-		assert_true(t.castle_name in texts or texts[2].ends_with("..."), "nazwa zamku na karcie")
-		assert_true(TargetPicker.CARD_H >= TargetPicker.MINI_Y + MinimapArt.SIZE, "miniatura w karcie")
+		var castle := lines[2][1] as String
+		assert_true(castle == t.castle_name or castle.ends_with("..."), "nazwa zamku na karcie")
 	assert_true(TargetPicker.card_lines(player, w)[0][1] == "Władysław123", "pełne imię gracza")
 	return true
 
 
-func test_minimap_image() -> bool:
-	var footprint: Array[Rect2i] = [Rect2i(30, 30, 2, 2), Rect2i(34, 30, 1, 1)]
-	var a := MinimapArt.castle_image(4242, footprint)
-	var b := MinimapArt.castle_image(4242, footprint)
-	assert_eq(a.get_size(), Vector2i(MinimapArt.SIZE, MinimapArt.SIZE), "32×32")
-	assert_eq(a.get_data(), b.get_data(), "ten sam seed i zarys: ta sama miniatura")
-	var o := MinimapArt.window_origin(footprint)
-	assert_eq(a.get_pixelv(Vector2i(30, 30) - o), MinimapArt.BUILDING, "wnętrze budynku")
-	assert_eq(a.get_pixelv(Vector2i(31, 31) - o), MinimapArt.BUILDING_EDGE, "obwódka od południowego wschodu")
-	assert_eq(a.get_pixelv(Vector2i(34, 30) - o), MinimapArt.BUILDING, "odcinek 1×1 bez obwódki")
-	assert_eq(MinimapArt.window_origin([Rect2i(0, 0, 1, 1)] as Array[Rect2i]), Vector2i.ZERO, "przycięte do mapy")
-	assert_eq(MinimapArt.window_origin([Rect2i(63, 63, 1, 1)] as Array[Rect2i]), Vector2i(32, 32), "przycięte z drugiej strony")
-	assert_eq(MinimapArt.window_origin([] as Array[Rect2i]), Vector2i(16, 16), "bez zarysu: środek mapy")
-	var other := MinimapArt.castle_image(1337, footprint)
-	assert_true(other.get_data() != a.get_data(), "inny seed: inny teren")
+## Treść karty (#310): bez epoki, łupu i rankingu; siła gracza nieznana do #293, siła bota
+## z Strength.bot_defense.
+func test_card_content() -> bool:
+	var w := int(TargetPicker.card_width(LEFT, RIGHT))
+	var player := _player(1234)
+	var texts: Array[String] = []
+	for line: Array in TargetPicker.card_lines(player, w):
+		texts.append(line[1] as String)
+	assert_eq(texts[1], TargetPicker.UNKNOWN_STRENGTH_TEXT, "siła gracza: znak zapytania")
+	assert_true(not "1234" in texts and not TargetSearch.age_label(player.age) in texts, "bez rankingu i epoki")
+	var bot := TargetSearch.bot_target(5)
+	var expected := "%s %d" % [TargetPicker.STRENGTH_LABEL, Strength.bot_defense(BotRoster.generate(5))]
+	assert_eq(TargetPicker.card_lines(bot, w)[1][1], expected, "siła bota")
+	assert_eq(TargetPicker.strength_text(TargetSearch.bot_target(5)), expected, "ta sama siła z cache")
 	return true
 
 

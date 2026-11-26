@@ -21,6 +21,9 @@ const HIDDEN_TARGET := "Cel: nieznany budynek"
 const WAGON_HINT := "Wóz: dotknij trawy, ostatni punkt to postój"
 ## Połowa celu dotyku końca strzałki (min. 12×12 px logicznych).
 const END_HIT := 6
+## Mgła (#28): ukryty budynek jako sam zarys, jednym kolorem z ciemną obwódką.
+const FOG_BUILDING: Color = Palette.THATCH[2]
+const FOG_BUILDING_EDGE: Color = Palette.WOOD[0]
 
 var bot: BotCastle
 var plan: AttackPlan
@@ -317,14 +320,14 @@ static func hidden_ids(grid: BuildGrid, scout: ScoutIntel) -> Dictionary:
 	return out
 
 
-## Mgła (#28): ukryte budynki jako sam zarys (kolory miniatury z karty celu), a odsłonięty fragment
+## Mgła (#28): ukryte budynki jako sam zarys (FOG_BUILDING), a odsłonięty fragment
 ## w ramce, z oddziałami załogi, patrolami i pułapkami (jak na ekranie obrony).
 func _draw_fog(hidden: Dictionary) -> void:
 	for id: int in hidden:
 		var r := bot.grid.buildings[id]
 		var px := Rect2(r.position * TerrainMap.CELL, r.size * TerrainMap.CELL)
-		draw_rect(px, MinimapArt.BUILDING)
-		CastleView.draw_frame(self, Rect2i(px), MinimapArt.BUILDING_EDGE)
+		draw_rect(px, FOG_BUILDING)
+		CastleView.draw_frame(self, Rect2i(px), FOG_BUILDING_EDGE)
 	if intel.is_empty():
 		return
 	CastleView.draw_frame(self, Rect2i(intel.region.position * TerrainMap.CELL, intel.region.size * TerrainMap.CELL),

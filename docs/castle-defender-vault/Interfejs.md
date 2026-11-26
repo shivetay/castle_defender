@@ -17,7 +17,7 @@ Trzy elementy na stałe, reszta ekranu należy do zamku. Orientacja pozioma, obs
 | Ekran | Co robisz |
 | --- | --- |
 | Ustawienia obrony | widok własnego zamku w trybie edycji: przeciągasz załogę i pułapki, rysujesz strefy patroli, ustawiasz priorytety wież |
-| Wybór celu | 3 karty przeciwników: miniatura zamku, epoka, ranking, szacowany łup |
+| Wybór celu | 3 karty przeciwników: portret władcy, imię, nazwa zamku, siła (bot z klienta, gracz „?” do #293; #310) |
 | Zwiad | animacja zwiadowcy, potem mapa z mgłą wojny i odsłoniętym obszarem |
 | Planowanie ataku | siatka ze strefami rozstawienia; dolny pasek z oddziałami; dotknięcie oddziału otwiera listę manewrów i ich parametry (cel, trasa, start, odwrót); strzałki pokazują plan |
 | Bitwa | widok na żywo bez sterowania, przewijanie czasu ×2 i ×4 |

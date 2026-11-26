@@ -129,3 +129,19 @@ func test_labels_fit_on_screens() -> bool:
 	assert_true(r.position.y >= Hud.BAR_H, "pod górnym paskiem")
 	assert_true(r.end.x < right - Hud.BUTTON_SIZE.x, "nie wchodzi na kolumnę przycisków")
 	return true
+
+
+## Siła zamku-bota (#310) na karcie celu: załoga z BotRoster.defenders i umocnienia z jego siatki
+## (bot nie ma pułapek ani garnizonu); ten sam numer daje zawsze tę samą liczbę.
+func test_bot_defense() -> bool:
+	for i in [0, 9, 19]:
+		var bot := BotRoster.generate(i)
+		var crew := 0
+		for d: Array in bot.defenders:
+			crew += int(d[1]) * Strength.unit_power(int(d[0]))
+		assert_eq(Strength.bot_defense(bot), crew + Strength.forts(bot.grid), "zamek %d: załoga i umocnienia" % i)
+		assert_eq(Strength.bot_defense(BotRoster.generate(i)), Strength.bot_defense(bot), "zamek %d: determinizm" % i)
+	assert_true(Strength.bot_defense(BotRoster.generate(19)) > Strength.bot_defense(BotRoster.generate(0)),
+			"ostatni zamek silniejszy od pierwszego")
+	assert_eq(Strength.bot_defense(null), 0, "brak zamku")
+	return true
