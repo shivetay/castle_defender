@@ -2,6 +2,7 @@ name: Wydanie
 
 # Po wypchnięciu tagu vX.Y.Z: testy, debug APK i GitHub Release z opisem z CHANGELOG.md, a do tego
 # podpisany AAB do Google Play (com.shivetay.dunhold) jako artefakt, jeśli są sekrety klucza wysyłania.
+# Z tagu i ręcznie także pack weryfikacji bitew verify_<sim_version>.pck dla workera na serwerze.
 # Push na main i uruchomienie ręczne (workflow_dispatch) budują samo APK jako artefakt, bez Release.
 on:
   push:
@@ -89,6 +90,64 @@ jobs:
           gh release create "${GITHUB_REF_NAME}" build/*.apk \
             --title "Castle Defender ${VERSION}" --notes-file build/notes.md \
             $([[ "$VERSION" == 0.* ]] && echo --prerelease)
+
+  # Pack weryfikacji bitew PvP dla workera na serwerze (#284 / #305): preset „Verifier”, plik
+  # verify_<sim_version>.pck + suma SHA-256. Tylko z tagu (asset w Release) albo ręcznie (artefakt).
+  # Bez sekretów: pack ma tylko scripts/ i punkt wejścia workera (bez config/), eksport bez szablonów.
+  verify-pack:
+    name: Pack weryfikacji (Verifier)
+    needs: apk # Release tworzy job apk
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # dołączenie packa do GitHub Release
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Tag zgodny z wersją
+        if: github.ref_type == 'tag'
+        run: python3 tools/version.py check --tag "${GITHUB_REF_NAME}"
+
+      - name: Cache Godota
+        uses: actions/cache@v6
+        with:
+          path: ~/godot
+          key: godot-${{ hashFiles('.github/scripts/install_godot.sh') }}
+
+      - name: Instalacja Godota
+        run: bash .github/scripts/install_godot.sh
+
+      - name: Eksport i sprawdzenie packa
+        run: |
+          godot --headless --path . --import > /dev/null
+          bash .github/scripts/build_verify_pack.sh --check build/verifier
+          cd build/verifier
+          sha256sum verify_*.pck > "$(ls verify_*.pck).sha256"
+          cat ./*.sha256
+          echo "PACK=$(ls verify_*.pck)" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.PACK }}
+          path: |
+            build/verifier/verify_*.pck
+            build/verifier/verify_*.pck.sha256
+          retention-days: 30
+
+      - name: Pack w GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${GITHUB_REF_NAME}" build/verifier/verify_*.pck build/verifier/verify_*.pck.sha256
+
+      - name: Logi
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: logi-verify-pack
+          path: build/logs/
+          retention-days: 7
 
   # Podpisany pakiet AAB do Google Play (test wewnętrzny / zamknięty). Tylko z tagu albo ręcznie,
   # bo potrzebuje klucza wysyłania (upload key) z sekretów repozytorium. AAB nie trafia do Release:
