@@ -7,3 +7,4 @@ __pycache__/
 .gitignore
 test_worker_unit.py
 .dockerignore
+*.service

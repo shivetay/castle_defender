@@ -9,7 +9,7 @@ services:
       context: .
       dockerfile: Dockerfile
     # on-failure: a crashed worker comes back; smoke / verify-pack exit 0 and stay down.
-    # After a VPS reboot run `docker compose up -d` again (on-failure does not restart on boot).
+    # On VPS boot `docker compose up -d` runs from castle-defender-verifier.service (systemd).
     restart: on-failure
     read_only: true
     tmpfs:
