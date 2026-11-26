@@ -6,10 +6,11 @@
 // Zapisuje tylko licznik szukań (limit); blokada celu i tarcze po ataku są w start_attack / finish_attack (#25).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { clientOutdated } from "../_shared/client_version.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-client-version, apikey, content-type",
 };
 
 const MAX_TARGETS = 3;
@@ -44,6 +45,9 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
+  if (await clientOutdated(req, admin)) {
+    return json({ error: "update_required" }, 426);
+  }
   const { data, error } = await admin.rpc("match_targets", { p_attacker: userData.user.id });
   // P0001 to kod `raise exception` w match_targets; treść sprawdzamy z includes, bo PostgREST
   // może dodać prefiks albo przenieść ją do details

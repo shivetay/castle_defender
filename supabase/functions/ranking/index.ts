@@ -6,10 +6,11 @@
 // Niczego nie zapisuje.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { clientOutdated } from "../_shared/client_version.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-client-version, apikey, content-type",
 };
 
 const KINDS = new Set(["attack", "defense", "pve"]);
@@ -59,6 +60,9 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
+  if (await clientOutdated(req, admin)) {
+    return json({ error: "update_required" }, 426);
+  }
   const { data, error } = b.kind === "pve"
     ? await admin.rpc("pve_ranking", { p_player: userData.user.id })
     : await admin.rpc("pvp_ranking", { p_player: userData.user.id, p_kind: b.kind });
