@@ -181,8 +181,15 @@ def process_one(
 	return True
 
 
+# prepare_threshold=None: no server-side prepared statements. The runbook uses the session
+# pooler (port 5432, one backend per connection), but if the URL points at the transaction
+# pooler (port 6543) by mistake, the next query can land on another backend, where a
+# statement prepared by psycopg after a few idle claims does not exist.
+CONNECT_KWARGS: dict[str, Any] = {"autocommit": False, "prepare_threshold": None}
+
+
 def connect(database_url: str) -> psycopg.Connection[Any]:
-	return psycopg.connect(database_url, autocommit=False)
+	return psycopg.connect(database_url, **CONNECT_KWARGS)
 
 
 def run_loop(

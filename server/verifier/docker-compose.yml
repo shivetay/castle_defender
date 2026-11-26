@@ -1,14 +1,16 @@
 # VPS smoke / worker for #284 / #301.
 # Secrets only via env file on the host (never commit). Example:
 #   cp env.example .env   # fill VERIFIER_DATABASE_URL on the server only
-#   docker compose --env-file .env up -d
+#   docker compose up -d          # Compose reads .env from this directory
 services:
   verifier:
     image: castle-defender-verifier:4.7.2
     build:
       context: .
       dockerfile: Dockerfile
-    restart: unless-stopped
+    # on-failure: a crashed worker comes back; smoke / verify-pack exit 0 and stay down.
+    # On VPS boot `docker compose up -d` runs from castle-defender-verifier.service (systemd).
+    restart: on-failure
     read_only: true
     tmpfs:
       - /tmp/verifier:uid=10001,gid=10001,mode=1777,size=256m
@@ -22,9 +24,8 @@ services:
       SIM_VERSION: ${SIM_VERSION:-}
       PACKS_DIR: /app/packs
       TMPDIR: /tmp/verifier
-    # Default: smoke (Godot + psycopg import). Switch when DB + pack ready:
-    #   command: ["worker"]
-    #   command: ["worker", "--once"]
-    #   command: ["verify-pack"]
-    command: ["smoke"]
+    # Mode from host .env (VERIFIER_COMMAND), so the tracked file stays the same on the VPS:
+    #   worker for `up -d`; smoke / verify-pack via `docker compose run --rm verifier …`.
+    # Rollback: `docker compose stop verifier`, then VERIFIER_COMMAND=smoke so `up -d` stays safe.
+    command: ${VERIFIER_COMMAND:-smoke}
     # No published ports — egress only to Supabase pooler.

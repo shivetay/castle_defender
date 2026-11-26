@@ -1,0 +1,22 @@
+# systemd: `docker compose up -d` for the verifier on VPS boot (restart: on-failure does not
+# start the container after a reboot). Install (as root, once):
+#   cp castle-defender-verifier.service /etc/systemd/system/
+#   # set WorkingDirectory below to this directory on the VPS, then:
+#   systemctl daemon-reload && systemctl enable --now castle-defender-verifier
+# The mode still comes from VERIFIER_COMMAND in .env next to docker-compose.yml.
+[Unit]
+Description=Castle Defender PvP verifier (docker compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/castle_defender/server/verifier
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose stop verifier
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target
