@@ -61,23 +61,63 @@ docker run --rm castle-defender-verifier:4.7.2 smoke
 
 ## Worker loop (needs host `.env`)
 
+The container mode comes from `VERIFIER_COMMAND` in the host `.env` (`smoke` by default,
+`worker`, `verify-pack`), so `docker-compose.yml` stays as in git and `git pull` never conflicts.
+
 ```bash
 cd server/verifier
 cp env.example .env
 chmod 600 .env
-# set VERIFIER_DATABASE_URL = Supabase pooler, role verifier (not service_role)
-# command: ["worker"] in docker-compose.yml, then:
-docker compose --env-file .env up --build -d
+# set VERIFIER_DATABASE_URL = Supabase session pooler, role verifier (not service_role)
+# set VERIFIER_COMMAND=worker, then:
+docker compose up --build -d
 ```
 
 One-shot (exit 1 if queue empty):
 
 ```bash
-docker compose --env-file .env run --rm verifier worker --once
+docker compose run --rm verifier worker --once
 ```
 
 Idle poll: 2 s. Godot timeout: 120 s. Logs: `attack_id`, elapsed ms, status / error
 **class name** only — no job JSON, no player data, no connection string.
+
+## Cutover on the VPS (#306)
+
+Order of the owner's steps. Each step is reversible; none opens an inbound port.
+
+1. **Role** (Supabase SQL editor, project `castle_defender`, as `postgres`): `alter role verifier
+   login password '…'` (section above). Generate the password on the VPS, e.g.
+   `openssl rand -base64 32`, and paste it only into the SQL editor and `.env`.
+2. **`.env`** in `server/verifier/` on the VPS from `env.example`, `chmod 600 .env`:
+   - `VERIFIER_DATABASE_URL`: Dashboard → Connect → *Session pooler* (IPv4, port 5432), user
+     `verifier.<project-ref>`, password from step 1. Not the direct `db.<ref>.supabase.co` host
+     (IPv6 only) and never a `service_role` key.
+   - `SIM_VERSION`: code of the deployed client version (`python3 tools/version.py current` → `0.5.1` = `501`; the pack file name shows it too).
+   - `VERIFIER_COMMAND=smoke` for now.
+3. **Code**: `git pull` on `main`.
+4. **Pack**: GitHub → Actions → „Wydanie” → *Run workflow* on `main` (no tag needed). From the run,
+   download artifact `verify_<n>.pck` (pack + `.sha256`), copy both to `server/verifier/packs/`, then
+   `cd packs && sha256sum -c verify_<n>.pck.sha256`.
+5. **Image and smoke**:
+   ```bash
+   docker compose build                                  # castle-defender-verifier:4.7.2
+   docker compose run --rm verifier smoke                # Godot 4.7.2, psycopg, pack listed
+   docker compose run --rm verifier verify-pack          # exit 0, prints sim_version=<n>
+   ```
+6. **Database login once**: `docker compose run --rm verifier worker --once` → exit 1 and an
+   idle log on an empty queue is correct; `db connect failed` means URL or password (the log shows
+   the host only).
+7. **Switch**: `VERIFIER_COMMAND=worker` in `.env`, `docker compose up -d`, then
+   `docker compose logs -f verifier`: `worker start id=vps-1 …`, no URL, no job JSON.
+8. **Check**: `docker compose ps` shows no published ports.
+
+Rollback: `VERIFIER_COMMAND=smoke` and `docker compose up -d` (the queue keeps its jobs; a lease
+runs out after 5 min and the job is claimable again). To cut database access entirely:
+`alter role verifier nologin`.
+
+With `verification_mode = shadow` (default) the worker only compares results; loot, rating and
+shields still come from `finish_attack`. Moving to `enforce` is a separate step (§7 #284).
 
 ## Packs
 
@@ -100,4 +140,4 @@ docker run --rm \
 - Wrapper executes only the two `private.*` RPCs; no table grants expected for role `verifier`.
 - No inbound ports; egress to Supabase pooler only.
 
-Owner runbook: Project store `docs/vps-verifier-docker.md` / `docs/verifier-claim-wrapper.md`.
+Owner runbook: section „Cutover on the VPS (#306)” above.

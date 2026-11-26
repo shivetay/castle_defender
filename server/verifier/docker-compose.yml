@@ -22,9 +22,8 @@ services:
       SIM_VERSION: ${SIM_VERSION:-}
       PACKS_DIR: /app/packs
       TMPDIR: /tmp/verifier
-    # Default: smoke (Godot + psycopg import). Switch when DB + pack ready:
-    #   command: ["worker"]
-    #   command: ["worker", "--once"]
-    #   command: ["verify-pack"]
-    command: ["smoke"]
+    # Mode from host .env (VERIFIER_COMMAND), so the tracked file stays the same on the VPS:
+    #   smoke (default: Godot + psycopg import) | worker | verify-pack
+    # Rollback: VERIFIER_COMMAND=smoke and `docker compose up -d` again.
+    command: ${VERIFIER_COMMAND:-smoke}
     # No published ports — egress only to Supabase pooler.

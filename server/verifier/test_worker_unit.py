@@ -8,7 +8,7 @@ from pathlib import Path
 # Allow `python test_worker_unit.py` from this directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from worker import attack_id_of, pack_path_for, redact_database_url  # noqa: E402
+from worker import CONNECT_KWARGS, attack_id_of, pack_path_for, redact_database_url  # noqa: E402
 
 
 def test_redact_database_url() -> None:
@@ -35,10 +35,17 @@ def test_pack_path_for() -> None:
 	assert path.as_posix() == "/app/packs/verify_501.pck"
 
 
+def test_connect_kwargs_pooler_safe() -> None:
+	# Pooler in transaction mode: no prepared statements, explicit transactions.
+	assert CONNECT_KWARGS["prepare_threshold"] is None
+	assert CONNECT_KWARGS["autocommit"] is False
+
+
 def main() -> int:
 	test_redact_database_url()
 	test_attack_id_of()
 	test_pack_path_for()
+	test_connect_kwargs_pooler_safe()
 	print("test_worker_unit: ok")
 	return 0
 
