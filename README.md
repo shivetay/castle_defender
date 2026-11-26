@@ -429,6 +429,9 @@ w sekcji „Następny etap”.
     z zasięgiem 3+ kratek, Podpalenie tylko Podpalacze, Drabiny piechota lekka i ciężka, Taranowanie
     Taran i piechota w osłonie, Oskrzydlenie wszyscy poza Taranem. Zmiana składu armii cofa niepasujący
     rozkaz do Szturmu, a Atakuj odrzuca plan z takim rozkazem.
+  - **Ostrzał (#314):** na mapie planu widać tylko obszar postoju łuczników (3×3, jasna zieleń, ta sama
+    kratka co w bitwie). Punkty trasy to linia marszu od postoju: oddział rusza nią, gdy w zasięgu
+    nie ma celu ani wroga; bez trasy po zburzeniu celu stoi na postoju.
   - **Parametry:** cel (kratka budynku), trasa (0–3 punkty), start (od razu, po X s, po zadaniu innego
     oddziału) i odwrót (przy X% strat).
   - **Limit:** plan mieści 3 oddziały w epoce I, do 8 w epoce VI.
