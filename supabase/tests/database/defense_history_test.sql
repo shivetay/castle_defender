@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(14);
+select plan(15);
 
 -- A i C atakują B, O to obcy gracz. Ranking w paśmie 63 280 (bez prawdziwych graczy), bo testy biegną
 -- też na projekcie w chmurze, w transakcji, która się cofa.
@@ -65,6 +65,10 @@ select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-000000
 set local role authenticated;
 select throws_ok($$select * from public.defense_history('00000000-0000-0000-0000-0000000328b1')$$,
   '42501', null, 'gracz nie wywoła defense_history');
+reset role;
+set local role anon;
+select throws_ok($$select * from public.defense_history('00000000-0000-0000-0000-0000000328b1')$$,
+  '42501', null, 'anon nie wywoła defense_history');
 
 select * from finish();
 rollback;
