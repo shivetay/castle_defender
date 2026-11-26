@@ -193,7 +193,9 @@ w sekcji „Następny etap”.
   pionowo)` zwraca `ImageTexture` z cache. `warm_up()` rysuje przy starcie 222 całe warianty i place budowy
   (ok. 19 ms na komputerze, headless). Rysunki epoki II (#34) powstają przy pierwszym użyciu.
 - `scripts/world/building_types.gd` (`BuildingTypes`): Wał ziemny i Palisada (1×1), Brama drewniana (3×1),
-  Wieża drewniana, Chata drwala i Dwór (2×2). Wał i palisada łączą się ze sobą nawzajem
+  Wieża drewniana, Chata drwala i Dwór (2×2), Koszary (3×3) oraz Dom drużyny, Strzelnica, Stajnia, Magazyn,
+  Pole lnu, Pole i spichlerz i Kamieniołom (3×2, poziomo; #340, ADR 0005). Budynek ze starszego zapisu
+  zostaje w zapisanym prostokącie (`BuildGrid.cells_of`) i tak się rysuje. Wał i palisada łączą się ze sobą nawzajem
   oraz z bramą i wieżą, więc mieszana linia nie ma szpar. Przy wybranym wale lub palisadzie dotknięcie
   kratki obok luki w linii (np. nad nią, gdzie widać wierzch palisady) albo sąsiedniego odcinka do 3 px od
   krawędzi luki stawia odcinek w luce zamiast zaznaczać sąsiada.

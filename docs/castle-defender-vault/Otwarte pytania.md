@@ -5,6 +5,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 ## Ustalone
 
 - Bitwą nikt nie steruje (działa plan); klany i sojusze w późniejszych wersjach; gra darmowa z dobrowolnymi reklamami.
+- **Czy każdy budynek ma 2×2?** Nie: Koszary 3×3, budynki wojska, Magazyn i pola 3×2, stare budynki w starym rozmiarze (#340, 26.11.2026, [[ADR/0005-rozmiary-budynkow|ADR 0005]]).
 - **Ile oddziałów w planie ataku?** 3 w epoce I, potem 4 / 5 / 6 / 7 / 8 do epoki VI (`AttackPlan`, 16.11.2026).
 - Celem ataku jest donżon (Wieża grodowa od epoki I), nie Dwór (#120).
 - Gaszenie pożarów + Studnia weszły z #35 / #20.
