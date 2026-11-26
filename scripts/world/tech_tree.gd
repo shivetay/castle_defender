@@ -52,7 +52,7 @@ const TECHS: Array = [
 	["G20", "Uprawa lnu", Branch.ECONOMY, 0, false, ["G2"], "budynek Pole lnu"],
 	["G21", "Rybołówstwo", Branch.ECONOMY, 0, false, [], "budynek Rybak przy rzece"],
 	["G24", "Smolarstwo", Branch.ECONOMY, 0, false, ["G1"], "budynek Smolarnia"],
-	["G4", "Kamieniarstwo", Branch.ECONOMY, 1, false, ["G1"], "budynek Kamieniołom"],
+	["G4", "Kamieniarstwo", Branch.ECONOMY, 0, false, ["G1"], "budynek Kamieniołom"],
 	["G6", "Zaprawa wapienna", Branch.ECONOMY, 1, true, ["G4"], "warunek przejścia II → III"],
 	["G25", "Gospodarny", Branch.ECONOMY, 0, false, [], "perk władcy: +10% produkcji, wyklucza inne perki"],
 	["G26", "Budowniczy", Branch.ECONOMY, 1, false, ["G25"], "perk władcy: Gospodarny i budowa -10% czasu"],
