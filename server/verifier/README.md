@@ -112,9 +112,11 @@ Order of the owner's steps. Each step is reversible; none opens an inbound port.
    `docker compose logs -f verifier`: `worker start id=vps-1 …`, no URL, no job JSON.
 8. **Check**: `docker compose ps` shows no published ports.
 
-Rollback: `VERIFIER_COMMAND=smoke` and `docker compose up -d` (the queue keeps its jobs; a lease
-runs out after 5 min and the job is claimable again). To cut database access entirely:
-`alter role verifier nologin`.
+Rollback: `docker compose stop verifier` (the queue keeps its jobs; a lease runs out after 5 min
+and the job is claimable again), then set `VERIFIER_COMMAND=smoke` in `.env` so a later `up -d`
+does not start the worker again. Check the image with `docker compose run --rm verifier smoke`.
+Do not run `smoke` with `up -d`: it exits at once and `restart: unless-stopped` restarts it in a
+loop. To cut database access entirely: `alter role verifier nologin`.
 
 With `verification_mode = shadow` (default) the worker only compares results; loot, rating and
 shields still come from `finish_attack`. Moving to `enforce` is a separate step (§7 #284).
