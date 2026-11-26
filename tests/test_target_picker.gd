@@ -176,6 +176,12 @@ func test_refresh_flow() -> bool:
 	assert_true(not p.refresh_enabled(), "bez sieci wyszarzony")
 	p.refresh_online = true
 	p.begin_refresh()
+	p.close()
+	assert_true(not p.is_refreshing(), "Wróć przerywa odświeżanie")
+	assert_eq(p.status_text(), TargetPicker.NO_PLAYERS_TEXT, "po Wróć stan sprzed odświeżenia")
+	p.set_players([_player()] as Array[TargetSearch.Target], true)
+	assert_true(p.targets[0].is_bot, "spóźniona odpowiedź po Wróć pominięta")
+	p.begin_refresh()
 	p.open(0, true)
 	assert_true(not p.is_refreshing(), "ponowne otwarcie kasuje odświeżanie")
 	p.free()

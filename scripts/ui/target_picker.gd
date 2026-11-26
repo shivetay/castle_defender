@@ -112,6 +112,16 @@ func begin_refresh() -> void:
 	queue_redraw()
 
 
+## Przerywa płatne odświeżenie (Wróć, Boty albo Planuj w trakcie): stara lista i stan wracają,
+## a spóźniona odpowiedź serwera jest pomijana, więc nic nie kosztuje.
+func cancel_refresh() -> void:
+	if not _refreshing:
+		return
+	_refreshing = false
+	search = _search_before
+	queue_redraw()
+
+
 func is_refreshing() -> bool:
 	return _refreshing
 
@@ -126,6 +136,7 @@ static func refresh_label(cost: int) -> String:
 
 
 func close() -> void:
+	cancel_refresh()
 	visible = false
 	closed.emit()
 

@@ -1077,6 +1077,10 @@ func _on_targets_refresh() -> void:
 ## Wynik szukania celów. Przy płatnym odświeżeniu (#313) udane szukanie pobiera złoto, a nieudane
 ## (albo złoto, które w międzyczasie zniknęło) zostawia starą listę bez opłaty.
 func _on_targets_found(players: Array[TargetSearch.Target], ok: bool, limited: bool) -> void:
+	# panel ukryty w trakcie odświeżenia (Boty, Planuj): odpowiedź przepada bez opłaty
+	if target_picker.is_refreshing() and not target_picker.visible:
+		target_picker.cancel_refresh()
+		return
 	if target_picker.is_refreshing():
 		_tick()
 		var cost := target_refresh.cost(_today())
