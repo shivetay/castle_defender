@@ -17,7 +17,7 @@
 | Strzałmistrz (wytwórca strzał) | I | strzały, od epoki III bełty; zapas dla wież |
 | Smolarnia | I | smoła dla Podpalacza i machikuł |
 | Studnia | I | gasi pożary (zadanie obrony Gaszenie pożarów, #35), warunek długiego oblężenia |
-| Kamieniołom | II | kamień (+40/60/80/110/140 na h, tymczasowe; wymaga G4, #35) |
+| Kamieniołom | I | kamień (+40/60/80/110/140 na h, tymczasowe; wymaga G4, #35; w epoce I od #315) |
 | Młyn | II | +żywność |
 | Targ | III | złoto |
 | Węglarz | III | węgiel drzewny dla Kopalni rudy, Kuźni i Prochowni |
