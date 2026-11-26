@@ -8,7 +8,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    restart: unless-stopped
+    # on-failure: a crashed worker comes back; smoke / verify-pack exit 0 and stay down.
+    # After a VPS reboot run `docker compose up -d` again (on-failure does not restart on boot).
+    restart: on-failure
     read_only: true
     tmpfs:
       - /tmp/verifier:uid=10001,gid=10001,mode=1777,size=256m
@@ -23,8 +25,7 @@ services:
       PACKS_DIR: /app/packs
       TMPDIR: /tmp/verifier
     # Mode from host .env (VERIFIER_COMMAND), so the tracked file stays the same on the VPS:
-    #   worker for `up -d`; smoke / verify-pack only via `docker compose run --rm verifier …`
-    #   (they exit at once, so with `restart: unless-stopped` under `up -d` they restart in a loop).
+    #   worker for `up -d`; smoke / verify-pack via `docker compose run --rm verifier …`.
     # Rollback: `docker compose stop verifier`, then VERIFIER_COMMAND=smoke so `up -d` stays safe.
     command: ${VERIFIER_COMMAND:-smoke}
     # No published ports — egress only to Supabase pooler.

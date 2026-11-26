@@ -115,8 +115,11 @@ Order of the owner's steps. Each step is reversible; none opens an inbound port.
 Rollback: `docker compose stop verifier` (the queue keeps its jobs; a lease runs out after 5 min
 and the job is claimable again), then set `VERIFIER_COMMAND=smoke` in `.env` so a later `up -d`
 does not start the worker again. Check the image with `docker compose run --rm verifier smoke`.
-Do not run `smoke` with `up -d`: it exits at once and `restart: unless-stopped` restarts it in a
-loop. To cut database access entirely: `alter role verifier nologin`.
+To cut database access entirely: `alter role verifier nologin`.
+
+Restart policy is `on-failure`: a worker that crashes (exit ≠ 0) comes back, `smoke` exits 0 and
+stays down. Docker does not start such a container after a VPS reboot, so after a reboot run
+`docker compose up -d` in `server/verifier/` (or add it to the host's boot script).
 
 With `verification_mode = shadow` (default) the worker only compares results; loot, rating and
 shields still come from `finish_attack`. Moving to `enforce` is a separate step (§7 #284).
