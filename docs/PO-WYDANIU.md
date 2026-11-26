@@ -35,6 +35,8 @@ PR, czatu ani logów.
 
 ## 1. Wydanie w GitHubie
 
+**Gdzie:** przeglądarka (GitHub → Actions) i terminal na komputerze z repo albo na VPS (tag i `git diff`).
+
 1. **Actions → Przygotuj wydanie → Run workflow** (`patch`, `minor`, `major` albo `X.Y.Z`).
    Workflow otworzy PR „Wydanie X.Y.Z”.
 2. Przejrzyj changelog w tym PR i zmerguj go.
@@ -65,6 +67,8 @@ Puste wyjście: kroki 2 i część kroku 3 (build obrazu) możesz pominąć.
 
 ### 2.1 Migracje
 
+**Gdzie:** komputer z repo i Supabase CLI (polecenia) oraz przeglądarka (Supabase Dashboard). Nie VPS.
+
 Nowe pliki w `supabase/migrations/` od poprzedniego tagu:
 
 ```bash
@@ -86,6 +90,8 @@ Potem:
 - Testy RLS przechodzą w CI (job pgTAP). Na projekcie w chmurze nie uruchamiasz testów, które coś zapisują.
 
 ### 2.2 Edge Functions
+
+**Gdzie:** komputer z repo i Supabase CLI. Nie VPS.
 
 Zmienione funkcje od poprzedniego tagu:
 
@@ -109,6 +115,8 @@ Wszystko w katalogu `~/castle_defender/server/verifier` (podmień na swoją ści
 
 ### 3.1 Kod i obraz
 
+**Gdzie:** VPS (SSH), katalog `~/castle_defender`.
+
 ```bash
 cd ~/castle_defender && git fetch origin && git checkout main && git pull origin main
 cd server/verifier
@@ -121,6 +129,8 @@ docker compose build
 ```
 
 ### 3.2 Nowy pack
+
+**Gdzie:** VPS (SSH), katalog `~/castle_defender/server/verifier`. `scp` wpisujesz na komputerze, na który pobrałaś pliki.
 
 Z GitHub Release (wymaga `gh auth login` na VPS):
 
@@ -149,6 +159,8 @@ docker compose run --rm verifier verify-pack; echo "exit=$?"
 
 ### 3.3 Nowa wersja symulacji w bazie
 
+**Gdzie:** przeglądarka, Supabase → SQL Editor (projekt `castle_defender`). Liczbę wpisujesz ręcznie, zmienne z terminala tu nie działają.
+
 Dopiero gdy `verify-pack` przeszedł. Supabase → **SQL Editor** (jako `postgres`):
 
 ```sql
@@ -161,6 +173,8 @@ liczy je starym packiem. Wpis bez packa na VPS kończy się `FileNotFoundError` 
 i atakami ze statusem `failed`.
 
 ### 3.4 Restart workera
+
+**Gdzie:** VPS (SSH), katalog `~/castle_defender/server/verifier`.
 
 ```bash
 docker compose up -d --force-recreate
@@ -179,6 +193,8 @@ systemctl is-enabled castle-defender-verifier      # enabled: worker wstanie po 
 
 ## 4. Google Play
 
+**Gdzie:** przeglądarka (GitHub → Actions po plik `.aab`, potem Play Console).
+
 1. Z przebiegu **Actions → Wydanie** (tag `v$V`) pobierz artefakt `dunhold-$V-google-play-aab`
    i rozpakuj z niego plik `.aab`.
 2. [Play Console](https://play.google.com/console) → **Dunhold** → **Testowanie → Test wewnętrzny**
@@ -195,6 +211,8 @@ systemctl is-enabled castle-defender-verifier      # enabled: worker wstanie po 
 ---
 
 ## 5. Sprawdzenie po wydaniu
+
+**Gdzie:** telefon z wersją ze sklepu, potem przeglądarka (Supabase → SQL Editor).
 
 Na telefonie z wersją ze sklepu (`Ustawienia` w grze pokazują wersję):
 
@@ -222,12 +240,14 @@ Na koniec zamknij issues, które to wydanie domknęło.
 
 ## Rollback
 
+**Gdzie:** podane w każdym wierszu: Play Console (przeglądarka), VPS (SSH) albo SQL Editor (przeglądarka).
+
 | Problem | Co zrobić |
 |---|---|
-| Nowy klient psuje grę | Play Console → **Zatrzymaj wdrażanie** wersji; testerzy zostają na poprzedniej |
-| Worker sypie błędami | `systemctl stop castle-defender-verifier` (albo `docker compose stop verifier`), `VERIFIER_COMMAND=smoke` w `.env`. Kolejka czeka, joby wracają po 5 min od restartu |
-| Zły pack | Usuń wpis: `update private.sim_versions set supported = false where version = 600;` i wgraj poprawny pack. Ataki ze statusem `failed` wrócą do kolejki przez `select private.requeue_verification('<attack_id>');` |
-| Odciąć worker od bazy | `alter role verifier nologin;` |
-| Zła migracja | Nowa migracja naprawcza przez PR. Nie cofasz migracji ręcznie na produkcji |
+| Nowy klient psuje grę | **Play Console:** **Zatrzymaj wdrażanie** wersji; testerzy zostają na poprzedniej |
+| Worker sypie błędami | **VPS:** `systemctl stop castle-defender-verifier` (albo `docker compose stop verifier`), `VERIFIER_COMMAND=smoke` w `.env`. Kolejka czeka, joby wracają po 5 min od restartu |
+| Zły pack | **SQL Editor:** wyłącz wersję: `update private.sim_versions set supported = false where version = 600;` a na **VPS** wgraj poprawny pack. Ataki ze statusem `failed` wrócą do kolejki przez `select private.requeue_verification('<attack_id>');` |
+| Odciąć worker od bazy | **SQL Editor:** `alter role verifier nologin;` |
+| Zła migracja | **Repo (PR):** nowa migracja naprawcza przez PR. Nie cofasz migracji ręcznie na produkcji |
 
 Tryb weryfikacji (`shadow` / `enforce`) zmieniasz osobno (§7 #284), nie przy każdym wydaniu.
