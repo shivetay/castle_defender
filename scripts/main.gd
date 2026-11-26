@@ -22,6 +22,8 @@ extends Node2D
 const GAP_TAP_TOLERANCE := 3
 ## Czas animacji przebudowy Dworu na nową epokę (#34), ms.
 const AGE_ANIM_MS := 2400
+## Warstwa zasłony ładowania (#316): nad całym UI i widokami bitwy.
+const LOADER_LAYER := 100
 
 
 ## Komunikat, gdy Rybak nie styka się z wodą (#122).
@@ -72,6 +74,8 @@ var _restoring := false
 ## wtedy panel onboardingu przykrywa zamek, a zamek nie idzie na serwer.
 var identity: PlayerProfile.Identity
 var onboarding: OnboardingPanel
+## Zasłona ładowania przy synchronizacji z serwerem (#316), na własnej warstwie nad całym UI.
+var sync_loader: SyncLoaderPanel
 ## Mini-samouczek UI (#251): stan z profilu (TutorialHints.State) i okno z pytaniem, póki otwarte.
 var tutorial_state: int = TutorialHints.State.ASK
 var tutorial_prompt: TutorialPrompt
@@ -414,6 +418,7 @@ func _ready() -> void:
 	net.wave_finished.connect(_on_wave_finished)
 	net.castle_rejected.connect(_on_castle_rejected)
 	add_child(net)
+	_add_sync_loader()
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
 	if _restored_from_server:
@@ -537,9 +542,30 @@ func _save() -> void:
 	_sync_castle(save)
 
 
+## Zasłona ładowania (#316): po przywróceniu zamku z serwera przykrywa pierwszą chwilę nowej sceny,
+## a na starcie, na którym zamek prawie na pewno wróci, czeka na odpowiedź serwera. Ostatni węzeł
+## sceny, więc dotyk trafia do niej przed wszystkim innym.
+func _add_sync_loader() -> void:
+	var loader_layer := CanvasLayer.new()
+	loader_layer.layer = LOADER_LAYER
+	add_child(loader_layer)
+	sync_loader = SyncLoaderPanel.new()
+	loader_layer.add_child(sync_loader)
+	net.castle_checked.connect(sync_loader.on_castle_checked)
+	if _restored_from_server:
+		sync_loader.start_restore()
+		sync_loader.finish()
+	elif SyncCurtain.waits_at_start(net.state != SupabaseClient.State.DISABLED, net.local_fresh,
+			net.sync_state.restore_pending_for(net.user_id())):
+		sync_loader.start_waiting()
+		sync_loader.on_net_state(net.state)  # brak sieci mógł się okazać już przy dodaniu klienta
+
+
 ## Stan sieci w Ustawieniach; po ONLINE zaległy zamek idzie na serwer od razu (#23).
 func _on_net_state(st: int) -> void:
 	settings_panel.net_state = st
+	if sync_loader != null:
+		sync_loader.on_net_state(st)
 	if st == SupabaseClient.State.ONLINE:
 		net.flush()
 		_load_defenses()
@@ -600,6 +626,8 @@ func _on_castle_restored(save: Dictionary, profile: Dictionary) -> void:
 	net.confirm_restore()
 	_restored_from_server = true
 	_restoring = true
+	if sync_loader != null:
+		sync_loader.start_restore()
 	get_tree().reload_current_scene()
 
 

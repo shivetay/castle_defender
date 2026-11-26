@@ -22,6 +22,7 @@ Wejście: dotyk (`InputEventScreenTouch` / `ScreenDrag`); mysz tylko przez emula
 | `settings_panel.gd` | Ustawienia (m.in. tryb offline) |
 | `onboarding_panel.gd` | Pierwsze uruchomienie: imię gracza, nazwa zamku, domyślny władca (#228) |
 | `tutorial_hints.gd` / `tutorial_prompt.gd` | Mini-samouczek: podświetlenie kolejnego dotknięcia i pytanie o wyłączenie (#251) |
+| `sync_curtain.gd` / `sync_loader_panel.gd` | Zasłona ładowania przy synchronizacji z serwerem: start po reinstalacji i przywracanie zamku, bez migania (#316) |
 | `ruler_panel.gd` | Panel władcy z portretu: perk władcy, koszt zmiany (#32) |
 
 Orkiestracja trybów: `scripts/main.gd`. Ikony/rysunki UI: `scripts/gfx/pixel_icons.gd`, `pixel_font.gd`.
