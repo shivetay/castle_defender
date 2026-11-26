@@ -1263,15 +1263,21 @@ func _goal_cell_for(o: AttackPlan.Order) -> Vector2i:
 
 ## Najbliższa kratka bez wody i bez budynku (pierścienie wokół `c`, kolejność stała).
 func _walkable_near(c: Vector2i) -> Vector2i:
-	var last := _terrain.size - 1
+	return walkable_near(c, _terrain.size, _free_ground)
+
+
+## Najbliższa kratka, na której `free` (Vector2i → bool) pozwala stanąć: pierścienie wokół `c`
+## w stałej kolejności. Wspólne dla bitwy i planu ataku (#314).
+static func walkable_near(c: Vector2i, size: int, free: Callable) -> Vector2i:
+	var last := size - 1
 	var at := Vector2i(clampi(c.x, 0, last), clampi(c.y, 0, last))
-	for r in _terrain.size:
+	for r in size:
 		for dy in range(-r, r + 1):
 			for dx in range(-r, r + 1):
 				if maxi(absi(dx), absi(dy)) != r:
 					continue
 				var p := at + Vector2i(dx, dy)
-				if _free_ground(p):
+				if free.call(p):
 					return p
 	return at
 
@@ -1292,7 +1298,8 @@ func _act_order(f: Fighter, o: AttackPlan.Order) -> void:
 		_order_convoy(f, key)
 		return
 	var route: Array = _sq_route.get(key, [])
-	if f.wp < route.size():
+	# Ostrzał (#314): trasa to linia marszu od punktu postoju, więc idzie po nim (_order_ranged).
+	if o.manoeuvre != AttackPlan.Manoeuvre.RANGED and f.wp < route.size():
 		var w: Vector2i = route[f.wp]
 		if absi(f.cell().x - w.x) <= 1 and absi(f.cell().y - w.y) <= 1:
 			f.wp += 1
@@ -1402,54 +1409,64 @@ func _order_assault(f: Fighter, o: AttackPlan.Order, key: int) -> void:
 	_walk_to(f, t, true)
 
 
-## Ostrzał z dystansu: oddział ma jeden punkt postoju w zasięgu celu. Wróg w zasięgu strzału —
-## stój i strzelaj (bez podejścia). Marsz tylko gdy nikt nie jest w zasięgu, i tylko do tego
-## punktu; stamtąd ostrzał budynku, bez dalszego chodzenia naprzód. Jednostki bez dystansu:
-## jak w szturmie.
+## Ostrzał z dystansu (#314): oddział idzie na swój punkt postoju (od strony wejścia, w zasięgu celu)
+## i stamtąd strzela. Wróg albo cel w zasięgu: stój i strzelaj, bez podchodzenia. Gdy w zasięgu nie
+## ma nic, oddział rusza z postoju naprzód: po swojej linii marszu (punkty trasy z planu), a potem
+## na cel, aż znów coś wejdzie w zasięg. Cel padł i nie ma trasy: oddział stoi i strzela do tego,
+## co podejdzie. Jednostki bez dystansu: jak w szturmie.
+## `Fighter.wp`: 0 = w drodze na postój, k ≥ 1 = minął postój i k − 1 punktów linii marszu.
 func _order_ranged(f: Fighter, o: AttackPlan.Order, key: int) -> void:
 	var r := range_of(f)
 	if r < BattleConfig.RANGED_MIN_RANGE:
 		_order_assault(f, o, key)
 		return
 	var t := _goal(o, key, _objective_structure())
-	if t == null:
-		_default_act(f)
-		return
 	# Wróg w zasięgu strzału: stój i bij; nie idź naprzód.
 	if _hold(f):
 		return
 	# Cel w zasięgu: ostrzał z miejsca, bez dalszego marszu pod mur.
-	if _rect_in_range(f, t.rect, r):
+	if t != null and _rect_in_range(f, t.rect, r):
 		_strike_structure(f, t)
 		return
-	var hold := _fire_hold_cell(key, t, r)
-	# Na wyznaczonym punkcie: stój (punkt jest w zasięgu); inaczej tylko dojście do niego.
-	if f.cell() == hold:
-		return
-	_walk(f, hold, hold.x * BattleConfig.SUB + BattleConfig.SUB / 2,
-			hold.y * BattleConfig.SUB + BattleConfig.SUB / 2, false)
+	if f.wp == 0 and t != null:
+		var hold := _fire_hold_cell(key, t, r)
+		if f.cell() != hold:
+			_walk(f, hold, hold.x * BattleConfig.SUB + BattleConfig.SUB / 2,
+					hold.y * BattleConfig.SUB + BattleConfig.SUB / 2, false)
+			return
+	f.wp = maxi(f.wp, 1)
+	# W zasięgu nic: marsz naprzód po linii marszu, potem na cel.
+	var route: Array = _sq_route.get(key, [])
+	while f.wp - 1 < route.size():
+		var w: Vector2i = route[f.wp - 1]
+		if absi(f.cell().x - w.x) > 1 or absi(f.cell().y - w.y) > 1:
+			_walk(f, w, w.x * BattleConfig.SUB + BattleConfig.SUB / 2, w.y * BattleConfig.SUB + BattleConfig.SUB / 2, true)
+			return
+		f.wp += 1
+	if t != null:
+		_walk_to(f, t, true)
 
 
 ## Jedna kratka postoju oddziału na Ostrzał: od strony wejścia, w zasięgu `cells` od budynku-celu.
-## Ustalana raz na klucz oddziału; potem wszyscy stoją i strzelają stąd.
+## Ustalana raz na klucz oddziału; potem wszyscy idą na nią i strzelają stąd.
 func _fire_hold_cell(key: int, t: Structure, cells: int) -> Vector2i:
 	if _sq_fire.has(key):
 		return _sq_fire[key]
-	var reach := maxi(BattleConfig.RANGED_MIN_RANGE, cells)
-	var hold := Vector2i.ZERO
-	var found := false
-	# Od pełnego zasięgu w dół: wolna kratka, z której cel jest w zasięgu euklidesowym.
-	for dist in range(reach, 0, -1):
-		var raw := fire_hold_point(_spawn, t.rect, dist, _terrain.size)
-		var cand := _walkable_near(raw)
-		if _cell_rect_in_range(cand, t.rect, reach):
-			hold = cand
-			found = true
-			break
-	if not found:
-		hold = _walkable_near(fire_hold_point(_spawn, t.rect, reach, _terrain.size))
+	var hold := fire_hold_cell(_spawn, t.rect, cells, _terrain.size, _free_ground)
 	_sq_fire[key] = hold
 	return hold
+
+
+## Kratka postoju Ostrzału między wejściem `spawn` a celem `rect` dla zasięgu `cells` (#314): od
+## pełnego zasięgu w dół pierwsza kratka, na której `free` pozwala stanąć i z której cel jest
+## w zasięgu euklidesowym. Tę samą kratkę pokazuje plan ataku (AttackPlanner.fire_hold).
+static func fire_hold_cell(spawn: Vector2i, rect: Rect2i, cells: int, size: int, free: Callable) -> Vector2i:
+	var reach := maxi(BattleConfig.RANGED_MIN_RANGE, cells)
+	for dist in range(reach, 0, -1):
+		var cand := walkable_near(fire_hold_point(spawn, rect, dist, size), size, free)
+		if cell_rect_in_range(cand, rect, reach):
+			return cand
+	return walkable_near(fire_hold_point(spawn, rect, reach, size), size, free)
 
 
 ## Punkt ostrzału między wejściem `spawn` a prostokątem celu `rect`: o `cells` kratek od krawędzi
@@ -1468,7 +1485,7 @@ static func fire_hold_point(spawn: Vector2i, rect: Rect2i, cells: int, size: int
 
 
 ## Czy środek kratki `c` sięga prostokąta `r` w zasięgu `cells` (jak _rect_in_range dla jednostki).
-func _cell_rect_in_range(c: Vector2i, r: Rect2i, cells: int) -> bool:
+static func cell_rect_in_range(c: Vector2i, r: Rect2i, cells: int) -> bool:
 	var fx := c.x * BattleConfig.SUB + BattleConfig.SUB / 2
 	var fy := c.y * BattleConfig.SUB + BattleConfig.SUB / 2
 	var nx := clampi(fx, r.position.x * BattleConfig.SUB, r.end.x * BattleConfig.SUB - 1)

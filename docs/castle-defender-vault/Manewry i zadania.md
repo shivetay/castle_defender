@@ -8,7 +8,7 @@ Parametry każdego manewru: cel, trasa (0–3 punkty), start (od razu / po X s /
 | Manewr | Co robi oddział | Od epoki |
 | --- | --- | --- |
 | Szturm frontalny | idzie najkrótszą drogą na cel | I |
-| Ostrzał z dystansu | zatrzymuje się w zasięgu i ostrzeliwuje cel | I |
+| Ostrzał z dystansu | idzie na punkt postoju (na planie obszar 3×3) i ostrzeliwuje cel; linią marszu od postoju rusza tylko bez celu w zasięgu (#314) | I |
 | Podpalenie | celuje w drewniane budowle | I |
 | Oskrzydlenie | obchodzi zamek bokiem i uderza w wybrany odcinek z flanki | I |
 | Szturm z drabinami | wchodzi na mur w wybranym miejscu, omija bramę | II |

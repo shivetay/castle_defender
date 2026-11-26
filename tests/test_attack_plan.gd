@@ -474,3 +474,96 @@ func test_review_fixes() -> bool:
 	y._sq_started[Battle._squad_key(Battle.Side.ATTACKER, 1)] = true
 	assert_true(x.checksum() != y.checksum(), "stan rozkazów jest w sumie kontrolnej")
 	return true
+
+
+## Pierwsza kratka trawy (bez budynku) w odległości 4–12 od `from` w bok (x), na lewo albo prawo.
+func _side_grass(grid: BuildGrid, from: Vector2i) -> Vector2i:
+	for dx in range(6, 14):
+		for sx: int in [-1, 1]:
+			var c := from + Vector2i(dx * sx, 0)
+			if grid.terrain.is_walkable(c) and grid.building_at(c) == 0:
+				return c
+	return Vector2i(-1, -1)
+
+
+## Ostrzał (#314): trasa to linia marszu od postoju. Oddział idzie najpierw na postój i strzela; po
+## punkcie trasy rusza dopiero, gdy w zasięgu nie ma już nic (cel padł).
+func test_ranged_marches_from_hold_only_without_target() -> bool:
+	var c := _castle()
+	var grid: BuildGrid = c[0]
+	var ring: Rect2i = c[4]
+	var wall_cell := Vector2i(ring.position.x, ring.end.y - 1)
+	var key := Battle._squad_key(Battle.Side.ATTACKER, 1)
+	var probe := _battle(c, [[U.ARCHER, 4]], [], null)
+	var wall_rect := probe._structure_at(wall_cell).rect
+	var hold := Battle.fire_hold_cell(SPAWN, wall_rect, probe.range_of(probe.fighters[0]), grid.terrain.size,
+			probe._free_ground)
+	var march := _side_grass(grid, hold)
+	assert_true(march.x >= 0, "trawa z boku postoju")
+	var p := AttackPlan.new()
+	p.add(1, M.RANGED, wall_cell).waypoints.append(march)
+	var b := _battle(c, [[U.ARCHER, 4]], [], p)
+	var wall := b._structure_at(wall_cell)
+	var fell_at := -1
+	var near_before := false
+	var near_after := false
+	for i in 3000:
+		b.step()
+		if b._sq_fire.has(key):
+			assert_eq(b._sq_fire[key], hold, "postój jak w planie")
+		if fell_at < 0 and wall.hp <= 0:
+			fell_at = i
+		for f in b.fighters:
+			if f.alive() and maxi(absi(f.cell().x - march.x), absi(f.cell().y - march.y)) <= 1:
+				if fell_at < 0:
+					near_before = true
+				else:
+					near_after = true
+		if near_after:
+			break
+	assert_true(fell_at >= 0, "łucznicy zburzyli cel z postoju")
+	assert_true(not near_before, "z celem w zasięgu nikt nie poszedł linią marszu")
+	assert_true(near_after, "bez celu w zasięgu oddział ruszył linią marszu")
+	return true
+
+
+## Ostrzał bez linii marszu (#314): po zburzeniu celu oddział stoi na postoju.
+func test_ranged_stands_without_route_after_target() -> bool:
+	var c := _castle()
+	var ring: Rect2i = c[4]
+	var wall_cell := Vector2i(ring.position.x, ring.end.y - 1)
+	var p := AttackPlan.new()
+	p.add(1, M.RANGED, wall_cell)
+	var b := _battle(c, [[U.ARCHER, 4]], [], p)
+	var wall := b._structure_at(wall_cell)
+	for i in 3000:
+		b.step()
+		if wall.hp <= 0:
+			break
+	assert_true(wall.hp <= 0, "cel zburzony")
+	var before: Array[Vector2i] = []
+	for f in b.fighters:
+		before.append(f.cell())
+	for i in 300:
+		b.step()
+	for k in b.fighters.size():
+		if b.fighters[k].alive():
+			assert_eq(b.fighters[k].cell(), before[k], "łucznik %d stoi na postoju" % k)
+	return true
+
+
+## Ostrzał z linią marszu jest deterministyczny: ten sam seed i plan dają ten sam przebieg.
+func test_ranged_march_is_deterministic() -> bool:
+	var c := _castle()
+	var grid: BuildGrid = c[0]
+	var ring: Rect2i = c[4]
+	var wall_cell := Vector2i(ring.position.x, ring.end.y - 1)
+	var sums: Array[int] = []
+	for run in 2:
+		var p := AttackPlan.new()
+		p.add(1, M.RANGED, wall_cell).waypoints.append(_side_grass(grid, SPAWN + Vector2i(0, -10)))
+		var b := _battle(c, [[U.ARCHER, 4]], [[U.PEASANT, 2]], p, 7)
+		b.run(2400)
+		sums.append(b.checksum())
+	assert_eq(sums[0], sums[1], "ta sama suma kontrolna")
+	return true
