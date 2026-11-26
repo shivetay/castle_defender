@@ -4,13 +4,29 @@ Lista kroków dla właścicielki po każdym wydaniu `vX.Y.Z`. Kolejność ma zna
 **najpierw serwer (Supabase i VPS), dopiero potem telefony (Google Play)**. Nowy klient
 nie może trafić do graczy, zanim serwer go obsłuży.
 
-Na początku ustaw zmienne (przykład dla 0.6.0). Wszystkie polecenia niżej z nich korzystają:
+Gdzie co robisz:
+
+| Krok | Gdzie |
+|---|---|
+| 1. Wydanie w GitHubie | komputer z repo (albo VPS) i przeglądarka |
+| 2. Supabase | komputer z Supabase CLI i Dashboard |
+| 3. Worker | **VPS** (SSH) |
+| 3.3 i 5 (SQL) | Supabase → SQL Editor, liczby wpisujesz ręcznie |
+| 4. Google Play | przeglądarka |
+
+W każdym terminalu, w którym wykonujesz polecenia (komputer, VPS), najpierw ustaw zmienne. `export` działa
+tylko w bieżącym oknie, więc po każdym nowym logowaniu przez SSH ustawiasz je od nowa. W katalogu repo,
+po `git pull` na `main`:
 
 ```bash
-export V=0.6.0          # nowa wersja (python3 tools/version.py current)
-export SIM=600          # kod wersji: MAJOR*10000 + MINOR*100 + PATCH
-export PREV=v0.5.1      # poprzedni tag (git tag --sort=-v:refname | head -2)
+export V=$(python3 tools/version.py current)                       # np. 0.6.0
+export SIM=$(echo "$V" | awk -F. '{print $1*10000 + $2*100 + $3}')  # np. 600
+export PREV=$(git tag --list 'v*' --sort=-v:refname | grep -vx "v$V" | head -1)  # poprzedni tag
+echo "V=$V SIM=$SIM PREV=${PREV:-brak}"
 ```
+
+`PREV=brak` oznacza pierwszy tag. Wtedy pomiń polecenia z `$PREV`: migracje i Edge Functions sprawdzasz
+w Dashboardzie (Database → Migrations, Edge Functions).
 
 Sekretów (hasło roli `verifier`, klucz wysyłania Androida, `service_role`) nie wklejasz do issue,
 PR, czatu ani logów.
