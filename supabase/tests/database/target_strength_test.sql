@@ -34,8 +34,11 @@ insert into auth.users (id) select id from test_ids;
 update public.players set rating = 63293, age = 0 where id in (select id from test_ids);
 update public.players set nickname = 'Bolko' where id = '00000000-0000-0000-0000-0000000293b1';
 
--- zamki bez zgodnego bilansu i budowy: wyzwalacze kontroli zapisu (ich własne testy) są tu wyłączone
-select set_config('session_replication_role', 'replica', true);
+-- zamki bez zgodnego bilansu i budowy: wyzwalacze kontroli zapisu i rankingu (ich własne testy) są
+-- wyłączone do końca tej transakcji, która się cofa (także na projekcie, gdzie `session_replication_role`
+-- jest niedostępne)
+alter table public.castles disable trigger user;
+alter table public.attacks disable trigger user;
 insert into public.castles (player_id, map_seed, save_version, data) values
   ('00000000-0000-0000-0000-0000000293a1', 4242, 8, '{"profile": {"castle_name": "Gród A"}}'),
   ('00000000-0000-0000-0000-0000000293b1', 4243, 8, '{"profile": {"castle_name": "Gród B"},
@@ -46,7 +49,6 @@ insert into public.attacks (attacker_id, defender_id, map_seed, battle_seed, def
   status, result, loot, finished_at)
 values ('00000000-0000-0000-0000-0000000293b1', '00000000-0000-0000-0000-0000000293a1', 1, 1, '{}', '{}',
   'finished', '{"won": true, "percent": 50, "stars": [true, false, false]}', array[0, 0, 0, 0], now());
-select set_config('session_replication_role', 'origin', true);
 
 set local role service_role;
 -- B: 10 kopijników w obronie (250), wieża na 3. poziomie (29) i smoła (7) = 286
@@ -61,9 +63,7 @@ select is((select nickname from public.defense_history('00000000-0000-0000-0000-
   'historia obron: nick bez zmian');
 reset role;
 -- napastnik bez zamku (usunięte konto): „?”
-select set_config('session_replication_role', 'replica', true);
 delete from public.castles where player_id = '00000000-0000-0000-0000-0000000293b1';
-select set_config('session_replication_role', 'origin', true);
 set local role service_role;
 select is((select defense from public.defense_history('00000000-0000-0000-0000-0000000293a1') limit 1), null::integer,
   'historia obron: bez zamku napastnika brak siły');

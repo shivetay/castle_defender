@@ -18,8 +18,8 @@
 -- Zmiana typu wyniku wymaga `drop function`; uprawnienia funkcji powtarzamy jawnie.
 
 -- Liczba całkowita z wartości JSON (jak int() w grze: część ułamkowa odpada), null dla nie-liczby
--- i liczby spoza zakresu int.
-create function private.json_int(v jsonb)
+-- i liczby spoza zakresu int. Inna niż `private.json_int(j, lo, hi)` (attack_general), która odrzuca ułamki.
+create function private.json_trunc_int(v jsonb)
 returns integer
 language sql
 immutable
@@ -61,13 +61,13 @@ begin
   -- garnizon: ostatni poprawny rozkaz oddziału [id, zadanie, x, y, …] decyduje (DefensePlan.from_dict)
   select coalesce(array_agg(o.id), '{}') into garrison
   from (
-    select distinct on (private.json_int(e.v -> 0)) private.json_int(e.v -> 0) as id, private.json_int(e.v -> 1) as task
+    select distinct on (private.json_trunc_int(e.v -> 0)) private.json_trunc_int(e.v -> 0) as id, private.json_trunc_int(e.v -> 1) as task
     from jsonb_array_elements(case when jsonb_typeof(layout -> 'orders') = 'array'
       then layout -> 'orders' else '[]'::jsonb end) with ordinality as e(v, ord)
     where case when jsonb_typeof(e.v) = 'array' then jsonb_array_length(e.v) >= 4 else false end
-      and private.json_int(e.v -> 0) > 0
-      and private.json_int(e.v -> 1) between 0 and 6
-    order by private.json_int(e.v -> 0), e.ord desc
+      and private.json_trunc_int(e.v -> 0) > 0
+      and private.json_trunc_int(e.v -> 1) between 0 and 6
+    order by private.json_trunc_int(e.v -> 0), e.ord desc
   ) o
   where o.task = 6;
 
@@ -76,15 +76,15 @@ begin
     select sum(least(greatest(s.n, 0), 10)
       * case when s.id = any (garrison) then garrison_power[s.unit + 1] else unit_power[s.unit + 1] end)
     from (
-      select distinct on (private.json_int(e.v -> 0)) private.json_int(e.v -> 0) as id,
-        private.json_int(e.v -> 1) as unit, private.json_int(e.v -> 2) as n
+      select distinct on (private.json_trunc_int(e.v -> 0)) private.json_trunc_int(e.v -> 0) as id,
+        private.json_trunc_int(e.v -> 1) as unit, private.json_trunc_int(e.v -> 2) as n
       from jsonb_array_elements(case when jsonb_typeof(castle -> 'recruitment' -> 'squads') = 'array'
         then castle -> 'recruitment' -> 'squads' else '[]'::jsonb end) with ordinality as e(v, ord)
       where case when jsonb_typeof(e.v) = 'array' then jsonb_array_length(e.v) >= 3 else false end
-        and private.json_int(e.v -> 0) > 0
-        and private.json_int(e.v -> 1) between 0 and 15
-        and private.json_int(e.v -> 2) is not null
-      order by private.json_int(e.v -> 0), e.ord
+        and private.json_trunc_int(e.v -> 0) > 0
+        and private.json_trunc_int(e.v -> 1) between 0 and 15
+        and private.json_trunc_int(e.v -> 2) is not null
+      order by private.json_trunc_int(e.v -> 0), e.ord
     ) s
   ), 0);
 
@@ -92,14 +92,14 @@ begin
   total := total + coalesce((
     select sum(trap_power[t.kind + 1])
     from (
-      select distinct on (private.json_int(e.v -> 1), private.json_int(e.v -> 2)) private.json_int(e.v -> 0) as kind
+      select distinct on (private.json_trunc_int(e.v -> 1), private.json_trunc_int(e.v -> 2)) private.json_trunc_int(e.v -> 0) as kind
       from jsonb_array_elements(case when jsonb_typeof(layout -> 'traps') = 'array'
         then layout -> 'traps' else '[]'::jsonb end) with ordinality as e(v, ord)
       where case when jsonb_typeof(e.v) = 'array' then jsonb_array_length(e.v) >= 3 else false end
-        and private.json_int(e.v -> 0) between 0 and 4
-        and private.json_int(e.v -> 1) is not null
-        and private.json_int(e.v -> 2) is not null
-      order by private.json_int(e.v -> 1), private.json_int(e.v -> 2), e.ord
+        and private.json_trunc_int(e.v -> 0) between 0 and 4
+        and private.json_trunc_int(e.v -> 1) is not null
+        and private.json_trunc_int(e.v -> 2) is not null
+      order by private.json_trunc_int(e.v -> 1), private.json_trunc_int(e.v -> 2), e.ord
     ) t
   ), 0);
 
@@ -108,13 +108,13 @@ begin
   total := total + coalesce((
     select sum(fort_power[b.kind * 5 + least(b.lv, 5)])
     from (
-      select distinct on (private.json_int(e.v -> 0)) private.json_int(e.v -> 1) as kind,
-        private.json_int(e.v -> 2) as lv
+      select distinct on (private.json_trunc_int(e.v -> 0)) private.json_trunc_int(e.v -> 1) as kind,
+        private.json_trunc_int(e.v -> 2) as lv
       from jsonb_array_elements(case when jsonb_typeof(castle -> 'grid' -> 'buildings') = 'array'
         then castle -> 'grid' -> 'buildings' else '[]'::jsonb end) with ordinality as e(v, ord)
       where case when jsonb_typeof(e.v) = 'array' then jsonb_array_length(e.v) >= 7 else false end
-        and private.json_int(e.v -> 0) is not null
-      order by private.json_int(e.v -> 0), e.ord
+        and private.json_trunc_int(e.v -> 0) is not null
+      order by private.json_trunc_int(e.v -> 0), e.ord
     ) b
     where b.kind between 0 and 3 and b.lv >= 1
   ), 0);
@@ -138,10 +138,10 @@ as $$
 $$;
 
 revoke all on function private.defense_strength(jsonb, jsonb) from public, anon, authenticated;
-revoke all on function private.json_int(jsonb) from public, anon, authenticated;
+revoke all on function private.json_trunc_int(jsonb) from public, anon, authenticated;
 revoke all on function private.strength_range_low(integer) from public, anon, authenticated;
 grant execute on function private.defense_strength(jsonb, jsonb) to service_role;
-grant execute on function private.json_int(jsonb) to service_role;
+grant execute on function private.json_trunc_int(jsonb) to service_role;
 grant execute on function private.strength_range_low(integer) to service_role;
 
 -- ---------------------------------------------------------------------------------------------

@@ -43,7 +43,7 @@ zdradzałaby to, co mgła wojny ma ukrywać ([[Backend PvP]]).
 ## Konsekwencje
 
 - Gra: karta celu i historia obron pokazują przedział, a bot ma przedział zamiast dokładnej liczby.
-- Serwer: nowe funkcje `private.defense_strength`, `private.strength_range_low` i `private.json_int`
+- Serwer: nowe funkcje `private.defense_strength`, `private.strength_range_low` i `private.json_trunc_int`
   (tylko `service_role`), a `match_targets` i `defense_history` mają nową kolumnę. Edge Functions
   `find_targets` i `defense_history` przekazują ją dalej. Migracja i deploy trafiają do chmury tylko
   za zgodą właścicielki.
