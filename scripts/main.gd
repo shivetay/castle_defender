@@ -1176,7 +1176,7 @@ static func scout_lines(t: TargetSearch.Target, s: Scouting, check: Scouting.Res
 	elif rep != null:
 		out.append(Scouting.report_text(rep))
 	else:
-		out.append("Bez zwiadu: plan pokaże tylko zarys budynków")
+		out.append("Bez zwiadu: zamek zakryje mgła")
 	if not t.is_bot and not online:
 		# zwiad na gracza liczy serwer (#28)
 		out.append("Zwiad na gracza: wymaga sieci")
@@ -1406,7 +1406,7 @@ func _bot_battle(bot: BotCastle, army: Array) -> Battle:
 
 ## Co plan ataku widzi z zamku-celu (#28): fragment z raportu zwiadu na ten cel, z miejscami załogi
 ## z początku bitwy (te same, z których ruszy bitwa), patrolami i pułapkami obrońcy. Bez raportu
-## z danymi: sam zarys budynków.
+## z danymi: cały zamek we mgle (#355).
 func _scout_intel(bot: BotCastle, player: PlayerCastle, army: Array) -> ScoutIntel:
 	if player != null:
 		# zamek gracza (#28): odsłonięte przez zwiad podaje serwer w `start_attack`

@@ -24,7 +24,7 @@ var attack_id := ""
 var defender_id := ""
 var map_seed := 0
 var battle_seed := 0
-## Co odsłonił zwiad (#28, z serwera); plan pokazuje tylko to i zarys budynków.
+## Co odsłonił zwiad (#28, z serwera); plan pokazuje tylko to, resztę zamku zakrywa mgła (#355).
 var intel := ScoutIntel.new()
 ## Zamek-cel dla planu i bitwy: siatka, donżon jako cel, wejście z drogi i załoga obrońcy.
 var target: BotCastle

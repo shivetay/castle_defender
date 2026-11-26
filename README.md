@@ -916,8 +916,8 @@ część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelnośc
 Zwiad z mgłą wojny (#28, etap 10) ma część kliencką: Chata tropicieli (S1, epoka I) szkoli
 Tropicieli i po S3 staje się Domem zwiadowców. Zwiad wysyła się z ekranu wyboru celu (2, 10 albo 30 min,
 złoto i żywność za zwiadowcę). Wynik z seeda misji: sukces, częściowy, wykryci albo porażka;
-zwiadowcy wracają wszyscy, część albo nikt. Raport jest na karcie budynku i celu. Plan ataku pokazuje bez
-zwiadu tylko zarys budynków, a w odsłoniętym fragmencie (20–80% zabudowy) budynki, załogę, patrole
+zwiadowcy wracają wszyscy, część albo nikt. Raport jest na karcie budynku i celu. Plan ataku bez
+zwiadu zakrywa cały obszar zamku (zabudowa + 1 kratka) jednolitą mgłą (#355), a w odsłoniętym fragmencie (20–80% zabudowy) budynki, załogę, patrole
 i pułapki. Zwiad na zamek-bota liczy gra, a zwiad na gracza serwer (`scout`, `scout_reports`, migracja `scouting`):
 wynik z seeda serwera, raport po końcu misji. Plan ataku na gracza dostaje ze `start_attack` tylko zarys,
 donżon i to, co odsłonił zwiad; pełną kopię zamku i obrony daje dopiero zatwierdzenie planu
