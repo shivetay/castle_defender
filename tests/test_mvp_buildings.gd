@@ -335,3 +335,24 @@ func test_battle_with_new_buildings_is_deterministic() -> bool:
 		sums.append(b.checksum())
 	assert_eq(sums[0], sums[1], "ten sam seed, ta sama suma kontrolna")
 	return true
+
+
+## #315: Kamieniołom da się postawić w epoce I, ale dopiero po zbadaniu G4 (która wymaga G1).
+func test_quarry_available_in_age_one_after_g4() -> bool:
+	assert_eq(TechTree.age("G4"), 0, "G4 Kamieniarstwo w epoce I")
+	assert_eq(TechTree.requires("G4"), ["G1"] as Array[String], "G4 nadal wymaga G1")
+	var r := Research.new()
+	assert_eq(r.check("G4", 0), Research.Result.MISSING_REQUIREMENTS, "bez G1 G4 zablokowana")
+	r.done["G1"] = true
+	assert_eq(r.check("G4", 0), Research.Result.OK, "po G1 G4 da się badać w epoce I")
+	assert_eq(BuildConfig.required_tech(K.QUARRY), "G4", "Kamieniołom nadal wymaga G4")
+	# Budowa w zamku z epoki I (Dwór 1): bez G4 zablokowana w panelu, z G4 dostępna i staje na siatce.
+	var grid := _castle()
+	assert_eq(Ages.of_level(grid.manor_level()), 0, "zamek w epoce I")
+	assert_true(not BuildConfig.is_unlocked(K.QUARRY, r), "z samą G1 Kamieniołomu nie ma")
+	assert_eq(BuildPanel.state_text(K.QUARRY, r), "zbadaj G4", "panel budowy: zbadaj G4")
+	r.done["G4"] = true
+	assert_true(BuildConfig.is_unlocked(K.QUARRY, r), "z G4 Kamieniołom odblokowany")
+	assert_eq(BuildPanel.state_text(K.QUARRY, r), "dostępny", "panel budowy: dostępny")
+	assert_true(grid.place(_spot(grid, K.QUARRY), K.QUARRY, 1) != 0, "Kamieniołom staje w zamku z epoki I")
+	return true

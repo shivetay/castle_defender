@@ -121,7 +121,7 @@ Zmienione zależności: A21 Ściana tarcz wymaga A38, A7 Strzemię wymaga A43, A
 | G1 | ★ Karczowanie lasu | I | +20% drewna, warunek przejścia I → II | — |
 | G2 | Żarna | I | +15% żywności | — |
 | G3 | Studnia głębinowa | I | studnia gasi pożary 2× szybciej | — |
-| G4 | Kamieniarstwo | II | budynek Kamieniołom | G1 |
+| G4 | Kamieniarstwo | I | budynek Kamieniołom (w epoce I od #315) | G1 |
 | G5 | Młyn wodny | II | budynek Młyn | G2 |
 | G6 | ★ Zaprawa wapienna | II | warunek przejścia II → III | G4 |
 | G7 | Prawo targowe | III | budynek Targ, złoto | G5 |

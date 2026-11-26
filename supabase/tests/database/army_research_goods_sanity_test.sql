@@ -114,7 +114,7 @@ select is(private.castle_goods_problem(pg_temp.castle(pg_temp.goods(1001))), 'go
   'towar ponad zbrojownię');
 select is(private.research_need_ms('{}', '{A1}'), 60000::numeric, 'pierwsza technologia epoki I: 60 s');
 select is(private.research_need_ms('{A1}', '{A1,A2,O1}'), 120000::numeric, 'druga i trzecia: po 60 s (czas stały w epoce)');
-select is(private.research_need_ms('{}', '{G4}'), 1800000::numeric, 'pierwsza technologia epoki II: 30 min');
+select is(private.research_need_ms('{}', '{G6}'), 1800000::numeric, 'pierwsza technologia epoki II: 30 min');
 select is(private.research_need_ms('{}', '{A1,A2,O1,G1,G2,O2,G18,G21,U1}'), 540000::numeric,
   'nowe konto: 9 technologii to 9 min, mniej niż 6 h zapasu gry bez sieci');
 select is(private.train_ms(0, 1), 20000::bigint, 'topornik w Koszarach 1: 20 s');

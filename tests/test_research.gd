@@ -57,7 +57,8 @@ func test_dependencies_and_ages_from_note() -> bool:
 		var want: Array[String] = []
 		want.assign(expected.get(code, []) as Array)
 		assert_eq(TechTree.requires(code), want, "%s wymaga" % code)
-	var age_two: Array[String] = ["A5", "A6", "A22", "A46", "A47", "G4", "G6", "S3", "A61", "O24", "G26", "U15"]
+	# G4 Kamieniarstwo w epoce I (#315): kamień z własnej produkcji bez agresywnej gry.
+	var age_two: Array[String] = ["A5", "A6", "A22", "A46", "A47", "G6", "S3", "A61", "O24", "G26", "U15"]
 	for code in TechTree.codes():
 		assert_eq(TechTree.age(code), 1 if age_two.has(code) else 0, "%s: epoka" % code)
 	assert_true(TechTree.is_key("O1") and TechTree.is_key("G6"), "O1 i G6 kluczowe (★)")
@@ -385,7 +386,7 @@ func test_later_age_hidden_until_requirements_done() -> bool:
 	assert_eq(r.check("A6", 0), Research.Result.WRONG_AGE, "widoczna, ale zablokowana epoką")
 	assert_true(not r.is_visible("A5", 0), "A5 wymaga A4, nadal ukryta")
 	assert_true(r.is_visible("A5", 1), "w epoce II widać całe drzewko epoki II")
-	assert_true(r.is_visible("G4", 1) and not Research.new().is_visible("G4", 0), "G4 bez G1 ukryte w epoce I")
+	assert_true(r.is_visible("G6", 1) and not Research.new().is_visible("G6", 0), "G6 bez G4 ukryte w epoce I")
 	for b in TechTree.BRANCH_NAMES.size():
 		assert_true(Research.new().visible_of(TechTree.in_branch(b), 0).size() > 0, "każda gałąź ma kafelek na starcie")
 	return true
