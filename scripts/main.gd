@@ -122,6 +122,8 @@ var seal_check := SealCheck.new()
 var scouting := Scouting.new()
 ## Generałowie (#31): rekrutacja w Dworze, generał ataku i komendant obrony (DefensePlan.commander).
 var generals := Generals.new()
+## Płatne odświeżenia celów Wyprawy (#313): dzienny licznik ceny.
+var target_refresh := TargetRefresh.new()
 var generals_panel: GeneralsPanel
 var ruler_panel: RulerPanel
 ## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
@@ -202,6 +204,7 @@ func _ready() -> void:
 		seal_check = saved.seal
 		scouting = saved.scouting
 		generals = saved.generals
+		target_refresh = saved.target_refresh
 		terrain = grid.terrain
 	else:
 		world_seed = WorldSeed.for_new_game()
@@ -282,6 +285,7 @@ func _ready() -> void:
 	target_picker.closed.connect(_on_overlay_closed)
 	target_picker.scout_requested.connect(_on_scout_requested)
 	target_picker.scout_changed.connect(_refresh_scout_lines)
+	target_picker.refresh_requested.connect(_on_targets_refresh)
 	ranking_panel = RankingPanel.new()
 	ranking_panel.visible = false
 	layer.add_child(ranking_panel)
@@ -399,7 +403,7 @@ func _ready() -> void:
 	net.local_fresh = saved == null
 	net.state_changed.connect(_on_net_state)
 	net.castle_restored.connect(_on_castle_restored)
-	net.targets_found.connect(target_picker.set_players)
+	net.targets_found.connect(_on_targets_found)
 	net.ranking_loaded.connect(ranking_panel.set_rows)
 	net.attack_started.connect(_on_player_attack_started)
 	net.attack_finished.connect(_on_player_attack_finished)
@@ -530,7 +534,8 @@ func _save() -> void:
 	# posterunki rozwiązanych oddziałów (np. po stratach) nie trafiają do zapisu
 	defense.prune(recruitment)
 	var save := SaveGame.to_dict(world_seed, grid, economy, queue, research, goods, recruitment,
-			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check, scouting, generals)
+			pve_cleared, attack_plan, bots_beaten, defense, attack_target, seal_check, scouting, generals,
+			target_refresh)
 	var err := SaveGame.write(SaveGame.PATH, save)
 	if err != OK:
 		push_warning("Nie udało się zapisać gry: %s" % error_string(err))
@@ -611,6 +616,11 @@ static func _now_ms() -> int:
 	return int(Time.get_unix_time_from_system() * 1000.0)
 
 
+## Dzień lokalny telefonu dla licznika odświeżeń celów (#313): zeruje się o północy.
+static func _today() -> int:
+	return TargetRefresh.local_day(_now_s(), int(Time.get_time_zone_from_system().get("bias", 0)))
+
+
 ## Kończy budowy, których czas minął, i nalicza produkcję do teraz. Wołane co klatkę i przed
 ## każdą zmianą budynków, żeby czas sprzed zmiany liczył się po starych stawkach.
 func _tick() -> void:
@@ -652,6 +662,7 @@ func _tick() -> void:
 		_save()
 	if target_picker != null and target_picker.visible:
 		_refresh_scout_lines()
+		_refresh_targets_button()
 	var checked := false
 	if _has_ready_seal_house():
 		checked = seal_check.update(now, grid)
@@ -1002,6 +1013,7 @@ func _on_attack_pressed() -> void:
 	if online and not net.find_targets():
 		target_picker.set_players([] as Array[TargetSearch.Target], false)
 	_refresh_scout_lines()
+	_refresh_targets_button()
 	hud.overlay = true
 	hud.message = "Wybierz cel ataku"
 	queue_redraw()
@@ -1032,6 +1044,54 @@ func _on_ranking_message(text: String) -> void:
 
 
 ## Stan zwiadu (#28) pod kartami celów i czy przycisk Zwiad jest czynny, dla wybranego celu.
+## Nowe (#313): cena i dostępność przycisku z licznika dnia, złota i stanu sieci.
+func _refresh_targets_button() -> void:
+	var today := _today()
+	var cost := target_refresh.cost(today)
+	var online := net != null and identity != null and net.is_online()
+	var affordable := target_refresh.can_afford(economy, today)
+	if cost != target_picker.refresh_cost or online != target_picker.refresh_online \
+			or affordable != target_picker.refresh_affordable:
+		target_picker.refresh_cost = cost
+		target_picker.refresh_online = online
+		target_picker.refresh_affordable = affordable
+		target_picker.queue_redraw()
+
+
+## Nowe (#313): szuka innych celów. Złoto schodzi dopiero po udanym szukaniu (_on_targets_found).
+func _on_targets_refresh() -> void:
+	_tick()
+	_refresh_targets_button()
+	if not target_refresh.can_afford(economy, _today()):
+		hud.message = "Za mało złota na nowe cele"
+		return
+	if not target_picker.refresh_enabled():
+		return
+	target_picker.begin_refresh()
+	if not net.find_targets():
+		target_picker.set_players([] as Array[TargetSearch.Target], false)
+		hud.message = "Brak sieci: złoto zostaje"
+	_refresh_targets_button()
+
+
+## Wynik szukania celów. Przy płatnym odświeżeniu (#313) udane szukanie pobiera złoto, a nieudane
+## (albo złoto, które w międzyczasie zniknęło) zostawia starą listę bez opłaty.
+func _on_targets_found(players: Array[TargetSearch.Target], ok: bool, limited: bool) -> void:
+	if target_picker.is_refreshing():
+		_tick()
+		var cost := target_refresh.cost(_today())
+		if not ok:
+			hud.message = "Za często: złoto zostaje" if limited else "Brak odpowiedzi: złoto zostaje"
+		elif target_refresh.pay(economy, _today()):
+			hud.message = "Nowe cele: -%d złota" % cost
+			_save()
+		else:
+			ok = false
+			hud.message = "Za mało złota na nowe cele"
+	target_picker.set_players(players, ok, limited)
+	_refresh_targets_button()
+
+
 func _refresh_scout_lines() -> void:
 	var t := target_picker.selected_target()
 	if t == null:

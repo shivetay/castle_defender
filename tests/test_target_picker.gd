@@ -119,3 +119,64 @@ func test_flow_bots_then_players() -> bool:
 	assert_true(p.targets[0].is_bot, "bez szukania odpowiedź jest pomijana")
 	p.free()
 	return true
+
+
+## Przycisk „Nowe” (#313): nad Botami, z dala od Planuj i od innych przycisków, z ceną w napisie,
+## także przy odsłoniętym czasie zwiadu.
+func test_refresh_button_layout() -> bool:
+	var r := TargetPicker.refresh_rect(VIEW, LEFT)
+	assert_true(r.size.x >= 12 and r.size.y >= 12, "co najmniej 12×12")
+	assert_true(r.position.x >= LEFT and r.end.x <= RIGHT, "z dala od krawędzi")
+	assert_true(r.end.y <= Hud.row_y(VIEW), "nad dolnym rzędem")
+	assert_true(r.position.y >= TargetPicker.SCOUT_Y + 2 * (PixelFont.LINE + 1), "pod liniami zwiadu")
+	for b: Rect2 in [TargetPicker.bots_rect(VIEW, LEFT), TargetPicker.plan_rect(VIEW, RIGHT),
+			TargetPicker.close_rect(VIEW, RIGHT), TargetPicker.scout_rect(VIEW, LEFT, true),
+			TargetPicker.scout_time_rect(VIEW, LEFT)]:
+		assert_true(not r.intersects(b), "osobno od innych przycisków")
+	for open: bool in [false, true]:
+		assert_eq(TargetPicker.target_at(r.get_center(), VIEW, LEFT, RIGHT, open), T.REFRESH, "dotyk Nowe")
+	for n in [0, 5, 50]:
+		var label := TargetPicker.refresh_label(TargetRefresh.cost_for(n))
+		assert_true(PixelFont.text_width(label) + 4 <= Hud.BUTTON_SIZE.x, "„%s” mieści się" % label)
+	return true
+
+
+## Odświeżenie: tylko w sieci, ze złotem i gdy nic się nie szuka. Udane podmienia cele, nieudane
+## zostawia poprzednią listę i jej stan.
+func test_refresh_flow() -> bool:
+	var p := TargetPicker.new()
+	var asked: Array[int] = [0]
+	p.refresh_requested.connect(func() -> void: asked[0] += 1)
+	p.open(0, true)
+	p.refresh_online = true
+	p.refresh_affordable = true
+	assert_true(not p.refresh_enabled(), "w trakcie szukania wyszarzony")
+	p._activate(T.REFRESH)
+	assert_eq(asked[0], 0, "w trakcie szukania nic nie robi")
+	p.set_players([_player()] as Array[TargetSearch.Target], true)
+	assert_true(p.refresh_enabled(), "po szukaniu aktywny")
+	p._activate(T.REFRESH)
+	assert_eq(asked[0], 1, "prośba o odświeżenie")
+	p.begin_refresh()
+	assert_true(p.is_refreshing(), "odświeża")
+	assert_true(not p.targets[0].is_bot, "w trakcie zostaje stara lista")
+	p.set_players([] as Array[TargetSearch.Target], false)
+	assert_true(not p.is_refreshing(), "koniec odświeżania")
+	assert_true(not p.targets[0].is_bot, "nieudane: gracz zostaje")
+	assert_eq(p.status_text(), "", "nieudane: poprzedni stan")
+	p.begin_refresh()
+	p.set_players([] as Array[TargetSearch.Target], true)
+	assert_true(p.targets[0].is_bot, "udane: nowa lista")
+	p.refresh_affordable = false
+	assert_true(not p.refresh_enabled(), "bez złota wyszarzony")
+	p._activate(T.REFRESH)
+	assert_eq(asked[0], 1, "bez złota nic")
+	p.refresh_affordable = true
+	p.refresh_online = false
+	assert_true(not p.refresh_enabled(), "bez sieci wyszarzony")
+	p.refresh_online = true
+	p.begin_refresh()
+	p.open(0, true)
+	assert_true(not p.is_refreshing(), "ponowne otwarcie kasuje odświeżanie")
+	p.free()
+	return true

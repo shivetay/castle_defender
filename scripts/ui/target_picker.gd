@@ -8,7 +8,8 @@ extends Node2D
 ## Planuj na karcie gracza zaczyna atak na serwerze (`start_attack`, #240) i otwiera plan na kopii
 ## jego zamku. Zwiad (#28): pierwsze kliknięcie Zwiad odsłania przycisk czasu (2, 10 albo 30 min,
 ## #317), kolejne wysyła Tropicieli na wybrany cel; pod kartami są stan i koszt zwiadu, które
-## podaje main (scout_lines). Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
+## podaje main (scout_lines). Nowe (#313) losuje inne cele za złoto (cena i dostępność od main,
+## TargetRefresh); nieudane szukanie zostawia poprzednią listę. Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
 
 signal bot_chosen(index: int)
 signal player_chosen(target: TargetSearch.Target)
@@ -18,8 +19,10 @@ signal closed
 signal scout_requested(target: TargetSearch.Target, duration: int)
 ## Zmienił się wybrany cel albo długość zwiadu: main odświeża scout_lines.
 signal scout_changed
+## Nowe (#313): gracz chce innych celów za złoto; main sprawdza złoto i woła begin_refresh.
+signal refresh_requested
 
-enum Target { NONE = -1, PLAN = 1, CLOSE = 2, BOTS = 3, SCOUT = 4, SCOUT_TIME = 5, CARD = 100 }
+enum Target { NONE = -1, PLAN = 1, CLOSE = 2, BOTS = 3, SCOUT = 4, SCOUT_TIME = 5, REFRESH = 6, CARD = 100 }
 ## Stan szukania graczy (napis z prawej od tytułu).
 enum Search { OFFLINE, SEARCHING, DONE, FAILED, LIMITED }
 
@@ -31,6 +34,7 @@ const PLAN_LABEL := "Planuj"
 const CLOSE_LABEL := "Wróć"
 const BOTS_LABEL := "Boty"
 const SCOUT_LABEL := "Zwiad"
+const REFRESH_LABEL := "Nowe"
 ## Siła obrony celu (#310); siły gracza klient jeszcze nie zna (#293).
 const STRENGTH_LABEL := "Siła"
 const UNKNOWN_STRENGTH_TEXT := "Siła ?"
@@ -56,10 +60,17 @@ var scout_duration := 1
 var scout_enabled := false
 var scout_time_open := false
 var scout_lines: Array[String] = []
+## Nowe (#313): cena następnego odświeżenia, czy gracz jest w sieci i czy stać go na nie (ustawia main).
+var refresh_cost := TargetRefresh.BASE_COST
+var refresh_online := false
+var refresh_affordable := false
 var content_left := float(Hud.CORNER_INSET)
 var content_right := 320.0 - Hud.CORNER_INSET
 
 var _pressed: int = Target.NONE
+## Trwa płatne odświeżenie: stara lista zostaje, a nieudane szukanie przywraca `_search_before`.
+var _refreshing := false
+var _search_before: int = Search.OFFLINE
 
 
 ## Otwiera ekran z 3 botami; `online`: trwa szukanie graczy, wynik da `set_players`.
@@ -69,6 +80,7 @@ func open(beaten_count: int, online: bool) -> void:
 	search = Search.SEARCHING if online else Search.OFFLINE
 	selected = 0
 	scout_time_open = false
+	_refreshing = false
 	visible = true
 	_pressed = Target.NONE
 	queue_redraw()
@@ -79,11 +91,38 @@ func open(beaten_count: int, online: bool) -> void:
 func set_players(players: Array[TargetSearch.Target], ok: bool, limited: bool = false) -> void:
 	if search != Search.SEARCHING:
 		return
+	if _refreshing:
+		_refreshing = false
+		if not ok:
+			search = _search_before
+			queue_redraw()
+			return
 	search = Search.DONE if ok else (Search.LIMITED if limited else Search.FAILED)
 	if ok:
 		targets = TargetSearch.fill(players, beaten)
 		selected = 0
 	queue_redraw()
+
+
+## Zaczyna płatne odświeżenie (#313): stan „szukam”, a karty zostają do odpowiedzi.
+func begin_refresh() -> void:
+	_search_before = search
+	search = Search.SEARCHING
+	_refreshing = true
+	queue_redraw()
+
+
+func is_refreshing() -> bool:
+	return _refreshing
+
+
+## Nowe da się nacisnąć w sieci, ze złotem na cenę i gdy nic się nie szuka.
+func refresh_enabled() -> bool:
+	return refresh_online and refresh_affordable and search != Search.SEARCHING
+
+
+static func refresh_label(cost: int) -> String:
+	return "%s %d" % [REFRESH_LABEL, cost]
 
 
 func close() -> void:
@@ -149,6 +188,11 @@ static func scout_rect(view: Vector2, left: float, time_open: bool = true) -> Re
 	return Rect2(Vector2(left + slot * (Hud.BUTTON_SIZE.x + Hud.BUTTON_GAP), Hud.row_y(view)), Hud.BUTTON_SIZE)
 
 
+## Nowe (#313): nad Botami, po lewej, z dala od Planuj (dolny rząd bywa pełny przy czasie zwiadu).
+static func refresh_rect(view: Vector2, left: float) -> Rect2:
+	return Rect2(Vector2(left, Hud.row_y(view) - Hud.BUTTON_SIZE.y - Hud.BUTTON_GAP), Hud.BUTTON_SIZE)
+
+
 static func target_at(p: Vector2, view: Vector2, left: float, right: float, time_open: bool = true) -> int:
 	if plan_rect(view, right).has_point(p):
 		return Target.PLAN
@@ -160,6 +204,8 @@ static func target_at(p: Vector2, view: Vector2, left: float, right: float, time
 		return Target.SCOUT_TIME
 	if scout_rect(view, left, time_open).has_point(p):
 		return Target.SCOUT
+	if refresh_rect(view, left).has_point(p):
+		return Target.REFRESH
 	var cards := card_rects(left, right)
 	for i in cards.size():
 		if cards[i].has_point(p):
@@ -215,6 +261,9 @@ func _activate(t: int) -> void:
 			bot_chosen.emit(target.bot_idx)
 		else:
 			player_chosen.emit(target)
+	elif t == Target.REFRESH:
+		if refresh_enabled():
+			refresh_requested.emit()
 	elif t == Target.BOTS:
 		bots_pressed.emit()
 	elif t == Target.CLOSE:
@@ -271,6 +320,8 @@ func _draw() -> void:
 				_pressed == Target.SCOUT_TIME, false)
 	Hud.paint_button(self, scout_rect(view, content_left, scout_time_open), SCOUT_LABEL,
 			_pressed == Target.SCOUT, not scout_enabled)
+	Hud.paint_button(self, refresh_rect(view, content_left), refresh_label(refresh_cost),
+			_pressed == Target.REFRESH, not refresh_enabled())
 	var w := int(content_right - content_left)
 	for i in mini(scout_lines.size(), 2):
 		PixelFont.draw_text(self, Vector2(content_left, SCOUT_Y + i * (PixelFont.LINE + 1)), fit(scout_lines[i], w),
