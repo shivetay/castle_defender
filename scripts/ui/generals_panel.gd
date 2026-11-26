@@ -170,7 +170,7 @@ func _draw() -> void:
 	if generals == null:
 		return
 	var view := get_viewport_rect().size
-	draw_rect(Rect2(Vector2.ZERO, view), Color(Palette.SHADOW, 0.85))
+	draw_rect(Hud.backdrop_rect(view), Color(Palette.SHADOW, 0.85))
 	if screen == Screen.PERKS:
 		_draw_perks(view)
 		return

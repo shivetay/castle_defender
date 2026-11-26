@@ -90,3 +90,21 @@ func test_icon_column_is_narrow() -> bool:
 	assert_eq(Hud.target_at(Vector2(b.y - Hud.ICON_BUTTON_SIZE.x - 2, Hud.column_rect(b.y, 0).get_center().y), VIEW, b.y, false, false),
 			T.NONE, "obok wąskiego przycisku jest już mapa")
 	return true
+
+
+## #318: ekrany Generałowie, Władca i Ustawienia przyciemniają widok tylko do dolnego paska, więc
+## komunikat (np. po „Wyszkol” generała) jest widoczny, a ich przyciski mieszczą się nad paskiem.
+func test_backdrop_leaves_message_bar_visible() -> bool:
+	for view: Vector2 in [VIEW, WIDE]:
+		var r := Hud.backdrop_rect(view)
+		assert_eq(r.position, Vector2.ZERO, "tło od lewego górnego rogu")
+		assert_eq(r.size.x, view.x, "tło na całą szerokość")
+		assert_eq(r.end.y, view.y - Hud.BAR_H, "tło kończy się nad dolnym paskiem")
+		var bottom: Array[Rect2] = [GeneralsPanel.close_rect(view), GeneralsPanel.back_rect(view, Generals.perks_for(2).size()),
+				RulerPanel.close_rect(view)]
+		for s: int in [SettingsPanel.Screen.SETTINGS, SettingsPanel.Screen.CONFIRM]:
+			bottom.append_array(SettingsPanel.button_rects(view, s))
+		bottom.append(Rect2(0, view.y - SettingsPanel.FOOTER_Y, view.x, 20))  # stopka: sieć i wersja
+		for b: Rect2 in bottom:
+			assert_true(r.encloses(b), "przycisk %s nad dolnym paskiem" % b)
+	return true

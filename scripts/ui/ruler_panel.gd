@@ -120,7 +120,7 @@ func _draw() -> void:
 	var view := get_viewport_rect().size
 	var w := int(ROW_W)
 	var left := floorf((view.x - ROW_W) / 2.0)
-	draw_rect(Rect2(Vector2.ZERO, view), Color(Palette.SHADOW, 0.85))
+	draw_rect(Hud.backdrop_rect(view), Color(Palette.SHADOW, 0.85))
 	PixelFont.draw_centered(self, Rect2(0, 8, view.x, 10), ruler_name.to_upper(), Palette.THATCH[2])
 	draw_rect(Rect2(floorf(view.x / 2.0) - 30, 19, 60, 1), Palette.WOOD[2])
 	PixelFont.draw_text(self, Vector2(left, 22), PixelFont._fit(player_line, w), Palette.THATCH[2])
