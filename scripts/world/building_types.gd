@@ -57,11 +57,14 @@ const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chat
 		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica", "Donżon",
 		"Tropiciele", "Strażnica", "Komenda", "Magazyn", "Fosa", "Kopiec", "Spichlerz", "Studnia", "Kamień",
 		"Sygnałowa"]
+## Rozmiar w kratkach (#340, ADR 0005): Koszary 3×3, budynki wojska, Magazyn i pola 3×2 (poziomo),
+## reszta 2×2, a umocnienia 1×1 i brama 3×1. Budynek ze starszego zapisu zostaje w zapisanym prostokącie
+## (BuildGrid.cells_of), więc ta tabela dotyczy tylko nowych budowli.
 const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
-		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
-		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
-		Vector2i(2, 2), Vector2i(1, 1), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
+		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(3, 2),
+		Vector2i(3, 3), Vector2i(3, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
+		Vector2i(3, 2), Vector2i(1, 1), Vector2i(2, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(3, 2),
 		Vector2i(2, 2)]
 ## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu): umocnienia, gospodarka (#122),
 ## Magazyn, wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119), Chata tropicieli (#28, #92)

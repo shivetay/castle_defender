@@ -11,6 +11,7 @@ Każdy typ zamku (epoka) ma 5 poziomów Dworu. Przejście do kolejnej epoki wyma
 - Każdy budynek ma poziomy 1–5 w ramach bieżącej epoki i nie może mieć wyższego poziomu niż zamek.
 - Każdy poziom zmienia wygląd budynku (wyższa wieża, więcej okien, lepszy materiał) i daje premię: wytrzymałość, zasięg, produkcja albo nowa jednostka.
 - Koszt rośnie ok. 1,6× na poziom, czas ok. 2× na poziom (cel projektowy). **W kodzie** mnożniki to 100/150/250/400/600% kosztu i 1/3/10/30/90 czasu (`BuildConfig`); epoka II ×2. Przykłady i „typowe czasy” poniżej są szkicem — aktualne liczby oraz dwie opcje korekty: [[Balans]] (#262).
+- Rozmiar mówi o roli budynku: Koszary 3×3; Dom drużyny, Strzelnica, Stajnia, Magazyn, Pole lnu, Pole i spichlerz i Kamieniołom 3×2; reszta 2×2, umocnienia i fosa 1×1, brama 3×1. Budynek postawiony wcześniej zostaje w starym rozmiarze ([[ADR/0005-rozmiary-budynkow|ADR 0005]], #340).
 - Technologie są w 5 gałęziach drzewka. Przejście epoki opiera się na konkretnych techach kluczowych ★ (I → II: O1, G1, A7). Pełna lista: [[Drzewko technologiczne]].
 
 ## Budynki a epoka

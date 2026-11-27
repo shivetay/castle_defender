@@ -396,7 +396,7 @@ func test_construction_site() -> bool:
 func test_workshop_roofs_by_category() -> bool:
 	var level := 2
 	var producer := BuildingArt.make_image(BuildingTypes.Kind.TANNERY, level, BuildingTypes.State.INTACT)
-	var military := BuildingArt.make_image(BuildingTypes.Kind.BARRACKS, level, BuildingTypes.State.INTACT)
+	var military := BuildingArt.make_image(BuildingTypes.Kind.SCOUT_HOUSE, level, BuildingTypes.State.INTACT)
 	var economy := BuildingArt.make_image(BuildingTypes.Kind.FISHER, level, BuildingTypes.State.INTACT)
 	# połać korpusu (nie kalenica y=6), z dala od propsu (x=11)
 	assert_true(Palette.THATCH.has(producer.get_pixel(5, 4)), "wytwórca: strzecha")
@@ -446,9 +446,9 @@ func test_workshop_roofs_keep_light_at_wall() -> bool:
 		assert_true(lit_west > lit_east, "stóg (przy murze %d): jasna połać od zachodu" % lean)
 		assert_true(hips > 0, "stóg (przy murze %d): ciemne narożniki" % lean)
 	# poziom 4: korpus już dochodzi do krawędzi, różnicę daje brak belki ramy od strony muru
-	var plain := BuildingArt.make_image(BuildingTypes.Kind.BARRACKS, 4, BuildingTypes.State.INTACT)
-	var west := BuildingArt.make_image(BuildingTypes.Kind.BARRACKS, 4, BuildingTypes.State.INTACT, 0, false, L.WEST)
-	var east := BuildingArt.make_image(BuildingTypes.Kind.BARRACKS, 4, BuildingTypes.State.INTACT, 0, false, L.EAST)
+	var plain := BuildingArt.make_image(BuildingTypes.Kind.SCOUT_HOUSE, 4, BuildingTypes.State.INTACT)
+	var west := BuildingArt.make_image(BuildingTypes.Kind.SCOUT_HOUSE, 4, BuildingTypes.State.INTACT, 0, false, L.WEST)
+	var east := BuildingArt.make_image(BuildingTypes.Kind.SCOUT_HOUSE, 4, BuildingTypes.State.INTACT, 0, false, L.EAST)
 	assert_true(plain.get_data() != west.get_data(), "pomost przy murze bez belki od muru")
 	# korpus 11×11 od (0, 1): kolumna x=0 to belka (rozjaśniona światłem z lewej) albo deski
 	assert_true(plain.get_pixel(0, 6) != west.get_pixel(0, 6), "przybudówka z lewej: deski aż do muru")

@@ -150,7 +150,7 @@ static func smokes(kind: int, cell: Vector2i) -> bool:
 func chimney(id: int) -> Vector2i:
 	var kind := grid.kinds[id]
 	var lean := CastleView.lean_of(grid, id)
-	var used := textures.used_rect(kind, grid.levels[id], BuildingTypes.State.INTACT, 0, false, lean)
+	var used := textures.used_rect(kind, grid.levels[id], BuildingTypes.State.INTACT, 0, false, lean, grid.cells_of(id))
 	var origin := CastleView.texture_origin(grid.buildings[id].position, kind) + CastleView.attach_offset(grid, textures, id)
 	return origin + BuildingArt.chimney_at(used)
 
@@ -353,7 +353,7 @@ func _flag_spots() -> Array[Vector4i]:
 			continue
 		var lean := CastleView.lean_of(grid, id)
 		var fl := textures.flags(kind, grid.levels[id], int(states.get(id, BuildingTypes.State.INTACT)),
-				grid.wall_mask(id), grid.is_vertical(id), lean)
+				grid.wall_mask(id), grid.is_vertical(id), lean, grid.cells_of(id))
 		if fl.is_empty():
 			continue
 		var origin := CastleView.texture_origin(grid.buildings[id].position, kind) + CastleView.attach_offset(grid, textures, id)
