@@ -173,9 +173,20 @@ insert into private.sim_versions (version) values (600) on conflict (version) do
 select version, supported from private.sim_versions order by version;
 ```
 
-Bez tego wpisu serwer przypisuje nowym atakom starą wersję symulacji (najwyższą z tabeli), a worker
-liczy je starym packiem. Wpis bez packa na VPS kończy się `FileNotFoundError` w workerze
-i atakami ze statusem `failed`.
+Wpis decyduje, które wersje gry mogą atakować (#354, ADR 0008). Klient podaje swoją wersję przy
+zatwierdzeniu ataku, a worker liczy atak packiem tej wersji. Bez wpisu nowe APK nie zaatakuje
+gracza: dostanie komunikat „Ta wersja nie może atakować. Zaktualizuj grę”. Dlatego wpis (i pack)
+musi być gotowy **przed** publikacją APK. Wpis bez packa na VPS kończy się `FileNotFoundError`
+w workerze i atakami ze statusem `failed`.
+
+Starsza wersja gry atakuje dalej swoim packiem, dopóki ma `supported = true`. Żeby odciąć ją od
+ataków (np. gdy jej symulacja ma błąd), wyłącz ją:
+
+```sql
+update private.sim_versions set supported = false where version = 501;  -- stara wersja
+```
+
+Całą grę na starej wersji blokuje dopiero `min_code` (krok 6).
 
 ### 3.4 Restart workera
 

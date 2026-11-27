@@ -146,8 +146,8 @@ func test_attacker_uses_server_plan() -> bool:
 			"bez planu kopia nie zatwierdza ataku")
 	assert_true(not bad.apply_launch({"id": ATTACK, "castle": _castle(_map_seed()), "defense": {}, "plan": "x"}),
 			"zły plan nie zatwierdza ataku")
-	assert_eq(AttackLaunch.request(ATTACK, plan), {"attack_id": ATTACK, "plan": plan.to_server()},
-			"plan w żądaniu launch_attack")
+	assert_eq(AttackLaunch.request(ATTACK, plan), {"attack_id": ATTACK, "plan": plan.to_server(),
+			"sim_version": VerifyJob.project_sim_version()}, "plan i wersja symulacji w żądaniu launch_attack")
 	return true
 
 

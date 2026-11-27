@@ -16,7 +16,7 @@ Asynchroniczne PvP wymaga serwera, który przechowuje zamki i układy obrony, do
 | Wersja klienta | `public.client_versions` z progami `min_code` (blokada) i `recommended_code` (komunikat), czytane przez `client_version_policy()`; klient wysyła `X-Client-Version`, a Edge Functions i zapisy zamku odrzucają starszą wersję kodem `update_required` ([[ADR/0006-wymuszenie-aktualizacji-wersji-klienta\|ADR 0006]]) |
 
 ## Symulacja deterministyczna
-Bitwa liczy się w stałym kroku 30 Hz, na liczbach całkowitych (bez floatów w logice) i z seedem z serwera. Ta sama bitwa zawsze daje ten sam wynik: działają powtórki i można weryfikować oszustwa. W MVP serwer ufa wynikowi klienta i sprawdza tylko limity (np. łup nie większy niż możliwy). Później ten sam kod GDScript uruchomiony jako Godot headless na workerze (np. Railway) odtwarza bitwę i zatwierdza wynik.
+Bitwa liczy się w stałym kroku 30 Hz, na liczbach całkowitych (bez floatów w logice) i z seedem z serwera. Ta sama bitwa zawsze daje ten sam wynik: działają powtórki i można weryfikować oszustwa. W MVP serwer ufa wynikowi klienta i sprawdza tylko limity (np. łup nie większy niż możliwy). Później ten sam kod GDScript uruchomiony jako Godot headless na workerze (np. Railway) odtwarza bitwę i zatwierdza wynik. Atak liczy się packiem wersji gry, którą klient podał przy zatwierdzeniu ataku. Wersja bez packa na serwerze nie może atakować ([[ADR/0008-wersja-symulacji-ataku-z-klienta|ADR 0008]]).
 
 ## Reklamy z nagrodą: Google AdMob
 W grze wtyczka AdMob dla Godot 4, tylko format rewarded. AdMob po obejrzeniu wywołuje weryfikację po stronie serwera (Server-Side Verification) na Edge Function `ad_reward`, która przyznaje nagrodę i pilnuje limitów dziennych w tabeli `ad_rewards`. Szczegóły nagród: [[Model wydania]].

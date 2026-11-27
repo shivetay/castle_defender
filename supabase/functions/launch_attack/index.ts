@@ -8,6 +8,9 @@
 // #31: żądanie może nieść rodzaj generała ataku (`general`, liczba 0..2). Poziom i perk serwer bierze
 // z zamku atakującego na serwerze (`private.castle_general`) i oddaje w odpowiedzi.
 // #32: perk władcy atakującego serwer bierze z zamku atakującego na serwerze (`ruler_perk` w odpowiedzi).
+// #354 (ADR 0008): żądanie niesie `sim_version` (kod wersji gry, MAJOR*10000 + MINOR*100 + PATCH), którym
+// worker weryfikacji wybiera pack. Wersja bez packa (`private.sim_versions`) to 409 `unsupported_version`;
+// brak pola (starszy klient) oznacza najnowszą wspieraną wersję.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { clientOutdated } from "../_shared/client_version.ts";
@@ -17,11 +20,13 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, x-client-version, apikey, content-type",
 };
 
-const ALLOWED_KEYS = new Set(["attack_id", "plan", "general"]);
+const ALLOWED_KEYS = new Set(["attack_id", "plan", "general", "sim_version"]);
 // Generals.Kind w grze: Wódz drużyny, Łowczy, Budowniczy kopców
 const MAX_GENERAL = 2;
 // AttackPlan.MAX_SQUADS_BY_AGE[-1] w grze; dokładny limit (liczba oddziałów armii) sprawdza check_plan
 const MAX_ORDERS = 8;
+// kod wersji do 99.99.99; czy wersja ma pack, sprawdza private.checked_sim_version
+const MAX_SIM_VERSION = 999999;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ERRORS: Record<string, number> = {
@@ -29,6 +34,7 @@ const ERRORS: Record<string, number> = {
   attack_expired: 409,
   bad_plan: 400,
   bad_general: 400,
+  unsupported_version: 409,
 };
 
 Deno.serve(async (req) => {
@@ -84,6 +90,15 @@ Deno.serve(async (req) => {
     general = b.general;
   }
 
+  let simVersion: number | null = null;
+  if (b.sim_version !== undefined) {
+    const v = b.sim_version;
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > MAX_SIM_VERSION) {
+      return json({ error: "bad_sim_version" }, 400);
+    }
+    simVersion = v;
+  }
+
   const admin = createClient(supabaseUrl, serviceKey);
   if (await clientOutdated(req, admin)) {
     return json({ error: "update_required" }, 426);
@@ -93,6 +108,7 @@ Deno.serve(async (req) => {
     p_attack: attackId,
     p_plan: b.plan,
     p_general: general,
+    p_sim_version: simVersion,
   });
   if (error) {
     const code = known(error);
