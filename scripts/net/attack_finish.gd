@@ -62,4 +62,7 @@ static func error_note(code: String) -> String:
 			return "Atak trwał za długo: bez łupu"
 		SupabaseClient.NETWORK_ERROR:
 			return "Brak sieci: wynik wyślę później"
+		ClientVersion.UPDATE_REQUIRED_ERROR:
+			# #336: wynik czeka w PendingFinish i wróci na serwer po aktualizacji gry
+			return "Zaktualizuj grę: wynik wyślę później"
 	return "Serwer odrzucił wynik: bez łupu"

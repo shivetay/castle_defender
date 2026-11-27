@@ -248,3 +248,10 @@ func test_update_panel_signals() -> bool:
 	assert_eq(got.size(), 4, "schowane okno nie reaguje")
 	panel.free()
 	return true
+
+
+func test_update_required_finish_note_keeps_result() -> bool:
+	var note := AttackFinish.error_note(V.UPDATE_REQUIRED_ERROR)
+	assert_eq(note, "Zaktualizuj grę: wynik wyślę później", "wynik czeka na aktualizację, nie przepada")
+	assert_true(PixelFont.text_width(note) <= 300, "komunikat mieści się w 320 px")
+	return true
