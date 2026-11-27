@@ -21,6 +21,8 @@ static func verify(job: Dictionary) -> Dictionary:
 	var mismatch := _sim_version_mismatch(job, sim)
 	if not mismatch.is_empty():
 		return mismatch
+	if job.get("bot_idx") != null:
+		return _verify_bot(job, sim)
 	var parsed := AttackReplay.parse_response(_normalize(job))
 	if parsed.is_empty():
 		return _fail("invalid_job")
@@ -30,12 +32,41 @@ static func verify(job: Dictionary) -> Dictionary:
 	var b := replay.create_battle()
 	# Battle.step przy tick >= time_limit_ticks kończy obrońcą (EndReason.TIME_LIMIT), więc po
 	# run(time_limit_ticks) winner nie powinien zostać NONE — gałąź unfinished to tylko bezpiecznik.
+	return _run(b, replay.castle.army.size(), sim)
+
+
+## Atak na zamek-bota (#413, ADR 0016): zamek z BotRoster (seed musi się zgadzać z `bot_castles`), bitwa
+## tą samą drogą co u atakującego (BotBattle.from_start) z planem, badaniami, generałem i perkiem z serwera.
+static func _verify_bot(job: Dictionary, sim: int) -> Dictionary:
+	var raw: Variant = job.get("bot_idx")
+	if not (raw is int or (raw is float and float(raw) == floorf(float(raw)))):
+		return _fail("bad_bot")
+	var idx := int(raw)
+	if idx < 0 or idx >= BotRoster.COUNT:
+		return _fail("bad_bot")
+	if AttackReplay._seed(job.get("map_seed")) != BotRoster.seed_of(idx):
+		return _fail("bad_bot_seed")
+	var battle_seed := AttackReplay._seed(job.get("battle_seed"))
+	var army := AttackReplay.parse_army(job.get("army"))
+	if battle_seed < 0 or army.is_empty():
+		return _fail("invalid_job")
+	var start := job.duplicate(true)
+	start["bot_idx"] = idx
+	start["battle_seed"] = battle_seed
+	var b := BotBattle.from_start(BotRoster.generate(idx), army, start)
+	if b == null:
+		return _fail("invalid_job")
+	return _run(b, army.size(), sim)
+
+
+## Bitwa do końca i wynik w kształcie `submit_verification`.
+static func _run(b: Battle, squads: int, sim: int) -> Dictionary:
 	b.run(BattleConfig.time_limit_ticks())
 	if b.winner == Battle.Winner.NONE:
 		return _fail("unfinished")
 	var result := BattleResult.of(b)
 	var survivors := b.survivors(Battle.Side.ATTACKER)
-	while survivors.size() < replay.castle.army.size():
+	while survivors.size() < squads:
 		survivors.append(0)
 	return {
 		"won": result.won,
