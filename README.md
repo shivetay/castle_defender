@@ -902,7 +902,7 @@ i `CHANGELOG.md`.
 
 | Workflow | Kiedy | Co robi |
 |---|---|---|
-| `ci.yml` | każdy push i PR | wersja i changelog, import, kompilacja skryptów, test dymny, testy logiki |
+| `ci.yml` | każdy push i PR | wersja i changelog, import, kompilacja skryptów, test dymny, testy logiki, testy bazy (pgTAP), budowa AAR wtyczki push |
 | `release.yml` | push na `main` | CI i debug APK jako artefakt (Actions → Wydanie → przebieg → Artifacts) |
 | `release.yml` | tag `vX.Y.Z` | CI, debug APK, GitHub Release z opisem z changelogu (APK do pobrania na telefon) |
 | `release.yml` (ręcznie) | Actions → Wydanie → Run workflow | samo debug APK jako artefakt, bez Release |
@@ -927,7 +927,8 @@ scripts/ui/      HUD
 scripts/net/     klient Supabase: konto anonimowe, sesja, tryb offline
 config/          wzór konfiguracji Supabase (właściwy plik poza repo)
 tests/           testy headless (run_tests.gd, check_compile.gd, test_*.gd)
-tools/           narzędzia (version.py, changelog.py i ich testy)
+tools/           narzędzia (version.py, changelog.py i ich testy) i wtyczka Android push (android/push_plugin)
+addons/          wtyczka edytora dunhold_push: AAR push i konfiguracja Firebase w eksporcie Androida
 supabase/        backend PvP: config.toml, migracje SQL i testy RLS (pgTAP)
 .github/         workflowy CI/CD i skrypty instalacji Godota
 .claude/skills/  skille dla agenta AI, także bezpieczeństwa i review (zob. CLAUDE.md)
@@ -968,6 +969,14 @@ jest w kodzie; migracja `defense_history` i Edge Function `defense_history` są 
 Siła celu PvP jako przedział z serwera (#293) jest w kodzie. Migracja `target_strength` i nowe wersje Edge Functions
 `find_targets` i `defense_history` są na projekcie (starsza wersja gry pomija nowe pola).
 Push o ataku (#30, ADR 0012), część serwerowa, jest w kodzie: tabela `push_tokens` (bez dostępu klienta), Edge Function `push_token` i wysyłka przez FCM z `finish_attack`, raz na atak. Migracja `push_tokens`, nowa Edge Function `push_token` i nowa wersja `finish_attack` są na projekcie; sekret `FCM_SERVICE_ACCOUNT` czeka na projekt Firebase (bez niego push się nie wysyła). Wtyczka Android i lokalne powiadomienie o końcu budowy idą w kolejnych PR-ach.
+Push o ataku (#30, ADR 0012), część kliencka, jest w kodzie: własna wtyczka Androida DunholdPush
+(Kotlin w `tools/android/push_plugin`, AAR budowany w CI przez `.github/scripts/build_push_plugin.sh`,
+eksport w `addons/dunhold_push`), debug APK budowany przez Gradle, uprawnienie `POST_NOTIFICATIONS`,
+okienko zgody przy pierwszym wejściu na Wyprawę (po odmowie znowu po 7 dniach), token urządzenia
+wysyłany przez Edge Function `push_token` i przełączniki Ataki / Koniec budowy w Ustawieniach → Powiadomienia.
+Do działania potrzebny jest projekt Firebase (`config/google-services.json` poza repo, w CI sekret
+`GOOGLE_SERVICES_JSON`) (część serwerowa jest już na `main` i na projekcie). Przełącznik Koniec budowy zacznie działać
+z lokalnym powiadomieniem (trzeci PR #30).
 Wymuszenie aktualizacji (#336, ADR 0006) jest w kodzie: progi `min_code` i `recommended_code` z serwera
 (migracja `client_version`), okienko o nowej wersji raz na 24 h, ekran blokady poniżej minimum (także offline,
 z zapamiętaną polityką) i odrzucanie starszych wersji przez Edge Functions i zapisy zamku (`update_required`).

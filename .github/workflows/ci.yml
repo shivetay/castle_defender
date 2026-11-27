@@ -43,6 +43,27 @@ jobs:
           path: build/logs/
           retention-days: 7
 
+  # Wtyczka Androida DunholdPush (#30, ADR 0012): sama kompilacja Kotlina do AAR, bez sekretów.
+  # Pełny eksport APK z wtyczką robi release.yml po pushu na main.
+  push-plugin:
+    name: Wtyczka Android (AAR)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Budowa AAR
+        run: bash .github/scripts/build_push_plugin.sh
+
   pgtap:
     name: Testy bazy (pgTAP)
     runs-on: ubuntu-24.04

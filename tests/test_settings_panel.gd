@@ -10,7 +10,7 @@ const MAIN := preload("res://scripts/main.gd")
 
 
 func test_buttons_and_targets() -> bool:
-	assert_eq(SettingsPanel.targets(S.SETTINGS), [T.LANGUAGE, T.SOUND, T.TUTORIAL, T.DISCORD, T.NEW_GAME, T.CLOSE] as Array[int], "ustawienia")
+	assert_eq(SettingsPanel.targets(S.SETTINGS), [T.LANGUAGE, T.SOUND, T.TUTORIAL, T.NOTIFY, T.DISCORD, T.NEW_GAME, T.CLOSE] as Array[int], "ustawienia")
 	assert_eq(SettingsPanel.targets(S.CONFIRM), [T.CONFIRM_YES, T.CONFIRM_NO] as Array[int], "potwierdzenie")
 	var first := SettingsPanel.button_rects(VIEW, S.SETTINGS)[0].get_center()
 	assert_eq(SettingsPanel.target_at(first, VIEW, S.SETTINGS), T.LANGUAGE, "na górze język")
@@ -41,6 +41,30 @@ func test_new_game_needs_confirmation() -> bool:
 	return true
 
 
+## Powiadomienia (#30): osobny ekran z przełącznikami Ataki i Koniec budowy, Wróć do ustawień.
+func test_notification_switches() -> bool:
+	var m := SettingsPanel.new()
+	var seen: Array[Array] = []
+	m.push_changed.connect(func(a: bool, b: bool) -> void: seen.append([a, b]))
+	m.open()
+	m.activate(T.NOTIFY)
+	assert_eq(m.screen, S.NOTIFY, "ekran powiadomień")
+	assert_eq(m.hint, SettingsPanel.PUSH_UNAVAILABLE, "bez wtyczki podpowiedź")
+	assert_eq(m.label(T.PUSH_ATTACKS), SettingsPanel.PUSH_ATTACKS_ON, "domyślnie ataki wł.")
+	assert_eq(m.label(T.PUSH_BUILD), SettingsPanel.PUSH_BUILD_ON, "domyślnie budowa wł.")
+	m.activate(T.PUSH_ATTACKS)
+	assert_eq(m.label(T.PUSH_ATTACKS), SettingsPanel.PUSH_ATTACKS_OFF, "ataki wył.")
+	m.activate(T.PUSH_BUILD)
+	assert_eq(seen, [[false, true], [false, false]] as Array[Array], "sygnały z obu przełączników")
+	m.activate(T.NOTIFY_BACK)
+	assert_eq(m.screen, S.SETTINGS, "Wróć")
+	m.push_available = true
+	m.activate(T.NOTIFY)
+	assert_eq(m.hint, "", "z wtyczką bez podpowiedzi")
+	m.free()
+	return true
+
+
 func test_language_path() -> bool:
 	var m := SettingsPanel.new()
 	assert_eq(m.label(T.LANGUAGE), "Język: polski", "domyślnie polski")
@@ -56,7 +80,7 @@ func test_language_path() -> bool:
 ## Układ: cele ≥ 12×12, napisy mieszczą się na przyciskach i na 320 px, przyciski nad stopką.
 func test_layout_fits_the_screen() -> bool:
 	var m := SettingsPanel.new()
-	for s: int in [S.SETTINGS, S.CONFIRM, S.CONFIRM_TUTORIAL]:
+	for s: int in [S.SETTINGS, S.CONFIRM, S.CONFIRM_TUTORIAL, S.NOTIFY]:
 		var rects := SettingsPanel.button_rects(VIEW, s)
 		var ts := SettingsPanel.targets(s)
 		for i in rects.size():
@@ -69,7 +93,8 @@ func test_layout_fits_the_screen() -> bool:
 				assert_true(r.position.y > rects[i - 1].end.y, "bez nakładania")
 	for t: String in [SettingsPanel.TITLE.to_upper(), SettingsPanel.CONFIRM_TEXT, SettingsPanel.TUTORIAL_CONFIRM_TEXT, SettingsPanel.ENGLISH_LATER,
 			SettingsPanel.SOUND_LATER, SettingsPanel.OFFLINE_NOTE, SettingsPanel.version_text(),
-			CommunityLink.OPENING, CommunityLink.FAILED]:
+			CommunityLink.OPENING, CommunityLink.FAILED, SettingsPanel.NOTIFY_TITLE.to_upper(),
+			SettingsPanel.PUSH_UNAVAILABLE]:
 		assert_true(PixelFont.text_width(t) <= VIEW.x - 2 * Hud.CORNER_INSET, "„%s” mieści się na 320 px" % t)
 	m.free()
 	return true

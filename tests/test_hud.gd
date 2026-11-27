@@ -102,7 +102,7 @@ func test_backdrop_leaves_message_bar_visible() -> bool:
 		assert_eq(r.end.y, view.y - Hud.BAR_H, "tło kończy się nad dolnym paskiem")
 		var bottom: Array[Rect2] = [GeneralsPanel.close_rect(view), GeneralsPanel.back_rect(view, Generals.perks_for(2).size()),
 				RulerPanel.close_rect(view)]
-		for s: int in [SettingsPanel.Screen.SETTINGS, SettingsPanel.Screen.CONFIRM]:
+		for s: int in [SettingsPanel.Screen.SETTINGS, SettingsPanel.Screen.CONFIRM, SettingsPanel.Screen.NOTIFY]:
 			bottom.append_array(SettingsPanel.button_rects(view, s))
 		bottom.append(Rect2(0, view.y - SettingsPanel.FOOTER_Y, view.x, 20))  # stopka: sieć i wersja
 		for b: Rect2 in bottom:

@@ -64,16 +64,32 @@ jobs:
           SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
         run: bash .github/scripts/supabase_config.sh
 
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      # Wtyczka push (#30): AAR i config/google-services.json z sekretu (bez niego APK bez pusha).
+      - name: Wtyczka Android (AAR)
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: bash .github/scripts/build_push_plugin.sh
+
       - name: Eksport APK
         run: |
           VERSION=$(python3 tools/version.py current)
           echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           mkdir -p build
           godot --headless --path . --import
-          godot --headless --path . --export-debug "Android (debug APK)" build/castle_defender.apk
+          # Szablon budowy Gradle (res://android, w .gitignore): debug APK z wtyczką push też idzie przez Gradle (#30).
+          godot --headless --path . --install-android-build-template \
+            --export-debug "Android (debug APK)" build/castle_defender.apk
           test -s build/castle_defender.apk || { echo "Brak APK po eksporcie"; exit 1; }
           mv build/castle_defender.apk "build/castle_defender-${VERSION}-debug.apk"
           ls -la build/
+
+      - name: Usunięcie konfiguracji Firebase z runnera
+        if: always()
+        run: rm -f config/google-services.json
 
       - uses: actions/upload-artifact@v7
         with:
@@ -211,6 +227,17 @@ jobs:
           SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
         run: bash .github/scripts/supabase_config.sh
 
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.keys.outputs.ok == 'true'
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Wtyczka Android (AAR)
+        if: steps.keys.outputs.ok == 'true'
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: bash .github/scripts/build_push_plugin.sh
+
       - name: Eksport AAB
         if: steps.keys.outputs.ok == 'true'
         env:
@@ -230,7 +257,7 @@ jobs:
 
       - name: Usunięcie klucza z runnera
         if: always()
-        run: rm -f "$RUNNER_TEMP/upload.keystore"
+        run: rm -f "$RUNNER_TEMP/upload.keystore" config/google-services.json
 
       - uses: actions/upload-artifact@v7
         if: steps.keys.outputs.ok == 'true'

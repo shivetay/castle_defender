@@ -138,6 +138,13 @@ var _defense_history: Array[DefenseLog.Report] = []
 var defense_notice: DefenseNotice
 var _noticed_s := 0
 var _history_from_notice := false
+## Powiadomienia push (#30, ADR 0012): wtyczka Androida, okienko zgody przy Wyprawie, token urządzenia
+## z tej sesji (tylko w pamięci) i przełącznik Ataki, który serwer już potwierdził (-1: jeszcze nic).
+var push: PushNotifications
+var push_prompt: PushPrompt
+var _push_token := ""
+var _push_sent_attacks := -1
+var _push_sending_attacks := -1
 var planner: AttackPlanner
 var attack_panel: AttackPanel
 ## Okienko z informacją (produkcja surowca, limit armii).
@@ -345,6 +352,9 @@ func _ready() -> void:
 	layer.add_child(defense_notice)
 	defense_notice.history_requested.connect(_on_notice_history)
 	defense_notice.closed.connect(_on_overlay_closed)
+	push_prompt = PushPrompt.new()
+	layer.add_child(push_prompt)
+	push_prompt.answered.connect(_on_push_answer)
 
 	defense_panel = DefensePanel.new()
 	defense_panel.research = research
@@ -432,6 +442,9 @@ func _ready() -> void:
 		_set_tutorial(TutorialHints.State.DONE)  # 5 fal już obronionych: samouczek się więcej nie pokaże
 	settings_panel.tutorial_on = TutorialHints.settings_on(tutorial_state)
 	settings_panel.tutorial_changed.connect(_on_tutorial_changed)
+	settings_panel.push_attacks = PlayerProfile.read_push_attacks(PlayerProfile.PATH)
+	settings_panel.push_build = PlayerProfile.read_push_build(PlayerProfile.PATH)
+	settings_panel.push_changed.connect(_on_push_switches)
 	if identity != null:
 		hud.ruler_id = identity.ruler
 	else:
@@ -466,9 +479,11 @@ func _ready() -> void:
 	net.wave_started.connect(_on_wave_started)
 	net.wave_finished.connect(_on_wave_finished)
 	net.castle_rejected.connect(_on_castle_rejected)
+	net.push_token_saved.connect(_on_push_token_saved)
 	net.shop_loaded.connect(shop_panel.set_groups)
 	net.shop_claimed.connect(_on_shop_claimed)
 	add_child(net)
+	_add_push()
 	_add_sync_loader()
 	_add_title_screen()
 	_add_update_panel()
@@ -740,6 +755,7 @@ func _on_net_state(st: int) -> void:
 		net.flush()
 		_load_defenses()
 		_resume_finish()
+		_push_sync()
 
 
 ## Pyta serwer o obrony z czasu, w którym ruiny mogą jeszcze stać (#99), i o historię obron (#328),
@@ -1229,6 +1245,7 @@ func _on_attack_pressed() -> void:
 	# bez tożsamości zamek nie jest na serwerze (#23), więc gracz i tak nie szuka przeciwników
 	var online := net != null and identity != null and net.is_online()
 	target_picker.open(bots_beaten, online)
+	_maybe_ask_push()
 	if online and not net.find_targets():
 		target_picker.set_players([] as Array[TargetSearch.Target], false)
 	_refresh_scout_lines()
@@ -2425,6 +2442,97 @@ func _on_tutorial_answered(keep: bool) -> void:
 	tutorial_prompt = null
 	hud.overlay = false
 	_on_tutorial_changed(keep)
+
+
+# --- Powiadomienia push (#30, ADR 0012) ----------------------------------------------------------
+
+const PUSH_LATER_MESSAGE := "Powiadomienia włączysz w Ustawieniach"
+const PUSH_ON_MESSAGE := "Powiadomię Cię o atakach na zamek"
+
+
+## Wtyczka Androida. Po zgodzie z poprzednich sesji od razu prosi o token (serwer odświeża jego datę).
+func _add_push() -> void:
+	push = PushNotifications.new()
+	add_child(push)
+	push.token_ready.connect(_on_push_token)
+	push.permission_answered.connect(_on_push_permission)
+	settings_panel.push_available = push.is_available()
+	if PlayerProfile.read_push_consent(PlayerProfile.PATH) == PushNotifications.Consent.ACCEPTED \
+			and push.has_permission():
+		push.request_token()
+
+
+## Okienko zgody przy wejściu na Wyprawę: tylko z działającą wtyczką, raz albo 7 dni po odmowie.
+func _maybe_ask_push() -> void:
+	if push == null or push_prompt.visible or not push.is_available():
+		return
+	var consent := PlayerProfile.read_push_consent(PlayerProfile.PATH)
+	if PushNotifications.should_ask(consent, PlayerProfile.read_push_declined(PlayerProfile.PATH), _now_s()):
+		push_prompt.open()
+
+
+## „Tak” w okienku otwiera systemowe pytanie, „Nie teraz” odkłada pytanie o 7 dni.
+func _on_push_answer(yes: bool) -> void:
+	if yes:
+		_write_push_consent(PushNotifications.Consent.ACCEPTED)
+		push.request_permission()
+	else:
+		_write_push_consent(PushNotifications.Consent.DECLINED)
+		hud.message = PUSH_LATER_MESSAGE
+
+
+## Odmowa w systemie liczy się jak „Nie teraz” (gra zapyta znowu po 7 dniach).
+func _on_push_permission(granted: bool) -> void:
+	if granted:
+		_write_push_consent(PushNotifications.Consent.ACCEPTED)
+		push.request_token()
+		hud.message = PUSH_ON_MESSAGE
+	else:
+		_write_push_consent(PushNotifications.Consent.DECLINED)
+		hud.message = PUSH_LATER_MESSAGE
+
+
+func _on_push_token(token: String) -> void:
+	_push_token = token
+	_push_sent_attacks = -1
+	_push_sync()
+
+
+## Token i przełącznik Ataki idą na serwer, gdy serwer jeszcze nie zna bieżącej wartości.
+func _push_sync() -> void:
+	if _push_token.is_empty() or net == null:
+		return
+	var attacks := int(settings_panel.push_attacks)
+	if attacks == _push_sent_attacks:
+		return
+	if net.save_push_token(_push_token, attacks == 1):
+		_push_sending_attacks = attacks
+
+
+func _on_push_token_saved(ok: bool) -> void:
+	if ok:
+		_push_sent_attacks = _push_sending_attacks
+		_push_sync()  # przełącznik zmieniony w trakcie zapisu
+
+
+## Przełączniki z Ustawień. Włączenie Ataków bez zgody systemu prosi o nią od razu.
+func _on_push_switches(attacks: bool, build: bool) -> void:
+	var err := PlayerProfile.write_push_switches(PlayerProfile.PATH, attacks, build)
+	if err != OK:
+		push_warning("Nie udało się zapisać ustawień powiadomień: %s" % error_string(err))
+	if attacks and push != null and push.is_available() and _push_token.is_empty():
+		if push.has_permission():
+			_write_push_consent(PushNotifications.Consent.ACCEPTED)
+			push.request_token()
+		else:
+			push.request_permission()
+	_push_sync()
+
+
+func _write_push_consent(consent: int) -> void:
+	var err := PlayerProfile.write_push_consent(PlayerProfile.PATH, consent, _now_s())
+	if err != OK:
+		push_warning("Nie udało się zapisać zgody na powiadomienia: %s" % error_string(err))
 
 
 ## Włączenie albo wyłączenie samouczka (okno z pytaniem albo Ustawienia).

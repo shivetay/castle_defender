@@ -27,7 +27,8 @@ bezpieczeństwo, PR-y) są w `CLAUDE.md`. Opis gry i stan etapów: `README.md`.
 | `docs/PRACA-Z-AI.md` | Który skill kiedy: ticket → grillowanie → ADR → TDD → PR |
 | `config/` | Wzór `supabase.example.json` (prawdziwy plik poza gitem) |
 | `supabase/` | Migracje, Edge Functions, testy RLS (pgTAP) |
-| `tools/` | `version.py`, `changelog.py` |
+| `tools/` | `version.py`, `changelog.py`; `android/push_plugin/` (wtyczka Android push, Kotlin) |
+| `addons/dunhold_push/` | Eksport wtyczki push na Androida (AAR, Firebase), #30 |
 | `.github/` | CI i skrypty (`run_checks.sh`, `install_godot.sh`) |
 | `.claude/skills/` | Skille AI (w tym bezpieczeństwa) |
 | `.cursor/` | Reguły Cursora / Bugbota → odsyłają do `CLAUDE.md` |

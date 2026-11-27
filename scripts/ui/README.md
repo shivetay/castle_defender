@@ -18,6 +18,7 @@ Wejście: dotyk (`InputEventScreenTouch` / `ScreenDrag`); mysz tylko przez emula
 | `bot_picker.gd` | Pełna lista 20 zamków-botów (#26); Planuj od razu otwiera plan (#312) |
 | `result_panel.gd` | Podsumowanie bitwy; po powtórce raport obrony (#29) |
 | `replay_panel.gd` | Historia obron: 10 ostatnich obron z serwera z nickiem i siłą napastnika, strony i tarcze (#29, #328) |
+| `push_prompt.gd` | Okienko zgody na powiadomienia przy Wyprawie: Tak / Nie teraz (#30) |
 | `defense_notice.gd` | Okienko o nowych atakach po połączeniu: Historia / OK (#328) |
 | `info_popup.gd` / `info_text.gd` | Karty info i teksty |
 | `settings_panel.gd` | Ustawienia (m.in. tryb offline) |

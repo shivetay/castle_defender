@@ -3,21 +3,25 @@ extends Node2D
 ## Ustawienia (#177) pod ikoną zębatki w kolumnie HUD-u, na przyciemnionym zamku. Gra startuje od razu
 ## w zamku (ekran tytułowy #360 pokazuje się tylko przy uruchomieniu), a PvE jest w Strażnicy. Tu jest język (polski, angielski
 ## jako zapowiedź #64), dźwięk (zapowiedź), samouczek (#251: wyłączenie z potwierdzeniem, włączenie od razu),
+## powiadomienia (#30: przełączniki Ataki i Koniec budowy na osobnym ekranie),
 ## Zacznij od nowa z potwierdzeniem, link do Discorda (#360) i wersja gry. Gra działa offline z zapisem lokalnym. Panel sam obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.
 
 signal closed
 signal new_game_requested
 ## Gracz włączył albo (po potwierdzeniu) wyłączył samouczek (#251).
 signal tutorial_changed(on: bool)
+## Gracz przełączył powiadomienia (#30): o atakach (serwer) albo o końcu budowy (telefon).
+signal push_changed(attacks: bool, build: bool)
 
-enum Screen { SETTINGS, CONFIRM, CONFIRM_TUTORIAL }
-enum Target { NONE = -1, LANGUAGE, SOUND, NEW_GAME, CLOSE, CONFIRM_YES, CONFIRM_NO, TUTORIAL, DISCORD }
+enum Screen { SETTINGS, CONFIRM, CONFIRM_TUTORIAL, NOTIFY }
+enum Target { NONE = -1, LANGUAGE, SOUND, NEW_GAME, CLOSE, CONFIRM_YES, CONFIRM_NO, TUTORIAL, DISCORD,
+	NOTIFY, PUSH_ATTACKS, PUSH_BUILD, NOTIFY_BACK }
 
 const TITLE := "Ustawienia"
-## Przyciski 96×13 z odstępem 2 px, żeby 6 przycisków (z Discordem, #360) zmieściło się nad
-## podpowiedzią i stopką na 180 px; wciąż ponad minimum 12×12 px z CLAUDE.md.
-const BUTTON_SIZE := Vector2(96, 13)
-const GAP := 2
+## Przyciski 96×12 z odstępem 1 px, żeby 7 przycisków (z Discordem, #360, i Powiadomieniami, #30)
+## zmieściło się nad podpowiedzią i stopką na 180 px; to minimum 12×12 px z CLAUDE.md.
+const BUTTON_SIZE := Vector2(96, 12)
+const GAP := 1
 const FIRST_Y := 34
 ## Nagłówek i kreska pod nim.
 const HEAD_Y := 20
@@ -36,7 +40,16 @@ const LABELS := {
 	Target.CLOSE: "Zamknij",
 	Target.CONFIRM_YES: "Tak, od nowa",
 	Target.CONFIRM_NO: "Nie",
+	Target.NOTIFY: "Powiadomienia",
+	Target.NOTIFY_BACK: "Wróć",
 }
+const NOTIFY_TITLE := "Powiadomienia"
+const PUSH_ATTACKS_ON := "Ataki: wł."
+const PUSH_ATTACKS_OFF := "Ataki: wył."
+const PUSH_BUILD_ON := "Koniec budowy: wł."
+const PUSH_BUILD_OFF := "Koniec budowy: wył."
+## Podpowiedź, gdy na urządzeniu nie ma pusha (komputer, eksport bez Firebase).
+const PUSH_UNAVAILABLE := "Powiadomienia działają w grze na Androidzie"
 ## Języki do wyboru (#64). Na razie gra mówi tylko po polsku, angielski to zapowiedź.
 const LANGUAGES: Array[String] = ["polski", "English"]
 const ENGLISH_LATER := "English: wkrótce, na razie po polsku"
@@ -54,6 +67,11 @@ var screen := Screen.SETTINGS
 var language := 0
 ## Czy samouczek jest włączony (ustawia go main.gd z profilu).
 var tutorial_on := true
+## Przełączniki powiadomień (#30); ustawia je main.gd z profilu.
+var push_attacks := true
+var push_build := true
+## Czy na urządzeniu działa push (PushNotifications.is_available); ustawia go main.gd.
+var push_available := false
 ## Krótka podpowiedź pod przyciskami (np. o języku angielskim).
 var hint := ""
 ## Stan połączenia z serwerem (SupabaseClient.State); ustawia go main.gd.
@@ -82,7 +100,10 @@ func close() -> void:
 static func targets(s: int) -> Array[int]:
 	if s == Screen.CONFIRM or s == Screen.CONFIRM_TUTORIAL:
 		return [Target.CONFIRM_YES, Target.CONFIRM_NO] as Array[int]
-	return [Target.LANGUAGE, Target.SOUND, Target.TUTORIAL, Target.DISCORD, Target.NEW_GAME, Target.CLOSE] as Array[int]
+	if s == Screen.NOTIFY:
+		return [Target.PUSH_ATTACKS, Target.PUSH_BUILD, Target.NOTIFY_BACK] as Array[int]
+	return [Target.LANGUAGE, Target.SOUND, Target.TUTORIAL, Target.NOTIFY, Target.DISCORD, Target.NEW_GAME,
+			Target.CLOSE] as Array[int]
 
 
 ## Prostokąty przycisków: wyśrodkowane w poziomie, jeden pod drugim (całe piksele).
@@ -107,6 +128,10 @@ func label(t: int) -> String:
 		return "Język: %s" % LANGUAGES[language]
 	if t == Target.TUTORIAL:
 		return TUTORIAL_ON if tutorial_on else TUTORIAL_OFF
+	if t == Target.PUSH_ATTACKS:
+		return PUSH_ATTACKS_ON if push_attacks else PUSH_ATTACKS_OFF
+	if t == Target.PUSH_BUILD:
+		return PUSH_BUILD_ON if push_build else PUSH_BUILD_OFF
 	if t == Target.CONFIRM_YES and screen == Screen.CONFIRM_TUTORIAL:
 		return TUTORIAL_YES
 	return LABELS.get(t, "")
@@ -119,6 +144,8 @@ func head() -> String:
 			return CONFIRM_TEXT
 		Screen.CONFIRM_TUTORIAL:
 			return TUTORIAL_CONFIRM_TEXT
+		Screen.NOTIFY:
+			return NOTIFY_TITLE.to_upper()
 	return TITLE.to_upper()
 
 
@@ -158,8 +185,18 @@ func activate(t: int) -> void:
 				tutorial_changed.emit(false)
 			else:
 				new_game_requested.emit()
-		Target.CONFIRM_NO:
+		Target.CONFIRM_NO, Target.NOTIFY_BACK:
 			screen = Screen.SETTINGS
+		Target.NOTIFY:
+			screen = Screen.NOTIFY
+			if not push_available:
+				hint = PUSH_UNAVAILABLE
+		Target.PUSH_ATTACKS:
+			push_attacks = not push_attacks
+			push_changed.emit(push_attacks, push_build)
+		Target.PUSH_BUILD:
+			push_build = not push_build
+			push_changed.emit(push_attacks, push_build)
 		Target.CLOSE:
 			close()
 	queue_redraw()

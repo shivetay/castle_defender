@@ -182,6 +182,38 @@ static func write_seen_defense(path: String, at_s: int) -> Error:
 	return _write(path, {"seen_defense_s": maxi(0, at_s)})
 
 
+## Zgoda na powiadomienia z okienka w grze (#30, PushNotifications.Consent) i czas ostatniej odmowy
+## (unix s). Tylko na telefonie. Bez pól: jeszcze nie pytano.
+static func read_push_consent(path: String) -> int:
+	return PushNotifications.consent_from(str(read(path).get("push_consent", "")))
+
+
+static func read_push_declined(path: String) -> int:
+	var v: Variant = read(path).get("push_declined_s", 0)
+	return maxi(0, int(v)) if v is int or v is float else 0
+
+
+## Zapis zgody; przy odmowie także jej czas (po 7 dniach gra pyta znowu).
+static func write_push_consent(path: String, consent: int, now_s: int) -> Error:
+	var changes := {"push_consent": PushNotifications.consent_name(consent)}
+	if consent == PushNotifications.Consent.DECLINED:
+		changes["push_declined_s"] = maxi(0, now_s)
+	return _write(path, changes)
+
+
+## Przełączniki powiadomień w Ustawieniach (#30): „Ataki” i „Koniec budowy”, domyślnie włączone.
+static func read_push_attacks(path: String) -> bool:
+	return read(path).get("push_attacks", true) != false
+
+
+static func read_push_build(path: String) -> bool:
+	return read(path).get("push_build", true) != false
+
+
+static func write_push_switches(path: String, attacks: bool, build: bool) -> Error:
+	return _write(path, {"push_attacks": attacks, "push_build": build})
+
+
 ## Usuwa profil (w testach).
 static func delete(path: String) -> void:
 	SaveGame.delete(path)
