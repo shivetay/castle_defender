@@ -1,14 +1,20 @@
 extends TestCase
 ## Bilans surowców na serwerze (#282). Migracja `*_economy_growth.sql` liczy produkcję, koszty i zużycie
 ## tymi samymi liczbami co gra: test składa tabele z klas gry i szuka ich w komentarzu i w funkcjach
-## migracji, a wzory kosztów porównuje z BuildConfig.cost i ResearchConfig.cost.
+## migracji, a wzory kosztów porównuje z BuildConfig.cost i ResearchConfig.cost. Tablice poziomów 1–10
+## (koszt budowy, produkcja, tempo wytwórców) ma od #262 migracja `*_age_two_balance.sql`.
 
 const MIGRATION := "res://supabase/migrations/20261124180000_economy_growth.sql"
+const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
 const R := EconomyConfig.Res
 
 
 func _sql() -> String:
 	return FileAccess.get_file_as_string(MIGRATION)
+
+
+func _balance_sql() -> String:
+	return FileAccess.get_file_as_string(BALANCE_MIGRATION)
 
 
 ## Lista w zapisie SQL/JSON: „[1, 2, 3]”.
@@ -88,9 +94,11 @@ func test_production_matches_game() -> bool:
 	assert_true(not sql.is_empty(), "migracja jest")
 	assert_true(sql.contains("BASE_PER_HOUR = %s" % _list(EconomyConfig.BASE_PER_HOUR)), "gród w komentarzu")
 	assert_true(sql.contains("(array%s)[r + 1]" % _list(EconomyConfig.BASE_PER_HOUR)), "gród w funkcji")
+	var balance := _balance_sql()
+	assert_true(not balance.is_empty(), "migracja balansu epoki II jest")
 	var prod := _production()
-	assert_true(sql.contains("PRODUCTION = " + prod), "budynki w komentarzu")
-	assert_true(sql.contains("'" + prod + "'::jsonb"), "budynki w funkcji")
+	assert_true(balance.contains("PRODUCTION = " + prod), "budynki w komentarzu")
+	assert_true(balance.contains("'" + prod + "'::jsonb"), "budynki w funkcji")
 	var bonus := _production_bonus()
 	assert_true(sql.contains("PRODUCTION_BONUS = " + bonus), "premie technologii w komentarzu")
 	assert_true(sql.contains("'" + bonus + "'::jsonb"), "premie technologii w funkcji")
@@ -103,9 +111,9 @@ func test_production_matches_game() -> bool:
 	assert_eq(_producer_kind("hunter"), BuildingTypes.Kind.HUNTER, "wytwórca to Chata myśliwego")
 	var food := int((hunter[6] as Dictionary).get(R.FOOD, 0))
 	assert_true(sql.contains("HUNTER_FOOD = %d" % food), "żywność na cykl w komentarzu")
-	assert_true(sql.contains("sum(%d * (%d * (array%s)[b.level] / 100))" % [food, int(hunter[2]),
+	assert_true(balance.contains("sum(%d * (%d * (array%s)[b.level] / 100))" % [food, int(hunter[2]),
 			_list(GoodsConfig.LEVEL_PERCENT)]), "przepis w funkcji")
-	assert_true(sql.contains("where b.kind = %d), 0)" % BuildingTypes.Kind.HUNTER), "rodzaj Chaty myśliwego w funkcji")
+	assert_true(balance.contains("where b.kind = %d), 0)" % BuildingTypes.Kind.HUNTER), "rodzaj Chaty myśliwego w funkcji")
 	assert_true(sql.contains("START = %s" % _list(EconomyConfig.START)), "zapasy nowej gry w komentarzu")
 	assert_true(sql.contains("v_old_amounts := array%s;" % _list(EconomyConfig.START)), "zapasy nowej gry w wyzwalaczu")
 	return true
@@ -115,7 +123,7 @@ func test_production_matches_game() -> bool:
 func test_production_formula_matches_rates() -> bool:
 	var g := BuildGrid.new(TerrainMap.generate(1337))
 	for kind: int in EconomyConfig.BUILDING_PRODUCTION:
-		for level in range(1, 6):
+		for level in range(1, Ages.MAX_TOTAL_LEVEL + 1):
 			g.buildings.clear()
 			g.kinds.clear()
 			g.levels.clear()
@@ -139,19 +147,18 @@ func test_production_formula_matches_rates() -> bool:
 
 
 func test_build_cost_matches_game() -> bool:
-	var sql := _sql()
+	var sql := _balance_sql()
 	var costs := _build_cost()
 	assert_true(sql.contains("BUILD_COST = " + costs), "koszty w komentarzu")
 	assert_true(sql.contains("v_base := '" + costs + "'::jsonb"), "koszty w funkcji")
-	assert_true(sql.contains("COST_PERCENT = %s" % _list(BuildConfig.COST_PERCENT)), "mnożnik poziomów w komentarzu")
-	assert_true(sql.contains("AGE_COST_PERCENT = %s" % _list(BuildConfig.AGE_COST_PERCENT)), "mnożnik epok w komentarzu")
-	assert_true(sql.contains("(array%s)[(v_lv - 1) %% 5 + 1] * (array%s)[(v_lv - 1) / 5 + 1]" % [
-			_list(BuildConfig.COST_PERCENT), _list(BuildConfig.AGE_COST_PERCENT)]), "mnożniki w funkcji")
+	assert_true(sql.contains("COST_PERCENT = %s" % _list(BuildConfig.COST_PERCENT)), "krzywa kosztu w komentarzu")
+	assert_true(sql.contains("v_percent := (array%s)[v_lv];" % _list(BuildConfig.COST_PERCENT)), "krzywa w funkcji")
+	assert_true(sql.contains("* v_percent / 100 from"), "procent w funkcji")
 	var manor := _list(BuildConfig.MANOR_COST)
 	assert_true(sql.contains("MANOR_COST = " + manor), "Dwór w komentarzu")
 	assert_true(sql.contains("('" + manor + "'::jsonb"), "Dwór w funkcji")
-	assert_eq(BuildConfig.COST_PERCENT.size(), 5, "5 poziomów w epoce, jak `% 5` w funkcji")
-	# wzór serwera: koszt bazowy × procent poziomu × procent epoki / 10000, Dwór z tabeli
+	assert_eq(BuildConfig.COST_PERCENT.size(), Ages.MAX_TOTAL_LEVEL, "krzywa przez wszystkie poziomy, jak v_lv 1..10")
+	# wzór serwera: koszt bazowy × procent poziomu z krzywej / 100, Dwór z tabeli
 	for kind in BuildingTypes.Kind.size():
 		for level in range(1, Ages.MAX_TOTAL_LEVEL + 1):
 			var server: Array[int] = []
@@ -159,10 +166,9 @@ func test_build_cost_matches_game() -> bool:
 				server.assign(BuildConfig.MANOR_COST[level - 1])
 			else:
 				var base: Array = BuildConfig.BASE_COST.get(kind, [0, 0, 0, 0])
-				var percent := BuildConfig.COST_PERCENT[(level - 1) % 5] * BuildConfig.AGE_COST_PERCENT[(level - 1) / 5]
 				for amount: int in base:
 					@warning_ignore("integer_division")
-					server.append(amount * percent / 10000)
+					server.append(amount * BuildConfig.COST_PERCENT[level - 1] / 100)
 			assert_eq(server, BuildConfig.cost(kind, level), "rodzaj %d poziom %d" % [kind, level])
 	return true
 
@@ -199,7 +205,8 @@ func test_spend_tables_match_game() -> bool:
 	var inputs := _goods_inputs()
 	assert_true(sql.contains("GOODS_INPUTS = " + inputs), "wejścia wytwórców w komentarzu")
 	assert_true(sql.contains("'" + inputs + "'::jsonb"), "wejścia wytwórców w funkcji")
-	assert_true(sql.contains("(array%s)[b.level] / 100 * (rec.ins" % _list(GoodsConfig.LEVEL_PERCENT)), "tempo poziomów")
+	assert_true(_balance_sql().contains("(array%s)[b.level] / 100 * (rec.ins" % _list(GoodsConfig.LEVEL_PERCENT)),
+			"tempo poziomów")
 	return true
 
 

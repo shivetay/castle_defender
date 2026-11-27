@@ -26,7 +26,7 @@ func _side(b: Battle, side: int) -> Array[Battle.Fighter]:
 func test_capacity_grows_with_manor_level() -> bool:
 	assert_eq(RecruitmentConfig.GARRISON_PER_MANOR_LEVEL, 4, "decyzja właścicielki: 4 za poziom")
 	for level in range(1, Ages.MAX_TOTAL_LEVEL + 1):
-		var expected := 4 * mini(level, BuildingTypes.MAX_LEVEL)
+		var expected := 4 * level  # epoka II dokłada miejsca dalej (#262): do 40
 		assert_eq(RecruitmentConfig.garrison_capacity(_castle(level)), expected, "Dwór %d: %d miejsc" % [level, expected])
 	return true
 

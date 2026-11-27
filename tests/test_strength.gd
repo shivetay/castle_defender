@@ -150,6 +150,8 @@ func test_bot_defense() -> bool:
 # --- Mgła wojny i serwer (#293, ADR 0004) --------------------------------------------------------
 
 const SERVER_MIGRATION := "res://supabase/migrations/20261126200000_target_strength.sql"
+## Umocnienia do poziomu 10 (#262) liczy najnowsza wersja `private.defense_strength`.
+const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
 const SERVER_TEST := "res://supabase/tests/database/target_strength_test.sql"
 ## Przykładowy zamek i układ obrony, które ten sam test pgTAP liczy w `private.defense_strength`:
 ## budynki na terenie z seeda 1337, oddziały ze złymi wpisami (powtórzone id, zły rodzaj, liczba ponad
@@ -194,10 +196,14 @@ func test_server_weights_match_game() -> bool:
 	assert_true(sql.contains("GARRISON_UNIT_POWER = " + garrison) and sql.contains("array" + garrison),
 			"siła jednostek w garnizonie")
 	assert_true(sql.contains("TRAP_POWER = " + traps) and sql.contains("array" + traps), "siła pułapek")
-	assert_true(sql.contains("FORT_POWER = " + forts) and sql.contains("array" + forts), "siła umocnień")
+	var balance := FileAccess.get_file_as_string(BALANCE_MIGRATION)
+	assert_true(balance.contains("FORT_POWER = " + forts) and balance.contains("array" + forts), "siła umocnień")
 	assert_eq(Strength.FORTS, [K.RAMPART, K.PALISADE, K.GATE, K.TOWER] as Array[int], "umocnienia 0..3 jak w SQL")
 	assert_true(K.RAMPART == 0 and K.TOWER == 3 and sql.contains("between 0 and 3"), "rodzaje umocnień w SQL")
-	assert_true(sql.contains("kind * %d" % BattleConfig.LEVEL_HP_PERCENT.size()), "poziomy w tablicy umocnień")
+	assert_true(balance.contains("fort_power[b.kind * %d + least(b.lv, %d)]" % [BattleConfig.LEVEL_HP_PERCENT.size(),
+			BattleConfig.LEVEL_HP_PERCENT.size()]), "poziomy w tablicy umocnień")
+	assert_true(balance.contains("array" + unit) and balance.contains("array" + garrison) and balance.contains("array" + traps),
+			"nowa wersja funkcji ma te same wagi jednostek i pułapek")
 	assert_true(sql.contains("between 0 and %d" % (UnitTypes.count() - 1)), "rodzaje jednostek")
 	assert_true(sql.contains("between 0 and %d" % (TrapConfig.count() - 1)), "rodzaje pułapek")
 	assert_true(sql.contains("SQUAD_SIZE = %d" % RecruitmentConfig.SQUAD_SIZE), "rozmiar oddziału")

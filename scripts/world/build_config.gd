@@ -60,20 +60,24 @@ const REQUIRED_TECH := {
 	K.SCOUT_HOUSE: "S1", K.SEAL_HOUSE: "O2",
 	K.MOUND: "O1", K.QUARRY: "G4", K.SIGNAL_TOWER: "S2",
 }
-## Mnożnik kosztu poziomów 1–5 w procentach (×1, ×1,5, ×2,5, ×4, ×6).
-const COST_PERCENT: Array[int] = [100, 150, 250, 400, 600]
-## Mnożnik czasu poziomów 1–5 (Wieża 5 = 60 s × 90 = 90 min).
-const TIME_MULT: Array[int] = [1, 3, 10, 30, 90]
-## Mnożnik kosztu (w procentach) i czasu budynków w każdej epoce (#34): poziom 1 epoki II kosztuje
-## ×2 i trwa ×2 względem poziomu 1 epoki I, dalej jak w epoce I. Liczby tymczasowe, do balansu.
-## Wyższe poziomy epoki II nie mieszczą się w samym grodzie (1000), więc wymagają Magazynu.
-const AGE_COST_PERCENT: Array[int] = [100, 200]
-const AGE_TIME_MULT: Array[int] = [1, 2]
+## Koszt poziomu w procentach kosztu poziomu 1, jedna ciągła krzywa przez wszystkie poziomy narastająco
+## (#262, ADR 0009): epoka I ×1 … ×6, epoka II dalej ×8,5 … ×25, więc na przejściu I.5 → II.1 nic nie
+## tanieje. Poziomy 6–10 TYMCZASOWE (decyzja właścicielki #262).
+const COST_PERCENT: Array[int] = [100, 150, 250, 400, 600, 850, 1150, 1500, 1950, 2500]
+## Mnożnik czasu poziomu względem poziomu 1, ta sama ciągła krzywa (Wieża 5 = 60 s × 90 = 90 min,
+## Wieża II.5 = 60 s × 420 = 7 h). Poziomy 6–10 TYMCZASOWE (decyzja właścicielki #262).
+const TIME_MULT: Array[int] = [1, 3, 10, 30, 90, 130, 180, 240, 320, 420]
+## Umocnienia (wał, palisada, fosa, brama) w epoce II (poziomy 6–10) biorą połowę przyrostu krzywej
+## ponad poziom 5: 90 + (TIME_MULT − 90) / 2, czyli ×110, 135, 165, 205, 255. Czas na przejściu nie spada,
+## dalej rośnie z każdym poziomem i nigdy nie jest krótszy niż połowa krzywej. Epoka I bez zmian.
+## TYMCZASOWE (decyzja właścicielki #262, PR #384).
+const FORT_KINDS: Array[int] = [K.RAMPART, K.PALISADE, K.DRY_MOAT, K.GATE]
+const FORT_AGE_II_TIME_PERCENT := 50
 
 ## Dwór (poziom zamku): stoi od startu na poziomie 1, ulepszenia na poziomy 2–5, a dalej epoka II
 ## (#34): poziom 6 to przebudowa Dworu na epokę II, czyli przejście I → II, a 7–10 to poziomy 2–5
-## epoki II. Przebudowa mieści się w magazynie grodu bez Magazynu, a poziomy 2–5 epoki II kosztują
-## ×2 względem epoki I. Koszty i czasy epoki II są tymczasowe, do balansu.
+## epoki II. Każdy poziom kosztuje i trwa więcej niż poprzedni, a przebudowa mieści się w magazynie
+## grodu bez Magazynu. Poziomy 6–10 TYMCZASOWE (decyzja właścicielki #262).
 const MANOR_COST: Array = [
 	[0, 0, 0, 0],
 	[300, 200, 200, 0],
@@ -81,13 +85,13 @@ const MANOR_COST: Array = [
 	[750, 550, 550, 0],
 	[1000, 800, 800, 0],
 	[1000, 1000, 1000, 0],
-	[600, 400, 400, 0],
-	[1000, 700, 700, 0],
-	[1500, 1100, 1100, 0],
-	[2000, 1600, 1600, 0],
+	[1300, 1100, 1100, 0],
+	[1700, 1400, 1400, 0],
+	[2200, 1800, 1800, 0],
+	[2800, 2300, 2300, 0],
 ]
 const MANOR_TIME_S: Array[int] = [0, 10 * 60, 3600, 4 * 3600, 12 * 3600,
-		12 * 3600, 20 * 60, 2 * 3600, 8 * 3600, 24 * 3600]
+		14 * 3600, 18 * 3600, 24 * 3600, 30 * 3600, 40 * 3600]
 
 ## Kolejka budowy: jeden budowniczy, a za nim do 3 czekających zleceń.
 const BUILDERS := 1
@@ -103,10 +107,9 @@ static func cost(kind: int, level: int) -> Array[int]:
 		out.assign(MANOR_COST[lv - 1])
 		return out
 	var base: Array = BASE_COST.get(kind, [0, 0, 0, 0])
-	var percent := COST_PERCENT[Ages.local_level(lv) - 1] * AGE_COST_PERCENT[Ages.of_level(lv)]
 	for amount: int in base:
 		@warning_ignore("integer_division")
-		out.append(amount * percent / 10000)
+		out.append(amount * COST_PERCENT[lv - 1] / 100)
 	return out
 
 
@@ -115,7 +118,19 @@ static func time_ms(kind: int, level: int) -> int:
 	var lv := clampi(level, 1, Ages.MAX_TOTAL_LEVEL)
 	if kind == BuildingTypes.Kind.MANOR:
 		return MANOR_TIME_S[lv - 1] * 1000
-	return int(BASE_TIME_S.get(kind, 0)) * TIME_MULT[Ages.local_level(lv) - 1] * AGE_TIME_MULT[Ages.of_level(lv)] * 1000
+	return int(BASE_TIME_S.get(kind, 0)) * time_mult(kind, lv) * 1000
+
+
+## Mnożnik czasu poziomu `level` (narastająco) względem poziomu 1. Umocnienia w epoce II: mnożnik
+## poziomu 5 plus połowa przyrostu krzywej ponad niego (FORT_KINDS).
+static func time_mult(kind: int, level: int) -> int:
+	var lv := clampi(level, 1, Ages.MAX_TOTAL_LEVEL)
+	var mult := TIME_MULT[lv - 1]
+	if FORT_KINDS.has(kind) and Ages.of_level(lv) > 0:
+		@warning_ignore("integer_division")
+		var top := TIME_MULT[Ages.LEVELS_PER_AGE - 1]
+		mult = top + (mult - top) * FORT_AGE_II_TIME_PERCENT / 100
+	return mult
 
 
 ## Najwyższy poziom budynku `kind` przy Dworze na poziomie `manor_level` (oba narastająco). Budynek

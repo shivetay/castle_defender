@@ -30,11 +30,13 @@ const TRAINING_SPEED_PERCENT: Array[int] = [100, 120, 140, 170, 200]
 ## Czas szkolenia jednostki na poziomie 1 budynku, w sekundach (indeks = UnitTypes.Unit). TYMCZASOWE.
 const TRAIN_TIME_S: Array[int] = [20, 20, 25, 40, 30, 30, 45, 25, 50, 35, 60, 90, 15, 10, 40, 45]
 ## Limit armii (wyszkoleni i szkoleni): za każdy poziom Dworu i za każdy poziom Koszar (#89, #81).
-## TYMCZASOWE.
+## Poziomy Dworu w epoce II dają ARMY_PER_MANOR_LEVEL_AGE_II (#262: 10 × 5 + 8 × 5 = do 90), Koszary
+## tyle samo na każdym poziomie. TYMCZASOWE (poziomy 6–10: decyzja właścicielki #262).
 const ARMY_PER_MANOR_LEVEL := 10
+const ARMY_PER_MANOR_LEVEL_AGE_II := 8
 const ARMY_PER_BARRACKS_LEVEL := 2
 ## Garnizon Dworu (#81, decyzja właścicielki 23.11.2026): Dwór mieści tyle jednostek za każdy swój
-## poziom (epoka II trzyma premię poziomu 5, Ages.bonus_level), czyli 4–20.
+## poziom narastająco (Ages.bonus_level, #262), czyli 4–40. Poziomy 6–10 TYMCZASOWE.
 const GARRISON_PER_MANOR_LEVEL := 4
 ## Głód (#214): co tyle ms na zerze żywności przy ujemnym bilansie odchodzi jedna jednostka.
 ## TYMCZASOWE, decyzja balansowa właścicielki.
@@ -59,6 +61,14 @@ static func class_of(kind: int) -> int:
 ## Ile jednostek mieści garnizon Dworu zamku `grid` (#81), z poziomu Dworu jak army_limit.
 static func garrison_capacity(grid: BuildGrid) -> int:
 	return GARRISON_PER_MANOR_LEVEL * Ages.bonus_level(grid.manor_level())
+
+
+## Miejsca w armii, które daje Dwór na poziomie `manor_level` (narastająco): ARMY_PER_MANOR_LEVEL
+## za poziomy epoki I i ARMY_PER_MANOR_LEVEL_AGE_II za poziomy epoki II (#262).
+static func manor_army(manor_level: int) -> int:
+	var lv := Ages.bonus_level(manor_level)
+	return ARMY_PER_MANOR_LEVEL * mini(lv, Ages.LEVELS_PER_AGE) \
+			+ ARMY_PER_MANOR_LEVEL_AGE_II * maxi(0, lv - Ages.LEVELS_PER_AGE)
 
 
 static func training_slots(level: int) -> int:

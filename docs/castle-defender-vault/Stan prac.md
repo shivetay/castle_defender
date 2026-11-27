@@ -82,10 +82,11 @@ Pełna lista: [[Plan MVP]]. Pytania: [[Otwarte pytania]]. Koszty: [[Balans]]. Bu
 
 - 21.11: „balans zrobimy później” → #262; A/B jako skrajne odniesienia w [[Balans]].
 - 23.11: feedback — bez głodu, bez spamu, F2P kompletny, ads/sklep z realną korzyścią bez soft-locka → vault proponuje **Opcję C „Spokojny rytm”** (pending OK).
+- 27.11: grillowanie #262 → model balansu epok: ciągła krzywa kosztu i czasu przez 10 poziomów, premie poziomów 6–10, Dwór II.1–II.5 ([[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]). Z Opcji C została tylko zasada reklam i sklepu. Kod w PR (#262); migracja `age_two_balance` wgrana na projekt 27.11 przed wydaniem (w epoce II nie było graczy). Przy wydaniu klienta `min_code` podnosimy od razu, bez zwykłych 48 h (decyzja właścicielki, wyjątek od `docs/PO-WYDANIU.md` §6).
 
 ## Następne kroki
 
-1. Potwierdzić [[Balans]] **Opcję C** (propozycja 23.11; A/B jako odniesienia) i domknąć #262 (liczby + premie 6–10 + ewentualna migracja serwera).
+1. Domknąć #262: merge PR z [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]], nowy `sim_version` i pack przed APK, wydanie klienta i od razu podniesienie `min_code` (bez 48 h; migracja `age_two_balance` już jest na projekcie); test liczb na telefonie.
 2. Perki władcy (#32), push (#30), resztki wyniku bitwy (#99), życie w zamku (#36).
 3. Reklamy (#33), zamknięte testy (#37 / #136).
 4. Odhaczyć zbiorcze body etapów 9–13, jeśli kod już wyprzedza checklisty.

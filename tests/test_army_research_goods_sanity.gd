@@ -7,6 +7,8 @@ extends TestCase
 const MIGRATION := "res://supabase/migrations/20261124150000_army_research_goods_sanity.sql"
 ## Najnowsza wersja `private.tech_tree` (#315: G4 Kamieniarstwo w epoce I).
 const TREE_MIGRATION := "res://supabase/migrations/20261127071313_defense_reach.sql"
+## Tempo wytwórców do poziomu 10 (#262) ma najnowsza wersja `private.goods_plan`.
+const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
 
 
 func _sql() -> String:
@@ -113,8 +115,9 @@ func test_goods_match_game() -> bool:
 	for good in GoodsConfig.count():
 		assert_eq(GoodsConfig.capacity(good), GoodsConfig.ARMORY_CAPACITY, "jedna pojemność dla towaru %d" % good)
 	var pct := str(GoodsConfig.LEVEL_PERCENT)
-	assert_true(sql.contains("LEVEL_PERCENT = " + pct), "tempo poziomów w komentarzu")
-	assert_true(sql.contains("(array%s)[least(b.lvl, 5)]" % pct), "tempo poziomów w funkcji")
+	var balance := FileAccess.get_file_as_string(BALANCE_MIGRATION)
+	assert_true(balance.contains("LEVEL_PERCENT = " + pct), "tempo poziomów w komentarzu")
+	assert_true(balance.contains("(array%s)[least(b.lvl, %d)]" % [pct, Ages.MAX_TOTAL_LEVEL]), "tempo poziomów w funkcji")
 	for recipe in GoodsConfig.RECIPES.size():
 		assert_true(_producer_kind(GoodsConfig.RECIPES[recipe][0] as String) >= 0, "wytwórca %d ma budynek" % recipe)
 	return true

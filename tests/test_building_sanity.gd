@@ -4,11 +4,17 @@ extends TestCase
 ## budowniczy nie zdążyłby zbudować. Liczby czasu i reguły poziomów muszą być te same co w grze.
 
 const MIGRATION := "res://supabase/migrations/20261124120000_building_sanity.sql"
+## Czasy budowy poziomów 1–10 (ciągła krzywa, #262) ma najnowsza wersja `private.build_time_ms`.
+const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
 const K := BuildingTypes.Kind
 
 
 func _sql() -> String:
 	return FileAccess.get_file_as_string(MIGRATION)
+
+
+func _balance_sql() -> String:
+	return FileAccess.get_file_as_string(BALANCE_MIGRATION)
 
 
 func _base_times() -> Array[int]:
@@ -24,13 +30,23 @@ func test_server_time_constants_match_game() -> bool:
 	assert_true(not sql.is_empty(), "migracja jest")
 	var base := str(_base_times())
 	assert_true(sql.contains("BASE_TIME_S = %s" % base), "czasy poziomu 1 w komentarzu")
-	assert_true(sql.contains("coalesce((array%s)[p_kind + 1], 0)" % base), "czasy poziomu 1 w funkcji")
-	assert_true(sql.contains("TIME_MULT = %s" % str(BuildConfig.TIME_MULT)), "mnożnik poziomów")
-	assert_true(sql.contains("(array%s)[(p_level - 1) %% 5 + 1]" % str(BuildConfig.TIME_MULT)), "mnożnik w funkcji")
-	assert_true(sql.contains("AGE_TIME_MULT = %s" % str(BuildConfig.AGE_TIME_MULT)), "mnożnik epok")
-	assert_true(sql.contains("(array%s)[(p_level - 1) / 5 + 1]" % str(BuildConfig.AGE_TIME_MULT)), "epoki w funkcji")
-	assert_true(sql.contains("MANOR_TIME_S = %s" % str(BuildConfig.MANOR_TIME_S)), "czasy Dworu")
-	assert_true(sql.contains("when p_kind = %d then (array%s)" % [K.MANOR, str(BuildConfig.MANOR_TIME_S)]),
+	var balance := _balance_sql()
+	assert_true(balance.contains("coalesce((array%s)[p_kind + 1], 0)" % base), "czasy poziomu 1 w funkcji")
+	assert_true(balance.contains("TIME_MULT = %s" % str(BuildConfig.TIME_MULT)), "krzywa czasu")
+	assert_true(balance.contains("(array%s)[p_level]" % str(BuildConfig.TIME_MULT)), "krzywa w funkcji")
+	assert_eq(BuildConfig.TIME_MULT.size(), Ages.MAX_TOTAL_LEVEL, "krzywa przez wszystkie poziomy")
+	var forts := str(BuildConfig.FORT_KINDS).replace("[", "(").replace("]", ")")
+	assert_true(balance.contains("FORT_KINDS = %s" % str(BuildConfig.FORT_KINDS)), "umocnienia w komentarzu")
+	assert_true(balance.contains("FORT_AGE_II_TIME_PERCENT = %d" % BuildConfig.FORT_AGE_II_TIME_PERCENT),
+			"połowa czasu w komentarzu")
+	assert_true(balance.contains("case when p_kind in %s and p_level > %d" % [forts, Ages.LEVELS_PER_AGE]),
+			"umocnienia epoki II w funkcji")
+	var top := BuildConfig.TIME_MULT[Ages.LEVELS_PER_AGE - 1]
+	assert_true(balance.contains("then %d + ((array%s)[p_level] - %d) * %d / 100" % [top,
+			str(BuildConfig.TIME_MULT), top, BuildConfig.FORT_AGE_II_TIME_PERCENT]),
+			"umocnienia: połowa przyrostu ponad poziom 5 w funkcji")
+	assert_true(balance.contains("MANOR_TIME_S = %s" % str(BuildConfig.MANOR_TIME_S)), "czasy Dworu")
+	assert_true(balance.contains("when p_kind = %d then (array%s)" % [K.MANOR, str(BuildConfig.MANOR_TIME_S)]),
 			"czasy Dworu w funkcji")
 	assert_eq(Ages.LEVELS_PER_AGE, 5, "5 poziomów na epokę jak w funkcji")
 	assert_true(sql.contains("MAX_TOTAL_LEVEL = %d" % Ages.MAX_TOTAL_LEVEL), "najwyższy poziom")
@@ -48,8 +64,12 @@ func test_server_formula_matches_build_config() -> bool:
 			if kind == K.MANOR:
 				server = BuildConfig.MANOR_TIME_S[level - 1] * 1000
 			else:
-				@warning_ignore("integer_division")
-				server = base[kind] * BuildConfig.TIME_MULT[(level - 1) % 5] * BuildConfig.AGE_TIME_MULT[(level - 1) / 5] * 1000
+				var mult := BuildConfig.TIME_MULT[level - 1]
+				if BuildConfig.FORT_KINDS.has(kind) and level > Ages.LEVELS_PER_AGE:
+					@warning_ignore("integer_division")
+					var top5 := BuildConfig.TIME_MULT[Ages.LEVELS_PER_AGE - 1]
+					mult = top5 + (mult - top5) * BuildConfig.FORT_AGE_II_TIME_PERCENT / 100
+				server = base[kind] * mult * 1000
 			assert_eq(server, BuildConfig.time_ms(kind, level), "czas %d poziom %d" % [kind, level])
 	return true
 

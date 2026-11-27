@@ -61,7 +61,7 @@ static func count() -> int:
 
 
 static func limit(manor_level: int) -> int:
-	# epoka II trzyma limit Dworu 5 (Ages.bonus_level, #34)
+	# poziomy epoki II dokładają miejsca jak epoka I (Ages.bonus_level, #262): do 20
 	return LIMIT_PER_MANOR_LEVEL * maxi(1, Ages.bonus_level(manor_level))
 
 

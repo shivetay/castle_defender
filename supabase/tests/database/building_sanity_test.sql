@@ -58,7 +58,7 @@ $$;
 -- ---- reguły poziomów (każdy zapis, także serwera) ----
 select is(private.build_time_ms(3, 1), 60000::bigint, 'Wieża 1: 60 s');
 select is(private.build_time_ms(3, 5), 5400000::bigint, 'Wieża 5: 90 min');
-select is(private.build_time_ms(3, 6), 120000::bigint, 'Wieża 6 (epoka II, poziom 1): ×2');
+select is(private.build_time_ms(3, 6), 7800000::bigint, 'Wieża 6 (epoka II, poziom 1): ×130 (#262)');
 select is(private.build_time_ms(5, 5), 43200000::bigint, 'Dwór 5: 12 h');
 select is(private.castle_buildings_problem(pg_temp.castle('[[1, 5, 3, 0, 0, 4, 4], [2, 3, 3, 9, 9, 2, 2]]')), null,
   'Wieża na poziomie Dworu');
