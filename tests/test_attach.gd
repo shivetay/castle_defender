@@ -8,16 +8,16 @@ const L := BuildingArt.Lean
 
 
 ## Lewy górny róg wolnego pola trawy 14×14 na mapie z seeda (w stałej kolejności) i siatka z linią
-## 10 odcinków palisady przez środek pola: poziomą (wiersz o.y + 7) albo pionową (kolumna o.x + 7).
+## 10 odcinków palisady (albo `wall`) przez środek pola: poziomą (wiersz o.y + 7) albo pionową (kolumna o.x + 7).
 var o := Vector2i.ZERO
 
 
-func _grid(horizontal: bool) -> BuildGrid:
+func _grid(horizontal: bool, wall: int = K.PALISADE) -> BuildGrid:
 	var grid := BuildGrid.new(TerrainMap.generate(WorldSeed.first_playable(1337)))
 	o = _free_field(grid)
 	for k in range(2, 12):
 		var c := o + (Vector2i(k, 7) if horizontal else Vector2i(7, k))
-		grid.place(Rect2i(c, Vector2i.ONE), K.PALISADE, 1)
+		grid.place(Rect2i(c, Vector2i.ONE), wall, 1)
 	return grid
 
 
@@ -162,4 +162,30 @@ func test_unique_buildings_do_not_stick() -> bool:
 		var tap := o + Vector2i(4, 9)
 		assert_eq(grid.placement_candidates(tap, kind, true), [Rect2i(tap, BuildingTypes.size_of(kind))] as Array[Rect2i],
 				"%s bez przyklejania" % BuildingTypes.NAMES[kind])
+	return true
+
+
+## Fosa (#404) nie przykleja się do muru: kratka fosy przy wale albo palisadzie leży dokładnie na swojej
+## kratce. Wcześniej przesuwała się o 3 px w stronę muru, więc po drugiej stronie zostawał pasek trawy,
+## a rów łamał się w rogach (kratki bez muru obok się nie przesuwały).
+func test_moat_does_not_stick_to_walls() -> bool:
+	var t := BuildingTextures.new()
+	for wall: int in [K.PALISADE, K.RAMPART]:
+		for horizontal: bool in [true, false]:
+			var grid := _grid(horizontal, wall)
+			assert_true(o.x >= 0, "wolne pole na mapie")
+			# rząd fosy po obu stronach linii, wzdłuż niej, z rogami poza linią (k = 1 i 12)
+			var ids: Array[int] = []
+			for side: int in [6, 8]:
+				for k in range(1, 13):
+					var c := o + (Vector2i(k, side) if horizontal else Vector2i(side, k))
+					ids.append(grid.place(Rect2i(c, Vector2i.ONE), K.DRY_MOAT, 3))
+			for id in ids:
+				assert_true(id != 0, "fosa postawiona")
+				assert_eq(grid.wall_side(id)[0], Vector2i.ZERO, "%s: fosa bez strony muru" % BuildingTypes.NAMES[wall])
+				assert_eq(CastleView.attach_offset(grid, t, id), Vector2i.ZERO, "fosa bez przesunięcia")
+				assert_eq(CastleView.lean_of(grid, id), L.NONE, "fosa nie jest przybudówką")
+				# rysunek pokrywa całą kratkę, więc sąsiednie kratki tworzą rów bez przerw
+				var used := t.used_rect(K.DRY_MOAT, 3, 0, 0, false, L.NONE, grid.cells_of(id))
+				assert_eq(used, Rect2i(0, 0, BuildingArt.CELL, BuildingArt.CELL), "pełna kratka")
 	return true
