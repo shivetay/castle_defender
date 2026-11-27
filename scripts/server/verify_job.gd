@@ -1,6 +1,6 @@
 class_name VerifyJob
 extends RefCounted
-## Czysta weryfikacja bitwy PvP (#284 / #303): ten sam GDScript co gra, bez sieci i bez stanu.
+## Czysta weryfikacja bitwy PvP (#284 / #303) i z zamkiem-botem (#413): ten sam GDScript co gra, bez sieci i bez stanu.
 ## Wejście ma kształt odpowiedzi `attack_replay` (+ opcjonalnie `sim_version`). Bitwę buduje tą samą
 ## drogą co powtórka (`BattleReplay.from_response` → `create_battle`). Wynik i łup nadal ustala SQL
 ## po `submit_verification` — tu tylko przebieg i checksum.
