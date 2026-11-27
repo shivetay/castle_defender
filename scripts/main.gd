@@ -2559,7 +2559,9 @@ func _refresh_card() -> void:
 	hud.card_market = kind == BuildingTypes.Kind.MARKET and not pending
 	hud.card_check_disabled = seal_check.is_busy()
 	hud.card_seal_disabled = not seal_check.has_selection()
-	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending, grid.ruler_perk)
+	# odcinek wału albo palisady (#371): karta całego odcinka, koszt ulepszenia to suma kratek
+	var length := grid.segment_ids(_selected_id).size()
+	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending, grid.ruler_perk, length)
 	if hud.card_seal and not pending:
 		hud.card_info = seal_card_info(seal_check, _now_ms())
 		hud.card_info_missing = PackedStringArray()
@@ -2569,11 +2571,17 @@ func _refresh_card() -> void:
 		hud.card_info_missing = PackedStringArray()
 	else:
 		hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL) \
-				else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
+				else Hud.missing_tokens(BuildConfig.segment_cost(kind, level + 1, length), economy.amounts)
 	hud.card_needs = upgrade_needs(kind, level, grid.manor_level(), pending, research)
 	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending, research)
-	hud.show_card(BuildingTypes.name_of(kind, research), status, can_upgrade, pending, middle_enabled)
+	hud.show_card(segment_title(BuildingTypes.name_of(kind, research), length), status, can_upgrade, pending,
+			middle_enabled)
 	queue_redraw()
+
+
+## Tytuł karty odcinka wału albo palisady (#371), np. „Palisada (3 kratki)”; pojedyncza kratka bez dopisku.
+static func segment_title(name: String, length: int) -> String:
+	return name if length < 2 else "%s (%s)" % [name, Hud.segment_label(Hud.Target.LENGTH, length, false)]
 
 
 ## Karta z samym Zamknij (#232): donżon, chyba że ma zlecenie ulepszenia ze starego zapisu, wtedy
@@ -2606,8 +2614,9 @@ static func scout_card_info(s: Scouting, now_ms: int) -> String:
 
 ## Opis karty z kosztem ulepszenia, np. „Ulepsz: 180 Dr 60 Ka 60 Ży, 3:00”. Wymagania są osobno
 ## (upgrade_needs).
+## `length`: liczba kratek odcinka wału albo palisady (#371); koszt i czas to suma kratek.
 static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool,
-		perk: int = RulerPerks.Perk.NONE) -> String:
+		perk: int = RulerPerks.Perk.NONE, length: int = 1) -> String:
 	if pending:
 		return "Trwa budowa"
 	if kind == BuildingTypes.Kind.KEEP:
@@ -2622,8 +2631,8 @@ static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool
 	var verb := "Ulepsz"
 	if Ages.is_age_step(level + 1):
 		verb = "Przebuduj" if kind == BuildingTypes.Kind.MANOR else Ages.age_name(Ages.of_level(level + 1))
-	return "%s: %s, %s%s" % [verb, Hud.cost_text(BuildConfig.cost(kind, level + 1)),
-			Hud.format_time(_build_time(kind, level + 1, perk)), BuildQueue.capacity_gain_text(kind, level + 1)]
+	return "%s: %s, %s%s" % [verb, Hud.cost_text(BuildConfig.segment_cost(kind, level + 1, length)),
+			Hud.format_time(_build_time(kind, level + 1, perk) * length), BuildQueue.capacity_gain_text(kind, level + 1)]
 
 
 ## Linia karty z wymaganiami następnego poziomu (po teście na telefonie), np. „Wymaga: Dwór poz. 3
@@ -2738,10 +2747,12 @@ func _on_middle_button() -> void:
 	if BuildingTypes.is_unique(grid.kinds[_selected_id]):
 		hud.message = "Tego budynku nie można rozebrać"
 		return
-	_cursor = grid.buildings[_selected_id]
+	_cursor = grid.segment_rect(_selected_id)
 	_cursor_ok = true
-	recruitment.drop_building(_selected_id)
-	grid.remove(_selected_id)
+	# odcinek wału albo palisady (#371) rozbiera się w całości
+	for id in grid.segment_ids(_selected_id):
+		recruitment.drop_building(id)
+		grid.remove(id)
 	# rozebrany Magazyn od razu zmniejsza pojemność (nadmiar przepada)
 	economy.refresh_capacity(grid)
 	_deselect()
@@ -2775,7 +2786,7 @@ func _draw() -> void:
 			_draw_progress(extra)
 	_draw_seal_gaps()
 	_draw_age_rebuild()
-	var frame := grid.buildings[_selected_id] if _selected_id != 0 else _cursor
+	var frame := grid.segment_rect(_selected_id) if _selected_id != 0 else _cursor
 	if frame.has_area():
 		var ok := _selected_id != 0 or _cursor_ok
 		CastleView.draw_frame(self, Rect2i(frame.position * TerrainMap.CELL, frame.size * TerrainMap.CELL),

@@ -126,14 +126,16 @@ static func cost(kind: int, level: int) -> Array[int]:
 	return out
 
 
-## Koszt odcinka wału albo palisady z `length` kratek (#371): koszt poziomu ×długość plus dopłata
-## w złocie (SEGMENT_GOLD). Długość 1 to zwykły koszt.
+## Koszt odcinka wału albo palisady z `length` kratek (#371): koszt poziomu ×długość, a przy
+## postawieniu (poziom startowy) także dopłata w złocie (SEGMENT_GOLD). Ulepszenie odcinka to suma kratek
+## bez złota. Długość 1 to zwykły koszt.
 static func segment_cost(kind: int, level: int, length: int) -> Array[int]:
 	var n := clampi(length, 1, SEGMENT_MAX)
 	var out := cost(kind, level)
 	for res in out.size():
 		out[res] *= n
-	out[EconomyConfig.Res.GOLD] += SEGMENT_GOLD[n - 1]
+	if level == start_level(kind):
+		out[EconomyConfig.Res.GOLD] += SEGMENT_GOLD[n - 1]
 	return out
 
 

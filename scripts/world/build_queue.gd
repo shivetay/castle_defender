@@ -127,6 +127,7 @@ func _order_segment(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, l
 				economy.add(res, cost[res])
 			return Result.NO_PLACE
 		ids.append(id)
+	grid.link_segment(ids)
 	placed_id = ids[0]
 	_append(placed_id, kind, level, cost, now_ms, grid.ruler_perk)
 	var o: Order = orders.back()
@@ -143,13 +144,17 @@ func message(result: Result) -> String:
 
 
 ## Zleca ulepszenie budynku o 1 poziom. Budynek nie może przerosnąć Dworu. Przebudowa Dworu
-## na nową epokę (#34) wymaga technologii kluczowych zbadanych w `research`.
+## na nową epokę (#34) wymaga technologii kluczowych zbadanych w `research`. Kratka odcinka wału albo
+## palisady (#371) ulepsza cały odcinek jednym zleceniem: materiały i czas ×długość, bez złota.
 func order_upgrade(grid: BuildGrid, economy: Economy, building_id: int, now_ms: int,
 		research: Research = null) -> Result:
 	if not grid.buildings.has(building_id):
 		return Result.NOT_FOUND
-	if has_order(building_id):
-		return Result.ALREADY_QUEUED
+	var ids := grid.segment_ids(building_id)
+	for id in ids:
+		if has_order(id):
+			return Result.ALREADY_QUEUED
+	building_id = ids[0]
 	var kind := grid.kinds[building_id]
 	var level := grid.levels[building_id] + 1
 	if level > BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL):
@@ -160,10 +165,14 @@ func order_upgrade(grid: BuildGrid, economy: Economy, building_id: int, now_ms: 
 		return Result.NEEDS_TECH
 	if is_full():
 		return Result.QUEUE_FULL
-	var cost := BuildConfig.cost(kind, level)
+	var cost := BuildConfig.segment_cost(kind, level, ids.size())
 	if not economy.spend(cost):
 		return Result.NO_RESOURCES
 	_append(building_id, kind, level, cost, now_ms, grid.ruler_perk)
+	if ids.size() > 1:
+		var o: Order = orders.back()
+		o.extra_ids.assign(ids.slice(1))
+		o.duration_ms *= ids.size()
 	return Result.OK
 
 
@@ -321,8 +330,9 @@ func upgrade_hint(grid: BuildGrid, building_id: int, research: Research = null) 
 	if not techs.is_empty():
 		return "%s wymaga technologii %s" % [Ages.age_name(Ages.of_level(next)), ", ".join(techs)]
 	var title := Ages.age_name(Ages.of_level(next)) if Ages.is_age_step(next) else "Ulepszenie"
-	return "%s: %s, %s%s" % [title, Hud.cost_text(BuildConfig.cost(kind, next)),
-			Hud.format_time(BuildConfig.time_ms(kind, next)), capacity_gain_text(kind, next)]
+	var n := grid.segment_ids(building_id).size()
+	return "%s: %s, %s%s" % [title, Hud.cost_text(BuildConfig.segment_cost(kind, next, n)),
+			Hud.format_time(BuildConfig.time_ms(kind, next) * n), capacity_gain_text(kind, next)]
 
 
 ## Dopisek do ulepszenia Magazynu: ile więcej zmieści poziom `level` (np. „, +250 miejsca”).
@@ -373,13 +383,13 @@ func load_data(d: Dictionary, grid: BuildGrid, now_ms: int) -> int:
 		o.building_id = int(e["building_id"])
 		o.kind = grid.kinds[o.building_id]
 		o.level = clampi(int(e.get("level", 1)), 1, Ages.MAX_TOTAL_LEVEL)
-		# kratki odcinka (#371): tylko wał albo palisada na poziomie 1, istniejące kratki tego samego rodzaju,
-		# bez powtórzeń i bez głównej, jak serwer (private.segment_orders w *_wall_segments.sql)
-		var segment := BuildingTypes.is_wall(o.kind) and o.level == 1
-		for extra: Variant in (e.get("extra_ids", []) as Array) if segment else []:
+		# kratki odcinka (#371): tylko kratki tego samego odcinka wału albo palisady (BuildGrid.segments),
+		# bez powtórzeń i bez głównej; serwer liczy je według tych samych zasad (private.segment_orders)
+		var members := grid.segment_ids(o.building_id)
+		for extra: Variant in e.get("extra_ids", []) as Array:
 			var id := int(extra)
-			if id != o.building_id and grid.buildings.has(id) and grid.kinds[id] == o.kind \
-					and not o.extra_ids.has(id) and o.extra_ids.size() < BuildConfig.SEGMENT_MAX - 1:
+			if id != o.building_id and members.has(id) and not o.extra_ids.has(id) \
+					and o.extra_ids.size() < BuildConfig.SEGMENT_MAX - 1:
 				o.extra_ids.append(id)
 		for amount: Variant in e.get("cost", []) as Array:
 			o.cost.append(maxi(0, int(amount)))

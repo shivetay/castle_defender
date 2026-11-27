@@ -37,6 +37,7 @@ func test_segment_cost_adds_gold() -> bool:
 	assert_eq(BuildConfig.segment_cost(K.RAMPART, 1, 2), [20, 0, 20, 2] as Array[int], "2 kratki: ×2 + 2 zł")
 	assert_eq(BuildConfig.segment_cost(K.PALISADE, 1, 3), [60, 0, 15, 5] as Array[int], "3 kratki: ×3 + 5 zł")
 	assert_true(BuildConfig.SEGMENT_GOLD[2] > BuildConfig.SEGMENT_GOLD[1], "3 kratki droższe niż 2")
+	assert_eq(BuildConfig.segment_cost(K.PALISADE, 2, 3), [90, 0, 21, 0] as Array[int], "ulepszenie: suma kratek bez złota")
 	return true
 
 
@@ -223,6 +224,12 @@ func test_server_knows_segment_gold() -> bool:
 	assert_true(sql.contains(arr + "[cardinality(s.extra_ids) + 1]"), "dopłaty w funkcji")
 	assert_true(sql.contains("limit %d" % (BuildConfig.SEGMENT_MAX - 1)), "najwyżej SEGMENT_MAX − 1 dodatkowych kratek")
 	assert_true(sql.contains("b.kind in (%d, %d)" % [K.RAMPART, K.PALISADE]), "tylko wał i palisada")
+	# najnowsza wersja segment_orders: kratki także przy ulepszeniu, złoto tylko przy postawieniu
+	var up := FileAccess.get_file_as_string("res://supabase/migrations/20261127220000_wall_segment_upgrades.sql")
+	assert_true(up.contains("SEGMENT_GOLD = %s" % str(BuildConfig.SEGMENT_GOLD)), "ulepszenia: dopłaty w komentarzu")
+	assert_true(up.contains("case when s.level = %d then %s[cardinality(s.extra_ids) + 1] else 0 end" % [
+			BuildConfig.start_level(K.PALISADE), arr]), "złoto tylko przy postawieniu")
+	assert_true(up.contains("limit %d" % (BuildConfig.SEGMENT_MAX - 1)), "ulepszenia: najwyżej 2 dodatkowe kratki")
 	return true
 
 
@@ -237,5 +244,114 @@ func test_load_ignores_extra_ids_outside_segments() -> bool:
 			"cost": [30, 0, 7, 0], "duration_ms": 30 * SEC, "start_ms": T0}]}
 	var q := BuildQueue.new()
 	q.load_data(data, grid, T0)
-	assert_true(q.orders[0].extra_ids.is_empty(), "ulepszenie nie jest odcinkiem")
+	assert_true(q.orders[0].extra_ids.is_empty(), "kratki spoza odcinka się nie liczą")
+	return true
+
+
+## Odcinek 3 kratek postawiony i ukończony.
+func _built_segment(vertical: bool = false) -> Array:
+	var castle := _castle()
+	var grid: BuildGrid = castle[0]
+	var economy: Economy = castle[1]
+	var q := BuildQueue.new()
+	# Dwór 5, żeby odcinek dało się ulepszać
+	for y in grid.terrain.size:
+		var spot := Vector2i(-1, -1)
+		for x in grid.terrain.size:
+			if grid.placement_for(Vector2i(x, y), K.MANOR) != Rect2i():
+				spot = Vector2i(x, y)
+				break
+		if spot.x >= 0:
+			grid.place_kind(spot, K.MANOR, 5)
+			break
+	var c := _free_start(grid, K.PALISADE, 3, vertical)
+	q.order_build(grid, economy, c, K.PALISADE, T0, null, 3, vertical)
+	q.update(T0 + q.orders[0].duration_ms, grid, economy)
+	var ids := grid.segment_ids(grid.building_at(c))
+	return [grid, economy, q, ids, T0 + 10 * 60 * SEC]
+
+
+func test_built_segment_stays_linked() -> bool:
+	var b := _built_segment()
+	var grid: BuildGrid = b[0]
+	var ids: Array[int] = b[3]
+	assert_eq(ids.size(), 3, "trzy kratki w odcinku")
+	for id in ids:
+		assert_eq(grid.segment_ids(id), ids, "każda kratka zna cały odcinek")
+		assert_eq(grid.levels[id], 1, "ukończona")
+	assert_eq(grid.segment_rect(ids[1]), Rect2i(grid.buildings[ids[0]].position, Vector2i(3, 1)), "ramka odcinka")
+	return true
+
+
+func test_upgrade_whole_segment() -> bool:
+	var b := _built_segment()
+	var grid: BuildGrid = b[0]
+	var economy: Economy = b[1]
+	var q: BuildQueue = b[2]
+	var ids: Array[int] = b[3]
+	var now: int = b[4]
+	var before := economy.amounts.duplicate()
+	assert_eq(q.order_upgrade(grid, economy, ids[1], now), BuildQueue.Result.OK, "ulepszenie przez środkową kratkę")
+	assert_eq(q.orders.size(), 1, "jedno zlecenie")
+	var o := q.orders[0]
+	assert_eq(o.building_id, ids[0], "zlecenie od początku odcinka")
+	assert_eq(o.extra_ids, ids.slice(1), "z pozostałymi kratkami")
+	assert_eq(o.cost, [90, 0, 21, 0] as Array[int], "koszt: suma 3 kratek bez złota")
+	assert_eq(o.duration_ms, 3 * BuildConfig.time_ms(K.PALISADE, 2), "czas ×3")
+	assert_eq(economy.amounts[R.GOLD], int(before[R.GOLD]), "złoto bez zmian")
+	assert_eq(q.order_upgrade(grid, economy, ids[2], now), BuildQueue.Result.ALREADY_QUEUED, "druga kratka już w kolejce")
+	q.update(now + o.duration_ms, grid, economy)
+	for id in ids:
+		assert_eq(grid.levels[id], 2, "cały odcinek na poziomie 2")
+	assert_true(q.upgrade_hint(grid, ids[0]).contains(Hud.cost_text(BuildConfig.segment_cost(K.PALISADE, 3, 3))),
+			"podpowiedź: koszt całego odcinka")
+	return true
+
+
+func test_segment_shrinks_when_tile_removed() -> bool:
+	var b := _built_segment()
+	var grid: BuildGrid = b[0]
+	var ids: Array[int] = b[3]
+	grid.remove(ids[2])
+	assert_eq(grid.segment_ids(ids[0]), [ids[0], ids[1]] as Array[int], "koniec znika: zostaje odcinek 2 kratek")
+	var c := _built_segment(true)
+	var grid2: BuildGrid = c[0]
+	var ids2: Array[int] = c[3]
+	grid2.remove(ids2[1])
+	assert_eq(grid2.segment_ids(ids2[0]), [ids2[0]] as Array[int], "środek znika: kratki osobno")
+	assert_eq(grid2.segment_ids(ids2[2]), [ids2[2]] as Array[int], "druga też osobno")
+	return true
+
+
+func test_grid_save_load_segments() -> bool:
+	var b := _built_segment()
+	var grid: BuildGrid = b[0]
+	var ids: Array[int] = b[3]
+	var data := grid.save_data()
+	var grid2 := BuildGrid.new(grid.terrain)
+	grid2.load_data(data)
+	assert_eq(grid2.segment_ids(ids[1]), ids, "odcinek z zapisu")
+	# spreparowane wpisy: powtórka, kratka z przerwą w linii, brakujący budynek, ponad SEGMENT_MAX
+	var other := grid.place(Rect2i(grid.buildings[ids[2]].position + Vector2i(2, 0), Vector2i.ONE), K.PALISADE, 1)
+	var bad := grid.save_data()
+	bad["segments"] = [[ids[0], ids[0]], [ids[0], other], [ids[1], 99999], [ids[0], ids[1], ids[2], other]]
+	var grid3 := BuildGrid.new(grid.terrain)
+	grid3.load_data(bad)
+	for id in ids:
+		assert_eq(grid3.segment_ids(id), [id] as Array[int], "zły wpis pominięty: %d osobno" % id)
+	# stary zapis bez segments
+	data.erase("segments")
+	var grid4 := BuildGrid.new(grid.terrain)
+	grid4.load_data(data)
+	assert_eq(grid4.segment_ids(ids[0]), [ids[0]] as Array[int], "stary zapis: pojedyncze kratki")
+	return true
+
+
+func test_segment_card_texts() -> bool:
+	var info := MAIN.upgrade_info(K.PALISADE, 1, 5, false, RulerPerks.Perk.NONE, 3)
+	assert_true(info.contains(Hud.cost_text(BuildConfig.segment_cost(K.PALISADE, 2, 3))), "karta: koszt całego odcinka")
+	assert_true(info.contains(Hud.format_time(3 * BuildConfig.time_ms(K.PALISADE, 2))), "karta: czas ×3")
+	assert_eq(MAIN.segment_title("Palisada", 3), "Palisada (3 kratki)", "tytuł karty odcinka")
+	assert_eq(MAIN.segment_title("Palisada", 1), "Palisada", "pojedyncza kratka bez dopisku")
+	assert_true(PixelFont.text_width(MAIN.segment_title("Wał ziemny", 3)) <= 200, "tytuł mieści się na karcie")
 	return true

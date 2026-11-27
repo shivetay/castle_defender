@@ -2,13 +2,14 @@
 -- Kryteria: kratki z `extra_ids` są opłacone jak zlecenie z kolejki, odcinek 3 kratek kosztuje materiały ×3 i 5 zł,
 -- zapis bez tego kosztu jest odrzucony, anulowanie zwraca całość ze złotem, ukończenie niczego nie dolicza,
 -- zlecenie w toku trwa czas ×N, a `extra_ids` spoza zasad gry (obcy rodzaj, brak budynku, powtórka, ponad 2,
--- inny budynek niż wał i palisada) się nie liczą. Te same liczby liczy `tests/test_wall_segments.gd`.
+-- inny budynek niż wał i palisada) się nie liczą. Ulepszenie odcinka (`*_wall_segment_upgrades.sql`) to suma
+-- kratek ×N w koszcie i czasie, bez złota. Te same liczby liczy `tests/test_wall_segments.gd`.
 -- Gracz nie woła funkcji serwera.
 begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(19);
+select plan(24);
 
 insert into auth.users (id) values ('00000000-0000-0000-0000-0000000371a1');
 update public.players set rating = 63710, age = 0 where id = '00000000-0000-0000-0000-0000000371a1';
@@ -84,6 +85,27 @@ select is((select array[f.spend[4], f.refund[4]] from private.build_flow(
     pg_temp.castle('[0, 0, 0, 0]', pg_temp.sites(), '[{"building_id": 10, "level": 1}]'::jsonb),
     pg_temp.castle('[0, 0, 0, 0]', pg_temp.sites(), pg_temp.segment())) f), '{5, 0}'::bigint[],
   'dopisane kratki do zlecenia: dopłata jak za nowy odcinek');
+
+-- ---- ulepszenie odcinka (*_wall_segment_upgrades.sql) ----
+create function pg_temp.built() returns jsonb language sql as $$
+  select '[[10, 1, 1, 20, 20, 1, 1], [11, 1, 1, 21, 20, 1, 1], [12, 1, 1, 22, 20, 1, 1]]'::jsonb
+$$;
+create function pg_temp.upgrade() returns jsonb language sql as $$
+  select '[{"building_id": 10, "extra_ids": [11, 12], "kind": 1, "level": 2}]'::jsonb
+$$;
+select is((select array[cardinality(s.extra_ids), s.gold] from private.segment_orders(
+    pg_temp.castle('[0, 0, 0, 0]', pg_temp.built(), pg_temp.upgrade())) s), '{2, 0}'::bigint[],
+  'ulepszenie odcinka: dwie dodatkowe kratki, bez złota');
+select is((select f.spend from private.build_flow(pg_temp.castle('[0, 0, 0, 0]', pg_temp.built()),
+    pg_temp.castle('[0, 0, 0, 0]', pg_temp.built(), pg_temp.upgrade())) f), '{90, 0, 21, 0}'::bigint[],
+  'wydatek ulepszenia: poziom 2 ×3 kratki');
+select is((select f.refund from private.build_flow(pg_temp.castle('[0, 0, 0, 0]', pg_temp.built(), pg_temp.upgrade()),
+    pg_temp.castle('[0, 0, 0, 0]', pg_temp.built())) f), '{90, 0, 21, 0}'::bigint[], 'anulowane ulepszenie: zwrot ×3');
+select is((select f.spend from private.build_flow(pg_temp.castle('[0, 0, 0, 0]', pg_temp.built(), pg_temp.upgrade()),
+    pg_temp.castle('[0, 0, 0, 0]', '[[10, 1, 2, 20, 20, 1, 1], [11, 1, 2, 21, 20, 1, 1], [12, 1, 2, 22, 20, 1, 1]]')) f),
+  '{0, 0, 0, 0}'::bigint[], 'ukończone ulepszenie: bez nowego wydatku');
+select is(private.queue_head_ms(pg_temp.castle('[0, 0, 0, 0]', pg_temp.built(), pg_temp.upgrade())), 90000::bigint,
+  'ulepszenie w toku: 30 s × 3 kratki');
 
 -- ---- zapis gracza ----
 insert into public.castles (player_id, map_seed, save_version, data)
