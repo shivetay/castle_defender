@@ -12,12 +12,15 @@ extends RefCounted
 ## serwerze i oddaje go w odpowiedzi (`general`: {kind, level, perk} albo null).
 ## Perk władcy atakującego (#32): żądanie go nie niesie; serwer bierze go z zamku atakującego na serwerze
 ## i oddaje w odpowiedzi (`ruler_perk`: numer RulerPerks.Perk albo -1).
+## Wersja symulacji (#354, ADR 0008): żądanie niesie `sim_version` z project.godot, a worker weryfikacji
+## liczy atak packiem tej wersji. Wersję bez packa serwer odrzuca kodem `unsupported_version`.
 
 const PATH := "/functions/v1/launch_attack"
 
 
 static func request(attack_id: String, plan: AttackPlan, general: int = -1) -> Dictionary:
-	var d := {"attack_id": attack_id, "plan": plan.to_server() if plan != null else []}
+	var d := {"attack_id": attack_id, "plan": plan.to_server() if plan != null else [],
+			"sim_version": VerifyJob.project_sim_version()}
 	if general >= 0 and general < Generals.count():
 		d["general"] = general
 	return d

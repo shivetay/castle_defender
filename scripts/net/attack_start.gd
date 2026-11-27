@@ -95,6 +95,8 @@ static func error_message(code: String) -> String:
 			return "Plan trwał za długo: wybierz cel jeszcze raz"
 		"not_launched":
 			return "Serwer nie zatwierdził planu. Spróbuj jeszcze raz"
+		"unsupported_version":
+			return "Ta wersja nie może atakować. Zaktualizuj grę"
 		SupabaseClient.NETWORK_ERROR:
 			return "Brak połączenia z serwerem. Spróbuj później"
 	return "Serwer nie przyjął ataku. Spróbuj później"
