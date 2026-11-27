@@ -126,7 +126,7 @@ w sekcji „Następny etap”.
   1 mniejszy, 2 dłuższy, 3 daszek nad wejściem i tarcze, 4 drugi proporzec i kamienne narożniki,
   5 wieżyczka w rogu i drugi komin), każdy w 4 stanach zniszczeń. Przejście I → II zostawia poziom (#34).
   Garnizon to zadanie Garnizon Dworu na ekranie Obrona (przycisk Zadanie, przed Przy donżonie). Dwór
-  mieści 4 jednostki za poziom (4–20, epoka II trzyma premię poziomu 5, `RecruitmentConfig.garrison_capacity`),
+  mieści 4 jednostki za poziom (4–40, poziomy epoki II dokładają dalej, #262, `RecruitmentConfig.garrison_capacity`),
   liczą się też szkolone do oddziału. Gdy oddział się nie mieści, przycisk przeskakuje na Przy donżonie
   z komunikatem „Garnizon pełny 4/4”. W bitwie garnizon stoi przy donżonie (strzelcy na nim) i ma +20%
   wytrzymałości (`BattleConfig.GARRISON_HP_PERCENT`); oddziały ponad pojemność z kopii zamku (w kolejności
@@ -144,14 +144,17 @@ w sekcji „Następny etap”.
   „poz. 5→II.1”). Epoka zamku to epoka Dworu (`BuildGrid.age`). Przejście to przebudowa Dworu z poziomu 5
   na poziom 1 epoki II: wymaga trzech zbadanych technologii kluczowych ★, po jednej z Obrony, Gospodarki
   i Ataku: O1 Sypanie kopców, G1 Karczowanie lasu i A7 Strzemię (`Ages.TRANSITION_TECHS`), kosztuje 1000 Dr 1000 Ka
-  1000 Ży i trwa 12 h. Po przebudowie gra pokazuje komunikat i animację pyłu wokół Dworu, a ekrany badań
+  1000 Ży i trwa 14 h. Po przebudowie gra pokazuje komunikat i animację pyłu wokół Dworu, a ekrany badań
   i wojska przechodzą na epokę II. Inny budynek wchodzi w epokę II tylko ze swojego poziomu 5 i dopiero po
-  przebudowie Dworu (nie może przerosnąć zamku); w nowej epoce zaczyna od poziomu 1, z ceną ×2 i czasem ×2
-  względem epoki I. Nic nie ginie: zamek, budynki i ich poziomy zostają, a premie liczą się od poziomu 5
-  (`Ages.bonus_level`, epoka II nie dokłada jeszcze nowych), tak samo jak na serwerze, który obcina poziom
-  do 5. Technologie epoki II są dostępne dopiero w epoce II i po swoich wymaganiach. Dwór epoki II ma dach
+  przebudowie Dworu (nie może przerosnąć zamku); w nowej epoce zaczyna od poziomu 1. Koszt i czas to jedna
+  ciągła krzywa przez 10 poziomów (#262, ADR 0009, `BuildConfig.COST_PERCENT` i `TIME_MULT`): II.1 kosztuje
+  850% i trwa ×130 poziomu 1, II.5 2500% i ×420, więc na przejściu nic nie tanieje; umocnienia w epoce II
+  budują się w połowie czasu z krzywej. Dwór II.2–II.5 kosztuje od 1300/1100/1100 (18 h) do 2800/2300/2300 (40 h).
+  Nic nie ginie: zamek, budynki i ich poziomy zostają, a premie rosną dalej do poziomu 10 (`Ages.bonus_level`):
+  produkcja, tempo wytwórców, Magazyn, wytrzymałość w bitwie, limit armii (Dwór +8 za poziom epoki II, do 90),
+  garnizon i pułapki; strefa obrony zostaje jak przy Dworze 5. Technologie epoki II są dostępne dopiero w epoce II i po swoich wymaganiach. Dwór epoki II ma dach
   z gontu na kamiennej podmurówce i błękitne proporce (każdy poziom inaczej, #81), inne budynki z poziomów epoki II kamienną podmurówkę,
-  a wieża i donżon błękitny proporzec. Koszty i czasy epoki II są tymczasowe.
+  a wieża i donżon błękitny proporzec. Liczby epoki II są tymczasowe.
 
 - `scripts/gfx/pixel_canvas.gd` (`PixelCanvas`): prymitywy rysowania w rzucie z góry: dach dwuspadowy,
   jednospadowy, namiotowy i czterospadowy (stóg), pomost z desek, stos bali, komin, proporzec, obwódka
@@ -332,7 +335,7 @@ w sekcji „Następny etap”.
 - `scripts/world/recruitment.gd` (`Recruitment`): armia w oddziałach i kolejki szkolenia (#89). Oddział ma
   jeden rodzaj jednostek i najwyżej 10 jednostek (tymczasowe); nowa jednostka idzie do wskazanego oddziału
   tego rodzaju albo do nowego. Globalny limit armii to tyle, ile zamek może teraz utrzymać: 10 za poziom
-  Dworu i 2 za poziom Koszar (tymczasowe); limit i miejsca w oddziale liczą też szkolonych. Niezależnie
+  Dworu w epoce I, 8 za poziom Dworu w epoce II i 2 za poziom Koszar (tymczasowe, #262); limit i miejsca w oddziale liczą też szkolonych. Niezależnie
   od miejsc działa limit utrzymania (#214): każda jednostka zajmuje `UnitTypes.UPKEEP` Ży/h (piechota 1,
   konnica 2, Taran 0, tymczasowe), a suma armii i szkolonych (także garnizonu) nie może przekroczyć
   produkcji żywności z `Economy.rates`. Wyszkolona armia je: `Economy.net_rates` odejmuje jej utrzymanie
@@ -666,11 +669,13 @@ w sekcji „Następny etap”.
   odkładany obok (`.broken`) i nie trafia do kopii; zapis z nowszej wersji gry też nie jest nadpisywany.
 - `scripts/world/economy_config.gd` (`EconomyConfig`): wszystkie liczby ekonomii w jednym pliku.
   Drewno, kamień, żywność i złoto. Start 500/300/300/50, Dwór mieści 1000 każdego surowca, a każdy
-  ukończony Magazyn (Gospodarka, bez technologii) dodaje +500/750/1000/1500/2000 na poziomach 1–5;
+  ukończony Magazyn (Gospodarka, bez technologii) dodaje +500/750/1000/1500/2000 na poziomach 1–5
+  i 2500/3000/3500/4500/6000 na poziomach epoki II (#262);
   Magazyny się sumują, a rozbiórka zmniejsza limit (nadmiar przepada). Złoto jest bez
   limitu (docelowo waluta premium, przybywa tylko z łupu i PvE). Gród daje 20/h drewna, kamienia
   i żywności, a Chata drwala +60/90/120/160/200 drewna/h na poziomach 1–5. Pole i spichlerz (#35) daje
-  tyle samo żywności, a Kamieniołom (G4) +40/60/80/110/140 kamienia/h, jak Rybak żywności.
+  tyle samo żywności, a Kamieniołom (G4) +40/60/80/110/140 kamienia/h, jak Rybak żywności. Poziomy epoki II
+  dokładają dalej (#262): Chata drwala i Pole 240–440/h, Rybak i Kamieniołom 170–310/h.
 - Pozostałe budynki MVP (#35, decyzje właścicielki z 20.11.2026, liczby tymczasowe), grafika
   w `scripts/gfx/mvp_building_art.gd` (`MvpBuildingArt`), każdy z 5 poziomami i 4 stanami:
   - **Fosa sucha** (Umocnienia, 1×1, bez technologii): rów przez całą kratkę, więc odcinki tworzą ciągły
@@ -947,7 +952,11 @@ Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa
 z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoką gracza na serwerze
 (`players.age`, ranking i dobór przeciwnika) zajmuje się migracja `castle_age`: po każdym zapisie zamku
 serwer podnosi epokę do II, gdy zapis ma Dwór na poziomie 6+ i zbadane O1, G1, A7. Epoka tylko
-rośnie, a klient nadal nie ma do niej uprawnień. Migracja `castle_age` jest na projekcie. Nowe premie epoki II i balans kosztów i czasów epoki II czekają na osobny ticket.
+rośnie, a klient nadal nie ma do niej uprawnień. Migracja `castle_age` jest na projekcie. Balans epoki II (#262, ADR 0009:
+ciągła krzywa kosztu i czasu, premie poziomów 6–10) jest w kodzie; migracja `age_two_balance` czeka na wgranie
+**razem z wydaniem klienta** i podniesieniem `min_code` (`docs/PO-WYDANIU.md` §6): starsza wersja gry płaci
+za budowę epoki II mniej i buduje krócej, niż wymaga nowy serwer, więc jej zapis z nowym poziomem epoki II
+trafi na odrzut i przywrócenie zamku z serwera.
 Życie w zamku (#36) jest w kodzie; płynność na słabszym telefonie (próg 30 FPS) i czytelność nocy
 zostają do ręcznego testu. Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
 Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,

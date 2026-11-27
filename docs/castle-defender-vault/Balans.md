@@ -1,6 +1,6 @@
 # Balans
 
-Stan liczb z kodu na `main` (HEAD 6bb7bbe, 22–23.11.2026) oraz porównanie z vaultem. **Wszystkie wartości poniżej są tymczasowe** — właścicielka odłożyła passa balansu (#262, decyzja 21.11.2026). Ta notatka zbiera fakty i **dwie konkretne opcje** do wyboru; nic nie wdrażamy bez decyzji.
+Stan liczb z kodu na `main` (HEAD 6bb7bbe, 22–23.11.2026) oraz porównanie z vaultem. **Wszystkie wartości poniżej są tymczasowe.** Model balansu epok ustalono 27.11.2026 (#262, [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]): jedna ciągła krzywa kosztu i czasu przez 10 poziomów i premie poziomów 6–10; liczby epoki II w § 1.7. Opcje A/B/C z § 3 zostają jako zapis rozważań.
 
 Źródła kodu: `scripts/world/unit_types.gd`, `recruitment_config.gd`, `build_config.gd`, `economy_config.gd`, `goods_config.gd`, `research_config.gd`, `generals.gd`, `ages.gd`. Issue: #214 (utrzymanie Ży — zamknięte przez #247), #262 (balans epoki II — otwarte), #273 (generałowie).
 
@@ -35,11 +35,11 @@ Koszt rekrutacji = surowce + towary ze zbrojowni. **Nie ma osobnego złota za ż
 
 \*Chłop: tylko epoka I (`ERA_I_ONLY`). Carry łupu: piechota 5, konnica/zwiadowca 10, taran 0, wóz 50.
 
-**Limity armii (kod):** `ARMY_PER_MANOR_LEVEL = 10`, `ARMY_PER_BARRACKS_LEVEL = 2` (premie od `Ages.bonus_level`, max 5). Głód: 1 jednostka / `DESERT_MS` = 1 h na zerze Ży. Oddział max 10.
+**Limity armii (kod):** `ARMY_PER_MANOR_LEVEL = 10`, `ARMY_PER_BARRACKS_LEVEL = 2` (premie od `Ages.bonus_level`); od #262 Dwór w epoce II +8 za poziom (do 90), Koszary 2 za każdy z 10 poziomów ([[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]). Głód: 1 jednostka / `DESERT_MS` = 1 h na zerze Ży. Oddział max 10.
 
 ### 1.2 Budynki — budowa poziomu 1 (epoka I)
 
-Kolejność surowców: Dr / Ka / Ży / Zł. Poziomy 2–5: mnożniki kosztu **100 / 150 / 250 / 400 / 600%**, czasu **1 / 3 / 10 / 30 / 90**. Epoka II: koszt ×2, czas ×2 (`AGE_COST_PERCENT` / `AGE_TIME_MULT`).
+Kolejność surowców: Dr / Ka / Ży / Zł. Poziomy 2–5: mnożniki kosztu **100 / 150 / 250 / 400 / 600%**, czasu **1 / 3 / 10 / 30 / 90**. Epoka II (#262, [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]): krzywa ciągnie się dalej, koszt **850 / 1150 / 1500 / 1950 / 2500%**, czas **130 / 180 / 240 / 320 / 420** (umocnienia: połowa czasu); mnożnik epoki ×2 usunięty.
 
 | Budynek | Koszt L1 (Dr/Ka/Ży/Zł) | Czas L1 | Tech | Vault |
 | --- | --- | --- | --- | --- |
@@ -75,13 +75,13 @@ Pełna lista w `BuildConfig.BASE_COST`.
 | 3 | I.3 | 500 / 350 / 350 | 1 h |
 | 4 | I.4 | 750 / 550 / 550 | 4 h |
 | 5 | I.5 | 1000 / 800 / 800 | 12 h |
-| **6** | **przebudowa → epoka II** | **1000 / 1000 / 1000** | **12 h** |
-| 7 | II.2 | 600 / 400 / 400 | 20 min |
-| 8 | II.3 | 1000 / 700 / 700 | 2 h |
-| 9 | II.4 | 1500 / 1100 / 1100 | 8 h |
-| 10 | II.5 | 2000 / 1600 / 1600 | 24 h |
+| **6** | **przebudowa → epoka II** | **1000 / 1000 / 1000** | **14 h** |
+| 7 | II.2 | 1300 / 1100 / 1100 | 18 h |
+| 8 | II.3 | 1700 / 1400 / 1400 | 24 h |
+| 9 | II.4 | 2200 / 1800 / 1800 | 30 h |
+| 10 | II.5 | 2800 / 2300 / 2300 | 40 h |
 
-Przebudowa L6 wymaga techów **O1 + G1 + A7** (`Ages.TRANSITION_TECHS`). Mieści się w magazynie grodu (1000) bez Magazynu. Poziomy 8–10 wymagają Magazynu. Premie produkcji / limitu armii w epoce II nadal liczą się jak poziom 5 (`Ages.bonus_level`) — #262.
+Przebudowa L6 wymaga techów **O1 + G1 + A7** (`Ages.TRANSITION_TECHS`). Mieści się w magazynie grodu (1000) bez Magazynu. Poziomy 7–10 wymagają Magazynu. Poziomy 6–10 z ustaleń #262 ([[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]); premie poziomów epoki II rosną dalej (§ 1.7).
 
 ### 1.4 Produkcja surowców i badania
 
@@ -112,11 +112,28 @@ PvE wystarcza najwyżej do poziomu 2 (`PVE_LEVEL`). Vault [[Władca i generałow
 
 | Temat | Vault | Kod | Status |
 | --- | --- | --- | --- |
-| Przykład palisady / typowe czasy | [[Progresja budowy]]: 15 s L1, „II: 2 min / 30 min” | 10 s L1; mnożniki 1…90; epoka II ×2 | **rozjazd skali** (#262) |
-| Premie poziomów 6–10 | „nowa epoka dokłada ulepszenia” | `bonus_level` cap 5 | **brak premii II** do decyzji |
+| Przykład palisady / typowe czasy | [[Progresja budowy]] poprawiona do kodu | 10 s L1; ciągła krzywa 1…420 | zgodne (#262) |
+| Premie poziomów 6–10 | „nowa epoka dokłada ulepszenia” | tablice do poziomu 10 (#262) | ustalone, [[ADR/0009-model-balansu-epok-ciagla-krzywa\|ADR 0009]] |
 | Koszty jednostek Ży | vault podaje towary, rzadko ilości Ży | stałe 5–20 Ży | vault uzupełniony tą notatką |
 | Generałowie | zaktualizowane 22.11 | #273 | zgodne |
 | Utrzymanie Ży | opisane przy Wozie | pełna tablica `UPKEEP` | ta notatka |
+
+### 1.7 Premie poziomów epoki II (#262)
+
+Tymczasowe liczby z ustaleń 27.11.2026 ([[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]). Poziomy 1–5 bez zmian.
+
+| Premia | II.1 | II.2 | II.3 | II.4 | II.5 |
+| --- | --- | --- | --- | --- | --- |
+| Chata drwala, Pole i spichlerz (na godzinę) | 240 | 280 | 330 | 380 | 440 |
+| Rybak, Kamieniołom (na godzinę) | 170 | 200 | 230 | 270 | 310 |
+| Wytwórcy, także żywność Chaty myśliwego (% tempa poz. 1) | 425 | 500 | 575 | 650 | 750 |
+| Wytrzymałość w bitwie (% poz. 1) | 560 | 680 | 810 | 950 | 1100 |
+| Magazyn (pojemność) | 2500 | 3000 | 3500 | 4500 | 6000 |
+| Limit armii z Dworu | 58 | 66 | 74 | 82 | 90 |
+| Garnizon Dworu | 24 | 28 | 32 | 36 | 40 |
+| Limit pułapek | 12 | 14 | 16 | 18 | 20 |
+
+Koszary dają 2 miejsca za każdy poziom 1–10. Strefa obrony zostaje jak przy Dworze 5 ([[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]). Badania epoki II, rok na pasku i tempo szkolenia bez zmian.
 
 ---
 
@@ -176,7 +193,9 @@ Cel: żywność i złoto realnie ograniczają armię; epoka II zostaje droga i w
 
 **Tradeoffy:** mniejszy spam, większa waga Pol / Rybaka / Magazynu; wolniejszy early i trudniejszy samouczek (#251); wymaga migracji serwera dla premii i limitów (`army_limit`, `food_production`); wyższe koszty generałów mocniej wiążą z PvP.
 
-### Opcja C — „Spokojny rytm” (**propozycja**, pending OK)
+### Opcja C — „Spokojny rytm” (propozycja z 23.11, rozstrzygnięta 27.11)
+
+> **Rozstrzygnięcie (#262, [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]):** z Opcji C przyjęto tylko zasadę monetyzacji (reklamy i sklep przyspieszają, nie odblokowują). Odrzucono: `AGE_COST_PERCENT = 175`, `TIME_MULT = [1, 2, 6, 20, 55]`, przebudowę Dworu 800/800/800 w 8 h i premie „L6→1 … L10→5” (lokalny poziom epoki), bo premie i koszty spadałyby na przejściu. Zmiany jednostek z C (Chłop 8 Ży, dłuższe szkolenie tanich jednostek) nie weszły: epoka I zostaje bez zmian.
 
 Cel: komfortowy F2P bez poczucia głodu i bez spamu taniej piechoty; wąskie gardło to **towary + miejsca + czas**, nie Ży/h. Reklamy i sklep przyspieszają / upiększają — nigdy nie odblokowują tego, czego nie da się dostać za darmo czekając.
 
@@ -235,7 +254,9 @@ Cel: komfortowy F2P bez poczucia głodu i bez spamu taniej piechoty; wąskie gar
 
 ## 4. Co wybrać dalej (bez decyzji agenta)
 
-**Rekomendacja vaultu:** przyjąć **Opcję C**, ewentualnie z korektą pojedynczych wierszy. A/B zostają jako skrajne odniesienia.
+**Stan 27.11.2026:** właścicielka wybrała model ciągłej krzywej ([[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]); poniższa lista to plan sprzed decyzji.
+
+**Rekomendacja vaultu (23.11):** przyjąć **Opcję C**, ewentualnie z korektą pojedynczych wierszy. A/B zostają jako skrajne odniesienia.
 
 Po OK właścicielki:
 

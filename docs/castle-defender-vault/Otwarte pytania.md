@@ -10,19 +10,18 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Celem ataku jest donżon (Wieża grodowa od epoki I), nie Dwór (#120).
 - Gaszenie pożarów + Studnia weszły z #35 / #20.
 - Generał nie stoi na siatce; PvE max poziom 2; awans w Dworze za PD i złoto (#31 / #273).
-- Przejście I → II: Dwór 5 + O1 + G1 + A7; przebudowa L6; budynki max→lvl1 z bonusami (#34 / #261). **Liczby tymczasowe** → #262 / [[Balans]].
+- Przejście I → II: Dwór 5 + O1 + G1 + A7; przebudowa L6; budynki max→lvl1 z bonusami (#34 / #261). Liczby epoki II: [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]] (#262).
 - Historia obron (26.11.2026, #328): okno po połączeniu z liczbą ataków, lista z nickiem i siłą armii atakującego z serwera; siła obrony atakującego odłożona do #293. [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika|ADR 0003]].
 - Siła celu PvP (26.11.2026, #293): serwer liczy siłę obrony z własnej kopii zamku, karta celu, karta bota i historia obron pokazują tylko przedział o stałych granicach, także po zwiadzie. [[ADR/0004-sila-celu-pvp-przedzial-z-serwera|ADR 0004]].
 - Wymuszenie aktualizacji (26.11.2026, #336): komunikat o nowej wersji ze sklepem i blokada gry poniżej minimum z serwera, także offline; serwer odrzuca starsze klienty. [[ADR/0006-wymuszenie-aktualizacji-wersji-klienta|ADR 0006]].
 - Wersja symulacji ataku (27.11.2026, #354): klient podaje ją przy zatwierdzeniu ataku, a wersja bez packa na serwerze blokuje atak z komunikatem o aktualizacji. [[ADR/0008-wersja-symulacji-ataku-z-klienta|ADR 0008]].
+- Pierwsza passa balansu i premie poziomów 6–10 (27.11.2026, #262): ciągła krzywa kosztu i czasu przez 10 poziomów, premie epoki II rosną dalej (tablice do poziomu 10), Dwór II.1–II.5 z własnej tabeli; z Opcji C z [[Balans]] została zasada reklam i sklepu, reszta odrzucona. Liczby tymczasowe. [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]].
 
 ## Pytania otwarte
 
 - [ ] Czy obok reklam dodać jednorazowy zakup (pakiet startowy / „wesprzyj twórcę” ze sztandarem)? Ticket sklepu: #174; model reklam: [[Model wydania]].
 - [ ] Czy ranking PvP ma sezony z resetem co kilka tygodni? (Roadmapa od 0.3 / #45.)
-- [ ] **Pierwsza passa balansu:** vault proponuje [[Balans]] **Opcję C „Spokojny rytm”** (A/B zostają jako skrajne odniesienia) — pending OK właścicielki, potem #262. Tabele lokalne na razie; Supabase #56 później?
 - [ ] Samouczek: czy #185 wystarczy, a mini-highlight UI (#251) idzie osobno?
-- [ ] Premie poziomów 6–10 epoki II: osobna tablica vs na razie jak poziom 5 (status quo w kodzie)? Część #262.
 
 ## Braki (kod / tickety vs vault)
 
@@ -36,7 +35,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 | Perki władcy | #32 | generałowie #31 gotowe |
 | Powiadomienia push | #30 | — |
 | Ranking PvE (ticket zbiorczy) | #242 | kod rankingu #264–#265; checklist issue |
-| Balans epoki II (koszty, czasy, premie) | #262 | propozycje w [[Balans]] |
+| Balans epoki II (koszty, czasy, premie) | #262 | ustalone w [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]], kod w PR, migracja do wgrania z wydaniem |
 | Mini-samouczek UI do 6 żołnierzy | #251 | — |
 | Życie w zamku | #36 | — |
 | Reklamy z nagrodą | #33 | — |

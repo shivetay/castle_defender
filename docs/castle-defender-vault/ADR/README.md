@@ -15,3 +15,4 @@ numer, a stary zmienia tylko status na „zastąpiony przez”.
 | [[ADR/0006-wymuszenie-aktualizacji-wersji-klienta\|0006]] | Wymuszenie aktualizacji wersji klienta | przyjęty | #336 |
 | [[ADR/0007-strefa-obrony-z-dworu-i-technologii\|0007]] | Strefa obrony rośnie z Dworem i technologią O25 | przyjęty | #342 |
 | [[ADR/0008-wersja-symulacji-ataku-z-klienta\|0008]] | Atak PvP tylko z wersją symulacji wspieraną na serwerze | przyjęty | #354 |
+| [[ADR/0009-model-balansu-epok-ciagla-krzywa\|0009]] | Model balansu epok: ciągła krzywa kosztu i czasu, premie do poziomu 10 | przyjęty | #262 |
