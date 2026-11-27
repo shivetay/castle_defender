@@ -11,6 +11,7 @@ const SESSION_PATH := "user://test_push_session.json"
 const SYNC_PATH := "user://test_push_sync.json"
 const C := PushNotifications.Consent
 const DAY := 24 * 3600
+const K := BuildingTypes.Kind
 
 
 func test_when_to_ask() -> bool:
@@ -137,4 +138,43 @@ func test_firebase_config() -> bool:
 	assert_true(xml.contains("android:name=\"dunhold.firebase.app_id\" android:value=\"1:123456789:android:bbb\""), "wpis app_id")
 	assert_eq(xml.count("<meta-data"), 4, "cztery wpisy")
 	assert_eq(FirebaseConfig.manifest_entries({}), "", "bez konfiguracji nic")
+	return true
+
+
+static func _order(id: int, kind: int, level: int, duration_ms: int, start_ms: int = -1) -> BuildQueue.Order:
+	var o := BuildQueue.Order.new()
+	o.building_id = id
+	o.kind = kind
+	o.level = level
+	o.duration_ms = duration_ms
+	o.start_ms = start_ms
+	return o
+
+
+## Koniec budowy (#30): po jednym powiadomieniu na zlecenie, czekające po poprzednich, bez gotowych.
+func test_build_plan() -> bool:
+	var q := BuildQueue.new()
+	var now := 1_000_000
+	q.orders.append(_order(1, K.MANOR, 2, 60_000, now - 20_000))  # zostało 40 s
+	q.orders.append(_order(2, K.WAREHOUSE, 1, 90_000))  # po pierwszym: 130 s
+	var plan := PushNotifications.build_plan(q, now)
+	assert_eq(plan.size(), 2, "dwa zlecenia")
+	assert_eq([plan[0].slot, plan[0].delay_s, plan[1].slot, plan[1].delay_s], [0, 40, 1, 130], "miejsca i czasy")
+	assert_eq(plan[0].title, PushNotifications.BUILD_TITLE, "tytuł")
+	assert_eq(plan[0].body, "%s (poz. 2)" % BuildingTypes.name_of(K.MANOR), "budynek i poziom")
+	assert_eq(plan[1].body, "%s (poz. 1)" % BuildingTypes.name_of(K.WAREHOUSE), "nowy budynek: poz. 1")
+	for n in plan:
+		assert_true(PixelFont.text_width(n.body) > 0, "treść")
+	q.orders[0].start_ms = now - 60_000  # pierwsze właśnie się skończyło
+	plan = PushNotifications.build_plan(q, now)
+	assert_eq(plan.size(), 1, "gotowe zlecenie bez powiadomienia")
+	assert_eq([plan[0].slot, plan[0].delay_s], [0, 90], "kolejne od miejsca 0")
+	assert_eq(PushNotifications.build_plan(BuildQueue.new(), now), [] as Array[PushNotifications.BuildNotice], "pusta kolejka")
+	assert_eq(PushNotifications.build_plan(null, now), [] as Array[PushNotifications.BuildNotice], "bez kolejki")
+	assert_eq(PushNotifications.BUILD_SLOTS, 4, "jak BUILD_SLOTS we wtyczce")
+	var p := PushNotifications.new()
+	p.schedule_builds(PushNotifications.build_plan(q, now))  # bez wtyczki nic się nie dzieje
+	p.cancel_builds()
+	assert_true(not p.has_plugin(), "bez wtyczki")
+	p.free()
 	return true

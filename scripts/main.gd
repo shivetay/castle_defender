@@ -583,6 +583,7 @@ func _notification(what: int) -> void:
 		return
 	match what:
 		NOTIFICATION_APPLICATION_RESUMED:
+			_cancel_build_notices()
 			_catch_up("Podczas nieobecności: ")
 			_load_defenses()
 			_maybe_check_version()
@@ -592,6 +593,9 @@ func _notification(what: int) -> void:
 			_save()
 			if net != null:
 				net.flush()
+			_schedule_build_notices()
+		NOTIFICATION_APPLICATION_FOCUS_IN:
+			_cancel_build_notices()
 
 
 ## Nadrabia czas nieobecności i podaje w komunikacie, ile surowców przybyło.
@@ -2527,6 +2531,24 @@ func _on_push_switches(attacks: bool, build: bool) -> void:
 		else:
 			push.request_permission()
 	_push_sync()
+
+
+## Lokalne powiadomienia o końcu budowy przy wyjściu do tła (#30): tylko po zgodzie gracza
+## i z włączonym przełącznikiem Koniec budowy. Wcześniejszy plan zawsze znika.
+func _schedule_build_notices() -> void:
+	if push == null or not push.has_plugin():
+		return
+	if not settings_panel.push_build \
+			or PlayerProfile.read_push_consent(PlayerProfile.PATH) != PushNotifications.Consent.ACCEPTED:
+		push.cancel_builds()
+		return
+	push.schedule_builds(PushNotifications.build_plan(queue, _now_ms(), research))
+
+
+## Gracz jest w grze: powiadomienia o budowie nie są potrzebne (komunikaty pokazuje HUD).
+func _cancel_build_notices() -> void:
+	if push != null:
+		push.cancel_builds()
 
 
 func _write_push_consent(consent: int) -> void:

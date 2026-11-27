@@ -39,7 +39,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 | Dwór przez epoki + garnizon UI | #81 | w PR: 4 miejsca za poziom Dworu, +20% HP przy donżonie, bez ataku (decyzja 23.11.2026); liczby do testu na telefonie |
 | Wynik bitwy: % / gwiazdki / łup UI | #99 | odbudowa / ruiny są (#255); reszta UI otwarta |
 | Perki władcy | #32 | generałowie #31 gotowe |
-| Powiadomienia push | #30 | ustalone w [[ADR/0012-powiadomienia-push-fcm\|ADR 0012]]; serwer w PR, wtyczka Android i koniec budowy w kolejnych PR-ach |
+| Powiadomienia push | #30 | ustalone w [[ADR/0012-powiadomienia-push-fcm\|ADR 0012]]; serwer (#402) i klient z wtyczką Android (#407) na `main`, koniec budowy w #410; do działania brakuje projektu Firebase, sekretów i testu na telefonie |
 | Ranking PvE (ticket zbiorczy) | #242 | kod rankingu #264–#265; checklist issue |
 | Mini-samouczek UI do 6 żołnierzy | #251 | — |
 | Życie w zamku | #36 | — |
