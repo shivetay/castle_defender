@@ -326,3 +326,87 @@ func test_save_and_panel() -> bool:
 				"%s: komunikat mieści się" % TrapConfig.NAMES[k])
 	panel.free()
 	return true
+
+
+# --- Pułapka zajmuje kratkę dla budowy (#341) ---------------------------------------------------------
+
+func _rich() -> Economy:
+	var e := Economy.new(0)
+	for res in EconomyConfig.count():
+		e.amounts[res] = 100000
+	return e
+
+
+## Kratka odcinka wału albo palisady, po której zburzeniu zostaje luka w pierścieniu (Sprawdź szczelność).
+func _ring_gap(g: BuildGrid) -> Vector2i:
+	var ids: Array[int] = []
+	ids.assign(g.kinds.keys())
+	ids.sort()
+	for id in ids:
+		if not BuildingTypes.is_wall(g.kinds[id]):
+			continue
+		var c := g.buildings[id].position
+		var kind := g.kinds[id]
+		g.remove(id)
+		if g.is_fort_gap_any(c):
+			return c
+		g.place(Rect2i(c, Vector2i.ONE), kind, 1)
+	return Vector2i(-1, -1)
+
+
+func test_trap_blocks_building_on_its_cell() -> bool:
+	var g := _castle()
+	var p := DefensePlan.new()
+	var c := _spot(p, g, TK.PIT)
+	var rect := Rect2i(c, BuildingTypes.size_of(K.LUMBER_HUT))
+	assert_true(g.placement_for(c, K.LUMBER_HUT) == rect, "bez pułapki chata staje na kratce")
+	p.add_trap(TK.PIT, c)
+	p.mark_traps(g)
+	assert_eq(g.trap_cells.size(), 1, "kratka pułapki trafia do siatki")
+	assert_eq(g.placement_for(c, K.LUMBER_HUT), Rect2i(), "na pułapce nie ma miejsca")
+	assert_eq(g.place(rect, K.LUMBER_HUT), 0, "place() też odmawia")
+	assert_eq(g.trap_blocking(c, K.LUMBER_HUT, false), TK.PIT, "przeszkodą jest właśnie pułapka")
+	# kłody stoją przy murze: chata dotknięta na pułapce przykleja się do muru obok niej
+	var logs := _spot(p, g, TK.LOGS)
+	p.add_trap(TK.LOGS, logs)
+	p.mark_traps(g)
+	var stuck := g.placement_for(logs, K.LUMBER_HUT, true)
+	assert_true(stuck.has_area() and g.trap_under(stuck) < 0, "przyklejanie omija pułapkę i stawia obok")
+	p.remove_trap(logs)
+	p.remove_trap(c)
+	p.mark_traps(g)
+	assert_true(g.placement_for(c, K.LUMBER_HUT) == rect, "po zdjęciu pułapki znowu wolno")
+	return true
+
+
+func test_gap_with_trap_stays_gap_but_refuses_build() -> bool:
+	var g := _castle()
+	var c := _ring_gap(g)
+	assert_true(c.x >= 0, "jest luka w pierścieniu")
+	var p := DefensePlan.new()
+	p.add_trap(TK.CALTROPS, c)
+	p.mark_traps(g)
+	assert_true(g.is_fort_gap_any(c), "luka z pułapką nadal jest luką")
+	var q := BuildQueue.new()
+	var e := _rich()
+	var before: Array[int] = e.amounts.duplicate()
+	var result := q.order_build(g, e, c, g.wall_kind_for_gap(c), 0, _research_all())
+	assert_eq(result, BuildQueue.Result.TRAP, "uszczelnienie odmawia przez pułapkę")
+	assert_eq(q.message(result), "Tu stoi pułapka: Kolczatka", "komunikat z nazwą pułapki")
+	for k in TrapConfig.count():
+		q.blocking_trap = k
+		assert_true(PixelFont.text_width(q.message(result)) <= Hud.MESSAGE_MAX_WIDTH,
+				"%s: komunikat mieści się" % TrapConfig.NAMES[k])
+	q.blocking_trap = TK.CALTROPS
+	assert_eq(e.amounts, before, "odmowa nic nie kosztuje")
+	assert_eq(q.message(BuildQueue.Result.NO_PLACE), "Tu nie można budować", "inne przeszkody bez zmian")
+	return true
+
+
+func test_trap_still_not_on_building() -> bool:
+	var g := _castle()
+	var p := DefensePlan.new()
+	var hut := g.buildings[g.kinds.keys()[g.kinds.values().find(K.LUMBER_HUT)]].position
+	for k in TrapConfig.count():
+		assert_true(p.trap_place_problem(g, k, hut).begins_with("Tu stoi"), "%s nie na budynku" % TrapConfig.NAMES[k])
+	return true

@@ -26,6 +26,11 @@ var ruler_perk: int = RulerPerks.Perk.NONE
 ## (DefensePlan.radius). Jak perk władcy liczy się z badań: ustawiają go SaveGame.from_dict
 ## i BuildQueue.update po ukończeniu badania; nie trafia do zapisu.
 var reach_level: int = 0
+## Kratki z pułapkami obrony (#341, DefensePlan.mark_traps): kratka → rodzaj (TrapConfig.Kind).
+## Budynek nie staje na pułapce (placement_for, place), ale can_place ich nie zna, więc luka
+## w umocnieniach z pułapką zostaje luką (Sprawdź szczelność). Ustawia je main przed każdą zmianą
+## budynków (_tick); nie trafiają do zapisu.
+var trap_cells: Dictionary[Vector2i, int] = {}
 var _next_id := 1
 
 
@@ -102,7 +107,7 @@ func _is_road(c: Vector2i) -> bool:
 ## Stawia budynek i zwraca jego id albo 0, gdy miejsce jest niedozwolone.
 ## Poziom 0 stawia plac budowy (kolejka budowy podnosi go potem do 1).
 func place(rect: Rect2i, kind: int = BuildingTypes.Kind.LUMBER_HUT, level: int = 1) -> int:
-	if not can_place(rect, kind):
+	if not can_place(rect, kind) or trap_under(rect) >= 0:
 		return 0
 	if replaces_walls(kind):
 		for wall in walls_under(rect):
@@ -191,12 +196,31 @@ static func is_fort_anchor(kind: int) -> bool:
 func placement_for(c: Vector2i, kind: int, stick: bool = false) -> Rect2i:
 	var candidates := placement_candidates(c, kind, stick)
 	for rect in candidates:
-		if can_place(rect, kind) and (not replaces_walls(kind) or walls_under(rect).is_empty()):
+		if can_place(rect, kind) and trap_under(rect) < 0 and (not replaces_walls(kind) or walls_under(rect).is_empty()):
 			return rect
 	for rect in candidates:
-		if can_place(rect, kind):
+		if can_place(rect, kind) and trap_under(rect) < 0:
 			return rect
 	return Rect2i()
+
+
+## Rodzaj pułapki (TrapConfig.Kind) na którejś kratce prostokąta albo -1 (#341).
+func trap_under(rect: Rect2i) -> int:
+	for c: Vector2i in trap_cells:
+		if rect.has_point(c):
+			return trap_cells[c]
+	return -1
+
+
+## Rodzaj pułapki, przez którą placement_for() nie znalazł miejsca dla `kind` przy kratce `c`:
+## pod pierwszym wariantem, który bez pułapki byłby wolny. -1, gdy przeszkodą jest coś innego (#341).
+func trap_blocking(c: Vector2i, kind: int, stick: bool = false) -> int:
+	for rect in placement_candidates(c, kind, stick):
+		if can_place(rect, kind):
+			var trap := trap_under(rect)
+			if trap >= 0:
+				return trap
+	return -1
 
 
 ## Id Dworu albo 0, gdy go nie ma.
@@ -381,7 +405,7 @@ func _stick_candidates(c: Vector2i, kind: int, size: Vector2i) -> Array[Rect2i]:
 		for dx in range(-size.x, 2):
 			var r := Rect2i(c + Vector2i(dx, dy), size)
 			var contact := wall_contact(r)
-			if contact == 0 or not can_place(r, kind):
+			if contact == 0 or not can_place(r, kind) or trap_under(r) >= 0:
 				continue
 			var d := (r.position * 2 + r.size - c * 2 - Vector2i.ONE).length_squared()
 			var score := contact * 1000 - d

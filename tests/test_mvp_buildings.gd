@@ -168,7 +168,7 @@ func test_moat_slows_and_spikes() -> bool:
 	for i in 2:
 		b._moat_spikes()
 	assert_eq(a.hp, hp - 2 * BattleConfig.moat_spike_damage(4), "O3: 5 HP na sekundę na poziomie 4")
-	assert_eq(BattleConfig.MOAT_SPIKE_DAMAGE, [2, 3, 4, 5, 6] as Array[int], "kolce według poziomu")
+	assert_eq(BattleConfig.MOAT_SPIKE_DAMAGE.slice(0, 5), [2, 3, 4, 5, 6] as Array[int], "kolce epoki I według poziomu")
 	return true
 
 

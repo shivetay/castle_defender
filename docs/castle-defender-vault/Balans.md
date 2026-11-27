@@ -135,8 +135,12 @@ Tymczasowe liczby z ustaleń 27.11.2026 ([[ADR/0009-model-balansu-epok-ciagla-kr
 | Limit armii z Dworu | 58 | 66 | 74 | 82 | 90 |
 | Garnizon Dworu | 24 | 28 | 32 | 36 | 40 |
 | Limit pułapek | 12 | 14 | 16 | 18 | 20 |
+| Miejsca w kolejce szkolenia ([[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii\|ADR 0013]]) | 7 | 8 | 9 | 10 | 11 |
+| Tempo szkolenia (% poz. 1, ADR 0013) | 230 | 260 | 300 | 340 | 400 |
+| Kolce w Fosie suchej (HP/s, ADR 0013) | 7 | 8 | 9 | 10 | 11 |
+| Zasięg z Kopca (kratki, ADR 0013) | +2 | +2 | +2 | +3 | +3 |
 
-Koszary dają 2 miejsca za każdy poziom 1–10. Strefa obrony rośnie z Dworem i O25 ([[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]); wzór bierze `bonus_level` do 10. Badania epoki II, rok na pasku i tempo szkolenia bez zmian względem ADR 0009.
+Koszary dają 2 miejsca za każdy poziom 1–10. Strefa obrony rośnie z Dworem i O25 ([[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]); wzór bierze `bonus_level` do 10. Badania epoki II i rok na pasku bez zmian względem ADR 0009. Szkolenie, kolce w fosie i Kopiec rosną dalej od #387 ([[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii|ADR 0013]]).
 
 ### 1.8 Młyn (#388 / #396)
 
