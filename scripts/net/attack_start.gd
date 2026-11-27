@@ -8,6 +8,8 @@ extends RefCounted
 ## Wynik wysyła `AttackFinish`.
 
 const PATH := "/functions/v1/start_attack"
+## Odmowa: zamek-bot powyżej postępu kampanii na serwerze (#386, ADR 0015).
+const BOT_LOCKED := "bot_locked"
 
 
 ## Treść żądania ataku na zamek-bota (`bot_idx` 0..BotRoster.COUNT-1).
@@ -61,6 +63,18 @@ static func parse_response(data: Variant) -> Dictionary:
 	return out
 
 
+## Postęp kampanii z odmowy `bot_locked` (`{"error": "bot_locked", "bots_beaten": N}`): N w zakresie
+## 0..BotRoster.COUNT albo -1, gdy odpowiedź go nie niesie.
+static func locked_progress(data: Variant) -> int:
+	if not data is Dictionary or (data as Dictionary).get("error") != BOT_LOCKED:
+		return -1
+	var raw: Variant = (data as Dictionary).get("bots_beaten")
+	if not (raw is int or raw is float) or float(raw) != floorf(float(raw)):
+		return -1
+	var n := int(raw)
+	return n if n >= 0 and n <= BotRoster.COUNT else -1
+
+
 ## Teren zamku-celu z seeda obrońcy. `first_playable` jest idempotentne dla już grywalnego
 ## seeda gracza i potrzebne dla surowego seeda z `bot_castles` (jak `BotCastle.generate`).
 static func terrain_map(map_seed: int) -> TerrainMap:
@@ -97,6 +111,8 @@ static func error_message(code: String) -> String:
 			return "Serwer nie zatwierdził planu. Spróbuj jeszcze raz"
 		"unsupported_version":
 			return "Ta wersja nie może atakować. Zaktualizuj grę"
+		BOT_LOCKED:
+			return "Najpierw zdobądź poprzedni zamek z siecią"
 		SupabaseClient.NETWORK_ERROR:
 			return "Brak połączenia z serwerem. Spróbuj później"
 	return "Serwer nie przyjął ataku. Spróbuj później"

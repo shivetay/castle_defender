@@ -8,6 +8,8 @@ const MIGRATION := "res://supabase/migrations/20261124120000_building_sanity.sql
 const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
 ## Najnowsze tabele czasu poziomu 1 i wymaganych technologii (#388: Młyn).
 const MILL_MIGRATION := "res://supabase/migrations/20261127160000_mill.sql"
+## Targ (#408): bez poziomów, jeden na zamek, nie przenosi się.
+const MARKET_MIGRATION := "res://supabase/migrations/20261127190000_market.sql"
 const K := BuildingTypes.Kind
 
 
@@ -19,9 +21,11 @@ func _balance_sql() -> String:
 	return FileAccess.get_file_as_string(BALANCE_MIGRATION)
 
 
+## Czasy poziomu 1 rodzajów do Młyna. Targ (#408) nie ma czasu budowy: serwer daje 0 dla rodzaju spoza tablicy
+## (`coalesce`), więc tablica w migracji kończy się na Młynie.
 func _base_times() -> Array[int]:
 	var out: Array[int] = []
-	for kind in K.size():
+	for kind in K.MARKET:
 		out.append(int(BuildConfig.BASE_TIME_S.get(kind, 0)))
 	return out
 
@@ -64,7 +68,9 @@ func test_server_formula_matches_build_config() -> bool:
 	for kind in K.size():
 		for level in range(1, Ages.MAX_TOTAL_LEVEL + 1):
 			var server := 0
-			if kind == K.MANOR:
+			if kind >= base.size():
+				server = 0  # coalesce: rodzaj spoza tablicy (Targ) buduje się od razu
+			elif kind == K.MANOR:
 				server = BuildConfig.MANOR_TIME_S[level - 1] * 1000
 			else:
 				var mult := BuildConfig.TIME_MULT[level - 1]
@@ -84,9 +90,14 @@ func test_level_rules_match_game() -> bool:
 	assert_true(sql.contains("MANOR = %d" % K.MANOR), "rodzaj Dworu")
 	assert_true(sql.contains("KEEP = %d, WATCHTOWER = %d" % [K.KEEP, K.WATCHTOWER]), "rodzaje bez poziomów")
 	assert_true(sql.contains("b.kind in (%d, %d)" % [K.KEEP, K.WATCHTOWER]), "bez poziomów w funkcji")
+	var market := FileAccess.get_file_as_string(MARKET_MIGRATION)
+	assert_true(market.contains("KEEP = %d, WATCHTOWER = %d, MARKET = %d" % [K.KEEP, K.WATCHTOWER, K.MARKET]),
+			"rodzaje bez poziomów z Targiem (#408)")
+	assert_true(market.contains("b.kind in (%d, %d, %d)" % [K.KEEP, K.WATCHTOWER, K.MARKET]),
+			"bez poziomów w funkcji z Targiem")
 	for kind in K.size():
-		var flat := kind == K.KEEP or kind == K.WATCHTOWER
-		assert_eq(BuildingTypes.has_levels(kind), not flat, "tylko donżon i strażnica bez poziomów")
+		var flat := kind == K.KEEP or kind == K.WATCHTOWER or kind == K.MARKET
+		assert_eq(BuildingTypes.has_levels(kind), not flat, "tylko donżon, strażnica i Targ bez poziomów")
 		if kind != K.MANOR:
 			assert_eq(BuildConfig.max_level(kind, 3), 1 if flat else 3, "do poziomu Dworu")
 	var techs := str(Ages.TRANSITION_TECHS[0]).replace("\"", "")

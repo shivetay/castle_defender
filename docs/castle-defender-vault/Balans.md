@@ -262,6 +262,7 @@ Cel: komfortowy F2P bez poczucia głodu i bez spamu taniej piechoty; wąskie gar
 
 | Sklep (#174) | Propozycja pod C | Soft-lock? |
 | --- | --- | --- |
+| Darmowe oferty w Targu (#408) | jeden surowiec na ofertę: złoto do 100, inne do 2000, odnowienie od 1 h, grupy po 3 z panelu admina; pełny magazyn blokuje odbiór ([[ADR/0014-sklep-darmowe-oferty-z-odnowieniem\|ADR 0014]]) | **nie** — dodatek, bez progów |
 | Pakiet startowy / „wesprzyj twórcę” | złoto startowe + kosmetyczny sztandar / flaga (nie mnożnik obrażeń) | **nie** |
 | Wygoda | np. +1 miejsce w kolejce budowy **albo** jeden jednorazowy −50% czasu na wybrane zlecenie / dzień (limit serwerowy) | **nie** — kolejka 1+3 działa bez zakupu |
 | Kosmetyka | skóry Dworu / baner rankingu / portret | **nie** |

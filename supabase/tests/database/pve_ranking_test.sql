@@ -19,6 +19,8 @@ insert into test_ids values
   ('00000000-0000-0000-0000-0000000000d3'), ('00000000-0000-0000-0000-0000000000d4');
 insert into auth.users (id) select id from test_ids;
 update public.players set rating = 70000, age = 9 where id in (select id from test_ids);
+-- #386: boty powyżej 0 wymagają postępu kampanii; ten test sprawdza punkty PvE, nie kolejność
+update public.players set bots_beaten = 40 where id in (select id from test_ids);
 update public.players set age = 8 where id = '00000000-0000-0000-0000-0000000000d3';
 update public.players set nickname = 'Ala' where id = '00000000-0000-0000-0000-0000000000d1';
 update public.players set nickname = 'Bolek' where id = '00000000-0000-0000-0000-0000000000d2';
