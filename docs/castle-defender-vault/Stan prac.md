@@ -1,6 +1,8 @@
 # Stan prac
 
-Aktualizacja: 23.11.2026. Kod: repo `shivetay/castle_defender` (Godot 4.7, GDScript), wersja gry **0.4.0** (+ scalenia na `main` bez nowego tagu). Tickety: issues z labelkami `mvp` / `v1.0` oraz kamieniami milowymi.
+Aktualizacja: 27.11.2026 (Europe/Warsaw). Kod: repo `shivetay/castle_defender` (Godot 4.7, GDScript),
+wersja gry **0.6.0** (HEAD `77484bd` na `main`). Tickety: issues z labelkami `mvp` / `v1.0` oraz
+kamieniami milowymi.
 
 ## Wydania
 
@@ -11,50 +13,60 @@ Aktualizacja: 23.11.2026. Kod: repo `shivetay/castle_defender` (Godot 4.7, GDScr
 | 0.2.0 | 15.11.2026 | wydana | stany zniszczeń, ekonomia w tle, kolejka budowy, Dwór, zapis lokalny |
 | 0.3.0 | 16.11.2026 | wydana | badania, towary i wytwórcy, rekrutacja, klasy jednostek, Chłop |
 | 0.4.0 | 17.11.2026 | wydana | bitwa, morale, donżon, samouczek PvE, plan ataku, obrona, pułapki |
-| po 0.4.0 | 18–22.11.2026 | na `main` | backend PvP, zwiad, ranking, epoka II (mechanika), utrzymanie Ży, generałowie, powtórka |
+| 0.5.x | 24–26.11.2026 | wydane | backend PvP, zwiad, ranking, historia obron, weryfikacja ataków |
+| **0.6.0** | 27.11.2026 | na `main` | balans epoki II, boty 20/epoka, same-age PvP, Młyn, sim_version, wymuszenie aktualizacji |
 
 ## Co weszło od ostatniej dużej aktualizacji vaultu
 
-### 18–20.11.2026 — backend, limity, budynki MVP
+### 24–26.11.2026 — serwer, UX, ADR-y
 
-- Klient Supabase, atak, tarcze, seed mapy na serwerze (#166).
-- Limit armii od produkcji żywności (#214 → #247); serwer odrzuca armię ponad limit (#254).
-- Budynki MVP #35: Fosa, Kopiec, Pole i spichlerz, Studnia, Kamieniołom, Wieża sygnałowa (#256).
-- Odbudowa zamku po ataku / ruiny (#255); wóz łupowy (#252); donżon strzela (#244).
-- Ranking PvP (#243–#245).
+- Wymuszenie aktualizacji klienta (#370 / [[ADR/0006-wymuszenie-aktualizacji-wersji-klienta|ADR 0006]]).
+- Rozmiary budynków (#369 / [[ADR/0005-rozmiary-budynkow|ADR 0005]]).
+- Siła celu PvP jako przedział z serwera (#367 / [[ADR/0004-sila-celu-pvp-przedzial-z-serwera|ADR 0004]]).
+- Historia obron z nickiem (#365 / [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika|ADR 0003]]).
+- Strefa obrony z Dworu i O25 (#373 / [[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]);
+  pułapki i zadania obrony poza strefą / klasą (#377, #380).
+- Lista po wydaniu: `docs/PO-WYDANIU.md` (#353).
 
-### 20–21.11.2026 — epoka II, zwiad, ranking PvE
+### 27.11.2026 — balans, boty, PvP, Młyn
 
-- Zasady przejścia epoki w vault i kodzie (#34 / #246 / #261): Dwór L6 = przebudowa, techy O1+G1+A7; budynki wchodzą w epokę II z poziomu 5; premie na razie jak L5.
-- **Balans liczb epoki II odłożony** → #262, decyzje w [[Balans]].
-- Zwiad z mgłą wojny (#28 / #258–#259).
-- Ranking PvE (#264–#265; ticket zbiorczy #242 jeszcze otwarty).
+- **Balans epoki II** (#384 / #262 / [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]): ciągła
+  krzywa kosztu i czasu przez 10 poziomów, premie 6–10, Dwór II.1–II.5; umocnienia w II biorą
+  połowę przyrostu ponad L5. Migracja `age_two_balance`; przy wydaniu klienta `min_code` od razu.
+- **Wersja symulacji** (#382 / [[ADR/0008-wersja-symulacji-ataku-z-klienta|ADR 0008]]): atak z
+  `sim_version` z telefonu; pack na VPS przed APK.
+- **Wyprawa:** 20 zamków-botów na każdą epokę I–II (#385; test #394).
+- **Dobór PvP tylko w tej samej epoce** (#395 / #383 /
+  [[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce|ADR 0010]]).
+- **Młyn** (#396 / #388 / [[ADR/0011-budynki-epoki-ii-od-poziomu-6|ADR 0011]]): G5, start od
+  poziomu 6, premia +4…20% żywności, przy rzece. Numer ADR: po kolizji z #395 mill = **0011**,
+  same-age = **0010**.
+- UI: ikony surowców (#398), ekran tytułowy Dunholm + Discord (#397), lista wojska tylko
+  szkolalne (#381).
 
-### 21–22.11.2026 — powtórka i generałowie
-
-- Obrońca ogląda powtórkę i poprawia obronę (#266–#267; część #29 / #132).
-- Generałowie: Wódz, Łowczy, Budowniczy kopców; rekrutacja 50 Zł; L2/L3 w Dworze; PvE max L2; anti-cheat budżetu (#31 / #273). Perki władcy nadal #32.
-
-Starsza chronologia (12–17.11): etapy 1–8 jak w historii git / CHANGELOG — nie powtarzana tu w całości.
+Starsza chronologia (12–23.11): etapy 1–11 jak w historii git / CHANGELOG — nie powtarzana tu w całości.
+Wcześniej: backend PvP, zwiad, epoka II (mechanika #261), utrzymanie Ży (#247), generałowie (#273).
 
 ## Etapy MVP
 
-**Bieżący nacisk:** domknięcie resztek etapów 10–13 (powiadomienia, perki władcy, balans #262, życie w zamku #36, reklamy #33) oraz otwarte tickety zbiorcze.
+**Bieżący nacisk:** resztki etapów 10–13 (push, perki władcy, życie w zamku, reklamy) oraz ops
+staging/prod ([[Serwer]]); balans #262 **zamknięty** w kodzie.
 
 | Etap | Stan |
 | --- | --- |
 | 1–3 (#123–#125) | gotowe w kodzie; wygląd #150 nadal otwarty |
-| 4 (#126) | kod gotowy: #81 (wygląd Dworu w epokach I–II, garnizon) w PR; migracja `garrison` czeka na wgranie |
+| 4 (#126) | kod gotowy; #81 (wygląd Dworu / garnizon) do domknięcia checklisty |
 | 5 (#127) | prawie: #12 (pełne efekty badań) otwarte; rekrutacja #89 zamknięta |
-| 6–8 (#128–#130) | kod gotowy (#19, #20, #101, #185 zamknięte) |
-| 9 (#131) | rdzeń PvP na `main`; część checklist w issue może być do odhaczenia |
-| 10 (#132) | zwiad + powtórka na `main`; #99 (gwiazdki/łup UI) i #30 (push) otwarte |
-| 11 (#133) | generałowie #31 zamknięte (#273); perki władcy #32 otwarte |
+| 6–8 (#128–#130) | kod gotowy |
+| 9 (#131) | rdzeń PvP na `main` + same-age (#395); część checklist w issue |
+| 10 (#132) | zwiad + powtórka + historia; #99 (UI wyniku) i #30 (push) otwarte |
+| 11 (#133) | generałowie #31 zamknięte; perki władcy #32 otwarte |
 | 12 (#134) | reklamy #33 otwarte |
-| 13 (#135) | mechanika epoki II #261; balans #262; budynki #35 zamknięte; #36 życie w zamku otwarte |
+| 13 (#135) | mechanika #261 + balans #262 + Młyn #388; Pomost/Częstokół/Kaplica (#102) i #36 otwarte |
 | 14 (#136) | zamknięte testy — później |
 
-Pełna lista: [[Plan MVP]]. Pytania: [[Otwarte pytania]]. Koszty: [[Balans]]. Bugi UX: [[Bugs]].
+Pełna lista: [[Plan MVP]]. Pytania: [[Otwarte pytania]]. Koszty: [[Balans]]. Backend: [[Serwer]].
+Bugi UX: [[Bugs]].
 
 ## Decyzje (narosłe)
 
@@ -71,24 +83,28 @@ Pełna lista: [[Plan MVP]]. Pytania: [[Otwarte pytania]]. Koszty: [[Balans]]. Bu
 ### 20–21.11.2026 — przejście epoki (#34 / #261)
 
 - I → II: O1 + G1 + A7 oraz Dwór poziom 5 → przebudowa L6.
-- Budynki: max → poziom 1 nowej epoki z zachowaniem bonusów; premie II do ustalenia (#262).
-- `players.age` na serwerze — do dopięcia.
+- Budynki: max → poziom 1 nowej epoki z zachowaniem bonusów; premie rosną z krzywą (#262).
 
 ### 21–22.11.2026 — generałowie (#31 / #273)
 
 - Bez postaci na siatce; dowodzą całą stroną. Koszty tymczasowe (50 / 80+100 PD / 150+300 PD). PvE max poziom 2.
 
-### 21–23.11.2026 — balans
+### 21–27.11.2026 — balans
 
 - 21.11: „balans zrobimy później” → #262; A/B jako skrajne odniesienia w [[Balans]].
-- 23.11: feedback — bez głodu, bez spamu, F2P kompletny, ads/sklep z realną korzyścią bez soft-locka → vault proponuje **Opcję C „Spokojny rytm”** (pending OK).
-- 27.11: grillowanie #262 → model balansu epok: ciągła krzywa kosztu i czasu przez 10 poziomów, premie poziomów 6–10, Dwór II.1–II.5 ([[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]). Z Opcji C została tylko zasada reklam i sklepu. Kod w PR (#262); migracja `age_two_balance` wgrana na projekt 27.11 przed wydaniem (w epoce II nie było graczy). Przy wydaniu klienta `min_code` podnosimy od razu, bez zwykłych 48 h (decyzja właścicielki, wyjątek od `docs/PO-WYDANIU.md` §6).
+- 23.11: feedback — bez głodu, bez spamu, F2P kompletny → vault proponował **Opcję C**.
+- 27.11: grillowanie → [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]] (ciągła krzywa,
+  premie 6–10). Z Opcji C została tylko zasada reklam i sklepu. Kod #384; #262 zamknięte.
+- 27.11: same-age PvP ([[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce|ADR 0010]]); budynki epoki II
+  od poziomu 6 + Młyn ([[ADR/0011-budynki-epoki-ii-od-poziomu-6|ADR 0011]]).
 
 ## Następne kroki
 
-1. Domknąć #262: merge PR z [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]], nowy `sim_version` i pack przed APK, wydanie klienta i od razu podniesienie `min_code` (bez 48 h; migracja `age_two_balance` już jest na projekcie); test liczb na telefonie.
-2. Perki władcy (#32), push (#30), resztki wyniku bitwy (#99), życie w zamku (#36).
-3. Reklamy (#33), zamknięte testy (#37 / #136).
-4. Odhaczyć zbiorcze body etapów 9–13, jeśli kod już wyprzedza checklisty.
+1. Ops: wgrać migracje / EF Młyna i same-age na staging (jeśli jeszcze nie); pack `sim_version` +
+   `min_code` przy wydaniu klienta — [[Serwer]], `docs/PO-WYDANIU.md`.
+2. Pozostałe budynki #102 (Pomost, Częstokół, Kaplica, zasięg Domu zwiadowców).
+3. Perki władcy (#32), push (#30), UI wyniku bitwy (#99), życie w zamku (#36), reklamy (#33).
+4. Split staging/prod Supabase, gdy startują testerzy w Play.
 
-Powiązane: [[Plan MVP]], [[Roadmapa do 1.0]], [[Otwarte pytania]], [[Balans]], [[Klasy jednostek i produkcja]], [[00 Start]]
+Powiązane: [[Plan MVP]], [[Roadmapa do 1.0]], [[Otwarte pytania]], [[Balans]], [[Serwer]],
+[[ADR/README|ADR]], [[00 Start]]

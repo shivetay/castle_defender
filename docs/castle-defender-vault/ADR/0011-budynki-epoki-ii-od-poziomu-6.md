@@ -2,7 +2,7 @@
 
 - **Status:** przyjęty
 - **Data:** 2026-11-27
-- **Issue:** #102 (wdrożenie: #388)
+- **Issue:** #102 (wdrożenie Młyna: #388 / PR #396; numer ADR: 0011 po kolizji z #395)
 
 ## Kontekst
 

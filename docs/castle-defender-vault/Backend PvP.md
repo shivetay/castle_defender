@@ -14,13 +14,14 @@ Asynchroniczne PvP wymaga serwera, który przechowuje zamki i układy obrony, do
 | Historia obron | Edge Function `defense_history` (funkcja SQL tylko dla `service_role`) zwraca tylko własne obrony: nick atakującego i siłę jego armii z `attacks.attacker_army`, bez id i nazwy zamku atakującego ([[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika\|ADR 0003]]), oraz przedział siły obrony jego zamku |
 | Siła celu | `match_targets` i `defense_history` liczą siłę obrony z kopii zamku na serwerze (`private.defense_strength`, wzór jak `Strength.defense`) i oddają tylko dolną granicę przedziału o stałych granicach (krok 50 / 100 / 500), bez szumu ([[ADR/0004-sila-celu-pvp-przedzial-z-serwera\|ADR 0004]]) |
 | Wersja klienta | `public.client_versions` z progami `min_code` (blokada) i `recommended_code` (komunikat), czytane przez `client_version_policy()`; klient wysyła `X-Client-Version`, a Edge Functions i zapisy zamku odrzucają starszą wersję kodem `update_required` ([[ADR/0006-wymuszenie-aktualizacji-wersji-klienta\|ADR 0006]]) |
+| Środowiska / deploy | staging vs prod, migracje, EF, VPS verifier, kolejność „najpierw serwer” — [[Serwer]] i `docs/PO-WYDANIU.md` |
 
 ## Symulacja deterministyczna
-Bitwa liczy się w stałym kroku 30 Hz, na liczbach całkowitych (bez floatów w logice) i z seedem z serwera. Ta sama bitwa zawsze daje ten sam wynik: działają powtórki i można weryfikować oszustwa. W MVP serwer ufa wynikowi klienta i sprawdza tylko limity (np. łup nie większy niż możliwy). Później ten sam kod GDScript uruchomiony jako Godot headless na workerze (np. Railway) odtwarza bitwę i zatwierdza wynik. Atak liczy się packiem wersji gry, którą klient podał przy zatwierdzeniu ataku. Wersja bez packa na serwerze nie może atakować ([[ADR/0008-wersja-symulacji-ataku-z-klienta|ADR 0008]]).
+Bitwa liczy się w stałym kroku 30 Hz, na liczbach całkowitych (bez floatów w logice) i z seedem z serwera. Ta sama bitwa zawsze daje ten sam wynik: działają powtórki i można weryfikować oszustwa. Worker Godot headless na VPS (`server/verifier/`) odtwarza bitwę przez `claim_verification` / `submit_verification` (tryb `shadow` albo `enforce`). Atak liczy się packiem wersji gry, którą klient podał przy zatwierdzeniu ataku. Wersja bez packa / bez wiersza w `private.sim_versions` nie może atakować ([[ADR/0008-wersja-symulacji-ataku-z-klienta|ADR 0008]]).
 
 ## Reklamy z nagrodą: Google AdMob
 W grze wtyczka AdMob dla Godot 4, tylko format rewarded. AdMob po obejrzeniu wywołuje weryfikację po stronie serwera (Server-Side Verification) na Edge Function `ad_reward`, która przyznaje nagrodę i pilnuje limitów dziennych w tabeli `ad_rewards`. Szczegóły nagród: [[Model wydania]].
 
 Alternatywa: Nakama (open source serwer gier z SDK dla Godot). Ma wbudowane rankingi i matchmaking, ale trzeba go samemu hostować, więc na start jest cięższy.
 
-Powiązane: [[Stack technologiczny]], [[Koncept gry]]
+Powiązane: [[Stack technologiczny]], [[Serwer]], [[Koncept gry]], [[ADR/README|ADR]]
