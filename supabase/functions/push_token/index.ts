@@ -2,7 +2,7 @@
 // z tokenu JWT, nigdy z treści. Klient nie ma uprawnień do `public.push_tokens`, więc to jedyna droga zapisu.
 // Treść: {"token": "<token FCM>", "attacks": true|false} zapisuje token z przełącznikiem „Ataki”,
 // {"token": "<token FCM>", "remove": true} usuwa własny token (wyłączenie powiadomień na urządzeniu).
-// Odpowiedź: {"ok": true}. Token nie trafia do logów ani do odpowiedzi.
+// Odpowiedź: {"ok": true}; ponad 20 zapisów na godzinę: 429 {"error": "rate_limited"}. Token nie trafia do logów ani do odpowiedzi.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { clientOutdated } from "../_shared/client_version.ts";
@@ -65,6 +65,10 @@ Deno.serve(async (req) => {
     ? await admin.rpc("push_token_unregister", { p_player: userData.user.id, p_token: b.token })
     : await admin.rpc("push_token_register", { p_player: userData.user.id, p_token: b.token, p_attacks: b.attacks });
   if (error) {
+    // limit 20 zapisów na godzinę (push_token_register, review #402)
+    if (error.code === "P0001" && /\brate_limited\b/.test(`${error.message ?? ""} ${error.details ?? ""}`)) {
+      return json({ error: "rate_limited" }, 429);
+    }
     console.error("push_token rpc", error.code);
     return json({ error: "push_token_failed" }, 500);
   }

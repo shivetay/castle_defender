@@ -26,7 +26,7 @@ Budowa liczy się na telefonie, w lokalnym zapisie.
    więc kolejny atak zastępuje poprzednie powiadomienie. Dotknięcie otwiera grę z okienkiem z #328.
 4. **Tokeny urządzeń** w tabeli `public.push_tokens` (`player_id`, `token`, `attacks`, `updated_at`).
    Klient nie ma do niej uprawnień, a zapisuje i usuwa własny token przez Edge Function `push_token`
-   z id z JWT. Na konto przypada najwyżej 5 tokenów, a tokeny nieodświeżone od 60 dni wypadają. Token tego samego
+   z id z JWT, najwyżej 20 zapisów na godzinę na konto. Na konto przypada najwyżej 5 tokenów, a tokeny nieodświeżone od 60 dni wypadają. Token tego samego
    urządzenia przechodzi na konto, które zapisało go ostatnie. Token odrzucony przez FCM usuwa serwer.
    Tokeny znikają razem z kontem i nie trafiają do logów.
 5. **Przełączniki:** „Ataki” (per urządzenie, kolumna `push_tokens.attacks` na serwerze) i „Koniec budowy”
@@ -64,6 +64,8 @@ Budowa liczy się na telefonie, w lokalnym zapisie.
 - `export_presets.cfg` dostaje uprawnienie `POST_NOTIFICATIONS` i wtyczkę.
 - Właścicielka zakłada projekt Firebase (pakiety `com.shivetay.dunhold` i `.debug`) i ustawia oba sekrety.
 - Odbiór przy zamkniętej grze da się sprawdzić tylko na telefonie.
+- Atak jest oznaczany jako powiadomiony przed wysyłką, więc przy awarii FCM ten jeden push przepada; gracz
+  i tak zobaczy okienko z #328 po uruchomieniu gry.
 - Dalej: push po wyniku workera, gdy weryfikacja przejdzie na enforce.
 
 ## Dotknięte notatki

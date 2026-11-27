@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(24);
+select plan(30);
 
 -- A atakuje B, O to obcy gracz. Ranking w paśmie 63 300, bo testy biegną też na projekcie w chmurze,
 -- w transakcji, która się cofa.
@@ -101,6 +101,24 @@ select throws_ok($$insert into public.push_tokens (player_id, token)
 select throws_ok($$select public.attack_push_claim('00000000-0000-0000-0000-0000000030a1',
   '00000000-0000-0000-0000-00000030aa01')$$, '42501', null, 'gracz nie woła attack_push_claim');
 select throws_ok($$select push_sent_at from public.attacks$$, '42501', null, 'gracz nie czyta znacznika pusha');
+select throws_ok($$select public.push_token_register('00000000-0000-0000-0000-0000000030b1',
+  'tokX_eeeeeeeeeeeeeeeeeeee', true)$$, '42501', null, 'gracz nie woła push_token_register');
+select throws_ok($$select public.push_token_unregister('00000000-0000-0000-0000-0000000030b1',
+  'tokB2_bbbbbbbbbbbbbbbbbbbb')$$, '42501', null, 'gracz nie woła push_token_unregister');
+select throws_ok($$select public.push_token_drop('tokB2_bbbbbbbbbbbbbbbbbbbb')$$, '42501', null,
+  'gracz nie woła push_token_drop');
+reset role;
+set local role anon;
+select throws_ok($$select public.push_token_register('00000000-0000-0000-0000-0000000030b1',
+  'tokX_eeeeeeeeeeeeeeeeeeee', true)$$, '42501', null, 'anon nie woła push_token_register');
+reset role;
+
+-- ---- limit 20 zapisów na godzinę ----
+set local role service_role;
+select lives_ok($$select public.push_token_register('00000000-0000-0000-0000-0000000030a1',
+  'tokLimit_ffffffffffffffffff', true) from generate_series(1, 20 - 1)$$, 'zapisy w limicie (A ma już 1)');
+select throws_ok($$select public.push_token_register('00000000-0000-0000-0000-0000000030a1',
+  'tokLimit_ffffffffffffffffff', true)$$, 'P0001', 'rate_limited', '21. zapis w godzinie odrzucony');
 reset role;
 
 -- ---- usunięcie konta kasuje tokeny ----

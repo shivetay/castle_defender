@@ -11,6 +11,8 @@
 -- atak jako powiadomiony (`attacks.push_sent_at`) i oddaje tokeny obrońcy z włączonym przełącznikiem
 -- oraz wynik, więc ponowione `finish_attack` nie wyśle drugiego pusha. Atak w weryfikacji (tryb
 -- enforce, bez `outcome_applied_at`) nie dostaje pusha. Token, który FCM odrzuci, usuwa `push_token_drop`.
+-- Zapis tokenu ma limit 20 na godzinę na konto (`private.push_token_calls`, review #402), żeby klient
+-- nie zamieniał Edge Function w darmowy zapis do bazy.
 
 create table public.push_tokens (
   player_id uuid not null references public.players (id) on delete cascade,
@@ -34,6 +36,17 @@ create policy "push_tokens: tylko własne" on public.push_tokens
   using ((select auth.uid()) = player_id)
   with check ((select auth.uid()) = player_id);
 
+-- licznik zapisów tokenu w bieżącym oknie godzinnym (limit w push_token_register)
+create table private.push_token_calls (
+  player_id uuid primary key references public.players (id) on delete cascade,
+  window_start timestamptz not null default now(),
+  calls integer not null default 0 check (calls >= 0)
+);
+comment on table private.push_token_calls is 'Limit zapisów tokenu push (#30): 20 na godzinę na konto.';
+alter table private.push_token_calls enable row level security;
+revoke all on private.push_token_calls from public, anon, authenticated;
+grant select, insert, update, delete on private.push_token_calls to service_role;
+
 -- jednorazowy znacznik pusha o ataku; bez grantu kolumny dla authenticated
 alter table public.attacks add column push_sent_at timestamptz;
 comment on column public.attacks.push_sent_at is 'Kiedy serwer wysłał push o tym ataku do obrońcy (#30); null = jeszcze nie.';
@@ -52,6 +65,15 @@ begin
   if p_player is null or p_token is null or p_attacks is null
       or char_length(p_token) not between 20 and 512 or p_token !~ '^[A-Za-z0-9_:-]+$' then
     raise exception 'bad_token' using errcode = 'P0001';
+  end if;
+  -- PUSH_TOKEN_CALLS_PER_HOUR = 20
+  insert into private.push_token_calls as c (player_id, window_start, calls)
+  values (p_player, now(), 1)
+  on conflict (player_id) do update set
+    window_start = case when c.window_start < now() - interval '1 hour' then now() else c.window_start end,
+    calls = case when c.window_start < now() - interval '1 hour' then 1 else c.calls + 1 end;
+  if (select c.calls from private.push_token_calls c where c.player_id = p_player) > 20 then
+    raise exception 'rate_limited' using errcode = 'P0001';
   end if;
   delete from public.push_tokens t where t.token = p_token and t.player_id <> p_player;
   insert into public.push_tokens as t (player_id, token, attacks, updated_at)
