@@ -1,7 +1,6 @@
 package com.shivetay.dunhold.push
 
 import android.Manifest
-import android.app.Activity
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -10,7 +9,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.FirebaseMessaging
@@ -43,6 +41,7 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
         const val BUILD_SLOTS = 4
     }
 
+    private var initialized = false
     private var configured = false
 
     override fun getPluginName(): String = "DunholdPush"
@@ -53,15 +52,28 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
         SignalInfo("permission_result", Boolean::class.javaObjectType),
     )
 
-    override fun onMainCreate(activity: Activity): View? {
-        configured = initFirebase(activity)
-        createChannels(activity)
-        return null
+    // Bez nadpisywania onMainCreate(Activity) (w CI „overrides nothing”, review #407): start leniwy
+    // z kontekstu, przy starcie Godota albo przy pierwszym wywołaniu z gry.
+    override fun onGodotSetupCompleted() {
+        ensureInit()
+    }
+
+    private fun ensureInit() {
+        if (initialized) {
+            return
+        }
+        val ctx = context ?: return
+        initialized = true
+        configured = initFirebase(ctx)
+        createChannels(ctx)
     }
 
     /** Czy Firebase ma konfigurację z eksportu (bez niej nie ma tokenu ani pusha). */
     @UsedByGodot
-    fun is_configured(): Boolean = configured
+    fun is_configured(): Boolean {
+        ensureInit()
+        return configured
+    }
 
     /** Czy gra może pokazywać powiadomienia (Android 13+: zgoda POST_NOTIFICATIONS). */
     @UsedByGodot
@@ -106,7 +118,7 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
     /** Token FCM urządzenia; przychodzi sygnałem `token_received` albo `token_failed`. */
     @UsedByGodot
     fun request_token() {
-        if (!configured) {
+        if (!is_configured()) {
             emitSignal("token_failed")
             return
         }
@@ -127,7 +139,7 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
      */
     @UsedByGodot
     fun schedule_local(slot: Int, delaySeconds: Int, title: String, body: String) {
-        val ctx = activity ?: return
+        val ctx = context ?: return
         if (slot !in 0 until BUILD_SLOTS || delaySeconds < 1) {
             return
         }
@@ -140,7 +152,7 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
     /** Kasuje zaplanowane powiadomienia o budowie i te już widoczne (gracz wrócił do gry). */
     @UsedByGodot
     fun cancel_local() {
-        val ctx = activity ?: return
+        val ctx = context ?: return
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         for (slot in 0 until BUILD_SLOTS) {
