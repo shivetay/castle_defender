@@ -6,6 +6,8 @@ extends TestCase
 const MIGRATION := "res://supabase/migrations/20261126065715_doctrine_levels.sql"
 ## Lista doktryn z poziomami z doktrynami ataku (najnowsza wersja `private.research_leveled`).
 const ATTACK_MIGRATION := "res://supabase/migrations/20261126065756_attack_doctrine_levels.sql"
+## Najnowsza lista doktryn z poziomami (`private.research_leveled`, od #342 z O25).
+const LEVELED_MIGRATION := "res://supabase/migrations/20261127120000_defense_reach.sql"
 
 
 func _sql() -> String:
@@ -21,8 +23,10 @@ func test_constants_match_game() -> bool:
 		json.append("\"%s\"" % c)
 		arr.append("'%s'" % c)
 	var attack := FileAccess.get_file_as_string(ATTACK_MIGRATION)
-	assert_true(attack.contains("LEVELED = [%s]" % ", ".join(json)), "doktryny z poziomami w komentarzu")
-	assert_true(attack.contains("select array[%s]::text[]" % ", ".join(arr)), "doktryny z poziomami w funkcji")
+	var leveled := FileAccess.get_file_as_string(LEVELED_MIGRATION)
+	assert_true(leveled.contains("LEVELED = [%s]" % ", ".join(json)), "doktryny z poziomami w komentarzu")
+	assert_true(leveled.contains("create or replace function private.research_leveled()"), "najnowsza research_leveled")
+	assert_true(leveled.contains("select array[%s]::text[]" % ", ".join(arr)), "doktryny z poziomami w funkcji")
 	# poziomy doktryn ataku w `attacker_techs`: każdy poziom 2..najwyższy jako „A1:N”
 	for code in ["A1", "A2"]:
 		assert_true(TechTree.is_leveled(code), "%s z poziomami" % code)

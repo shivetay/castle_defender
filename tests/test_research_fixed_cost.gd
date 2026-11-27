@@ -5,6 +5,8 @@ extends TestCase
 ## listy doktryn i czasów epok w komentarzu i w funkcjach migracji.
 
 const MIGRATION := "res://supabase/migrations/20261126065622_research_fixed_cost.sql"
+## Najnowsza lista doktryn (`private.research_doctrines`, od #342 z O25).
+const DOCTRINES_MIGRATION := "res://supabase/migrations/20261127120000_defense_reach.sql"
 
 
 func _sql() -> String:
@@ -28,7 +30,7 @@ static func _sql_array(codes: Array[String]) -> String:
 
 
 func test_doctrines_match_game() -> bool:
-	var sql := _sql()
+	var sql := FileAccess.get_file_as_string(DOCTRINES_MIGRATION)
 	assert_true(not sql.is_empty(), "migracja istnieje")
 	assert_true(sql.contains("DOCTRINES = " + _json_list(TechTree.DOCTRINES)), "doktryny w komentarzu")
 	assert_true(sql.contains(_sql_array(TechTree.DOCTRINES) + "::text[]"), "doktryny w funkcji")
