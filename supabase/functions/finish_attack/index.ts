@@ -7,10 +7,11 @@
 // z których obrońca odbudowuje zamek. Odrzucona lista nie cofa wyniku: obrońca ma wtedy po prostu mniej ruin.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { clientOutdated } from "../_shared/client_version.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-client-version, apikey, content-type",
 };
 
 const ALLOWED_KEYS = new Set(["attack_id", "result", "loot", "survivors", "destroyed"]);
@@ -90,6 +91,9 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
+  if (await clientOutdated(req, admin)) {
+    return json({ error: "update_required" }, 426);
+  }
   const { data, error } = await admin.rpc("end_attack", {
     p_attacker: userData.user.id,
     p_attack: b.attack_id,

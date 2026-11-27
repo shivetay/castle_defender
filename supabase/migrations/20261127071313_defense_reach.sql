@@ -1,4 +1,4 @@
--- #342: technologia O25 Wysunięte straże poszerza strefę obrony (ADR 0006).
+-- #342: technologia O25 Wysunięte straże poszerza strefę obrony (ADR 0007).
 --
 -- Strefa obrony (DefensePlan.zone: posterunki załogi, pułapki, zadania domyślne) ma promień
 -- 10 + 2 × (poziom Dworu w epoce − 1) + poziom O25. O25 (Obrona, epoka I, bez wymagań) to doktryna

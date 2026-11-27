@@ -54,6 +54,10 @@ signal wave_finished(reward: Array[int], error: String)
 ## Serwer odrzucił zapis zamku spoza limitów surowców (#274, HTTP 422). Po tym sygnale zamek wraca
 ## z serwera (`castle_restored`), a gdy na serwerze go nie ma, synchronizacja stoi do końca sesji.
 signal castle_rejected
+## Polityka wersji z serwera (#336): `policy` null, gdy nie przyszła (brak sieci, zła odpowiedź).
+signal version_policy_loaded(policy: ClientVersion.Policy, ok: bool)
+## Serwer odrzucił wersję gry (`update_required`, HTTP 426): gra ma się zablokować do aktualizacji.
+signal update_required
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -117,6 +121,11 @@ var _reports_pending := false
 ## Zwiad (#28) idzie osobnym połączeniem, naraz jedno żądanie.
 var _scout: HTTPRequest
 var _scout_call: int = ScoutCall.NONE
+## Polityka wersji (#336) idzie osobnym połączeniem, naraz jedno żądanie.
+var _version: HTTPRequest
+var _version_pending := false
+## Serwer odrzucił wersję gry: zamek nie idzie na serwer, dopóki nowe sprawdzenie tego nie zdejmie.
+var update_blocked := false
 var _castle_call: int = CastleCall.NONE
 var _castle_map_seed := 0
 var _castle_save_version := 0
@@ -199,6 +208,10 @@ func _ready() -> void:
 	_scout.timeout = TIMEOUT_S
 	add_child(_scout)
 	_scout.request_completed.connect(_on_scout_completed)
+	_version = HTTPRequest.new()
+	_version.timeout = TIMEOUT_S
+	add_child(_version)
+	_version.request_completed.connect(_on_version_completed)
 	session = SupabaseSession.load_from(session_path)
 	connect_now()
 
@@ -247,6 +260,49 @@ func connect_now() -> void:
 ## Nagłówki zapytań do REST API w imieniu gracza (#23): klucz publishable i token konta.
 func rest_headers() -> PackedStringArray:
 	return headers_for(config.key, session.access_token if session != null else "")
+
+
+## Pobiera politykę wersji (#336); wynik w `version_policy_loaded`. Działa też bez konta i przy
+## kłopotach z logowaniem (tylko klucz publishable), bo stary klient ma się dowiedzieć o blokadzie.
+## False, gdy serwer nie jest skonfigurowany; gdy sprawdzenie już trwa, sygnał przyjdzie z tamtego.
+func check_version() -> bool:
+	if config == null or not config.is_ready():
+		return false
+	if _version_pending:
+		return true
+	_version_pending = true
+	if fake_transport:
+		sent_requests.append({"path": ClientVersion.POLICY_PATH, "body": {}})
+		return true
+	if _version == null:
+		_version_pending = false
+		return false
+	var err := _version.request(config.url + ClientVersion.POLICY_PATH, headers_for(config.key, ""),
+			HTTPClient.METHOD_POST, "{}")
+	if err != OK:
+		handle_version(HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	return true
+
+
+func handle_version(result: int, code: int, body: String) -> void:
+	_version_pending = false
+	var policy: ClientVersion.Policy = null
+	if outcome_of(result, code) == Outcome.OK:
+		policy = ClientVersion.Policy.parse(body)
+	version_policy_loaded.emit(policy, policy != null)
+
+
+## Każda odpowiedź serwera przechodzi tędy: 426 to `update_required` (#336). Sygnał idzie raz,
+## do `clear_update_block` po nowym sprawdzeniu wersji.
+func note_status(code: int) -> void:
+	if code != ClientVersion.HTTP_UPDATE_REQUIRED or update_blocked:
+		return
+	update_blocked = true
+	update_required.emit()
+
+
+func clear_update_block() -> void:
+	update_blocked = false
 
 
 ## Nowy stan zamku do wysłania (#23). Bez sieci zostaje w pamięci i pójdzie po połączeniu (main
@@ -493,6 +549,7 @@ func _scout_send(call: int, path: String, body: Dictionary) -> bool:
 
 
 func _on_scout_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
 	handle_scout(_scout_call, result, code, body.get_string_from_utf8())
 
 
@@ -576,7 +633,8 @@ func mark_new_game() -> void:
 # --- Logika bez sieci (testy) ------------------------------------------------------------------
 
 static func headers_for(key: String, access_token: String) -> PackedStringArray:
-	var h := PackedStringArray(["apikey: " + key, "Content-Type: application/json"])
+	var h := PackedStringArray(["apikey: " + key, "Content-Type: application/json",
+			"%s: %d" % [ClientVersion.HEADER, ClientVersion.current_code()]])
 	h.append("Authorization: Bearer " + (access_token if not access_token.is_empty() else key))
 	return h
 
@@ -691,23 +749,32 @@ func _on_request_completed(result: int, code: int, _headers: PackedStringArray, 
 	handle_auth(_pending, result, code, body.get_string_from_utf8())
 
 
+func _on_version_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	handle_version(result, code, body.get_string_from_utf8())
+
+
 func _on_rpc_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
 	handle_targets(result, code, body.get_string_from_utf8())
 
 
 func _on_attack_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
 	handle_attack(_attack_call, result, code, body.get_string_from_utf8())
 
 
 func _on_ranking_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
 	handle_ranking(result, code, body.get_string_from_utf8())
 
 
 func _on_defenses_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
 	handle_defenses(result, code, body.get_string_from_utf8())
 
 
 func _on_reports_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
 	handle_reports(result, code, body.get_string_from_utf8())
 
 
@@ -728,6 +795,7 @@ func _attack_send(call: int, path: String, body: Dictionary) -> bool:
 
 
 func _on_rest_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
 	handle_castle_rest(_castle_call, result, code, body.get_string_from_utf8())
 
 
@@ -781,6 +849,8 @@ func handle_castle_rest(call: int, result: int, code: int, body: String) -> void
 ## Kolejny krok synchronizacji, gdy nic nie trwa: odczyt zamku (raz na sesję konta i po konflikcie)
 ## albo zapis, gdy minęła przerwa.
 func _castle_pump() -> void:
+	if update_blocked:
+		return
 	if _castle_call != CastleCall.NONE or _castle_hold or not (_castle_dirty or _defense_dirty):
 		return
 	if not is_online() or (_rest == null and not fake_transport) or user_id().is_empty():

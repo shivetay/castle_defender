@@ -178,7 +178,7 @@ Technologie perków władcy ([[ADR/0002-perki-wladcy-z-technologii|ADR 0002]], #
 
 ## Strefa obrony (O25)
 
-Technologia spoza notatki ([[ADR/0006-strefa-obrony-z-dworu-i-technologii|ADR 0006]], #342). Doktryna z poziomami: 3 w epoce I, 5 w epoce II, koszt jak kolejne doktryny epoki.
+Technologia spoza notatki ([[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]], #342). Doktryna z poziomami: 3 w epoce I, 5 w epoce II, koszt jak kolejne doktryny epoki.
 
 | Kod | Technologia | Gałąź | Epoka | Efekt | Wymaga |
 | --- | --- | --- | --- | --- | --- |

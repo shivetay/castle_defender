@@ -1,4 +1,4 @@
-# ADR 0006: Strefa obrony rośnie z Dworem i technologią O25
+# ADR 0007: Strefa obrony rośnie z Dworem i technologią O25
 
 - **Status:** przyjęty
 - **Data:** 2026-11-27

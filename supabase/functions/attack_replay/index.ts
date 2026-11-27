@@ -5,10 +5,11 @@
 // i planem (kto atakował, gra tu nie potrzebuje).
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { clientOutdated } from "../_shared/client_version.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-client-version, apikey, content-type",
 };
 
 const ALLOWED_KEYS = new Set(["attack_id"]);
@@ -62,6 +63,9 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
+  if (await clientOutdated(req, admin)) {
+    return json({ error: "update_required" }, 426);
+  }
   const { data, error } = await admin.rpc("attack_replay", { p_player: userData.user.id, p_attack: attackId });
   if (error) {
     const code = known(error);

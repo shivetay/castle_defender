@@ -1,5 +1,5 @@
 extends TestCase
-## Zasięg strefy obrony (#342, ADR 0006): promień rośnie z poziomem Dworu (DefensePlan.RADIUS_PER_MANOR_LEVEL
+## Zasięg strefy obrony (#342, ADR 0007): promień rośnie z poziomem Dworu (DefensePlan.RADIUS_PER_MANOR_LEVEL
 ## na poziom, w epoce II jak przy Dworze 5) i z poziomem technologii O25 Wysunięte straże
 ## (DefensePlan.RADIUS_PER_TECH_LEVEL na poziom). Strefa obejmuje posterunki, pułapki i zadania domyślne.
 

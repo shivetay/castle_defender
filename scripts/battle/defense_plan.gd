@@ -44,7 +44,7 @@ const TOWER_PRIORITY_NAMES: Array[String] = ["najbliższy", "taran", "strzelcy",
 const NO_POST := Vector2i(-1, -1)
 ## Posterunek i pułapka stoją najwyżej radius() kratek (w pionie i poziomie) od środka donżonu: obrona
 ## skupia się na donżonie (#19), a strefa przy krawędzi mapy zostaje dla atakującego. Promień (#342,
-## ADR 0006) to RADIUS przy Dworze 1, RADIUS_PER_MANOR_LEVEL za każdy kolejny poziom Dworu w epoce
+## ADR 0007) to RADIUS przy Dworze 1, RADIUS_PER_MANOR_LEVEL za każdy kolejny poziom Dworu w epoce
 ## (Ages.bonus_level: w epoce II zostaje jak przy Dworze 5) i RADIUS_PER_TECH_LEVEL za każdy poziom
 ## technologii REACH_TECH (O25 Wysunięte straże, BuildGrid.reach_level). Liczby TYMCZASOWE.
 const RADIUS := 10
