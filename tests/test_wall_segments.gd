@@ -216,7 +216,7 @@ func test_build_message_shows_segment_cost() -> bool:
 
 ## Serwer zna te same dopłaty i zasady odcinka (review PR 414, migracja `*_wall_segments.sql`).
 func test_server_knows_segment_gold() -> bool:
-	var sql := FileAccess.get_file_as_string("res://supabase/migrations/20261127180000_wall_segments.sql")
+	var sql := FileAccess.get_file_as_string("res://supabase/migrations/20261127210000_wall_segments.sql")
 	assert_true(not sql.is_empty(), "migracja jest")
 	assert_true(sql.contains("SEGMENT_GOLD = %s" % str(BuildConfig.SEGMENT_GOLD)), "dopłaty w komentarzu")
 	var arr := "(array[%s])" % ", ".join(BuildConfig.SEGMENT_GOLD.map(func(g: int) -> String: return str(g)))

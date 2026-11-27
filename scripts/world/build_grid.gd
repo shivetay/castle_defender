@@ -299,6 +299,34 @@ func watchtower_spot(max_ring: int) -> Rect2i:
 	return spot_around(around, kind, max_ring)
 
 
+## Id Targu (#408) albo 0, gdy go nie ma.
+func market_id() -> int:
+	for id: int in kinds:
+		if kinds[id] == BuildingTypes.Kind.MARKET:
+			return id
+	return 0
+
+
+## Miejsce na Targ (#408): najbliższy wolny prostokąt 4×4 wokół Dworu (albo środka mapy, gdy Dworu nie ma),
+## w stałej kolejności pierścieni (spot_around), najdalej `max_ring` kratek. Pusty prostokąt, gdy brak.
+## Tak samo w nowej grze i w starym zapisie bez Targu, więc ten sam zamek dostaje zawsze to samo miejsce.
+## Kratki z pułapkami (trap_cells, #341) omija jak każdy budynek (placement_for).
+func market_spot(max_ring: int) -> Rect2i:
+	var id := manor_id()
+	if id == 0:
+		return spot_near(terrain.center(), BuildingTypes.Kind.MARKET, max_ring)
+	return spot_around(buildings[id], BuildingTypes.Kind.MARKET, max_ring)
+
+
+## Stawia brakujący Targ (#408) na market_spot: w nowej grze po Strażnicy, w starym zapisie przy wczytaniu
+## i po zwolnieniu miejsca. `true`, gdy Targ stoi (także gdy stał już wcześniej).
+func place_market() -> bool:
+	if market_id() != 0:
+		return true
+	var spot := market_spot(terrain.size)
+	return spot.has_area() and place(spot, BuildingTypes.Kind.MARKET) != 0
+
+
 ## Czy w pasie 1 kratki wokół `r` nie stoi żaden budynek.
 func _clear_around(r: Rect2i) -> bool:
 	var g := r.grow(1)
