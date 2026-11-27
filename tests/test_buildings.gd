@@ -3,10 +3,14 @@ extends TestCase
 ## cache tekstur oraz ulepszanie i maski sąsiadów w siatce budowy.
 
 
-func _palette_set() -> Dictionary:
+## Kolory epoki I, a dla epoki II także jej paleta (woda, cień i strzecha zostają z AGE_I, Palette).
+func _palette_set(age: int = 0) -> Dictionary:
 	var allowed := {}
 	for col: Color in Palette.AGE_I:
 		allowed[col.to_rgba32()] = true
+	if age >= 1:
+		for col: Color in Palette.AGE_II:
+			allowed[col.to_rgba32()] = true
 	return allowed
 
 
@@ -123,10 +127,12 @@ func test_age_palette_has_12_to_16_colors() -> bool:
 	return true
 
 
+## Budynek epoki II (#388, ADR 0011) ma tylko poziomy 6–10 i rysuje się w palecie epoki II.
 func test_only_palette_colors() -> bool:
-	var allowed := _palette_set()
 	for kind in BuildingTypes.count():
-		for level in range(1, BuildingTypes.MAX_LEVEL + 1):
+		var first := BuildConfig.start_level(kind)
+		var allowed := _palette_set(Ages.of_level(first))
+		for level in range(first, first + BuildingTypes.MAX_LEVEL):
 			for state in BuildingTypes.State.size():
 				var img := BuildingArt.make_image(kind, level, state, 0b1111)
 				var outside := 0

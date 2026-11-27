@@ -6,6 +6,8 @@ extends TestCase
 
 const MIGRATION := "res://supabase/migrations/20261124180000_economy_growth.sql"
 const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
+## Najnowsza wersja `private.build_cost` (#388: Młyn).
+const MILL_MIGRATION := "res://supabase/migrations/20261127160000_mill.sql"
 const R := EconomyConfig.Res
 
 
@@ -149,8 +151,9 @@ func test_production_formula_matches_rates() -> bool:
 func test_build_cost_matches_game() -> bool:
 	var sql := _balance_sql()
 	var costs := _build_cost()
-	assert_true(sql.contains("BUILD_COST = " + costs), "koszty w komentarzu")
-	assert_true(sql.contains("v_base := '" + costs + "'::jsonb"), "koszty w funkcji")
+	var mill := FileAccess.get_file_as_string(MILL_MIGRATION)
+	assert_true(mill.contains("BUILD_COST = " + costs), "koszty w komentarzu")
+	assert_true(mill.contains("v_base := '" + costs + "'::jsonb"), "koszty w funkcji")
 	assert_true(sql.contains("COST_PERCENT = %s" % _list(BuildConfig.COST_PERCENT)), "krzywa kosztu w komentarzu")
 	assert_true(sql.contains("v_percent := (array%s)[v_lv];" % _list(BuildConfig.COST_PERCENT)), "krzywa w funkcji")
 	assert_true(sql.contains("* v_percent / 100 from"), "procent w funkcji")

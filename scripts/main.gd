@@ -34,7 +34,7 @@ const UPDATE_STORE_NOTE := "Nie udało się otworzyć sklepu"
 
 
 ## Komunikat, gdy Rybak nie styka się z wodą (#122).
-const FISHER_HINT := "Rybak musi stać tuż przy rzece"
+const WATER_HINT := "%s musi stać tuż przy rzece"
 const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
 
 ## Komunikat w trybie oglądania.
@@ -924,12 +924,12 @@ func _on_tapped(world_pos: Vector2) -> void:
 		# przy nieudanej próbie ramka ma kształt pierwszego wariantu (np. pionowej bramy)
 		_cursor = grid.buildings[queue.placed_id] if _cursor_ok else grid.placement_candidates(cell, kind, true)[0]
 		if _cursor_ok:
-			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(_build_time(kind, 1, grid.ruler_perk))]
+			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(_build_time(kind, BuildConfig.start_level(kind), grid.ruler_perk))]
 			_save()
 		elif result == BuildQueue.Result.NEEDS_TECH:
 			hud.message = _tech_hint(kind)
-		elif result == BuildQueue.Result.NO_PLACE and _fisher_lacks_water(cell, kind):
-			hud.message = FISHER_HINT
+		elif result == BuildQueue.Result.NO_PLACE and _lacks_water(cell, kind):
+			hud.message = WATER_HINT % BuildingTypes.NAMES[kind]
 		else:
 			hud.message = BuildQueue.MESSAGES[result]
 	queue_redraw()
@@ -972,8 +972,8 @@ func _on_build_panel_closed() -> void:
 
 ## Komunikat trybu budowy: nazwa, koszt i czas wybranego budynku (z perkiem władcy `perk`).
 static func build_message(kind: int, perk: int = RulerPerks.Perk.NONE) -> String:
-	return "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, 1)),
-			Hud.format_time(_build_time(kind, 1, perk))]
+	return "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, BuildConfig.start_level(kind))),
+			Hud.format_time(_build_time(kind, BuildConfig.start_level(kind), perk))]
 
 
 ## Komunikat po zamknięciu panelu budowy bez Postaw.
@@ -981,10 +981,10 @@ static func closed_message(building: bool, kind: int, perk: int = RulerPerks.Per
 	return build_message(kind, perk) if building else DEFAULT_MESSAGE
 
 
-## Czy Rybak nie staje tylko przez brak wody: ten sam prostokąt bez warunku wody byłby wolny
+## Czy Rybak albo Młyn nie staje tylko przez brak wody: ten sam prostokąt bez warunku wody byłby wolny
 ## (review PR 143). Przy innych przeszkodach zostaje zwykły komunikat „Tu nie można budować”.
-func _fisher_lacks_water(cell: Vector2i, kind: int) -> bool:
-	if kind != BuildingTypes.Kind.FISHER:
+func _lacks_water(cell: Vector2i, kind: int) -> bool:
+	if not BuildingTypes.needs_water(kind):
 		return false
 	var rect := Rect2i(cell, BuildingTypes.size_of(kind))
 	return grid.can_place(rect) and not grid.touches_water(rect)
@@ -2622,7 +2622,7 @@ func _on_seal_pressed() -> void:
 	if result == BuildQueue.Result.OK:
 		seal_check.prune(grid)
 		hud.message = "Uszczelnianie: %s, %s" % [BuildingTypes.NAMES[kind],
-				Hud.format_time(_build_time(kind, 1, grid.ruler_perk))]
+				Hud.format_time(_build_time(kind, BuildConfig.start_level(kind), grid.ruler_perk))]
 		_save()
 	elif result == BuildQueue.Result.NEEDS_TECH:
 		hud.message = _tech_hint(kind)

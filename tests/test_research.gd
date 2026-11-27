@@ -23,8 +23,8 @@ func _finish(r: Research, code: String, economy: Economy) -> bool:
 
 
 ## 34 technologie MVP, S3 Dom zwiadowców (Zwiadowca, #92) i 8 technologii perków władcy (#308).
-func test_tree_has_44_unique_technologies() -> bool:
-	assert_eq(TechTree.count(), 44, "34 technologie MVP, S3, 8 perków władcy i O25")
+func test_tree_has_45_unique_technologies() -> bool:
+	assert_eq(TechTree.count(), 45, "34 technologie MVP, S3, 8 perków władcy, O25 i G5 (#388)")
 	var seen := {}
 	for code in TechTree.codes():
 		assert_true(not seen.has(code), "kod %s jest unikalny" % code)
@@ -33,7 +33,7 @@ func test_tree_has_44_unique_technologies() -> bool:
 	var sizes: Array[int] = []
 	for b in TechTree.BRANCH_NAMES.size():
 		sizes.append(TechTree.in_branch(b).size())
-	assert_eq(sizes, [21, 6, 11, 3, 3] as Array[int], "Atak 21, Obrona 6, Gospodarka 11, Użyteczne 3, Specjalne 3")
+	assert_eq(sizes, [21, 6, 12, 3, 3] as Array[int], "Atak 21, Obrona 6, Gospodarka 12, Użyteczne 3, Specjalne 3")
 	var mvp: Array[String] = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A21", "A22", "A38", "A39", "A40", "A41",
 			"A42", "A43", "A44", "A45", "A46", "A47", "O1", "O2", "O3", "G1", "G2", "G4", "G6", "G18", "G19", "G20",
 			"G21", "G24", "U1", "S1", "S2", "S3"]
@@ -49,7 +49,7 @@ func test_dependencies_and_ages_from_note() -> bool:
 		"A3": ["G24"], "A4": ["A1"], "A5": ["A4"], "A6": ["A1"], "A7": ["A2", "A43"], "A21": ["A38"],
 		"A22": ["A7"], "A38": ["G19"], "A40": ["G18"], "A41": ["A40"], "A42": ["G18"], "A43": ["G19"],
 		"A44": ["A41"], "A45": ["A38"], "A46": ["A45"], "A47": ["A2"], "O3": ["O2"], "G4": ["G1"],
-		"G6": ["G4"], "G19": ["G18"], "G20": ["G2"], "G24": ["G1"], "S3": ["S1"],
+		"G5": ["G2"], "G6": ["G4"], "G19": ["G18"], "G20": ["G2"], "G24": ["G1"], "S3": ["S1"],
 		# perki władcy (#308): poziom 2 wymaga poziomu 1 tej samej linii
 		"A61": ["A60"], "O24": ["O23"], "G26": ["G25"], "U15": ["U14"],
 	}
@@ -58,7 +58,7 @@ func test_dependencies_and_ages_from_note() -> bool:
 		want.assign(expected.get(code, []) as Array)
 		assert_eq(TechTree.requires(code), want, "%s wymaga" % code)
 	# G4 Kamieniarstwo w epoce I (#315): kamień z własnej produkcji bez agresywnej gry.
-	var age_two: Array[String] = ["A5", "A6", "A22", "A46", "A47", "G6", "S3", "A61", "O24", "G26", "U15"]
+	var age_two: Array[String] = ["A5", "A6", "A22", "A46", "A47", "G5", "G6", "S3", "A61", "O24", "G26", "U15"]
 	for code in TechTree.codes():
 		assert_eq(TechTree.age(code), 1 if age_two.has(code) else 0, "%s: epoka" % code)
 	assert_true(TechTree.is_key("O1") and TechTree.is_key("G6"), "O1 i G6 kluczowe (★)")

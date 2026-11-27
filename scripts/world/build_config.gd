@@ -40,6 +40,8 @@ const BASE_COST := {
 	K.WELL: [40, 30, 10, 0],
 	K.QUARRY: [100, 0, 30, 0],
 	K.SIGNAL_TOWER: [100, 20, 30, 0],
+	## Młyn (#388): koszt poziomu 1 z ustaleń #102 (tymczasowy); płaci się od poziomu 6 (start_level).
+	K.MILL: [120, 60, 20, 0],
 }
 ## Czas poziomu 1 w sekundach.
 const BASE_TIME_S := {
@@ -49,6 +51,7 @@ const BASE_TIME_S := {
 	K.STABLE: 60, K.BARRACKS: 60, K.WARBAND_HOUSE: 75, K.ARCHERY_RANGE: 70,
 	K.KEEP: 90, K.SCOUT_HOUSE: 70, K.SEAL_HOUSE: 60, K.WAREHOUSE: 45,
 	K.DRY_MOAT: 5, K.MOUND: 60, K.FARM: 40, K.WELL: 30, K.QUARRY: 50, K.SIGNAL_TOWER: 50,
+	K.MILL: 50,
 }
 ## Technologia, bez której budynku nie da się postawić (Drzewko technologiczne). Ulepszenia
 ## już postawionego budynku jej nie sprawdzają. Stajnia (#91) i Koszary (#119) nie mają technologii
@@ -58,7 +61,12 @@ const REQUIRED_TECH := {
 	K.BOWYER: "A41", K.FLETCHER: "A42", K.SADDLER: "A43", K.TAR_KILN: "G24",
 	K.FLAX_FIELD: "G20", K.FISHER: "G21", K.WARBAND_HOUSE: "A45", K.ARCHERY_RANGE: "A44",
 	K.SCOUT_HOUSE: "S1", K.SEAL_HOUSE: "O2",
-	K.MOUND: "O1", K.QUARRY: "G4", K.SIGNAL_TOWER: "S2",
+	K.MOUND: "O1", K.QUARRY: "G4", K.SIGNAL_TOWER: "S2", K.MILL: "G5",
+}
+## Epoka, od której budynek wchodzi do gry (#102, ADR 0011); bez wpisu epoka I. Budynek epoki II
+## stawia się od razu na poziomie 1 tej epoki (narastająco 6), więc nie ma poziomów 1–5.
+const FIRST_AGE := {
+	K.MILL: 1,
 }
 ## Koszt poziomu w procentach kosztu poziomu 1, jedna ciągła krzywa przez wszystkie poziomy narastająco
 ## (#262, ADR 0009): epoka I ×1 … ×6, epoka II dalej ×8,5 … ×25, więc na przejściu I.5 → II.1 nic nie
@@ -131,6 +139,12 @@ static func time_mult(kind: int, level: int) -> int:
 		var top := TIME_MULT[Ages.LEVELS_PER_AGE - 1]
 		mult = top + (mult - top) * FORT_AGE_II_TIME_PERCENT / 100
 	return mult
+
+
+## Poziom, na który stawia się nowy budynek `kind` (narastająco): 1, a dla budynku epoki II 6
+## (FIRST_AGE, ADR 0011). Serwer liczy koszt i czas budowy od tego samego poziomu.
+static func start_level(kind: int) -> int:
+	return Ages.total_level(int(FIRST_AGE.get(kind, 0)), 1)
 
 
 ## Najwyższy poziom budynku `kind` przy Dworze na poziomie `manor_level` (oba narastająco). Budynek

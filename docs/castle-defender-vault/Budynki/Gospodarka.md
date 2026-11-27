@@ -18,7 +18,7 @@
 | Smolarnia | I | smoła dla Podpalacza i machikuł |
 | Studnia | I | gasi pożary (zadanie obrony Gaszenie pożarów, #35), warunek długiego oblężenia |
 | Kamieniołom | I | kamień (+40/60/80/110/140 na h, tymczasowe; wymaga G4, #35; w epoce I od #315) |
-| Młyn | II | +żywność |
+| Młyn | II | +4/8/12/16/20% całej produkcji żywności na poziomach II.1–II.5 (liczy się jeden Młyn, najwyższy poziom); technologia G5 Młyn wodny, budynek 2×2 stawiany przy rzece, start od poziomu 6, koszt poziomu 1 120 Dr 60 Ka 20 Ży (tymczasowe); #388, [[ADR/0011-budynki-epoki-ii-od-poziomu-6\|ADR 0011]] |
 | Targ | III | złoto |
 | Węglarz | III | węgiel drzewny dla Kopalni rudy, Kuźni i Prochowni |
 | Kopalnia rudy | III | żelazo, główny koszt ciężkich jednostek od epoki III |

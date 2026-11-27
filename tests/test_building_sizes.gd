@@ -32,6 +32,8 @@ func test_two_by_two_art_unchanged() -> bool:
 	for kind in BuildingTypes.count():
 		if BuildingTypes.size_of(kind) != Vector2i(2, 2) and not GROWN_3X2.has(kind) and kind != K.BARRACKS:
 			continue
+		if BuildConfig.start_level(kind) > 1:
+			continue  # budynki epoki II z #102 (Młyn, #388) doszły po złotym hashu; ich rysunki ma test_mill
 		for level in range(0, 7):
 			for state in 4:
 				for lean in 5:

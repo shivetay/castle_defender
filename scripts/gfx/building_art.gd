@@ -44,10 +44,11 @@ static func can_lean(kind: int) -> bool:
 			BuildingTypes.Kind.FLAX_FIELD, BuildingTypes.Kind.WATCHTOWER] or has_own_art(kind))
 
 
-## Pozostałe budynki MVP (#35), rysowane w MvpBuildingArt.
+## Pozostałe budynki MVP (#35), rysowane w MvpBuildingArt, i budynki epoki II z #102 (AgeIiBuildingArt).
 static func has_own_art(kind: int) -> bool:
 	return kind in [BuildingTypes.Kind.DRY_MOAT, BuildingTypes.Kind.MOUND, BuildingTypes.Kind.FARM,
-			BuildingTypes.Kind.WELL, BuildingTypes.Kind.QUARRY, BuildingTypes.Kind.SIGNAL_TOWER]
+			BuildingTypes.Kind.WELL, BuildingTypes.Kind.QUARRY, BuildingTypes.Kind.SIGNAL_TOWER,
+			BuildingTypes.Kind.MILL]
 
 
 ## Strona przybudówki z kierunku do muru (BuildGrid.wall_side).
@@ -127,6 +128,8 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 			MvpBuildingArt.draw_quarry(img, lv)
 		BuildingTypes.Kind.SIGNAL_TOWER:
 			MvpBuildingArt.draw_signal_tower(img, lv)
+		BuildingTypes.Kind.MILL:
+			AgeIiBuildingArt.draw_mill(img, Ages.local_level(level))
 		_:
 			_draw_workshop(img, kind, lv, ln, mirror)
 	if mirror:

@@ -57,6 +57,10 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 	placed_id = 0
 	if not BuildConfig.is_unlocked(kind, research):
 		return Result.NEEDS_TECH
+	# budynek epoki II (ADR 0011) stawia się od razu na poziomie 6, więc wymaga Dworu w tej epoce
+	var level := BuildConfig.start_level(kind)
+	if level > BuildConfig.max_level(kind, grid.manor_level()):
+		return Result.NEEDS_MANOR
 	if is_full():
 		return Result.QUEUE_FULL
 	# gracz stawia: budynek przykleja się do pobliskiej linii umocnień (#149)
@@ -67,7 +71,7 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 	for wall in grid.walls_under(rect):
 		if has_order(wall):
 			return Result.NO_PLACE
-	var cost := BuildConfig.cost(kind, 1)
+	var cost := BuildConfig.cost(kind, level)
 	if not economy.spend(cost):
 		return Result.NO_RESOURCES
 	placed_id = grid.place_kind(c, kind, 0, true)
@@ -76,7 +80,7 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 		for res in cost.size():
 			economy.add(res, cost[res])
 		return Result.NO_PLACE
-	_append(placed_id, kind, 1, cost, now_ms, grid.ruler_perk)
+	_append(placed_id, kind, level, cost, now_ms, grid.ruler_perk)
 	return Result.OK
 
 
