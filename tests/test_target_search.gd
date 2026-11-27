@@ -121,7 +121,7 @@ func test_bot_order_is_deterministic() -> bool:
 	assert_eq(TargetSearch.bot_indices(5, 3), [5, 4, 3] as Array[int], "bieżący i zdobyte")
 	assert_eq(TargetSearch.bot_indices(0, 3), [0, 1, 2] as Array[int], "nowy gracz")
 	assert_eq(TargetSearch.bot_indices(1, 3), [1, 0, 2] as Array[int], "jeden zdobyty")
-	assert_eq(TargetSearch.bot_indices(30, 3), [19, 18, 17] as Array[int], "wszystkie zdobyte")
+	assert_eq(TargetSearch.bot_indices(55, 3), [39, 38, 37] as Array[int], "wszystkie zdobyte")
 	assert_eq(TargetSearch.bot_indices(3, 0), [] as Array[int], "brak wolnych miejsc")
 	var a := TargetSearch.bot_target(7)
 	assert_eq(a.castle_name, BotRoster.NAMES[7], "nazwa z listy botów")

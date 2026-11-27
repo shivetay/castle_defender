@@ -15,7 +15,7 @@ Pierwsza grywalna wersja obejmuje epoki I i II z okrojoną zawartością, pełn�
 | Generałowie | 3: Wódz drużyny, Łowczy (atak), Budowniczy kopców (obrona); poziomy 1–3, jeden perk dodatkowy | pozostałe 9, poziomy 4–5 |
 | Perki władcy | 1 miejsce na perk z technologii, 4 linie po 2 poziomy: Zdobywca → Łupieżca, Gospodarz grodu, Gospodarny → Budowniczy, Ukochany władca ([[ADR/0002-perki-wladcy-z-technologii\|ADR 0002]]) | miejsca 2 i 3, pozostałe 13 perków |
 | Surowce | drewno, kamień, żywność, złoto (z łupu i PvE) | proch, żelazo |
-| PvP | dobór przeciwnika, zwiad z mgłą wojny, plan ataku, bitwa bez sterowania, łup, tarcza, ranking, powtórka, 20 zamków-botów | sezony rankingu, weryfikacja bitew na serwerze (Godot headless) |
+| PvP | dobór przeciwnika, zwiad z mgłą wojny, plan ataku, bitwa bez sterowania, łup, tarcza, ranking, powtórka, 20 zamków-botów na epokę (#230) | sezony rankingu, weryfikacja bitew na serwerze (Godot headless) |
 | PvE | samouczek: 5 fal oblężenia | kampania z lokacjami |
 | Reklamy z nagrodą | przyspieszenie budowy, szybsze zbieranie surowców | skrócenie czasu do ataku, wywiad, sabotaż, ochrona magazynu |
 | Backend | Supabase: logowanie, zapis zamku i obrony, `start_attack` / `finish_attack`, tarcze, boty, weryfikacja reklam (AdMob SSV), powiadomienia push | klany i sojusze |

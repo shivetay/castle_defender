@@ -1400,7 +1400,7 @@ func _on_scout_reports(rows: Array[Dictionary], ok: bool) -> void:
 			_refresh_scout_lines()
 
 
-## Boty (ekran 3 celów): pełna lista 20 zamków-botów (#26).
+## Boty (ekran 3 celów): pełna lista zamków-botów, 20 na epokę (#26, #230).
 func _open_bot_list() -> void:
 	target_picker.visible = false
 	bot_picker.open(bots_beaten, attack_target)
@@ -1689,7 +1689,7 @@ func _finish_attack(b: Battle) -> void:
 	var unlock := ""
 	if first:
 		unlock = "Wszystkie zamki zdobyte!" if bots_beaten + 1 >= BotRoster.COUNT \
-				else "Odblokowany: %d. %s" % [bots_beaten + 2, BotRoster.NAMES[bots_beaten + 1]]
+				else BotPicker.unlock_text(bots_beaten + 1)
 	elif _pve.failed():
 		unlock = PveReport.FAILED_MESSAGE  # serwer odrzucił start wyprawy
 	elif not online:

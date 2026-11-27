@@ -1,24 +1,41 @@
 class_name BotRoster
 extends RefCounted
-## 20 zamków-botów (#26): cele Wypraw ze Strażnicy, zanim będzie wielu graczy. Lista jest wspólna dla
-## wszystkich graczy (seed z numeru zamku, nie ze świata gracza), więc w etapie 9 przejdzie do bazy
-## jako 20 wierszy z seedem. Trudność rośnie z numerem: poziom budynków, wieże, wał zamiast palisady
-## w co drugim z pierwszych 10 zamków, zewnętrzny wał,
-## budynki rekrutacji i załoga z coraz większej liczby klas. Zamki 16–20 to epoka II (jednostki epoki II).
+## Zamki-boty (#26, #230): cele Wypraw ze Strażnicy, zanim będzie wielu graczy. 20 zamków na każdą
+## epokę (MVP: I–II, razem 40). Zamki 0–19 to epoka I, 20–39 epoka II. Lista jest wspólna dla
+## wszystkich graczy (seed z numeru zamku, nie ze świata gracza) i leży w bazie (`bot_castles`).
+## Trudność rośnie z rangą w epoce: poziom budynków, wieże, wał zamiast palisady w co drugim
+## z pierwszych 10 zamków, zewnętrzny wał, budynki rekrutacji i załoga z coraz większej liczby klas.
+## Epoka II zaczyna od połowy krzywej epoki I (siła konstrukcji `structure_of`), a jej załoga to tło
+## z piechoty epoki I i dokładane z rangą jednostki epoki II.
 ## Po ataku zamek wraca do pełnego stanu (jest generowany od nowa), więc nowy gracz zawsze ma kogo
 ## zaatakować. Wszystkie liczby TYMCZASOWE, do balansu.
 @warning_ignore_start("integer_division")
 
-const COUNT := 20
-## Od tego numeru (0 = pierwszy zamek) zamki są z epoki II.
-const AGE_II_FROM := 15
-## Od tego numeru zamek ma zewnętrzny pierścień wału przed palisadą.
+## Zamki na epokę.
+const COUNT_PER_AGE := 20
+## Epoki z zamkami-botami (MVP: I–II).
+const AGES := 2
+const COUNT := COUNT_PER_AGE * AGES
+## Od tej siły konstrukcji zamek ma zewnętrzny pierścień wału przed palisadą.
 const OUTER_WALL_FROM := 10
+## Najwyższa siła konstrukcji (ostatni zamek epoki I).
+const MAX_STRUCTURE := COUNT_PER_AGE - 1
+## Siła konstrukcji pierwszego zamku epoki II: połowa krzywej epoki I.
+const AGE_II_STRUCTURE_FROM := 11
+## Tło załogi epoki II: garnizon zamku epoki I o tej randze (bez jednostek specjalnych).
+const AGE_II_BASE_RANK := 10
+const ROMAN: Array[String] = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
 const NAMES: Array[String] = [
+	# epoka I
 	"Gródek", "Bobrowa Wola", "Lisi Jar", "Kamienny Bród", "Wilcze Doły",
 	"Sokola Góra", "Mszany Gród", "Zbójecki Gród", "Bielsko Stare", "Czarny Las",
 	"Dębowe Wzgórze", "Jastrzębiec", "Krucza Skała", "Niedźwiedzi Kąt", "Orle Gniazdo",
 	"Żelazny Bród", "Wronia Wieża", "Turzy Róg", "Smocza Jama", "Gród Pięciu Wież",
+	# epoka II
+	"Brzozowy Gród", "Kozi Gród", "Sowia Góra", "Głęboki Rów", "Jelenia Struga",
+	"Grodzisko Nowe", "Mglisty Bród", "Bursztynowa Wola", "Kamienica", "Ognisty Wał",
+	"Rogaty Gród", "Srebrny Potok", "Dzicza Skała", "Strażnica Graniczna", "Książęcy Gród",
+	"Wysoki Wał", "Gród nad Wisłą", "Biały Gród", "Złota Brama", "Stołeczny Gród",
 ]
 
 const K := BuildingTypes.Kind
@@ -30,55 +47,98 @@ static func seed_of(i: int) -> int:
 	return PixelCanvas.hash2(i, 26, 0xb07c) & 0x7fffffff
 
 
+## Epoka zamku `i` (0 = I).
 static func age_of(i: int) -> int:
-	return 1 if i >= AGE_II_FROM else 0
+	return clampi(i, 0, COUNT - 1) / COUNT_PER_AGE
 
 
-## Umocnienie wewnętrznego pierścienia: zamki 2, 4, 6, 8 i 10 to grody na wale ziemnym, reszta ma
-## palisadę (od zamku 11 z zewnętrznym wałem). Pierwszy zamek zostaje najłatwiejszy. TYMCZASOWE.
-static func inner_wall_of(i: int) -> int:
-	return K.RAMPART if i < OUTER_WALL_FROM and i % 2 == 1 else K.PALISADE
+## Ranga zamku w jego epoce (0–19): trudność w epoce.
+static func rank_of(i: int) -> int:
+	return clampi(i, 0, COUNT - 1) % COUNT_PER_AGE
 
 
-## Poziom budynków zamku: 1 dla zamków 1–4, potem co 4 zamki o jeden wyżej, do 5.
-static func level_of(i: int) -> int:
-	return clampi(1 + i / 4, 1, BuildingTypes.MAX_LEVEL)
+## Pierwszy zamek epoki `age`.
+static func first_of_age(age: int) -> int:
+	return clampi(age, 0, AGES - 1) * COUNT_PER_AGE
 
 
-## Wieże poza palisadą: od trzeciego zamku, najwyżej 4.
-static func towers_of(i: int) -> int:
-	return mini(4, (i + 1) / 3)
+## „5. Lisi Jar”: ranga w epoce i nazwa.
+static func title(i: int) -> String:
+	return "%d. %s" % [rank_of(i) + 1, NAMES[clampi(i, 0, COUNT - 1)]]
 
 
-## Budynki rekrutacji zamku (#26): Koszary, Strzelnica, Dom drużyny, Stajnia.
-static func recruit_buildings(i: int) -> Array[int]:
+static func age_name(age: int) -> String:
+	return ROMAN[clampi(age, 0, ROMAN.size() - 1)]
+
+
+## Siła konstrukcji zamku `i` (0–19): poziom budynków, wieże, wały i budynki rekrutacji. W epoce I
+## to ranga, w epoce II od połowy krzywej: 11 + ranga/2, najwyżej 19.
+static func structure_of(i: int) -> int:
+	if age_of(i) == 0:
+		return rank_of(i)
+	return mini(AGE_II_STRUCTURE_FROM + rank_of(i) / 2, MAX_STRUCTURE)
+
+
+## Umocnienie wewnętrznego pierścienia przy sile `s`: 1, 3, 5, 7 i 9 to grody na wale ziemnym, reszta
+## ma palisadę (od siły 10 z zewnętrznym wałem). Siła 0 zostaje najłatwiejsza. TYMCZASOWE.
+static func inner_wall_of(s: int) -> int:
+	return K.RAMPART if s < OUTER_WALL_FROM and s % 2 == 1 else K.PALISADE
+
+
+## Poziom budynków przy sile `s`: 1 dla sił 0–3, potem co 4 o jeden wyżej, do 5.
+static func level_of(s: int) -> int:
+	return clampi(1 + s / 4, 1, BuildingTypes.MAX_LEVEL)
+
+
+## Wieże poza palisadą przy sile `s`: od siły 2, najwyżej 4.
+static func towers_of(s: int) -> int:
+	return mini(4, (s + 1) / 3)
+
+
+## Budynki rekrutacji przy sile `s` (#26): Koszary, Strzelnica, Dom drużyny, Stajnia.
+static func recruit_buildings(s: int) -> Array[int]:
 	var out: Array[int] = []
-	if i >= 3:
+	if s >= 3:
 		out.append(K.BARRACKS)
-	if i >= 6:
+	if s >= 6:
 		out.append(K.ARCHERY_RANGE)
-	if i >= 9:
+	if s >= 9:
 		out.append(K.WARBAND_HOUSE)
-	if i >= 12:
+	if s >= 12:
 		out.append(K.STABLE)
 	return out
 
 
 ## Załoga zamku `i`: oddziały [rodzaj, liczba] jak w Battle.create_squads. Zamek 1 to 4 Chłopów,
-## kolejne dokładają klasy (lekka, strzelecka, ciężka, szybka, specjalna), a zamki epoki II jednostki
-## epoki II.
+## kolejne w epoce I dokładają klasy (lekka, strzelecka, ciężka, szybka, specjalna). Epoka II ma tło
+## z piechoty epoki I (garnizon rangi AGE_II_BASE_RANK) i z rangą dokłada jednostki epoki II.
 static func defenders(i: int) -> Array:
-	var out: Array = [[U.PEASANT, mini(4 + i, 12)]]
+	if age_of(i) == 0:
+		return _age_one_defenders(rank_of(i))
+	var r := rank_of(i)
+	var out := _age_one_defenders(AGE_II_BASE_RANK)
+	# wiersz: [jednostka, od rangi, przesunięcie, najwięcej]: liczba = min(r + przesunięcie, najwięcej)
+	var rows: Array = [
+		[U.SPEARMAN, 0, 4, 14], [U.GAMBESON_WARRIOR, 3, 1, 14], [U.REFLEX_ARCHER, 6, -3, 14],
+		[U.LANCER, 10, -8, 11],
+	]
+	for row: Array in rows:
+		if r >= int(row[1]):
+			out.append([int(row[0]), mini(r + int(row[2]), int(row[3]))])
+	return out
+
+
+## Załoga epoki I przy randze `r` (zamki 1–15 jak przed #230; od rangi 15 rosną Tarczownicy i Jeźdźcy).
+static func _age_one_defenders(r: int) -> Array:
+	var out: Array = [[U.PEASANT, mini(4 + r, 12)]]
+	# wiersz: [jednostka, od rangi, przesunięcie, najwięcej]: liczba = min(r + przesunięcie, najwięcej)
 	var rows: Array = [
 		[U.AXE_WARRIOR, 1, 2, 12], [U.ARCHER, 2, 1, 12], [U.JAVELINEER, 4, -2, 10],
-		[U.SHIELDBEARER, 7, -5, 10], [U.RIDER, 10, -8, 8], [U.FIRE_RAISER, 13, -11, 3],
-		[U.SPEARMAN, 15, -10, 10], [U.GAMBESON_WARRIOR, 16, -13, 8], [U.REFLEX_ARCHER, 17, -14, 8],
-		[U.LANCER, 18, -16, 4],
+		[U.SHIELDBEARER, 7, -5, 14], [U.RIDER, 10, -8, 11], [U.FIRE_RAISER, 13, -11, 3],
 	]
-	# wiersz: [jednostka, od zamku, przesunięcie, najwięcej]: liczba = min(i + przesunięcie, najwięcej)
-	for r: Array in rows:
-		if i >= int(r[1]):
-			out.append([int(r[0]), mini(i + int(r[2]), int(r[3]))])
+	for row: Array in rows:
+		if r >= int(row[1]):
+			out.append([int(row[0]), mini(r + int(row[2]), int(row[3]))])
 	return out
 
 
@@ -91,8 +151,9 @@ static func defender_count(i: int) -> int:
 
 
 static func generate(i: int) -> BotCastle:
-	var bot := BotCastle.generate(seed_of(i), i)
+	var bot := BotCastle.generate(seed_of(i), structure_of(i))
 	bot.index = i
+	bot.defenders = defenders(i)
 	return bot
 
 
