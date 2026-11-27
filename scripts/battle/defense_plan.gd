@@ -233,8 +233,11 @@ func battle_orders(ids: Array[int], squads: Array = [], grid: BuildGrid = null, 
 			out.append(g)
 			continue
 		var o := order_for(ids[i])
+		var cls := UnitTypes.unit_class(int((squads[i] as Array)[0])) if i < squads.size() else -1
+		if o != null and grid != null and not order_allowed(grid, o, cls):
+			o = null  # rozkaz spoza strefy z zapisu spoza gry (#374): jak brak rozkazu
 		if o == null and grid != null and i < squads.size():
-			o = default_order(grid, UnitTypes.unit_class(int((squads[i] as Array)[0])), age)
+			o = default_order(grid, cls, age)
 		if o == null or o.post == NO_POST or o.task == Task.KEEP or o.task == Task.GARRISON:
 			out.append(null)
 			continue
@@ -244,6 +247,23 @@ func battle_orders(ids: Array[int], squads: Array = [], grid: BuildGrid = null, 
 		c.route = o.route.duplicate()
 		out.append(c)
 	return out
+
+
+## Czy rozkaz `o` oddziału klasy `unit_class` stoi na kratkach, które dopuszcza ekran Obrona (#374):
+## każdy punkt (miejsce i punkty trasy patrolu) przechodzi post_problem, a strzelcy z Obroną odcinka
+## mogą też stać na stanowisku (station_post). Zapis spoza gry (kopia zamku z serwera) może mieć
+## dowolne kratki, a bitwa liczy się tylko z dozwolonych. Rozkaz bez własnej kratki jest dozwolony.
+static func order_allowed(grid: BuildGrid, o: Order, unit_class: int) -> bool:
+	if o.post == NO_POST or o.task == Task.KEEP or o.task == Task.GARRISON:
+		return true
+	for p in o.patrol_points():
+		if post_problem(grid, p).is_empty():
+			continue
+		if o.task == Task.HOLD and p == o.post and unit_class == RecruitmentConfig.UnitClass.RANGED \
+				and station_post(grid, p):
+			continue
+		return false
+	return true
 
 
 ## Miejsca oddziałów bitwy (NO_POST bez zadania), w kolejności `ids`.
@@ -474,6 +494,23 @@ func trap_place_problem(grid: BuildGrid, kind: int, cell: Vector2i) -> String:
 					return ""
 			return "%s: tuż przed bramą, od zewnątrz" % TrapConfig.NAMES[kind]
 	return ""
+
+
+## Pułapki do bitwy na zamku `grid` (#374): tylko te, które ekran Obrona by postawił, czyli spełnione
+## wymagania (TrapConfig.requirement_problem z badaniami `research` i epoką `age`) i miejsce
+## (trap_place_problem), w kolejności postawienia i najwyżej TrapConfig.limit. Kopie: bitwa nie
+## zmienia układu, a zapis zostaje bez zmian (np. pułapka przed zburzonym wałem wraca z wałem).
+func battle_traps(grid: BuildGrid, research: Research, age: int) -> Array[Trap]:
+	var ok := DefensePlan.new()
+	var limit := TrapConfig.limit(grid.manor_level())
+	for t in traps:
+		if ok.traps.size() >= limit:
+			break
+		if not TrapConfig.requirement_problem(t.kind, grid, research, age).is_empty() \
+				or not ok.trap_place_problem(grid, t.kind, t.cell).is_empty():
+			continue
+		ok.add_trap(t.kind, t.cell).revealed = t.revealed
+	return ok.traps
 
 
 func to_dict() -> Dictionary:
