@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(88);
+select plan(92);
 
 -- A1..A4 atakują D1..D4, A1 jeszcze D5 (uczciwy wynik). Ranking w paśmie 62 000 (bez prawdziwych graczy), bo testy biegną też na projekcie
 -- w chmurze, w transakcji, która się cofa. Kolejka i tryb też wracają po rollbacku.
@@ -150,6 +150,18 @@ select pg_temp.start(1, '00000000-0000-0000-0000-0000000284a1', '00000000-0000-0
 reset role;
 select is((select sim_version from public.attacks where id = (select attack_id from runs where n = 1)), 501,
   'bez wersji od klienta: najnowsza wspierana');
+
+-- #354 (ADR 0008): wersja od klienta wybiera pack; wersje poniżej 501, więc najnowsza zostaje 501
+insert into private.sim_versions (version, supported) values (400, true), (450, false);
+set local role service_role;
+select is(private.checked_sim_version(400), 400, 'wspierana starsza wersja od klienta zostaje');
+select is(pg_temp.err('select private.checked_sim_version(450)'), 'unsupported_version',
+  'wersja wyłączona (supported = false) nie startuje ataku');
+select is(pg_temp.err('select private.checked_sim_version(999)'), 'unsupported_version',
+  'wersja spoza tabeli nie startuje ataku');
+select is(private.checked_sim_version(null), 501, 'bez wersji: najnowsza wspierana, nie wyłączona');
+reset role;
+delete from private.sim_versions where version in (400, 450);
 
 -- ---- tryb shadow: skutki jak dotąd, worker tylko porównuje ----
 set local role service_role;

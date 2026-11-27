@@ -130,8 +130,17 @@ func test_fit_attack_keeps_prefix_and_is_deterministic() -> bool:
 
 ## Odmowy serwera mają czytelne komunikaty mieszczące się w pasku (font 8 px, 320 px).
 func test_error_messages() -> bool:
-	for code: String in ["army_over_limit", "army_over_upkeep"]:
+	for code: String in ["army_over_limit", "army_over_upkeep", "unsupported_version"]:
 		var text := AttackStart.error_message(code)
 		assert_true(text != AttackStart.error_message("cokolwiek"), "%s: własny komunikat" % code)
 		assert_true(text.length() <= 50, "%s: mieści się w pasku" % code)
+	return true
+
+
+## #354, ADR 0008: wersja gry bez packa na serwerze nie atakuje, a gracz wie, że ma zaktualizować grę.
+func test_unsupported_version_asks_for_update() -> bool:
+	assert_true(AttackStart.error_message("unsupported_version").contains("Zaktualizuj"), "komunikat o aktualizacji")
+	assert_eq(SupabaseClient.edge_error(HTTPRequest.RESULT_SUCCESS, 409, '{"error":"unsupported_version"}'),
+			"unsupported_version", "kod 409 dochodzi do komunikatu")
+	assert_true(AttackLaunch.request("x", AttackPlan.new())["sim_version"] as int > 0, "wersja symulacji w żądaniu")
 	return true
