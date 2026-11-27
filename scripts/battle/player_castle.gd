@@ -186,7 +186,7 @@ func create_battle() -> Battle:
 	var orders := defense.battle_orders(defender_ids, target.defenders, grid, _age)
 	var b := Battle.for_castle_squads(grid, army, target.defenders, target.spawn, battle_seed, research,
 			orders, defense.tower_priority)
-	b.arm_traps(defense.traps)
+	b.arm_traps(defense.battle_traps(grid, research, _age))  # tylko dozwolone (#374)
 	b.apply_research(Battle.Side.DEFENDER, research)
 	b.set_plan(AttackPlan.from_dict(plan.to_dict()))  # kopia: bitwa nie zmienia zapisanego planu
 	b.apply_research(Battle.Side.ATTACKER, attacker_research)

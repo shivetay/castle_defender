@@ -470,7 +470,7 @@ func _start_battle_preview() -> void:
 	view.battle = Battle.create_squads(grid, grid.keep_id(), attackers, defenders, _edge_road(), world_seed,
 			defense.battle_orders(recruitment.battle_ids(), recruitment.battle_squads(), grid, grid.age()))
 	view.battle.tower_priority = defense.tower_priority
-	view.battle.arm_traps(defense.traps)
+	view.battle.arm_traps(defense.battle_traps(grid, research, grid.age()))
 	view.battle.add_side_morale(Battle.Side.DEFENDER, BattleConfig.defender_morale_bonus(research))
 	view.battle.apply_research(Battle.Side.DEFENDER, research)
 	view.battle.set_general(Battle.Side.DEFENDER, defense.commander_general(generals))
@@ -1021,7 +1021,7 @@ func _on_siege_pressed() -> void:
 			PveWaves.battle_seed(world_seed, _battle_wave), research,
 			defense.battle_orders(_battle_ids, recruitment.battle_squads(), grid, grid.age()),
 			defense.tower_priority)
-	b.arm_traps(defense.traps)  # pułapki działają raz na bitwę, a w układzie zostają (odnawiają się, #100)
+	b.arm_traps(defense.battle_traps(grid, research, grid.age()))  # pułapki działają raz na bitwę, a w układzie zostają (odnawiają się, #100)
 	b.apply_research(Battle.Side.DEFENDER, research)  # A2 łuki i O2 palisady obrońcy (#12)
 	b.set_general(Battle.Side.DEFENDER, defense.commander_general(generals))  # komendant obrony (#31)
 	battle_view = BattleView.new()
