@@ -87,6 +87,10 @@ jobs:
           mv build/castle_defender.apk "build/castle_defender-${VERSION}-debug.apk"
           ls -la build/
 
+      - name: Usunięcie konfiguracji Firebase z runnera
+        if: always()
+        run: rm -f config/google-services.json
+
       - uses: actions/upload-artifact@v7
         with:
           name: castle_defender-${{ env.VERSION }}-debug-apk

@@ -18,3 +18,7 @@ numer, a stary zmienia tylko status na „zastąpiony przez”.
 | [[ADR/0009-model-balansu-epok-ciagla-krzywa\|0009]] | Model balansu epok: ciągła krzywa kosztu i czasu, premie do poziomu 10 | przyjęty | #262 |
 | [[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce\|0010]] | Dobór PvP, zwiad i atak tylko w tej samej epoce | przyjęty | #383 |
 | [[ADR/0011-budynki-epoki-ii-od-poziomu-6\|0011]] | Budynki epoki II startują od poziomu 6, pierwszy Młyn | przyjęty | #102 |
+| [[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii\|0013]] | Premie szkolenia, kolców w fosie i Kopca w epoce II | przyjęty | #387 |
+
+Numeracja: przy merge #395 i #396 oba PR-y chciały **0010**. Na `main` zostało: **0010** = same-age PvP (#395), **0011** = Młyn / budynki od poz. 6 (#396).
+Przy #402 i #409 oba PR-y chciały **0012**: **0012** zostaje dla powiadomień push (#402), premie szkolenia, fosy i Kopca epoki II to **0013** (#409).

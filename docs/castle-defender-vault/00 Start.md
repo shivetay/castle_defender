@@ -4,14 +4,14 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 
 ## Notatki
 - [[Koncept gry]] — główna pętla: rozbudowa, obrona, zwiad, atak
-- [[Stack technologiczny]] i [[Backend PvP]]
+- [[Stack technologiczny]], [[Backend PvP]] i [[Serwer]]
 - [[Epoki]] i [[Progresja budowy]]
 - [[Drzewko technologiczne]]
 - [[Manewry i zadania]]
 - [[Model wydania]]
 - Budynki: [[Obrona]], [[Gospodarka]], [[Załoga i administracja]], [[Zwiad i kontrwywiad]]
 - [[Jednostki]] i [[Klasy jednostek i produkcja]]
-- [[Balans]] — koszty z kodu + dwie opcje do wyboru (#262)
+- [[Balans]] — koszty z kodu; model epok [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]] (#262)
 - [[Władca i generałowie]]
 - [[Widok zamku]]
 - [[Interfejs]]
@@ -21,5 +21,6 @@ Mobilna gra 2D pixelart (Android) z asynchronicznym PvP. Gracze rozbudowują zam
 - [[Roadmapa do 1.0]]
 - [[Otwarte pytania]] — pytania do decyzji oraz braki względem planu
 - [[ADR/README|ADR]] — przyjęte decyzje projektowe; vault idzie za nimi
+- [[Serwer]] — Supabase staging/prod, migracje, Edge Functions, verifier, `sim_version`
 
 #castle-defender

@@ -487,6 +487,13 @@ func remove_trap(cell: Vector2i) -> bool:
 	return true
 
 
+## Przepisuje kratki pułapek do `grid.trap_cells` (#341): budynek nie stanie na pułapce.
+func mark_traps(grid: BuildGrid) -> void:
+	grid.trap_cells.clear()
+	for t in traps:
+		grid.trap_cells[t.cell] = t.kind
+
+
 ## Pusty napis, gdy na kratce `cell` może stanąć pułapka `kind` (strefa, wolna kratka, miejsce według
 ## TrapConfig.PLACE, bez innej pułapki); inaczej powód po polsku.
 func trap_place_problem(grid: BuildGrid, kind: int, cell: Vector2i) -> String:
