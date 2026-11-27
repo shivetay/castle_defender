@@ -650,7 +650,8 @@ func _draw() -> void:
 		_draw_tile(tiles[i], list[i], list[i] == selected or _pressed == Target.TILE + i)
 	if list.is_empty():
 		_draw_empty()
-	if not list.is_empty() or detail_mode != DetailMode.COST:
+	# przy pustej liście nie ma wybranej jednostki: tylko produkcja i zapas zbrojowni (review PR 381)
+	if not list.is_empty() or detail_mode == DetailMode.PRODUCTION or detail_mode == DetailMode.STOCK:
 		_draw_details()
 	var can_train := train_check() == Recruitment.Result.OK
 	Hud.paint_button(self, train_rect(view, content_right), TRAIN_LABEL, _pressed == Target.TRAIN, not can_train)
@@ -680,7 +681,7 @@ func _draw_stock(view: Vector2) -> void:
 	if _pressed == Target.STOCK:
 		draw_rect(r, Palette.WOOD[1])
 	var cols := int((r.size.x + 3) / STOCK_CELL_W)
-	var missing := Recruitment.missing_goods(selected, goods)
+	var missing := Recruitment.missing_goods(selected, goods) if units().has(selected) else {}
 	var strip := stock_strip(goods, cols * STOCK_ROWS, missing)
 	var cells := stock_cells(r, strip.size())
 	for i in cells.size():
@@ -746,7 +747,8 @@ func _draw_details() -> void:
 		if not (l[2] as String).is_empty():
 			PixelFont.draw_right(self, content_right, y, l[2] as String, Palette.THATCH[2])
 		y += LINE_STEP
-	_draw_squads()
+	if units().has(selected):
+		_draw_squads()
 
 
 ## Rząd wyboru oddziału: Nowy i oddziały wybranej jednostki; pełne są przygaszone.
