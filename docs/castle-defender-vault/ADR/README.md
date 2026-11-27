@@ -18,3 +18,4 @@ numer, a stary zmienia tylko status na „zastąpiony przez”.
 | [[ADR/0009-model-balansu-epok-ciagla-krzywa\|0009]] | Model balansu epok: ciągła krzywa kosztu i czasu, premie do poziomu 10 | przyjęty | #262 |
 | [[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce\|0010]] | Dobór PvP, zwiad i atak tylko w tej samej epoce | przyjęty | #383 |
 | [[ADR/0011-budynki-epoki-ii-od-poziomu-6\|0011]] | Budynki epoki II startują od poziomu 6, pierwszy Młyn | przyjęty | #102 |
+| [[ADR/0012-powiadomienia-push-fcm\|0012]] | Powiadomienia push o ataku przez FCM, koniec budowy lokalnie | przyjęty | #30 |
