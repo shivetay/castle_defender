@@ -769,17 +769,24 @@ func _place_fighter(f: Fighter, cell: Vector2i, at: Vector2i, anchor: Vector2i, 
 ## Czy jednostka `unit` oddziału `squad` strony `side` staje na stanowisku: strzelec obrońcy z Obroną
 ## odcinka, którego miejsce to kratka żywego wału albo palisady (#20), wieży drewnianej (#232) albo Kopca (#35),
 ## a także strzelec przy donżonie (_keep_station). Inni stają pod murem.
+## Obrona murów (#399, ADR 0016) stawia tak samo strzelców, a piechotę lekką i ciężką tylko na wale i palisadzie.
 func _wall_station(side: int, squad: int, unit: int, anchor: Vector2i) -> bool:
-	if side != Side.DEFENDER or UnitTypes.unit_class(unit) != RecruitmentConfig.UnitClass.RANGED:
+	if side != Side.DEFENDER:
 		return false
+	var cls := UnitTypes.unit_class(unit)
 	var s := _structure_at(anchor)
 	if s == null:
 		return false
 	if s.kind == BuildingTypes.Kind.KEEP:
-		return s.id == objective
-	if not defence.has(squad) or defence[squad].task != DefensePlan.Task.HOLD:
+		return cls == RecruitmentConfig.UnitClass.RANGED and s.id == objective
+	if not defence.has(squad):
 		return false
-	return BuildingTypes.is_wall(s.kind) or s.kind == BuildingTypes.Kind.TOWER or s.kind == BuildingTypes.Kind.MOUND
+	var task: int = defence[squad].task
+	if cls == RecruitmentConfig.UnitClass.RANGED:
+		return (task == DefensePlan.Task.HOLD or task == DefensePlan.Task.WALL) and (BuildingTypes.is_wall(s.kind)
+				or s.kind == BuildingTypes.Kind.TOWER or s.kind == BuildingTypes.Kind.MOUND)
+	return task == DefensePlan.Task.WALL and BuildingTypes.is_wall(s.kind) \
+			and (cls == RecruitmentConfig.UnitClass.LIGHT or cls == RecruitmentConfig.UnitClass.HEAVY)
 
 
 ## Czy strzelec obrońcy z oddziału przy donżonie (bez zadania albo z zadaniem Przy donżonie, miejsce
@@ -1748,8 +1755,9 @@ func _defend(f: Fighter, o: DefensePlan.Order) -> void:
 
 
 ## Stanowisko na murze: strzela do wroga w zasięgu (+WALL_RANGE_BONUS, z wieży i donżonu
-## +TOWER_STATION_RANGE_BONUS, #232) i nie schodzi. Gdy odcinek padnie, jednostka zostaje na gruzie
-## i broni się dalej jak Obrona odcinka z tego miejsca.
+## +TOWER_STATION_RANGE_BONUS, #232) i nie schodzi. Piechota na murze (Obrona murów, #399) nie ma
+## premii zasięgu i bije wręcz tylko wroga, który wszedł po drabinie (_climber_for). Gdy odcinek
+## padnie, jednostka zostaje na gruzie i broni się dalej jak Obrona odcinka z tego miejsca.
 func _wall_act(f: Fighter) -> void:
 	var s: Structure = structures.get(f.wall, null)
 	if s == null or s.hp <= 0:
@@ -1758,12 +1766,31 @@ func _wall_act(f: Fighter) -> void:
 		f.path.clear()
 		_hold_section(f)
 		return
-	var enemy := _enemy_for(f)
-	if enemy != null and _in_range(f, enemy.x, enemy.y, range_of(f) + station_range_bonus(s.kind)):
+	var ranged := range_of(f) >= BattleConfig.RANGED_MIN_RANGE
+	var enemy := _enemy_for(f) if ranged else _climber_for(f)
+	var bonus := station_range_bonus(s.kind) if ranged else 0
+	if enemy != null and _in_range(f, enemy.x, enemy.y, range_of(f) + bonus):
 		f.target = enemy.id
 		_strike_unit(f, enemy)
 		return
 	f.target = 0
+
+
+## Najbliższy żywy wróg, który wszedł po drabinie (Fighter.climbed), w zasięgu wręcz `f`; przy remisie
+## niższe id. Cel piechoty na murze (#399): wroga spod muru nie dosięga, tak jak on jej.
+func _climber_for(f: Fighter) -> Fighter:
+	if UnitTypes.attack(f.unit) <= 0:
+		return null
+	var best: Fighter = null
+	var best_d := 0
+	for o in fighters:
+		if o.side == f.side or not o.alive() or not o.climbed or not _in_range(f, o.x, o.y, range_of(f)):
+			continue
+		var d := _dist2(f.x, f.y, o.x, o.y)
+		if best == null or d < best_d:
+			best = o
+			best_d = d
+	return best
 
 
 ## Czy `f` stoi na donżonie jako jego załoga (#232).
