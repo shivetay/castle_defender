@@ -5,10 +5,11 @@
 // Bez id napastnika i nazwy jego zamku. Treść żądania: {} (pusta). Niczego nie zapisuje.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { clientOutdated } from "../_shared/client_version.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-client-version, apikey, content-type",
 };
 
 // HISTORY_LIMIT = 10
@@ -49,6 +50,9 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
+  if (await clientOutdated(req, admin)) {
+    return json({ error: "update_required" }, 426);
+  }
   const { data, error } = await admin.rpc("defense_history", { p_player: userData.user.id });
   if (error || !Array.isArray(data)) {
     console.error("defense_history rpc", error?.code);

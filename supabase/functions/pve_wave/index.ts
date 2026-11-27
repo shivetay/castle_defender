@@ -8,10 +8,11 @@
 // zapisany wynik bez drugiej nagrody.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { clientOutdated } from "../_shared/client_version.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-client-version, apikey, content-type",
 };
 
 const ALLOWED_KEYS = new Set(["wave", "wave_id", "won"]);
@@ -75,6 +76,9 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
+  if (await clientOutdated(req, admin)) {
+    return json({ error: "update_required" }, 426);
+  }
   const start = b.wave !== undefined;
   if (start === (b.wave_id !== undefined) || (start && b.won !== undefined)) {
     return json({ error: "bad_request" }, 400);

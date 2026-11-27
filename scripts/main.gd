@@ -24,6 +24,11 @@ const GAP_TAP_TOLERANCE := 3
 const AGE_ANIM_MS := 2400
 ## Warstwa zasłony ładowania (#316): nad całym UI i widokami bitwy.
 const LOADER_LAYER := 100
+## Warstwa okna aktualizacji (#336): nad zasłoną ładowania.
+const UPDATE_LAYER := 110
+const UPDATE_OFFLINE_NOTE := "Brak połączenia z serwerem"
+const UPDATE_STILL_NOTE := "Nadal potrzebna aktualizacja"
+const UPDATE_STORE_NOTE := "Nie udało się otworzyć sklepu"
 
 
 ## Komunikat, gdy Rybak nie styka się z wodą (#122).
@@ -76,6 +81,13 @@ var identity: PlayerProfile.Identity
 var onboarding: OnboardingPanel
 ## Zasłona ładowania przy synchronizacji z serwerem (#316), na własnej warstwie nad całym UI.
 var sync_loader: SyncLoaderPanel
+## Okno aktualizacji (#336, ADR 0006): komunikat o nowej wersji albo blokada gry.
+var update_panel: UpdatePanel
+var _update_layer: CanvasLayer
+## Ostatnia polityka wersji z serwera (z `user://version_policy.json` do pierwszej odpowiedzi); null: nigdy.
+var version_policy: ClientVersion.Policy
+## Kiedy ostatnio pytaliśmy serwer o politykę (unix s), także bez odpowiedzi.
+var _version_asked_s := 0
 ## Mini-samouczek UI (#251): stan z profilu (TutorialHints.State) i okno z pytaniem, póki otwarte.
 var tutorial_state: int = TutorialHints.State.ASK
 var tutorial_prompt: TutorialPrompt
@@ -434,6 +446,7 @@ func _ready() -> void:
 	net.castle_rejected.connect(_on_castle_rejected)
 	add_child(net)
 	_add_sync_loader()
+	_add_update_panel()
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
 	if _restored_from_server:
@@ -521,6 +534,7 @@ func _notification(what: int) -> void:
 		NOTIFICATION_APPLICATION_RESUMED:
 			_catch_up("Podczas nieobecności: ")
 			_load_defenses()
+			_maybe_check_version()
 		NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_WM_CLOSE_REQUEST:
 			# Android potrafi zabić aplikację w tle bez ostrzeżenia, więc zapis idzie przy wyjściu
 			_tick()
@@ -578,6 +592,96 @@ func _add_sync_loader() -> void:
 
 
 ## Stan sieci w Ustawieniach; po ONLINE zaległy zamek idzie na serwer od razu (#23).
+## Okno aktualizacji (#336) na własnej warstwie nad zasłoną. Zapamiętana polityka działa od razu,
+## także bez sieci, a serwer jest pytany przy każdym starcie.
+func _add_update_panel() -> void:
+	_update_layer = CanvasLayer.new()
+	_update_layer.layer = UPDATE_LAYER
+	add_child(_update_layer)
+	update_panel = UpdatePanel.new()
+	_update_layer.add_child(update_panel)
+	update_panel.update_pressed.connect(_on_update_store)
+	update_panel.retry_pressed.connect(_check_version)
+	version_policy = ClientVersion.Policy.load_from()
+	net.version_policy_loaded.connect(_on_version_policy)
+	net.update_required.connect(_on_update_required)
+	_apply_version_gate()
+	_check_version()
+
+
+func _check_version() -> void:
+	_version_asked_s = int(Time.get_unix_time_from_system())
+	if not net.check_version() and update_panel.mode == UpdatePanel.Mode.HARD:
+		update_panel.set_note(UPDATE_OFFLINE_NOTE)
+
+
+## Po powrocie z tła: przy blokadzie zawsze (gracz mógł wrócić ze sklepu), inaczej co godzinę.
+func _maybe_check_version() -> void:
+	if update_panel == null:
+		return
+	var now := int(Time.get_unix_time_from_system())
+	if update_panel.mode == UpdatePanel.Mode.HARD or now - _version_asked_s >= ClientVersion.CHECK_INTERVAL_S:
+		_check_version()
+
+
+func _on_version_policy(policy: ClientVersion.Policy, ok: bool) -> void:
+	if not ok:
+		# bez odpowiedzi zostaje zapamiętana polityka (fail-open, gdy nigdy nie przyszła)
+		if update_panel.mode == UpdatePanel.Mode.HARD:
+			update_panel.set_note(UPDATE_OFFLINE_NOTE)
+		return
+	var was_hard := update_panel.mode == UpdatePanel.Mode.HARD
+	policy.keep_soft_state(version_policy)
+	policy.fetched_s = int(Time.get_unix_time_from_system())
+	version_policy = policy
+	net.clear_update_block()
+	_save_version_policy()
+	_apply_version_gate()
+	if was_hard and update_panel.mode == UpdatePanel.Mode.HARD:
+		update_panel.set_note(UPDATE_STILL_NOTE)
+
+
+## Serwer odrzucił wersję gry (426), choć polityka jeszcze o tym nie wiedziała: blokada od razu.
+func _on_update_required() -> void:
+	if version_policy == null:
+		version_policy = ClientVersion.Policy.new()
+	version_policy.force_hard(ClientVersion.current_code())
+	_save_version_policy()
+	_apply_version_gate()
+
+
+func _save_version_policy() -> void:
+	if version_policy.save() != OK:
+		push_warning("Nie udało się zapisać polityki wersji na telefonie")
+
+
+## Blokada, komunikat (raz na 24 h dla danej wersji) albo nic, według polityki i wersji gry.
+func _apply_version_gate() -> void:
+	var code := ClientVersion.current_code()
+	var now := int(Time.get_unix_time_from_system())
+	var gate: int = version_policy.gate(code) if version_policy != null else ClientVersion.Gate.OK
+	if gate == ClientVersion.Gate.HARD:
+		if update_panel.mode != UpdatePanel.Mode.HARD:
+			update_panel.open(UpdatePanel.Mode.HARD)
+	elif update_panel.mode == UpdatePanel.Mode.HARD:
+		update_panel.open(UpdatePanel.Mode.HIDDEN)  # minimum obniżone: gra wraca
+	if gate == ClientVersion.Gate.SOFT and update_panel.mode == UpdatePanel.Mode.HIDDEN \
+			and version_policy.soft_due(code, now):
+		update_panel.open(UpdatePanel.Mode.SOFT)
+		version_policy.mark_soft_shown(now)
+		_save_version_policy()
+	if update_panel.visible:
+		# dotyk dostaje najpierw ostatni węzeł drzewa: okno ma być przed widokami dodanymi później (bitwa)
+		move_child(_update_layer, -1)
+
+
+func _on_update_store() -> void:
+	for url in ClientVersion.store_urls(version_policy):
+		if OS.shell_open(url) == OK:
+			return
+	update_panel.set_note(UPDATE_STORE_NOTE)
+
+
 func _on_net_state(st: int) -> void:
 	settings_panel.net_state = st
 	if sync_loader != null:
@@ -1663,7 +1767,8 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 	_finish_result = null
 	_finish_body = {}
 	_finish_resumed = false
-	if error == SupabaseClient.NETWORK_ERROR:
+	# update_required (#336): wynik czeka w pliku jak przy braku sieci i wróci na serwer po aktualizacji
+	if error == SupabaseClient.NETWORK_ERROR or error == ClientVersion.UPDATE_REQUIRED_ERROR:
 		_resume_poll_s = Time.get_ticks_msec() / 1000.0 + RESUME_POLL_S
 		if resumed:
 			hud.message = ""  # zaległy wynik nadal czeka; okno pokazało się już po bitwie

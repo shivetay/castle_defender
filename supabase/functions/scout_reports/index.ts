@@ -2,10 +2,11 @@
 // Misja w drodze ma tylko czas do końca; wynik, ocaleli i odsłonięte dane serwer oddaje po końcu.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { clientOutdated } from "../_shared/client_version.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, x-client-version, apikey, content-type",
 };
 
 Deno.serve(async (req) => {
@@ -32,6 +33,9 @@ Deno.serve(async (req) => {
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
+  if (await clientOutdated(req, admin)) {
+    return json({ error: "update_required" }, 426);
+  }
   const { data, error } = await admin.rpc("scout_reports", { p_attacker: userData.user.id });
   if (error) {
     console.error("scout_reports rpc", error.code);

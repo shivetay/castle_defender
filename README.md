@@ -937,6 +937,11 @@ jest w kodzie; migracja `defense_history` i Edge Function `defense_history` są 
 Siła celu PvP jako przedział z serwera (#293) jest w kodzie. Migracja `target_strength` i nowe wersje Edge Functions
 `find_targets` i `defense_history` są na projekcie (starsza wersja gry pomija nowe pola).
 Push o ataku (#30) zostaje na osobny ticket.
+Wymuszenie aktualizacji (#336, ADR 0006) jest w kodzie: progi `min_code` i `recommended_code` z serwera
+(migracja `client_version`), okienko o nowej wersji raz na 24 h, ekran blokady poniżej minimum (także offline,
+z zapamiętaną polityką) i odrzucanie starszych wersji przez Edge Functions i zapisy zamku (`update_required`).
+Migracja `client_version` i nowe wersje wszystkich Edge Functions są na projekcie (APK z #336 może iść
+do graczy); progi podnosi się po każdym wydaniu według `docs/PO-WYDANIU.md` §6.
 Epoka II i przejście I → II (#34) są w kodzie po stronie klienta: przebudowa Dworu z poziomu 5
 z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymają premie. Epoką gracza na serwerze
 (`players.age`, ranking i dobór przeciwnika) zajmuje się migracja `castle_age`: po każdym zapisie zamku
