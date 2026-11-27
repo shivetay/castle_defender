@@ -322,6 +322,8 @@ begin
 end;
 $$;
 
+-- Uprawnienia jak przed tą migracją: revoke dla wszystkich funkcji, a jawny grant dla service_role tylko tam,
+-- gdzie miały go wcześniejsze migracje (create or replace zachowuje dotychczasowe ACL pozostałych).
 revoke all on function private.castle_buildings(jsonb) from public, anon, authenticated;
 revoke all on function private.army_limit(jsonb) from public, anon, authenticated;
 revoke all on function private.food_production(jsonb) from public, anon, authenticated;

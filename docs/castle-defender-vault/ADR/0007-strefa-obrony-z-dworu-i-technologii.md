@@ -47,3 +47,10 @@ nie dawała więcej miejsca na obronę.
 
 - docs/castle-defender-vault/Budynki/Obrona.md
 - docs/castle-defender-vault/Drzewko technologiczne.md
+
+## Aktualizacja (27.11.2026, [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]])
+
+Od #262 `Ages.bonus_level` liczy premie do poziomu 10, więc wzór z pkt 2 bierze poziom Dworu obcięty
+do `Ages.LEVELS_PER_AGE` (5) bezpośrednio w `DefensePlan.radius_for`: promień w epoce II zostaje jak przy
+Dworze 5 (18 + O25). Analogia z limitem pułapek jest nieaktualna: pułapki rosną dalej w epoce II
+(2 za poziom Dworu, do 20).
