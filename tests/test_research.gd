@@ -23,8 +23,8 @@ func _finish(r: Research, code: String, economy: Economy) -> bool:
 
 
 ## 34 technologie MVP, S3 Dom zwiadowców (Zwiadowca, #92) i 8 technologii perków władcy (#308).
-func test_tree_has_43_unique_technologies() -> bool:
-	assert_eq(TechTree.count(), 43, "34 technologie MVP, S3 i 8 perków władcy")
+func test_tree_has_44_unique_technologies() -> bool:
+	assert_eq(TechTree.count(), 44, "34 technologie MVP, S3, 8 perków władcy i O25")
 	var seen := {}
 	for code in TechTree.codes():
 		assert_true(not seen.has(code), "kod %s jest unikalny" % code)
@@ -33,7 +33,7 @@ func test_tree_has_43_unique_technologies() -> bool:
 	var sizes: Array[int] = []
 	for b in TechTree.BRANCH_NAMES.size():
 		sizes.append(TechTree.in_branch(b).size())
-	assert_eq(sizes, [21, 5, 11, 3, 3] as Array[int], "Atak 21, Obrona 5, Gospodarka 11, Użyteczne 3, Specjalne 3")
+	assert_eq(sizes, [21, 6, 11, 3, 3] as Array[int], "Atak 21, Obrona 6, Gospodarka 11, Użyteczne 3, Specjalne 3")
 	var mvp: Array[String] = ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A21", "A22", "A38", "A39", "A40", "A41",
 			"A42", "A43", "A44", "A45", "A46", "A47", "O1", "O2", "O3", "G1", "G2", "G4", "G6", "G18", "G19", "G20",
 			"G21", "G24", "U1", "S1", "S2", "S3"]

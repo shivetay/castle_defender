@@ -1,7 +1,7 @@
 class_name TechTree
 extends RefCounted
-## Drzewko technologii MVP (#12): 34 z 131 technologii z notatki, S3 i 8 technologii perków władcy (#308,
-## RulerPerks.LINES). Technologie z notatki Drzewko technologiczne
+## Drzewko technologii MVP (#12): 34 z 131 technologii z notatki, S3, 8 technologii perków władcy (#308,
+## RulerPerks.LINES) i O25 Wysunięte straże (#342, strefa obrony). Technologie z notatki Drzewko technologiczne
 ## (docs/castle-defender-vault), w pięciu gałęziach, z epoką, oznaczeniem technologii kluczowej
 ## (★, warunek przejścia do następnej epoki, #34: O1, G1 i A7 dla I → II, G6 dla II → III), efektem i zależnościami.
 ## Zależności są według notatki, łącznie z jej sekcją „Zmienione zależności”
@@ -43,6 +43,7 @@ const TECHS: Array = [
 	["O1", "Sypanie kopców", Branch.DEFENSE, 0, true, [], "budynek Kopiec, warunek przejścia I → II"],
 	["O2", "Zaostrzone pale", Branch.DEFENSE, 0, false, [], "palisada +20% wytrzymałości, budynek Komenda umocnień"],
 	["O3", "Fosa z kolcami", Branch.DEFENSE, 0, false, ["O2"], "sucha fosa rani wrogów"],
+	["O25", "Wysunięte straże", Branch.DEFENSE, 0, false, [], "strefa obrony +1 kratka na poziom"],
 	["O23", "Gospodarz grodu", Branch.DEFENSE, 0, false, [], "perk władcy: budynki +10% wytrzymałości, wyklucza inne perki"],
 	["O24", "Gospodarz grodu II", Branch.DEFENSE, 1, false, ["O23"], "perk władcy: budynki +15% wytrzymałości"],
 	["G1", "Karczowanie lasu", Branch.ECONOMY, 0, true, [], "+20% drewna, warunek przejścia I → II"],
@@ -64,13 +65,14 @@ const TECHS: Array = [
 	["S3", "Dom zwiadowców", Branch.SPECIAL, 1, false, ["S1"], "Chata tropicieli staje się Domem zwiadowców, jednostka Zwiadowca, zwiad +10% zasięgu i szansy"],
 ]
 
-## Doktryny: technologie, których cały efekt to procentowa premia (atak, zasięg, produkcja), bez nowych
-## budynków, jednostek i manewrów. Tylko one drożeją z każdą kolejną doktryną tej samej epoki
+## Doktryny: technologie, których cały efekt to premia liczbowa (procent ataku, zasięgu, produkcji albo
+## kratki strefy obrony, O25 #342), bez nowych budynków, jednostek i manewrów. Tylko one drożeją z każdą kolejną doktryną tej samej epoki
 ## (ResearchConfig.cost); pozostałe technologie mają stały koszt epoki (decyzja właścicielki).
-const DOCTRINES: Array[String] = ["A1", "A2", "G1", "G2"]
-## Doktryny, które da się badać ponownie na kolejne poziomy: gospodarcze (produkcja) i ataku (bitwa,
-## Battle.tech_level; poziom atakującego przychodzi z serwera w `techs` jako „A1:3”).
-const LEVELED_DOCTRINES: Array[String] = ["A1", "A2", "G1", "G2"]
+const DOCTRINES: Array[String] = ["A1", "A2", "G1", "G2", "O25"]
+## Doktryny, które da się badać ponownie na kolejne poziomy: gospodarcze (produkcja), ataku (bitwa,
+## Battle.tech_level; poziom atakującego przychodzi z serwera w `techs` jako „A1:3”) i O25 Wysunięte
+## straże (strefa obrony, DefensePlan.radius; poziom obrońcy bitwa bierze z kopii zamku).
+const LEVELED_DOCTRINES: Array[String] = ["A1", "A2", "G1", "G2", "O25"]
 ## Premia każdego poziomu doktryny ponad pierwszy, w punktach procentowych (poziom 1 to efekt z TECHS).
 const DOCTRINE_LEVEL_PERCENT := 5
 ## Najwyższy poziom doktryny w epoce zamku (indeks = epoka): w epoce I 3, w epoce II 5.

@@ -42,9 +42,15 @@ const TASK_NAMES: Array[String] = ["Obrona odcinka", "Patrol", "Wypad konnicy", 
 const TASK_AGE: Array[int] = [0, 0, 1, 0, 0, 0, 0]
 const TOWER_PRIORITY_NAMES: Array[String] = ["najbliższy", "taran", "strzelcy", "konnica"]
 const NO_POST := Vector2i(-1, -1)
-## Posterunek stoi najwyżej tyle kratek (w pionie i poziomie) od środka donżonu: obrona skupia się
-## na donżonie (#19), a strefa przy krawędzi mapy zostaje dla atakującego. TYMCZASOWE.
+## Posterunek i pułapka stoją najwyżej radius() kratek (w pionie i poziomie) od środka donżonu: obrona
+## skupia się na donżonie (#19), a strefa przy krawędzi mapy zostaje dla atakującego. Promień (#342,
+## ADR 0006) to RADIUS przy Dworze 1, RADIUS_PER_MANOR_LEVEL za każdy kolejny poziom Dworu w epoce
+## (Ages.bonus_level: w epoce II zostaje jak przy Dworze 5) i RADIUS_PER_TECH_LEVEL za każdy poziom
+## technologii REACH_TECH (O25 Wysunięte straże, BuildGrid.reach_level). Liczby TYMCZASOWE.
 const RADIUS := 10
+const RADIUS_PER_MANOR_LEVEL := 2
+const RADIUS_PER_TECH_LEVEL := 1
+const REACH_TECH := "O25"
 ## Patrol: najwięcej punktów trasy poza miejscem startu (razem 2–3 punkty).
 const MAX_ROUTE := 2
 
@@ -269,12 +275,30 @@ static func keep_center(grid: BuildGrid) -> Vector2i:
 	return grid.buildings[keep].get_center()
 
 
-## Strefa obrony: kratki, na których może stać posterunek (przycięta do mapy).
+## Promień strefy obrony przy Dworze `manor_level` i technologii REACH_TECH na poziomie `tech_level`.
+static func radius_for(manor_level: int, tech_level: int) -> int:
+	return RADIUS + RADIUS_PER_MANOR_LEVEL * (maxi(1, Ages.bonus_level(manor_level)) - 1) \
+			+ RADIUS_PER_TECH_LEVEL * maxi(0, tech_level)
+
+
+## Promień strefy obrony zamku `grid` (poziom Dworu i BuildGrid.reach_level).
+static func radius(grid: BuildGrid) -> int:
+	return radius_for(grid.manor_level(), grid.reach_level)
+
+
+## Poziom technologii REACH_TECH w badaniach `research` (0 bez badań albo niezbadana); ustawia
+## BuildGrid.reach_level.
+static func reach_level(research: Research) -> int:
+	return research.level(REACH_TECH) if research != null else 0
+
+
+## Strefa obrony: kratki, na których może stać posterunek i pułapka (przycięta do mapy).
 static func zone(grid: BuildGrid) -> Rect2i:
 	var c := keep_center(grid)
 	if c == NO_POST:
 		return Rect2i()
-	var r := Rect2i(c - Vector2i.ONE * RADIUS, Vector2i.ONE * (2 * RADIUS + 1))
+	var rad := radius(grid)
+	var r := Rect2i(c - Vector2i.ONE * rad, Vector2i.ONE * (2 * rad + 1))
 	return r.intersection(Rect2i(0, 0, grid.terrain.size, grid.terrain.size))
 
 
@@ -283,7 +307,7 @@ static func post_problem(grid: BuildGrid, cell: Vector2i) -> String:
 	if not grid.terrain.in_bounds(cell):
 		return "Poza mapą"
 	if not zone(grid).has_point(cell):
-		return "Za daleko od donżonu: najwyżej %d kratek" % RADIUS
+		return "Za daleko od donżonu: najwyżej %d kratek" % radius(grid)
 	if grid.terrain.get_tile(cell) == TerrainMap.Tile.WATER:
 		return "Załoga nie stanie w wodzie"
 	var id := grid.building_at(cell)

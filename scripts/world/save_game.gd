@@ -101,6 +101,8 @@ static func from_dict(data: Dictionary, now_ms: int) -> State:
 	# perk władcy z badań (#308): Gospodarny liczy się w produkcji, Budowniczy w czasie budowy. Stary wpis
 	# `ruler` z perkiem wybranym z listy (#32) się pomija.
 	s.grid.ruler_perk = RulerPerks.from_research(s.research, s.grid.age())
+	# zasięg strefy obrony z O25 Wysunięte straże (#342)
+	s.grid.reach_level = DefensePlan.reach_level(s.research)
 	s.goods = Goods.new(s.economy.last_update_ms)
 	s.goods.load_data(d.get("goods", {}) as Dictionary)
 	s.recruitment = Recruitment.new()

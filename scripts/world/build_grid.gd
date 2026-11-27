@@ -22,6 +22,10 @@ var ruined: Dictionary[int, bool] = {}
 ## z badań (RulerPerks.from_research): ustawiają go SaveGame.from_dict i BuildQueue.update po ukończeniu
 ## badania; nie trafia do zapisu.
 var ruler_perk: int = RulerPerks.Perk.NONE
+## Poziom technologii O25 Wysunięte straże (#342, DefensePlan.reach_level): poszerza strefę obrony
+## (DefensePlan.radius). Jak perk władcy liczy się z badań: ustawiają go SaveGame.from_dict
+## i BuildQueue.update po ukończeniu badania; nie trafia do zapisu.
+var reach_level: int = 0
 var _next_id := 1
 
 
