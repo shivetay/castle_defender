@@ -6,6 +6,8 @@
 // Odpowiedź: id ataku, seed terenu obrońcy (`map_seed`) osobno od seeda bitwy (`battle_seed`). Przy
 // ataku na gracza (#28, pełne ukrycie obrony) tylko zarys budynków, donżon i to, co odsłonił ostatni
 // udany zwiad (`public.attack_preview`); pełne kopie zamku i obrony daje dopiero `launch_attack`.
+// Zamek-bot tylko odblokowany w kampanii (#386, ADR 0014): przy odmowie `bot_locked` odpowiedź niesie
+// postęp z serwera (`bots_beaten`), żeby telefon wyrównał swój licznik.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { clientOutdated } from "../_shared/client_version.ts";
@@ -30,6 +32,8 @@ const ERRORS: Record<string, number> = {
   army_over_upkeep: 409,
   // #274: zamek atakującego na serwerze spoza limitów surowców (zapis sprzed reguł) nie wchodzi do PvP
   castle_invalid: 409,
+  // #386: zamek-bot powyżej postępu kampanii na serwerze (players.bots_beaten)
+  bot_locked: 409,
   target_not_found: 404,
   attacker_not_found: 404,
   army_not_owned: 400,
@@ -115,6 +119,15 @@ Deno.serve(async (req) => {
   });
   if (error) {
     const code = known(error);
+    if (code === "bot_locked") {
+      const { data: me, error: meErr } = await admin.from("players").select("bots_beaten")
+        .eq("id", attackerId).maybeSingle();
+      if (meErr || !me || typeof me.bots_beaten !== "number") {
+        console.error("start_attack bots_beaten", meErr?.code ?? "no_player");
+        return json({ error: code }, ERRORS[code]!);
+      }
+      return json({ error: code, bots_beaten: me.bots_beaten }, ERRORS[code]!);
+    }
     if (code) {
       return json({ error: code }, ERRORS[code]!);
     }
