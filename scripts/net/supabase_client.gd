@@ -566,6 +566,11 @@ func handle_attack(call: int, result: int, code: int, body: String) -> void:
 			var start := AttackStart.parse_response(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
 			if error.is_empty() and start.is_empty():
 				error = REJECTED_ERROR  # niepełna odpowiedź: nie ma czego atakować
+			if error == AttackStart.BOT_LOCKED:
+				# #386: zablokowany zamek-bot; serwer podaje swój postęp kampanii, żeby gra go wyrównała
+				var beaten := AttackStart.locked_progress(SupabaseConfig.parse_json(body))
+				if beaten >= 0:
+					start = {"bots_beaten": beaten}
 			attack_started.emit(start, error)
 		AttackCall.FINISH:
 			var finish := AttackFinish.parse_response(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
