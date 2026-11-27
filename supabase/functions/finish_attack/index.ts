@@ -5,9 +5,11 @@
 // Zawyżony wynik albo łup jest odrzucany. Ponowienie dla zakończonego ataku zwraca zapisany wynik.
 // Potem zapisuje zniszczone budynki obrońcy (#99, `public.record_destroyed`, migracja *_attack_ruins.sql),
 // z których obrońca odbudowuje zamek. Odrzucona lista nie cofa wyniku: obrońca ma wtedy po prostu mniej ruin.
+// Na końcu, w tle, push do obrońcy (#30, `_shared/fcm.ts`): raz na atak, błąd FCM nie zmienia odpowiedzi.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { clientOutdated } from "../_shared/client_version.ts";
+import { notifyDefender } from "../_shared/fcm.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -128,6 +130,8 @@ Deno.serve(async (req) => {
       console.error("record_destroyed rpc", ruinErr.code);
     }
   }
+  // push o ataku w tle, po odpowiedzi; atak na bota i ponowienie nic nie wysyłają (attack_push_claim)
+  EdgeRuntime.waitUntil(notifyDefender(admin, userData.user.id, String(b.attack_id)));
   // bez czasu tarczy obrońcy: atakujący go nie potrzebuje
   return json({ status: row.status, result: row.result, loot: row.loot });
 });
