@@ -1,4 +1,4 @@
-# ADR 0014: Postęp kampanii zamków-botów na serwerze
+# ADR 0015: Postęp kampanii zamków-botów na serwerze
 
 - **Status:** przyjęty
 - **Data:** 2026-11-27

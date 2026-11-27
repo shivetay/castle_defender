@@ -6,7 +6,7 @@
 // Odpowiedź: id ataku, seed terenu obrońcy (`map_seed`) osobno od seeda bitwy (`battle_seed`). Przy
 // ataku na gracza (#28, pełne ukrycie obrony) tylko zarys budynków, donżon i to, co odsłonił ostatni
 // udany zwiad (`public.attack_preview`); pełne kopie zamku i obrony daje dopiero `launch_attack`.
-// Zamek-bot tylko odblokowany w kampanii (#386, ADR 0014): przy odmowie `bot_locked` odpowiedź niesie
+// Zamek-bot tylko odblokowany w kampanii (#386, ADR 0015): przy odmowie `bot_locked` odpowiedź niesie
 // postęp z serwera (`bots_beaten`), żeby telefon wyrównał swój licznik.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";

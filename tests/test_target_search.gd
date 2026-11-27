@@ -116,7 +116,7 @@ func test_always_three_targets() -> bool:
 	return true
 
 
-## Boty: bieżący cel, potem zdobyte od najmłodszego; zablokowanych nie ma (#386, ADR 0014).
+## Boty: bieżący cel, potem zdobyte od najmłodszego; zablokowanych nie ma (#386, ADR 0015).
 func test_bot_order_is_deterministic() -> bool:
 	assert_eq(TargetSearch.bot_indices(5, 3), [5, 4, 3] as Array[int], "bieżący i zdobyte")
 	assert_eq(TargetSearch.bot_indices(0, 3), [0] as Array[int], "nowy gracz: tylko pierwszy zamek")

@@ -151,7 +151,7 @@ static func bot_target(i: int) -> Target:
 
 
 ## Numery zamków-botów na `n` wolnych miejsc: najpierw bieżący cel kampanii, potem zdobyte od
-## najmłodszego. Tylko odblokowane zamki, bo zablokowane odrzuca serwer (#386, ADR 0014), więc nowy
+## najmłodszego. Tylko odblokowane zamki, bo zablokowane odrzuca serwer (#386, ADR 0015), więc nowy
 ## gracz dostaje mniej niż `n` numerów. Ten sam postęp daje zawsze te same boty.
 static func bot_indices(beaten: int, n: int) -> Array[int]:
 	var out: Array[int] = []

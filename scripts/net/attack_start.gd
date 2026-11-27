@@ -8,7 +8,7 @@ extends RefCounted
 ## Wynik wysyła `AttackFinish`.
 
 const PATH := "/functions/v1/start_attack"
-## Odmowa: zamek-bot powyżej postępu kampanii na serwerze (#386, ADR 0014).
+## Odmowa: zamek-bot powyżej postępu kampanii na serwerze (#386, ADR 0015).
 const BOT_LOCKED := "bot_locked"
 
 

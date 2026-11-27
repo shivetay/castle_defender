@@ -1,5 +1,5 @@
 extends TestCase
-## Kampania zamków-botów na serwerze (#386, ADR 0014): odmowa `bot_locked` z postępem z serwera,
+## Kampania zamków-botów na serwerze (#386, ADR 0015): odmowa `bot_locked` z postępem z serwera,
 ## wyrównanie licznika w grze, karty Wyprawy tylko z odblokowanymi botami i zgodność z migracją.
 
 const MIGRATION := "res://supabase/migrations/20261127180000_bot_campaign.sql"

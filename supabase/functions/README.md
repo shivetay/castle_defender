@@ -13,6 +13,7 @@ Edge Functions (Deno / TypeScript) wywoływane z klienta lub crona.
 | `attack_replay/` | Powtórka obrony (#29): woła `attack_replay` z id gracza z tokenu; tylko obrońca zakończonego ataku dostaje seedy, kopie z chwili startu, armię, plan i badania atakującego |
 | `defense_history/` | Historia obron (#328): woła `defense_history` z id gracza z tokenu; 10 ostatnich zakończonych ataków na jego zamek z wynikiem, armią i nickiem napastnika (bez id i nazwy zamku napastnika) oraz znacznikiem powtórki i przedziałem siły obrony zamku napastnika (#293) |
 | `ranking/` | Ranking PvP (#27) i PvE (#242): woła `pvp_ranking` (atak albo obrona) albo `pve_ranking` (`pve`) z id gracza z tokenu, zwraca 20 najlepszych z jego epoki i jego wiersz |
+| `shop_claim/` | Sklep w Targu (#408): woła `claim_offer` z id gracza z tokenu (oferta widoczna, odnowienie od ostatniego odbioru na zegarze serwera, miejsce w magazynie: `cooldown`, `storage_full`, `offer_unavailable`); nagrodę dopisuje do `castle_loot_pending`, ponowienie przed odnowieniem nic nie daje |
 | `pve_wave/` | Fala PvE (#288): start (`begin_wave`, fala od postępu serwera, jedna naraz, 10 startów na 10 minut) i koniec (`end_wave`, wygrana najwcześniej po 5 s, wynik do 10 minut); nagrodę za wygraną dopisuje serwer do `castle_loot_pending`, ponowienie zwraca zapisany wynik |
 
 `_shared/client_version.ts` (#336, ADR 0006): każda funkcja po sprawdzeniu tokenu odpowiada 426

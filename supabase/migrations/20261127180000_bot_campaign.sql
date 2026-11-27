@@ -1,4 +1,4 @@
--- #386: serwer pilnuje kolejności kampanii zamków-botów (ADR 0014).
+-- #386: serwer pilnuje kolejności kampanii zamków-botów (ADR 0015).
 --
 -- Dotąd licznik zdobytych zamków-botów był tylko w zapisie gry na telefonie (`attack.beaten`), a
 -- `begin_attack` sprawdzał jedynie, czy `bot_idx` mieści się w 0–39. Spreparowany klient mógł od nowego
@@ -19,7 +19,7 @@ alter table public.players
   add column bots_beaten smallint not null default 0 check (bots_beaten between 0 and 40);
 
 comment on column public.players.bots_beaten is
-  'Zdobyte po kolei zamki-boty (#386, ADR 0014): zamek bot_idx jest odblokowany, gdy bot_idx <= bots_beaten. Zmienia tylko wyzwalacz attacks_bots_beaten.';
+  'Zdobyte po kolei zamki-boty (#386, ADR 0015): zamek bot_idx jest odblokowany, gdy bot_idx <= bots_beaten. Zmienia tylko wyzwalacz attacks_bots_beaten.';
 
 -- import postępu z historii ataków (BotRoster.COUNT = 40)
 update public.players p set bots_beaten = least(w.last_won + 1, 40)
@@ -213,7 +213,7 @@ begin
     and (a.started_at < now() - interval '10 minutes' or a.attacker_id = p_attacker);
 
   if p_bot is not null then
-    -- #386: zamki-boty po kolei (BotRoster.is_unlocked); postęp tylko z serwera (ADR 0014)
+    -- #386: zamki-boty po kolei (BotRoster.is_unlocked); postęp tylko z serwera (ADR 0015)
     if p_bot > v_beaten then
       raise exception 'bot_locked' using errcode = 'P0001';
     end if;

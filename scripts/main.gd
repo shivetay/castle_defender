@@ -36,6 +36,8 @@ const UPDATE_STORE_NOTE := "Nie udało się otworzyć sklepu"
 ## Komunikat, gdy Rybak nie styka się z wodą (#122).
 const WATER_HINT := "%s musi stać tuż przy rzece"
 const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
+## Stary zapis bez wolnego 4×4 na Targ (#408): Targ stanie sam, gdy miejsce się zwolni (_ensure_market).
+const MARKET_NO_ROOM := "Zrób miejsce 4×4 na Targ"
 
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
@@ -43,6 +45,8 @@ const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 const WATCHTOWER_INFO := "Fale, wyprawy i rankingi"
 ## Linia karty donżonu (#232): bez ulepszeń i rozbiórki, strzela jak wieża.
 const KEEP_INFO := "Cel ataku, strzela ze strzelcem"
+## Opis karty Targu (#408).
+const MARKET_INFO := "Darmowe oferty w Sklepie, z odnowieniem"
 ## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
 const SEAL_HOUSE_INFO := "Sprawdź szczelność umocnień"
 ## Opis karty Chaty tropicieli (#28), gdy nie ma misji ani raportu.
@@ -151,6 +155,11 @@ var generals := Generals.new()
 var target_refresh := TargetRefresh.new()
 var generals_panel: GeneralsPanel
 var ruler_panel: RulerPanel
+## Sklep w Targu (#408).
+var shop_panel: ShopPanel
+## Serwer przyjął odbiór oferty: najbliższy łup z zapisu zamku to nagroda ze sklepu (komunikat).
+var _shop_reward_due := false
+const SHOP_REWARD_PREFIX := "Ze sklepu: "
 ## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
 const ABANDONED_MESSAGE := "Atak porzucony: ten zamek znowu po dobie"
 ## Początek komunikatu o łupie z serwera i jego wersja dla nagrody za falę PvE (#288).
@@ -243,6 +252,10 @@ func _ready() -> void:
 		_place_keep()
 	if grid.watchtower_id() == 0:
 		_place_watchtower()
+	# Targ (#408): w nowej grze po Strażnicy, w starym zapisie przy wczytaniu; nie na pułapce (#341),
+	# więc kratki pułapek trafiają do siatki przed szukaniem miejsca
+	defense.mark_traps(grid)
+	var market_missing := not grid.place_market()
 	var keep_missing := grid.keep_id() == 0
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
 	textures.warm_up()
@@ -272,10 +285,11 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.economy = economy
 	layer.add_child(hud)
-	hud.message = KEEP_NO_ROOM if keep_missing else DEFAULT_MESSAGE
+	hud.message = KEEP_NO_ROOM if keep_missing else (MARKET_NO_ROOM if market_missing else DEFAULT_MESSAGE)
 	hud.build_pressed.connect(_on_build_panel_opened)
 	hud.change_pressed.connect(_on_build_panel_opened)
 	hud.build_mode_changed.connect(_on_build_mode_changed)
+	hud.segment_changed.connect(_on_segment_changed)
 	hud.siege_pressed.connect(_on_siege_pressed)
 	hud.speed_pressed.connect(_on_speed_pressed)
 	hud.upgrade_pressed.connect(_on_upgrade)
@@ -403,6 +417,12 @@ func _ready() -> void:
 	ruler_panel.visible = false
 	layer.add_child(ruler_panel)
 	ruler_panel.closed.connect(_on_overlay_closed)
+	shop_panel = ShopPanel.new()
+	shop_panel.visible = false
+	layer.add_child(shop_panel)
+	shop_panel.closed.connect(_on_overlay_closed)
+	shop_panel.claim_requested.connect(_on_shop_claim)
+	hud.shop_pressed.connect(_on_shop_pressed)
 	info_popup = InfoPopup.new()
 	layer.add_child(info_popup)  # dostaje dotyk przed panelami
 	identity = PlayerProfile.read_identity(PlayerProfile.PATH)
@@ -446,6 +466,8 @@ func _ready() -> void:
 	net.wave_started.connect(_on_wave_started)
 	net.wave_finished.connect(_on_wave_finished)
 	net.castle_rejected.connect(_on_castle_rejected)
+	net.shop_loaded.connect(shop_panel.set_groups)
+	net.shop_claimed.connect(_on_shop_claimed)
 	add_child(net)
 	_add_sync_loader()
 	_add_title_screen()
@@ -512,6 +534,17 @@ func _place_watchtower() -> void:
 		grid.place(spot, BuildingTypes.Kind.WATCHTOWER)
 	else:
 		push_warning("Brak miejsca na Strażnicę")
+
+
+## Po zwolnieniu miejsca (rozbiórka, anulowana budowa) brakujący Targ staje sam (#408).
+func _ensure_market() -> void:
+	if grid.market_id() != 0:
+		return
+	if grid.place_market():
+		hud.message = "Targ stanął przy Dworze"
+		queue_redraw()
+	else:
+		hud.message = MARKET_NO_ROOM
 
 
 func _process(_delta: float) -> void:
@@ -910,7 +943,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 		return
 	if id != 0 and BuildGrid.replaces_walls(hud.selected_kind) and BuildingTypes.is_wall(grid.kinds[id]):
 		id = 0  # brama albo wieża na wale lub palisadzie: zastępuje odcinki w linii (po teście na telefonie)
-	if id != 0 and BuildingTypes.is_wall(hud.selected_kind):
+	var length := hud.build_length()
+	if id != 0 and BuildingTypes.is_wall(hud.selected_kind) and length == 1:
 		# palec w wąskiej luce linii umocnień trafił w sąsiedni odcinek: budujemy w luce
 		var gap := grid.gap_near(world_pos, hud.selected_kind, GAP_TAP_TOLERANCE)
 		if gap.x >= 0:
@@ -920,12 +954,15 @@ func _on_tapped(world_pos: Vector2) -> void:
 		hud.message = "Tu stoi %s" % BuildingTypes.NAMES[grid.kinds[id]]
 	else:
 		var kind := hud.selected_kind
-		var result := queue.order_build(grid, economy, cell, kind, _now_ms(), research)
+		var result := queue.order_build(grid, economy, cell, kind, _now_ms(), research, length, hud.segment_vertical)
 		_cursor_ok = result == BuildQueue.Result.OK
 		# przy nieudanej próbie ramka ma kształt pierwszego wariantu (np. pionowej bramy)
 		_cursor = grid.buildings[queue.placed_id] if _cursor_ok else grid.placement_candidates(cell, kind, true)[0]
+		if length > 1:
+			# odcinek wału albo palisady (#371): ramka na wszystkie kratki od dotkniętej
+			_cursor = Rect2i(cell, Vector2i(1, length) if hud.segment_vertical else Vector2i(length, 1))
 		if _cursor_ok:
-			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(_build_time(kind, BuildConfig.start_level(kind), grid.ruler_perk))]
+			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(queue.orders.back().duration_ms)]
 			_save()
 		elif result == BuildQueue.Result.NEEDS_TECH:
 			hud.message = _tech_hint(kind)
@@ -959,7 +996,7 @@ func _on_place_requested(kind: int) -> void:
 	hud.overlay = false
 	hud.selected_kind = kind
 	hud.set_building(true)
-	hud.message = build_message(kind, grid.ruler_perk)
+	hud.message = build_message(kind, grid.ruler_perk, hud.build_length())
 	queue_redraw()
 
 
@@ -967,19 +1004,22 @@ func _on_place_requested(kind: int) -> void:
 ## budynku z jego kosztem w komunikacie; otwarty przez Buduj wraca do oglądania (review #160).
 func _on_build_panel_closed() -> void:
 	hud.overlay = false
-	hud.message = closed_message(hud.building, hud.selected_kind, grid.ruler_perk)
+	hud.message = closed_message(hud.building, hud.selected_kind, grid.ruler_perk, hud.build_length())
 	queue_redraw()
 
 
-## Komunikat trybu budowy: nazwa, koszt i czas wybranego budynku (z perkiem władcy `perk`).
-static func build_message(kind: int, perk: int = RulerPerks.Perk.NONE) -> String:
-	return "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, BuildConfig.start_level(kind))),
-			Hud.format_time(_build_time(kind, BuildConfig.start_level(kind), perk))]
+## Komunikat trybu budowy: nazwa, koszt i czas wybranego budynku (z perkiem władcy `perk`). Odcinek
+## wału albo palisady z `length` kratek (#371) ma koszt z dopłatą w złocie i czas ×długość.
+static func build_message(kind: int, perk: int = RulerPerks.Perk.NONE, length: int = 1) -> String:
+	var level := BuildConfig.start_level(kind)
+	var n := length if BuildingTypes.is_wall(kind) else 1
+	return "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.segment_cost(kind, level, n)),
+			Hud.format_time(_build_time(kind, level, perk) * n)]
 
 
 ## Komunikat po zamknięciu panelu budowy bez Postaw.
-static func closed_message(building: bool, kind: int, perk: int = RulerPerks.Perk.NONE) -> String:
-	return build_message(kind, perk) if building else DEFAULT_MESSAGE
+static func closed_message(building: bool, kind: int, perk: int = RulerPerks.Perk.NONE, length: int = 1) -> String:
+	return build_message(kind, perk, length) if building else DEFAULT_MESSAGE
 
 
 ## Czy Rybak albo Młyn nie staje tylko przez brak wody: ten sam prostokąt bez warunku wody byłby wolny
@@ -1008,6 +1048,13 @@ func _deselect() -> void:
 	_selected_id = 0
 	hud.hide_card()
 	hud.message = DEFAULT_MESSAGE
+	queue_redraw()
+
+
+## Zmiana długości albo orientacji odcinka (#371): koszt i czas w komunikacie, bez starej ramki.
+func _on_segment_changed() -> void:
+	_cursor = Rect2i()
+	hud.message = build_message(hud.selected_kind, grid.ruler_perk, hud.build_length())
 	queue_redraw()
 
 
@@ -1835,7 +1882,7 @@ func _pve_begin(army: Array) -> void:
 		_pve.begin(attack_target, army)
 
 
-## Postęp kampanii z serwera (#386, ADR 0014): serwer odrzucił zamek-bota, bo zna mniej zdobytych zamków
+## Postęp kampanii z serwera (#386, ADR 0015): serwer odrzucił zamek-bota, bo zna mniej zdobytych zamków
 ## (np. wygranych bez sieci). Gra przyjmuje jego licznik. Cel zmienia się dopiero po bitwie, bo w trakcie
 ## wynik liczy się jeszcze dla zamku, z którym gracz walczy. `beaten` < 0: odpowiedź bez postępu.
 func _apply_server_bots(beaten: int) -> void:
@@ -1892,7 +1939,10 @@ func _on_loot_applied(delta: Array[int]) -> void:
 	var text := loot_message(got)
 	if _wave_reward_due and text.begins_with(LOOT_PREFIX):
 		text = WAVE_REWARD_PREFIX + text.substr(LOOT_PREFIX.length())
+	elif _shop_reward_due and text.begins_with(LOOT_PREFIX):
+		text = SHOP_REWARD_PREFIX + text.substr(LOOT_PREFIX.length())
 	_wave_reward_due = false
+	_shop_reward_due = false
 	if not text.is_empty():
 		hud.message = text
 	_save()
@@ -2195,6 +2245,8 @@ func _on_queue_cancel(id: int) -> void:
 	var title := BuildingTypes.NAMES[o.kind]
 	queue.cancel(grid, economy, id, _now_ms())
 	hud.message = "Anulowano: %s, surowce wróciły" % title
+	if grid.market_id() == 0:
+		_ensure_market()
 	_save()
 	queue_redraw()
 
@@ -2447,6 +2499,41 @@ func _on_portrait_pressed() -> void:
 	hud.message = "Złoto: %d" % economy.amounts[EconomyConfig.Res.GOLD]
 
 
+## Sklep z karty Targu (#408): tylko online, katalog z serwera.
+func _on_shop_pressed() -> void:
+	_tick()
+	_selected_id = 0
+	hud.hide_card()
+	_cursor = Rect2i()
+	hud.overlay = true
+	shop_panel.open(economy)
+	if net == null or not net.load_shop():
+		shop_panel.show_offline()
+	hud.message = "Targ: darmowe oferty"
+
+
+## Odbierz w sklepie: nagrodę daje dopiero serwer (`shop_claim`).
+func _on_shop_claim(offer_id: int) -> void:
+	if net == null or not net.claim_offer(offer_id):
+		shop_panel.claim_failed(SupabaseClient.NETWORK_ERROR)
+
+
+## Odpowiedź `shop_claim`: odliczanie na karcie, a nagroda przychodzi z najbliższym zapisem zamku (loot_applied),
+## więc zapis idzie od razu.
+func _on_shop_claimed(claim: Dictionary, error: String) -> void:
+	if not error.is_empty():
+		shop_panel.claim_failed(error)
+		if error == "cooldown" and net != null:
+			net.load_shop()  # odliczanie z serwera
+		return
+	_tick()
+	shop_panel.claim_done(claim, _now_ms())
+	_shop_reward_due = true
+	_save()
+	if net != null:
+		net.flush()
+
+
 ## Linie okienka władcy: kto rządzi którym zamkiem i jakie ma premie postaci (domyślny żadnych).
 static func ruler_info(id: PlayerProfile.Identity) -> PackedStringArray:
 	var innate := Rulers.innate_perk(id.ruler)
@@ -2495,9 +2582,12 @@ func _refresh_card() -> void:
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
 	hud.card_plain = plain_card(kind, pending)
+	hud.card_market = kind == BuildingTypes.Kind.MARKET and not pending
 	hud.card_check_disabled = seal_check.is_busy()
 	hud.card_seal_disabled = not seal_check.has_selection()
-	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending, grid.ruler_perk)
+	# odcinek wału albo palisady (#371): karta całego odcinka, koszt ulepszenia to suma kratek
+	var length := grid.segment_ids(_selected_id).size()
+	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending, grid.ruler_perk, length)
 	if hud.card_seal and not pending:
 		hud.card_info = seal_card_info(seal_check, _now_ms())
 		hud.card_info_missing = PackedStringArray()
@@ -2507,11 +2597,17 @@ func _refresh_card() -> void:
 		hud.card_info_missing = PackedStringArray()
 	else:
 		hud.card_info_missing = PackedStringArray() if pending or level >= BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL) \
-				else Hud.missing_tokens(BuildConfig.cost(kind, level + 1), economy.amounts)
+				else Hud.missing_tokens(BuildConfig.segment_cost(kind, level + 1, length), economy.amounts)
 	hud.card_needs = upgrade_needs(kind, level, grid.manor_level(), pending, research)
 	hud.card_needs_ok = upgrade_needs_ok(kind, level, grid.manor_level(), pending, research)
-	hud.show_card(BuildingTypes.name_of(kind, research), status, can_upgrade, pending, middle_enabled)
+	hud.show_card(segment_title(BuildingTypes.name_of(kind, research), length), status, can_upgrade, pending,
+			middle_enabled)
 	queue_redraw()
+
+
+## Tytuł karty odcinka wału albo palisady (#371), np. „Palisada (3 kratki)”; pojedyncza kratka bez dopisku.
+static func segment_title(name: String, length: int) -> String:
+	return name if length < 2 else "%s (%s)" % [name, Hud.segment_label(Hud.Target.LENGTH, length, false)]
 
 
 ## Karta z samym Zamknij (#232): donżon, chyba że ma zlecenie ulepszenia ze starego zapisu, wtedy
@@ -2544,12 +2640,15 @@ static func scout_card_info(s: Scouting, now_ms: int) -> String:
 
 ## Opis karty z kosztem ulepszenia, np. „Ulepsz: 180 Dr 60 Ka 60 Ży, 3:00”. Wymagania są osobno
 ## (upgrade_needs).
+## `length`: liczba kratek odcinka wału albo palisady (#371); koszt i czas to suma kratek.
 static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool,
-		perk: int = RulerPerks.Perk.NONE) -> String:
+		perk: int = RulerPerks.Perk.NONE, length: int = 1) -> String:
 	if pending:
 		return "Trwa budowa"
 	if kind == BuildingTypes.Kind.KEEP:
 		return KEEP_INFO
+	if kind == BuildingTypes.Kind.MARKET:
+		return MARKET_INFO
 	if not BuildingTypes.has_levels(kind):
 		return WATCHTOWER_INFO
 	if level >= BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL):
@@ -2558,8 +2657,8 @@ static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool
 	var verb := "Ulepsz"
 	if Ages.is_age_step(level + 1):
 		verb = "Przebuduj" if kind == BuildingTypes.Kind.MANOR else Ages.age_name(Ages.of_level(level + 1))
-	return "%s: %s, %s%s" % [verb, Hud.cost_text(BuildConfig.cost(kind, level + 1)),
-			Hud.format_time(_build_time(kind, level + 1, perk)), BuildQueue.capacity_gain_text(kind, level + 1)]
+	return "%s: %s, %s%s" % [verb, Hud.cost_text(BuildConfig.segment_cost(kind, level + 1, length)),
+			Hud.format_time(_build_time(kind, level + 1, perk) * length), BuildQueue.capacity_gain_text(kind, level + 1)]
 
 
 ## Linia karty z wymaganiami następnego poziomu (po teście na telefonie), np. „Wymaga: Dwór poz. 3
@@ -2667,19 +2766,25 @@ func _on_middle_button() -> void:
 		queue.cancel(grid, economy, _selected_id, _now_ms())
 		_refresh_card()
 		hud.message = "Anulowano: %s, surowce wróciły" % title
+		if grid.market_id() == 0:
+			_ensure_market()
 		_save()
 		return
 	if BuildingTypes.is_unique(grid.kinds[_selected_id]):
 		hud.message = "Tego budynku nie można rozebrać"
 		return
-	_cursor = grid.buildings[_selected_id]
+	_cursor = grid.segment_rect(_selected_id)
 	_cursor_ok = true
-	recruitment.drop_building(_selected_id)
-	grid.remove(_selected_id)
+	# odcinek wału albo palisady (#371) rozbiera się w całości
+	for id in grid.segment_ids(_selected_id):
+		recruitment.drop_building(id)
+		grid.remove(id)
 	# rozebrany Magazyn od razu zmniejsza pojemność (nadmiar przepada)
 	economy.refresh_capacity(grid)
 	_deselect()
 	hud.message = "Rozebrano: %s" % title
+	if grid.market_id() == 0:
+		_ensure_market()
 	_save()
 
 
@@ -2703,9 +2808,11 @@ func _draw() -> void:
 	CastleView.draw_buildings(self, grid, textures, battle_states if battle_view != null and not _on_target_map() else _ruin_states)
 	if not queue.orders.is_empty():
 		_draw_progress(queue.orders[0].building_id)
+		for extra in queue.orders[0].extra_ids:
+			_draw_progress(extra)
 	_draw_seal_gaps()
 	_draw_age_rebuild()
-	var frame := grid.buildings[_selected_id] if _selected_id != 0 else _cursor
+	var frame := grid.segment_rect(_selected_id) if _selected_id != 0 else _cursor
 	if frame.has_area():
 		var ok := _selected_id != 0 or _cursor_ok
 		CastleView.draw_frame(self, Rect2i(frame.position * TerrainMap.CELL, frame.size * TerrainMap.CELL),

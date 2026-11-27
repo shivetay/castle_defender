@@ -1,4 +1,4 @@
--- Testy kampanii zamków-botów na serwerze (#386, ADR 0014), uruchamiane przez `supabase test db` (pgTAP).
+-- Testy kampanii zamków-botów na serwerze (#386, ADR 0015), uruchamiane przez `supabase test db` (pgTAP).
 -- Kryteria: nowy gracz atakuje tylko bota 0, `begin_attack` odrzuca zamek powyżej `players.bots_beaten`
 -- kodem `bot_locked`, wygrana z kolejnym botem podbija licznik o 1, a przegrana, wygrana ze zdobytym już
 -- botem i ponowiony koniec ataku nic nie zmieniają; licznik kończy się na 40; klient nie zmieni swojego
