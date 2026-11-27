@@ -15,7 +15,7 @@ Tekstury generuj raz i cache’uj (`ImageTexture`); nie rysuj przez `set_pixel` 
 | `portrait_art.gd` | Portret władcy w okręgu do HUD-u (#228) |
 | `castle_view.gd` | Widok zamku na mapie |
 | `ambient_view.gd` | Dym, błyski wody (niska częstotliwość) |
-| `pixel_font.gd` / `pixel_icons.gd` | Font 8 px i ikony UI |
+| `pixel_font.gd` / `pixel_icons.gd` | Font 8 px i ikony UI (skróty surowców w tekście rysują się ikonami) |
 | `smith_icon.gd` | Animowany kowal przy kowadle 22×16 (3 klatki) na zasłonie ładowania (#316) |
 
 Determinizm faktury: `PixelCanvas.hash2()`, nie `randf()` bez seeda.
