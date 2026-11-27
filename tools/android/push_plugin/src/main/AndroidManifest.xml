@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Wtyczka DunholdPush (#30, ADR 0012): rejestracja w Godocie i domyślny kanał pusha o ataku. -->
+<!-- Wtyczka DunholdPush (#30, ADR 0012): rejestracja w Godocie, domyślny kanał pusha o ataku
+     i odbiornik alarmu końca budowy. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -11,5 +12,9 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="attacks" />
+        <!-- lokalne powiadomienie o końcu budowy (AlarmManager), tylko z tej aplikacji -->
+        <receiver
+            android:name="com.shivetay.dunhold.push.BuildAlarmReceiver"
+            android:exported="false" />
     </application>
 </manifest>
