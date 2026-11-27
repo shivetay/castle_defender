@@ -18,6 +18,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Pierwsza passa balansu i premie poziomów 6–10 (27.11.2026, #262): ciągła krzywa kosztu i czasu przez 10 poziomów, premie epoki II rosną dalej (tablice do poziomu 10), Dwór II.1–II.5 z własnej tabeli; z Opcji C z [[Balans]] została zasada reklam i sklepu, reszta odrzucona. Liczby tymczasowe. [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]].
 - Dobór PvP (27.11.2026, #383): dobór, zwiad i start ataku tylko w tej samej epoce; bez graczy w epoce karty uzupełniają boty z Wyprawy jak dotąd. [[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce|ADR 0010]].
 - Budynki epoki II od poziomu 6 i Młyn (27.11.2026, #102): budynek nowej epoki stawia się na poziomie narastającym 6 i ulepsza do 10; Młyn to G5 z premią +4–20% żywności (#388). Liczby tymczasowe. [[ADR/0011-budynki-epoki-ii-od-poziomu-6|ADR 0011]].
+- Sklep w Targu bez reklam (27.11.2026, #408): Targ stoi od startu i otwiera sklep z darmowymi ofertami z odnowieniem (min. 1 h, złoto do 100, inne do 2000), grupy po 3 z panelu admina, odbiór i złoto przez serwer. Zakupy i reklamy dalej w #174. [[ADR/0012-sklep-darmowe-oferty-z-odnowieniem|ADR 0012]].
 
 ## Pytania otwarte
 
