@@ -1,4 +1,4 @@
--- #388: Młyn (G5 Młyn wodny), pierwszy budynek epoki II spoza MVP (#102, ADR 0010).
+-- #388: Młyn (G5 Młyn wodny), pierwszy budynek epoki II spoza MVP (#102, ADR 0011).
 --
 -- Młyn (MILL = 32) stoi przy rzece, wymaga G5 (epoka II, wymaga G2) i stawia się od razu na poziomie
 -- START_LEVEL = 6 (poziom 1 epoki II, BuildConfig.start_level), ulepsza do 10. Daje premię do całej produkcji

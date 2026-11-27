@@ -1,4 +1,4 @@
--- Testy Młyna (#388, ADR 0010, migracja `*_mill.sql`), uruchamiane przez `supabase test db` (pgTAP).
+-- Testy Młyna (#388, ADR 0011, migracja `*_mill.sql`), uruchamiane przez `supabase test db` (pgTAP).
 -- Kryteria: Młyn (rodzaj 32) kosztuje i buduje się od poziomu 6 z krzywej gry, wymaga G5, daje premię
 -- 4/8/12/16/20% całej żywności (jeden Młyn, najwyższy poziom) w limicie utrzymania i górnej granicy
 -- produkcji, a serwer nie liczy poziomów 1–5, których w grze nie ma. Te same liczby liczy `tests/test_mill.gd`.

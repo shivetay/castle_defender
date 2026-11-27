@@ -127,7 +127,7 @@ func test_age_palette_has_12_to_16_colors() -> bool:
 	return true
 
 
-## Budynek epoki II (#388, ADR 0010) ma tylko poziomy 6–10 i rysuje się w palecie epoki II.
+## Budynek epoki II (#388, ADR 0011) ma tylko poziomy 6–10 i rysuje się w palecie epoki II.
 func test_only_palette_colors() -> bool:
 	for kind in BuildingTypes.count():
 		var first := BuildConfig.start_level(kind)

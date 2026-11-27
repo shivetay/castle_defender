@@ -1,5 +1,5 @@
 // find_targets (#24): dobór przeciwnika do ataku PvP. Zwraca do 3 graczy z `match_targets`
-// (bez tarczy, epoka ±1, ranking ±100, nieatakowanych przez gracza w 24 h, limit 20 szukań na
+// (bez tarczy, ta sama epoka (#383), ranking ±100, nieatakowanych przez gracza w 24 h, limit 20 szukań na
 // 10 minut: odpowiedź 429). Id atakującego idzie
 // wyłącznie z tokenu, nigdy z treści żądania. Mniej niż 3 celów gra uzupełnia zamkami-botami.
 // Karta dostaje siłę obrony celu tylko jako dolną granicę przedziału (#293, `strength`, mgła wojny).

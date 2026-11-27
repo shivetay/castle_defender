@@ -29,7 +29,7 @@ enum Kind {
 	WELL,
 	QUARRY,
 	SIGNAL_TOWER,
-	## Budynki epoki II spoza MVP (#102, ADR 0010): stawiane od razu na poziomie 6 (BuildConfig.start_level).
+	## Budynki epoki II spoza MVP (#102, ADR 0011): stawiane od razu na poziomie 6 (BuildConfig.start_level).
 	## Młyn (#388, G5): premia do całej żywności, przy rzece.
 	MILL,
 }

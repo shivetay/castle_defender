@@ -1,7 +1,7 @@
 class_name TargetSearch
 extends RefCounted
 ## Dobór przeciwnika (#24): odpowiedź Edge Function `find_targets` i lista dokładnie 3 celów.
-## Serwer (`match_targets`) zwraca do 3 graczy bez tarczy, z epoką ±1 i rankingiem ±100, których
+## Serwer (`match_targets`) zwraca do 3 graczy bez tarczy, z tej samej epoki (#383) i z rankingiem ±100, których
 ## gracz nie atakował w ostatnich 24 godzinach. Brakujące miejsca (i całą listę bez sieci) zajmują
 ## zamki-boty (#26), więc gracz zawsze ma 3 cele.
 ## Dane z serwera pochodzą od innych graczy, więc są niezaufane: nazwy przechodzą przez te same

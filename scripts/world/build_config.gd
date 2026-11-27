@@ -63,7 +63,7 @@ const REQUIRED_TECH := {
 	K.SCOUT_HOUSE: "S1", K.SEAL_HOUSE: "O2",
 	K.MOUND: "O1", K.QUARRY: "G4", K.SIGNAL_TOWER: "S2", K.MILL: "G5",
 }
-## Epoka, od której budynek wchodzi do gry (#102, ADR 0010); bez wpisu epoka I. Budynek epoki II
+## Epoka, od której budynek wchodzi do gry (#102, ADR 0011); bez wpisu epoka I. Budynek epoki II
 ## stawia się od razu na poziomie 1 tej epoki (narastająco 6), więc nie ma poziomów 1–5.
 const FIRST_AGE := {
 	K.MILL: 1,
@@ -142,7 +142,7 @@ static func time_mult(kind: int, level: int) -> int:
 
 
 ## Poziom, na który stawia się nowy budynek `kind` (narastająco): 1, a dla budynku epoki II 6
-## (FIRST_AGE, ADR 0010). Serwer liczy koszt i czas budowy od tego samego poziomu.
+## (FIRST_AGE, ADR 0011). Serwer liczy koszt i czas budowy od tego samego poziomu.
 static func start_level(kind: int) -> int:
 	return Ages.total_level(int(FIRST_AGE.get(kind, 0)), 1)
 

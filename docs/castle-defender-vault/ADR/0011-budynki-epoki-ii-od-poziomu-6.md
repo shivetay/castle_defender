@@ -1,4 +1,4 @@
-# ADR 0010: Budynki epoki II startują od poziomu 6, pierwszy Młyn
+# ADR 0011: Budynki epoki II startują od poziomu 6, pierwszy Młyn
 
 - **Status:** przyjęty
 - **Data:** 2026-11-27

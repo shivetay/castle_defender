@@ -1,6 +1,6 @@
 // scout (#28): zwiad na gracza. Id atakującego idzie wyłącznie z tokenu. Całą walidację i zapis robi
 // `public.begin_scout` (migracja *_scouting.sql): Chata tropicieli, S1 i zwiadowcy z zamku na
-// serwerze, cel w zasięgu epoki, naraz jedna misja, 30 na dobę. Wynik losuje się z seeda
+// serwerze, cel z tej samej epoki (#383), naraz jedna misja, 30 na dobę. Wynik losuje się z seeda
 // z kryptograficznego źródła serwera; odpowiedź podaje tylko koniec misji i ilu zwiadowców poszło.
 // Wynik i odsłonięte dane daje `scout_reports` po końcu misji.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";

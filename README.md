@@ -576,7 +576,7 @@ w sekcji „Następny etap”.
     od nowa” nadpisuje zamek na serwerze, gra sprzed #23 z postępem wysyła swój zamek, a zamku
     zapisanego nowszą wersją gry (`save_version` wyższa niż nasza) klient nie rusza.
   - **Dobór przeciwnika (#24, `TargetSearch`):** Edge Function `find_targets` bierze id gracza z tokenu
-    i woła `match_targets`: do 3 graczy bez aktywnej tarczy, z epoką ±1 i rankingiem ±100, z zamkiem
+    i woła `match_targets`: do 3 graczy bez aktywnej tarczy, z tej samej epoki (#383, ADR 0010) i z rankingiem ±100, z zamkiem
     po onboardingu, których gracz nie atakował w ostatnich 24 h, w losowej kolejności. Funkcję SQL
     może wykonać tylko serwer (`service_role`), najwyżej 20 razy na 10 minut na gracza (potem 429
     i same boty z napisem „Za często”). Odpowiedź ma nick, nazwę zamku, władcę, epokę, ranking,
@@ -679,7 +679,7 @@ w sekcji „Następny etap”.
   i żywności, a Chata drwala +60/90/120/160/200 drewna/h na poziomach 1–5. Pole i spichlerz (#35) daje
   tyle samo żywności, a Kamieniołom (G4) +40/60/80/110/140 kamienia/h, jak Rybak żywności. Poziomy epoki II
   dokładają dalej (#262): Chata drwala i Pole 240–440/h, Rybak i Kamieniołom 170–310/h.
-- **Młyn** (#388, ADR 0010, liczby tymczasowe): pierwszy budynek epoki II spoza MVP (#102). Gospodarka,
+- **Młyn** (#388, ADR 0011, liczby tymczasowe): pierwszy budynek epoki II spoza MVP (#102). Gospodarka,
   2×2, tylko tuż przy rzece, po G5 Młyn wodny (epoka II, wymaga G2). Stawia się od razu na poziomie
   1/5 epoki II (narastająco 6) za 1020 Dr, 510 Ka i 170 Ży, więc wymaga Dworu w epoce II i Magazynu.
   Daje +4/8/12/16/20% całej produkcji żywności (liczy się jeden Młyn, ruina 75% premii). Grafika

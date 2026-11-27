@@ -1,6 +1,6 @@
 class_name AgeIiBuildingArt
 extends RefCounted
-## Rysunki budynków epoki II spoza MVP (#102, ADR 0010) w rzucie z góry, w stylu BuildingArt: światło
+## Rysunki budynków epoki II spoza MVP (#102, ADR 0011) w rzucie z góry, w stylu BuildingArt: światło
 ## z lewej góry, kolory wyłącznie z palet (gont i kamień z Palette.AGE_II), faktura z PixelCanvas.hash2.
 ## Budynek epoki II ma poziomy 1–5 tej epoki (narastająco 6–10), więc rysunek dostaje poziom w epoce.
 ## Stany zniszczeń dokłada BuildingArt._apply_state.

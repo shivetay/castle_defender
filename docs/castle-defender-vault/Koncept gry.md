@@ -5,7 +5,7 @@ Gra to asynchroniczne PvP. Gracze rozbudowują własne zamki i atakują zamki in
 ## Pętla rozgrywki
 1. **Rozbudowa.** Stawiasz i ulepszasz budynki na siatce. Każdy jest widoczny na zamku ([[Widok zamku]]) i odblokowuje funkcje, [[Jednostki]] albo nowe budynki.
 2. **Taktyka obrony.** Na tej samej siatce ustawiasz załogę, pułapki i strefy patroli, priorytety celów wież (np. najpierw taran) oraz zachowanie bramy (zamknięta albo wypad konnicy). Układ zapisuje się na serwerze i broni zamku, gdy jesteś offline.
-3. **Wybór celu.** Gra proponuje 3 przeciwników z podobnej epoki (±1) i rankingu. Zamki z aktywną tarczą są pomijane.
+3. **Wybór celu.** Gra proponuje 3 przeciwników z tej samej epoki i podobnego rankingu ([[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce|ADR 0010]]); gdy graczy brak, karty uzupełniają zamki-boty. Zamki z aktywną tarczą są pomijane.
 4. **Zwiad (opcjonalny).** Przed atakiem wysyłasz zwiadowcę za opłatą. Odsłania część mgły wojny: typy i poziomy budynków w swoim zasięgu, pozycje załogi i część pułapek. Bez zwiadu widzisz tylko zarys murów. Obrońca osłabia zwiad budynkami z [[Zwiad i kontrwywiad]].
 5. **Planowanie ataku.** Na siatce wokół zamku ustawiasz oddziały w strefach rozstawienia przy krawędzi mapy. Każdemu oddziałowi przypisujesz manewr z listy zapisanych zadań ([[Manewry i zadania]], np. oskrzydlenie, szturm z drabinami) i ustawiasz jego parametry:
     - **cel:** konkretny budynek, odcinek muru albo strefa,

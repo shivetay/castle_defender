@@ -1,5 +1,5 @@
 extends TestCase
-## Młyn (#388, ADR 0010): pierwszy budynek epoki II spoza MVP. G5 Młyn wodny (epoka II, wymaga G2),
+## Młyn (#388, ADR 0011): pierwszy budynek epoki II spoza MVP. G5 Młyn wodny (epoka II, wymaga G2),
 ## 2×2 przy rzece, stawiany od razu na poziomie 6 (1/5 epoki II), premia +4/8/12/16/20% całej
 ## produkcji żywności; liczy się jeden Młyn o najwyższym poziomie. Serwer zna te same liczby.
 
@@ -146,4 +146,20 @@ func test_server_matches_game() -> bool:
 	assert_true(sql.contains("\"%d\": %s" % [K.MILL, str(BuildConfig.BASE_COST[K.MILL])]), "koszt Młyna")
 	assert_true(sql.contains("b.kind = %d and b.level between 1 and %d" % [K.MILL, BuildConfig.start_level(K.MILL) - 1]),
 			"poziomów 1–5 Młyna nie ma: zapis odrzucony")
+	return true
+
+
+## Ruina Młyna po ataku PvP (#99) daje premię jak produkcję ruin: Ruins.PRODUCTION_PERCENT (review #396).
+func test_ruined_mill_gives_part_of_bonus() -> bool:
+	var grid := _grid(10)
+	var base := Economy.rates(grid)[R.FOOD]
+	var id := grid.place_kind(_free_cell(grid, K.MILL, true), K.MILL, 10)
+	grid.ruined[id] = true
+	@warning_ignore("integer_division")
+	var percent := EconomyConfig.MILL_FOOD_PERCENT[4] * Ruins.PRODUCTION_PERCENT / 100
+	assert_eq(Economy.mill_percent(grid), percent, "ruina Młyna II.5: 75% z 20")
+	@warning_ignore("integer_division")
+	assert_eq(Economy.rates(grid)[R.FOOD], base * (100 + percent) / 100, "żywność z ruiną Młyna")
+	grid.ruined.erase(id)
+	assert_eq(Economy.mill_percent(grid), EconomyConfig.MILL_FOOD_PERCENT[4], "po odbudowie pełna premia")
 	return true

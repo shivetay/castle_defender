@@ -31,7 +31,7 @@ const BUILDING_PRODUCTION := {
 	BuildingTypes.Kind.QUARRY: [Res.STONE, [40, 60, 80, 110, 140, 170, 200, 230, 270, 310]],
 }
 
-## Młyn (#388, ADR 0010): premia do całej produkcji żywności w punktach procentowych dla poziomów
+## Młyn (#388, ADR 0011): premia do całej produkcji żywności w punktach procentowych dla poziomów
 ## 1–5 epoki II (narastająco 6–10). Liczy się jeden Młyn, ten o najwyższym poziomie. TYMCZASOWE.
 const MILL_FOOD_PERCENT: Array[int] = [4, 8, 12, 16, 20]
 

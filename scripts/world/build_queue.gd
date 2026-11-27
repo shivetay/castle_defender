@@ -57,7 +57,7 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 	placed_id = 0
 	if not BuildConfig.is_unlocked(kind, research):
 		return Result.NEEDS_TECH
-	# budynek epoki II (ADR 0010) stawia się od razu na poziomie 6, więc wymaga Dworu w tej epoce
+	# budynek epoki II (ADR 0011) stawia się od razu na poziomie 6, więc wymaga Dworu w tej epoce
 	var level := BuildConfig.start_level(kind)
 	if level > BuildConfig.max_level(kind, grid.manor_level()):
 		return Result.NEEDS_MANOR
