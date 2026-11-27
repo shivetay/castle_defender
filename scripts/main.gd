@@ -2446,7 +2446,8 @@ func _refresh_card() -> void:
 			and BuildQueue.missing_techs(kind, level + 1, research).is_empty()
 	var middle_enabled := pending or not BuildingTypes.is_unique(kind)
 	hud.card_generals = level >= 1 and kind == BuildingTypes.Kind.MANOR
-	hud.card_recruit = (level >= 1 and RecruitPanel.recruits(kind)) or hud.card_generals
+	hud.card_recruit = (level >= 1 and RecruitPanel.recruits_now(kind, recruitment, grid, research, grid.age())) \
+			or hud.card_generals
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
 	hud.card_plain = plain_card(kind, pending)
