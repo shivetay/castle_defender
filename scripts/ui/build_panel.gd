@@ -29,6 +29,7 @@ const DESCRIPTIONS := {
 	BuildingTypes.Kind.GATE: "Przejście w linii umocnień",
 	BuildingTypes.Kind.TOWER: "Strzela do atakujących (strzały ze zbrojowni)",
 	BuildingTypes.Kind.FISHER: "Stawiany tylko tuż przy rzece",
+	BuildingTypes.Kind.MILL: "Więcej żywności; przy rzece, od epoki II",
 	BuildingTypes.Kind.WAREHOUSE: "Większy limit drewna, kamienia i żywności",
 	BuildingTypes.Kind.DRY_MOAT: "Rów: wróg idzie w nim 2× wolniej",
 	BuildingTypes.Kind.MOUND: "Wieża przy nim strzela dalej, strzelcy +1",
@@ -184,10 +185,10 @@ static func detail_lines(kind: int, r: Research, e: Economy, width: int,
 	var title := "%s (%d×%d)" % [BuildingTypes.name_of(kind, r), size.x, size.y]
 	var state := state_text(kind, r)
 	out.append([ResearchPanel.fit_text(title, width - PixelFont.text_width(state) - 6), Palette.INK, state])
-	var cost := BuildConfig.cost(kind, 1)
+	var cost := BuildConfig.cost(kind, BuildConfig.start_level(kind))
 	var missing := Hud.missing_tokens(cost, e.amounts) if e != null else PackedStringArray()
 	var cost_line := "Koszt: %s, %s" % [Hud.cost_text(cost), Hud.format_time(
-			RulerPerks.build_time_ms(BuildConfig.time_ms(kind, 1), perk))]
+			RulerPerks.build_time_ms(BuildConfig.time_ms(kind, BuildConfig.start_level(kind)), perk))]
 	for l in PixelFont.wrap(cost_line, width, 2):
 		# brakujące surowce na czerwono (4. pole: fragmenty do wyróżnienia)
 		out.append([l, Palette.INK, "", missing])

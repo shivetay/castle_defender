@@ -1,6 +1,6 @@
 class_name TechTree
 extends RefCounted
-## Drzewko technologii MVP (#12): 34 z 131 technologii z notatki, S3, 8 technologii perków władcy (#308,
+## Drzewko technologii MVP (#12): 34 z 131 technologii z notatki, S3, G5 Młyn wodny (#388), 8 technologii perków władcy (#308,
 ## RulerPerks.LINES) i O25 Wysunięte straże (#342, strefa obrony). Technologie z notatki Drzewko technologiczne
 ## (docs/castle-defender-vault), w pięciu gałęziach, z epoką, oznaczeniem technologii kluczowej
 ## (★, warunek przejścia do następnej epoki, #34: O1, G1 i A7 dla I → II, G6 dla II → III), efektem i zależnościami.
@@ -54,6 +54,7 @@ const TECHS: Array = [
 	["G21", "Rybołówstwo", Branch.ECONOMY, 0, false, [], "budynek Rybak przy rzece"],
 	["G24", "Smolarstwo", Branch.ECONOMY, 0, false, ["G1"], "budynek Smolarnia"],
 	["G4", "Kamieniarstwo", Branch.ECONOMY, 0, false, ["G1"], "budynek Kamieniołom"],
+	["G5", "Młyn wodny", Branch.ECONOMY, 1, false, ["G2"], "budynek Młyn: +4–20% żywności (#388)"],
 	["G6", "Zaprawa wapienna", Branch.ECONOMY, 1, true, ["G4"], "warunek przejścia II → III"],
 	["G25", "Gospodarny", Branch.ECONOMY, 0, false, [], "perk władcy: +10% produkcji, wyklucza inne perki"],
 	["G26", "Budowniczy", Branch.ECONOMY, 1, false, ["G25"], "perk władcy: Gospodarny i budowa -10% czasu"],

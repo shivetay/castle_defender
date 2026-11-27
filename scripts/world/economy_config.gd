@@ -31,9 +31,20 @@ const BUILDING_PRODUCTION := {
 	BuildingTypes.Kind.QUARRY: [Res.STONE, [40, 60, 80, 110, 140, 170, 200, 230, 270, 310]],
 }
 
+## Młyn (#388, ADR 0010): premia do całej produkcji żywności w punktach procentowych dla poziomów
+## 1–5 epoki II (narastająco 6–10). Liczy się jeden Młyn, ten o najwyższym poziomie. TYMCZASOWE.
+const MILL_FOOD_PERCENT: Array[int] = [4, 8, 12, 16, 20]
+
 ## Najdłuższa nieobecność, za którą liczy się produkcję. Magazyny i tak zapełniają się
 ## wcześniej; limit chroni rachunek przed absurdalnym zegarem systemowym.
 const MAX_CATCH_UP_MS := 30 * 24 * 3600 * 1000
+
+
+## Premia Młyna o poziomie `level` (narastająco) w procentach; poniżej epoki II 0.
+static func mill_food_percent(level: int) -> int:
+	if Ages.of_level(level) < 1:
+		return 0
+	return MILL_FOOD_PERCENT[Ages.local_level(level) - 1]
 
 
 static func count() -> int:

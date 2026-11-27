@@ -36,15 +36,34 @@ static func rates(grid: BuildGrid, research: Research = null) -> Array[int]:
 	var out: Array[int] = []
 	out.assign(EconomyConfig.BASE_PER_HOUR)
 	var perk_bonus := 0
+	var mill_bonus := 0
 	if grid != null:
 		_add_buildings(grid, out)
 		perk_bonus = RulerPerks.production_bonus(grid.ruler_perk)
-	if research != null or perk_bonus > 0:
+		mill_bonus = mill_percent(grid)
+	if research != null or perk_bonus > 0 or mill_bonus > 0:
 		for res in out.size():
 			var percent := research.production_percent(res) if research != null else 100
+			if res == EconomyConfig.Res.FOOD:
+				percent += mill_bonus
 			@warning_ignore("integer_division")
 			out[res] = out[res] * (percent + perk_bonus) / 100
 	return out
+
+
+## Premia Młyna do żywności w procentach (#388): tylko najwyższy ukończony Młyn, Młyny się nie sumują.
+## Ruina po ataku PvP (#99) daje premię jak produkcję, w Ruins.PRODUCTION_PERCENT.
+static func mill_percent(grid: BuildGrid) -> int:
+	var best := 0
+	for id: int in grid.buildings:
+		if grid.kinds[id] != BuildingTypes.Kind.MILL:
+			continue
+		var percent := EconomyConfig.mill_food_percent(grid.levels[id])
+		if grid.ruined.has(id):
+			@warning_ignore("integer_division")
+			percent = percent * Ruins.PRODUCTION_PERCENT / 100
+		best = maxi(best, percent)
+	return best
 
 
 ## Bilans na godzinę: produkcja z rates() minus utrzymanie armii w żywności (#214). Żywność

@@ -10,6 +10,7 @@ Tekstury generuj raz i cache’uj (`ImageTexture`); nie rysuj przez `set_pixel` 
 | `palette.gd` | Palety epok + kolory UI |
 | `pixel_canvas.gd` | Prymitywy (`hash2`, dachy, dithering, …) |
 | `building_art.gd` | Wygląd budynków (poziomy, zniszczenia, autotiling) |
+| `mvp_building_art.gd` / `age_ii_building_art.gd` | Budynki MVP z #35 i budynki epoki II z #102 (Młyn, #388) |
 | `building_textures.gd` | Cache tekstur budynków, `warm_up()` |
 | `terrain_renderer.gd` | Tekstura terenu z mapy |
 | `portrait_art.gd` | Portret władcy w okręgu do HUD-u (#228) |

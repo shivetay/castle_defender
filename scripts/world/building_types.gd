@@ -29,6 +29,9 @@ enum Kind {
 	WELL,
 	QUARRY,
 	SIGNAL_TOWER,
+	## Budynki epoki II spoza MVP (#102, ADR 0010): stawiane od razu na poziomie 6 (BuildConfig.start_level).
+	## Młyn (#388, G5): premia do całej żywności, przy rzece.
+	MILL,
 }
 ## Stan budynku zależny od wytrzymałości: cały, pęknięcia, wyrwa w blankach, gruz.
 enum State { INTACT, CRACKED, BREACHED, RUBBLE }
@@ -50,13 +53,13 @@ const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wie
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
 		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica",
 		"Wieża grodowa", "Chata tropicieli", "Strażnica", "Komenda umocnień", "Magazyn",
-		"Fosa sucha", "Kopiec", "Pole i spichlerz", "Studnia", "Kamieniołom", "Wieża sygnałowa"]
+		"Fosa sucha", "Kopiec", "Pole i spichlerz", "Studnia", "Kamieniołom", "Wieża sygnałowa", "Młyn"]
 ## Napisy na kafelkach panelu budowy (BuildPanel, ok. 57–71 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
 		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
 		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica", "Donżon",
 		"Tropiciele", "Strażnica", "Komenda", "Magazyn", "Fosa", "Kopiec", "Spichlerz", "Studnia", "Kamień",
-		"Sygnałowa"]
+		"Sygnałowa", "Młyn"]
 ## Rozmiar w kratkach (#340, ADR 0005): Koszary 3×3, budynki wojska, Magazyn i pola 3×2 (poziomo),
 ## reszta 2×2, a umocnienia 1×1 i brama 3×1. Budynek ze starszego zapisu zostaje w zapisanym prostokącie
 ## (BuildGrid.cells_of), więc ta tabela dotyczy tylko nowych budowli.
@@ -65,12 +68,12 @@ const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), 
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(3, 2),
 		Vector2i(3, 3), Vector2i(3, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(3, 2), Vector2i(1, 1), Vector2i(2, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(3, 2),
-		Vector2i(2, 2)]
+		Vector2i(2, 2), Vector2i(2, 2)]
 ## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu): umocnienia, gospodarka (#122),
 ## Magazyn, wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119), Chata tropicieli (#28, #92)
-## i Wieża sygnałowa (#35).
+## i Wieża sygnałowa (#35). Młyn (#388) stoi za Rybakiem.
 const BUILD_BAR: Array[int] = [Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.DRY_MOAT, Kind.MOUND,
-		Kind.SEAL_HOUSE, Kind.LUMBER_HUT, Kind.FARM, Kind.FISHER, Kind.FLAX_FIELD, Kind.QUARRY, Kind.WELL,
+		Kind.SEAL_HOUSE, Kind.LUMBER_HUT, Kind.FARM, Kind.FISHER, Kind.MILL, Kind.FLAX_FIELD, Kind.QUARRY, Kind.WELL,
 		Kind.WAREHOUSE, Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER,
 		Kind.FLETCHER, Kind.SADDLER, Kind.STABLE, Kind.TAR_KILN, Kind.BARRACKS, Kind.WARBAND_HOUSE,
 		Kind.ARCHERY_RANGE, Kind.SCOUT_HOUSE, Kind.SIGNAL_TOWER]
@@ -82,7 +85,7 @@ const CATEGORY_NAMES: Array[String] = ["Umocnienia", "Gospodarka", "Wytwórcy", 
 ## Rodzaje w kategoriach, w kolejności kafelków (ta sama kolejność co BUILD_BAR).
 const CATEGORIES: Array = [
 	[Kind.RAMPART, Kind.PALISADE, Kind.GATE, Kind.TOWER, Kind.DRY_MOAT, Kind.MOUND, Kind.SEAL_HOUSE],
-	[Kind.LUMBER_HUT, Kind.FARM, Kind.FISHER, Kind.FLAX_FIELD, Kind.QUARRY, Kind.WELL, Kind.WAREHOUSE],
+	[Kind.LUMBER_HUT, Kind.FARM, Kind.FISHER, Kind.MILL, Kind.FLAX_FIELD, Kind.QUARRY, Kind.WELL, Kind.WAREHOUSE],
 	[Kind.HUNTER, Kind.TANNERY, Kind.LEATHERWORKER, Kind.POLEARM, Kind.BOWSTRING, Kind.BOWYER, Kind.FLETCHER,
 			Kind.SADDLER, Kind.TAR_KILN],
 	[Kind.BARRACKS, Kind.WARBAND_HOUSE, Kind.ARCHERY_RANGE, Kind.STABLE, Kind.SCOUT_HOUSE, Kind.SIGNAL_TOWER],
@@ -125,6 +128,11 @@ static func is_wooden(kind: int) -> bool:
 ## drogi i nie da się jej zburzyć, tylko spowalnia atakujących (Battle).
 static func is_passable(kind: int) -> bool:
 	return kind == Kind.DRY_MOAT
+
+
+## Czy budynek stoi tylko przy wodzie: Rybak (#122) i Młyn wodny (#388).
+static func needs_water(kind: int) -> bool:
+	return kind == Kind.FISHER or kind == Kind.MILL
 
 
 ## Budynki, które zamek ma od startu, po jednym, i których nie da się rozebrać: Dwór, donżon (#120)

@@ -62,7 +62,7 @@ func can_place(rect: Rect2i, kind: int = -1) -> bool:
 			if gate_across == Vector2i.ZERO or terrain.get_tile(c) != TerrainMap.Tile.PATH \
 					or road_axis(c) != gate_across:
 				return false
-	if kind == BuildingTypes.Kind.FISHER and not touches_water(rect):
+	if BuildingTypes.needs_water(kind) and not touches_water(rect):
 		return false
 	return true
 
