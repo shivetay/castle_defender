@@ -1,6 +1,6 @@
 # Otwarte pytania
 
-Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na `main` (stan na 23.11.2026). Chronologia: [[Stan prac]]. Liczby: [[Balans]].
+Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na `main` (stan na 27.11.2026). Chronologia: [[Stan prac]]. Liczby: [[Balans]]. Serwer: [[Serwer]].
 
 ## Ustalone
 
@@ -16,6 +16,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Wymuszenie aktualizacji (26.11.2026, #336): komunikat o nowej wersji ze sklepem i blokada gry poniżej minimum z serwera, także offline; serwer odrzuca starsze klienty. [[ADR/0006-wymuszenie-aktualizacji-wersji-klienta|ADR 0006]].
 - Wersja symulacji ataku (27.11.2026, #354): klient podaje ją przy zatwierdzeniu ataku, a wersja bez packa na serwerze blokuje atak z komunikatem o aktualizacji. [[ADR/0008-wersja-symulacji-ataku-z-klienta|ADR 0008]].
 - Pierwsza passa balansu i premie poziomów 6–10 (27.11.2026, #262): ciągła krzywa kosztu i czasu przez 10 poziomów, premie epoki II rosną dalej (tablice do poziomu 10), Dwór II.1–II.5 z własnej tabeli; z Opcji C z [[Balans]] została zasada reklam i sklepu, reszta odrzucona. Liczby tymczasowe. [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]].
+- Premie szkolenia, kolców w fosie i Kopca na poziomach 6–10 (27.11.2026, #387): kolejka 7–11, tempo 230–400%, kolce 7–11 HP/s, Kopiec +2/+2/+2/+3/+3, zwiad z poziomem do 10. Liczby tymczasowe. [[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii|ADR 0013]].
 - Dobór PvP (27.11.2026, #383): dobór, zwiad i start ataku tylko w tej samej epoce; bez graczy w epoce karty uzupełniają boty z Wyprawy jak dotąd. [[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce|ADR 0010]].
 - Budynki epoki II od poziomu 6 i Młyn (27.11.2026, #102): budynek nowej epoki stawia się na poziomie narastającym 6 i ulepsza do 10; Młyn to G5 z premią +4–20% żywności (#388). Liczby tymczasowe. [[ADR/0011-budynki-epoki-ii-od-poziomu-6|ADR 0011]].
 
@@ -37,7 +38,6 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 | Perki władcy | #32 | generałowie #31 gotowe |
 | Powiadomienia push | #30 | — |
 | Ranking PvE (ticket zbiorczy) | #242 | kod rankingu #264–#265; checklist issue |
-| Balans epoki II (koszty, czasy, premie) | #262 | ustalone w [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]], kod w PR, migracja do wgrania z wydaniem |
 | Mini-samouczek UI do 6 żołnierzy | #251 | — |
 | Życie w zamku | #36 | — |
 | Reklamy z nagrodą | #33 | — |
@@ -46,10 +46,12 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 
 ### Zamknięte niedawno (nie trzymać jako braków)
 
-#19, #20, #28, #29 (rdzeń), #31, #35, #89, #101, #164, #166, #185, #199, #214, #225, #226 — szczegóły w [[Stan prac]] / [[Bugs]].
+#19, #20, #28, #29 (rdzeń), #31, #35, #89, #101, #164, #166, #185, #199, #214, #225, #226,
+#262 (balans epoki II / #384), #383 (same-age PvP / #395), #388 (Młyn / #396), #354 (`sim_version` / #382)
+— szczegóły w [[Stan prac]] / [[Bugs]].
 
 ### Świadomie później (po MVP / 1.0)
 
-Epoki III–VI (#93–#96, #103+), sezony i ligi, kampania PvE, osiągnięcia, i18n, zgodność ze sklepem — [[Roadmapa do 1.0]]. Budynki epoki II spoza rdzenia (Pomost, Częstokół, Młyn, Kaplica): #102.
+Epoki III–VI (#93–#96, #103+), sezony i ligi, kampania PvE, osiągnięcia, i18n, zgodność ze sklepem — [[Roadmapa do 1.0]]. Pozostałe budynki epoki II z #102 (Pomost, Częstokół, Kaplica, zasięg Domu zwiadowców); Młyn (#388) już na `main`.
 
 Powiązane: [[Koncept gry]], [[Plan MVP]], [[Stan prac]], [[Bugs]], [[Balans]], [[Model wydania]]

@@ -15,6 +15,6 @@ Rekomendacja: **Godot 4 (GDScript)**, eksport na Androida, cała grafika rysowan
 
 Alternatywa dla TypeScript: Phaser 3 + Capacitor. Odradzana jako główna ścieżka (wolniejszy WebView, dodatkowa warstwa).
 
-Backend do PvP: [[Backend PvP]] (Supabase).
+Backend do PvP: [[Backend PvP]] (Supabase). Środowiska, deploy, verifier: [[Serwer]].
 
-Powiązane: [[Widok zamku]], [[Plan MVP]]
+Powiązane: [[Widok zamku]], [[Plan MVP]], [[Serwer]]

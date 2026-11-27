@@ -5,12 +5,12 @@ Kolumna „Zastępuje” pokazuje ścieżkę przebudowy. Epoki: [[Epoki]].
 | Budynek | Epoka | Funkcja | Zastępuje |
 | --- | --- | --- | --- |
 | Wał ziemny | I | blokuje ruch, +wysokość dla łuczników | — |
-| Fosa sucha | I | spowalnia wroga o 50%; przechodnia, nie da się jej zburzyć; z O3 kolce 2–6 HP/s według poziomu (#35) | — |
+| Fosa sucha | I | spowalnia wroga o 50%; przechodnia, nie da się jej zburzyć; z O3 kolce 2–6 HP/s według poziomu (#35), w epoce II 7–11 HP/s ([[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii|ADR 0013]]) | — |
 | Palisada | I | prosty mur, płonie od ognia | — |
 | Brama drewniana | I | wejście, słaby punkt | — |
 | Komenda umocnień | I | Sprawdź szczelność pierścienia (~1 min), czerwone luki, Domknij wskazaną lukę; wymaga O2 | — |
 | Pomost strzelecki | I | stanowisko 2 łuczników na wale | — |
-| Kopiec (motte) | II | podwyższa wieżę: wieża albo donżon przy Kopcu +1 kratka zasięgu (od poz. 3: +2), strzelcy na Kopcu +1; wymaga O1 (#35) | — |
+| Kopiec (motte) | II | podwyższa wieżę: wieża albo donżon przy Kopcu +1 kratka zasięgu (od poz. 3: +2, od II.4: +3, [[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii|ADR 0013]]), strzelcy na Kopcu +1; wymaga O1 (#35) | — |
 | Wieża drewniana | II | strzały w promieniu | pomost strzelecki |
 | Częstokół | II | rani konnicę | — |
 | Mur kurtynowy | III | mocny mur kamienny | palisada |
@@ -40,7 +40,8 @@ Kolumna „Zastępuje” pokazuje ścieżkę przebudowy. Epoki: [[Epoki]].
 Lista epok I–II zatwierdzona przez właściciela 17.11.2026 (#100). Pułapkę stawia się na ekranie Obrona,
 w strefie obrony (10 kratek od donżonu, +2 na każdy poziom Dworu i +1 na poziom O25 Wysunięte straże,
 [[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]), na wolnej kratce, którą da się przejść. Atakujący jej nie widzi, dopóki nie odsłoni jej
-zwiad ([[Zwiad i kontrwywiad]], #28) albo reklama Wywiad. Działa raz na bitwę, a po bitwie odnawia się za darmo.
+zwiad ([[Zwiad i kontrwywiad]], #28) albo reklama Wywiad. Działa raz na bitwę, a po bitwie odnawia się za darmo. Pułapka zajmuje kratkę: nie stanie na niej
+budynek (#341), a luka w murze z pułapką nadal liczy się jako luka.
 Limit: 2 pułapki na poziom Dworu. Liczby są tymczasowe.
 
 | Pułapka | Epoka | Wymaga | Gdzie | Działanie | Koszt |

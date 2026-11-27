@@ -5,17 +5,17 @@ Pierwsza grywalna wersja obejmuje epoki I i II z okrojoną zawartością, pełn�
 | Obszar | W MVP | Później |
 | --- | --- | --- |
 | Epoki | I i II, z przejściem I → II (Dwór 5 + O1, G1, A7; budynki max→lvl1 z bonusami; bez niszczenia postępu — #34) | III–VI |
-| Budynki | 29: Wał ziemny, Fosa sucha, Palisada, Brama drewniana, Wieża drewniana, Kopiec, Chata drwala, Pole i spichlerz, Studnia, Kamieniołom, Dwór grodowy, Koszary (od epoki I), Stajnia (od epoki I), Wieża sygnałowa, Dom drużyny, Strzelnica, Chata myśliwego, Garbarnia, Wytwórca zbroi skórzanych, Drzewcarz, Cięciwiarz, Łukmistrz, Strzałmistrz, Rymarz, Smolarnia, Pole lnu, Rybak, Wieża grodowa i Wieża na kopcu (donżon) | Pomost strzelecki, Częstokół, Młyn, Kaplica, Dom zwiadowców i budynki epok III–VI |
-| Poziomy | budynki i zamek poziomy 1–5 | bez zmian |
+| Budynki | 30: jak wcześniej + **Młyn** (epoka II, G5, start od poz. 6); Wał, Fosa, Palisada, Brama, Wieża, Kopiec, Chata drwala, Pole i spichlerz, Studnia, Kamieniołom, Dwór, Koszary, Stajnia, Wieża sygnałowa, Dom drużyny, Strzelnica, Chata myśliwego, Garbarnia, Wytwórca zbroi skórzanych, Drzewcarz, Cięciwiarz, Łukmistrz, Strzałmistrz, Rymarz, Smolarnia, Pole lnu, Rybak, Wieża grodowa / na kopcu | Pomost strzelecki, Częstokół, Kaplica, zasięg Domu zwiadowców (#102) i budynki epok III–VI |
+| Poziomy | budynki i zamek poziomy 1–5 w epoce; epoka II: narastająco 6–10 (ciągła krzywa, [[ADR/0009-model-balansu-epok-ciagla-krzywa\|ADR 0009]]); budynki nowej epoki od poz. 6 ([[ADR/0011-budynki-epoki-ii-od-poziomu-6\|ADR 0011]]) | kolejne epoki przedłużają krzywą |
 | Jednostki | 13 w 5 klasach: Wojownik z toporem, Oszczepnik, Łucznik, Tarczownik, Podpalacz, Tropiciel, Jeździec (epoka I), Włócznik, Drużynnik w przeszywanicy, Strzelec z łukiem refleksyjnym, Kopijnik (epoka II), Taran, Kopacz | pozostałe 50, w tym cała artyleria |
 | Towary | bez metalu: skóry, skórzane pancerze, przeszywanice, tarcze, siodła, łuki, strzały z kościanymi grotami, smoła, konie; rekrutacja je zużywa ([[Klasy jednostek i produkcja]]) | żelazo od epoki III (Kopalnia rudy), kusze, zbroje, broń palna, proch |
-| Technologie | 34: A1–A7, A21, A22, A38–A47, O1–O3, G1, G2, G4, G6, G18–G21, G24, U1, S1, S2 | pozostałe 97 |
+| Technologie | 35: A1–A7, A21, A22, A38–A47, O1–O3, G1, G2, G4, **G5**, G6, G18–G21, G24, U1, S1, S2 | pozostałe 96 |
 | Manewry ataku | 6: Szturm frontalny, Ostrzał z dystansu, Podpalenie, Oskrzydlenie, Szturm z drabinami, Taranowanie bramy | Osłona i manewry epok III–VI |
 | Zadania obrony | 5: Obrona odcinka, Patrol, Priorytet celów wież, Gaszenie pożarów, Wypad konnicy | Rezerwa, Odwrót do donjonu, Kontrminy |
 | Generałowie | 3: Wódz drużyny, Łowczy (atak), Budowniczy kopców (obrona); poziomy 1–3, jeden perk dodatkowy | pozostałe 9, poziomy 4–5 |
 | Perki władcy | 1 miejsce na perk z technologii, 4 linie po 2 poziomy: Zdobywca → Łupieżca, Gospodarz grodu, Gospodarny → Budowniczy, Ukochany władca ([[ADR/0002-perki-wladcy-z-technologii\|ADR 0002]]) | miejsca 2 i 3, pozostałe 13 perków |
 | Surowce | drewno, kamień, żywność, złoto (z łupu i PvE) | proch, żelazo |
-| PvP | dobór przeciwnika, zwiad z mgłą wojny, plan ataku, bitwa bez sterowania, łup, tarcza, ranking, powtórka, 20 zamków-botów na epokę (#230) | sezony rankingu, weryfikacja bitew na serwerze (Godot headless) |
+| PvP | dobór **tej samej epoki** ([[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce\|ADR 0010]]), zwiad, plan ataku, bitwa bez sterowania, łup, tarcza, ranking, powtórka, 20 botów/epoka (#385), `sim_version` (#382) | sezony rankingu; verifier w trybie `enforce` |
 | PvE | samouczek: 5 fal oblężenia | kampania z lokacjami |
 | Reklamy z nagrodą | przyspieszenie budowy, szybsze zbieranie surowców | skrócenie czasu do ataku, wywiad, sabotaż, ochrona magazynu |
 | Backend | Supabase: logowanie, zapis zamku i obrony, `start_attack` / `finish_attack`, tarcze, boty, weryfikacja reklam (AdMob SSV), powiadomienia push | klany i sojusze |
@@ -44,6 +44,6 @@ Każdy etap ma w repo ticket „Etap N” z podpiętymi zadaniami (sub-issues, e
 
 Wersje po MVP mają tickety zbiorcze z podpiętymi zadaniami: Etap 0.2 (#38), 0.3 (#43), 0.4 (#46), 0.5 (#51), 1.0 (#137).
 
-Bieżący stan (23.11.2026): na `main` domknięte etapy 8–10 w dużym zakresie, generałowie (#31 / #273), przejście epoki II w kodzie (#261; balans liczb → #262 / [[Balans]]), ranking PvE w toku. Wersja gry **0.4.0** (+ nieopublikowane merge). Szczegóły: [[Stan prac]]; pytania: [[Otwarte pytania]].
+Bieżący stan (27.11.2026): wersja **0.6.0**; balans epoki II (#384 / [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]), boty 20/epoka (#385), same-age PvP (#395), Młyn (#396), sim_version (#382). Szczegóły: [[Stan prac]]; pytania: [[Otwarte pytania]]; ops: [[Serwer]].
 
-Powiązane: [[Stack technologiczny]], [[Backend PvP]], [[Otwarte pytania]], [[Jednostki]], [[Drzewko technologiczne]], [[Balans]]
+Powiązane: [[Stack technologiczny]], [[Backend PvP]], [[Serwer]], [[Otwarte pytania]], [[Jednostki]], [[Drzewko technologiczne]], [[Balans]], [[ADR/README|ADR]]
