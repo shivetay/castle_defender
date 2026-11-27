@@ -162,7 +162,7 @@ select is_empty($$select 1 from public.castles$$, 'C nie widzi cudzych zamków')
 -- ---- niezalogowany (anon) ----
 reset role;
 set local role anon;
-select is((select count(*)::int from public.bot_castles), 20, 'lista 20 zamków-botów jest publiczna');
+select is((select count(*)::int from public.bot_castles), 40, 'lista 40 zamków-botów (20 na epokę) jest publiczna');
 select throws_ok($$select 1 from public.castles$$, '42501', null, 'anon nie czyta zamków');
 select throws_ok($$select 1 from public.players$$, '42501', null, 'anon nie czyta graczy');
 select throws_ok($$select 1 from public.defense_layouts$$, '42501', null, 'anon nie czyta obron');

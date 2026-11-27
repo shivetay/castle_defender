@@ -443,19 +443,22 @@ w sekcji „Następny etap”.
 - Ekran planowania ataku (#17, `scripts/ui/attack_planner.gd` i `attack_panel.gd`): Wyprawa na karcie
   Strażnicy otwiera wybór zamku-bota (najpierw zwarta lista, Planuj rozwija, kolejne Planuj
   otwiera mapę zamku-celu).
-  - **20 zamków-botów (#26, `scripts/battle/bot_roster.gd`):** lista wspólna dla wszystkich graczy
-    (seed z numeru zamku; w etapie 9 przejdzie do bazy), z nazwami. Trudność rośnie: poziom budynków
-    1–5 (co 4 zamki), do 4 wież, budynki rekrutacji (Koszary od 4., Strzelnica od 7., Dom drużyny
-    od 10., Stajnia od 13.), gród na wale zamiast palisady w zamkach 2, 4, 6, 8 i 10, zewnętrzny wał od 11.
-    i załoga z coraz większej liczby klas (od 4 Chłopów
-    do 77 obrońców). Zamki 16–20 to epoka II: bronią ich też Włócznicy, Drużynnicy, Strzelcy z łukiem
-    refleksyjnym i Kopijnicy. Liczby tymczasowe.
+  - **20 zamków-botów na epokę (#26, #230, `scripts/battle/bot_roster.gd`):** lista wspólna dla wszystkich
+    graczy (seed z numeru zamku, w bazie `bot_castles`), z nazwami. Epoki I–II mają po 20 zamków (numery 0–19
+    i 20–39), odblokowywanych po kolei, więc epoka II zaczyna się po 20 zamkach epoki I. W epoce I trudność
+    rośnie z rangą: poziom budynków 1–5 (co 4 zamki), do 4 wież, budynki rekrutacji (Koszary od 4.,
+    Strzelnica od 7., Dom drużyny od 10., Stajnia od 13.), gród na wale zamiast palisady w zamkach 2, 4, 6,
+    8 i 10, zewnętrzny wał od 11. i załoga z coraz większej liczby klas (od 4 Chłopów do 74 obrońców). Epoka II
+    zaczyna od połowy krzywej (budynki jak zamek epoki I nr 12, poziom 3→5, zawsze zewnętrzny wał), a jej
+    załoga to piechota epoki I jako tło i dokładani z rangą Włócznicy, Drużynnicy, Strzelcy z łukiem
+    refleksyjnym i Kopijnicy (do 103 obrońców). Siatka Wyprawy pokazuje jedną epokę, zakładki I / II
+    obok tytułu ją zmieniają. Liczby tymczasowe.
   - **Trzy cele (#24, `scripts/ui/target_picker.gd`):** Wyprawa otwiera najpierw 3 karty celów. Karta ma
     tylko portret władcy, imię gracza, nazwę zamku i siłę obrony (#310): u bota liczoną w kliencie
     (załoga i umocnienia, `Strength.bot_defense`), u gracza „Siła ?”, dopóki serwer jej nie poda (#293).
     Szacowanego łupu karta już nie pokazuje. Graczy dobiera serwer; brakujące karty, a bez sieci wszystkie,
     zajmują boty: bieżący cel kampanii, potem zdobyte zamki, a nowy gracz dostaje kolejne z listy.
-    Boty otwiera pełną listę 20 zamków (niżej), Planuj plan ataku na bocie. Planuj na karcie gracza
+    Boty otwiera pełną listę zamków epoki (niżej), Planuj plan ataku na bocie. Planuj na karcie gracza
     (#240, `scripts/battle/player_castle.gd`) zaczyna atak na serwerze (`start_attack`) i otwiera plan
     na kopii jego zamku i obrony z chwili startu; bitwa idzie z seedem z serwera, a łup trafia do magazynu
     dopiero z odpowiedzi `finish_attack` (przy odrzuceniu albo braku sieci po 4 próbach wynik jest bez łupu).
@@ -534,8 +537,8 @@ w sekcji „Następny etap”.
   Liczby tymczasowe.
 - Baza PvP (#21, `supabase/migrations`): Supabase (Postgres) z RLS na każdej tabeli i jawnymi uprawnieniami.
   - **Tabele:** `players` (konto, także anonimowe; ranking i epoka), `castles` (stan gry w JSON z wersją formatu,
-    licznikiem zmian i stałym `map_seed`), `defense_layouts`, `bot_castles` (20 zamków-botów z seedem z
-    `BotRoster`, #26), `attacks` (seed terenu obrońcy `map_seed`, seed bitwy, rozkazy, wynik, łup oraz kopie
+    licznikiem zmian i stałym `map_seed`), `defense_layouts`, `bot_castles` (20 zamków-botów na epokę z seedem z
+    `BotRoster`, #26, #230), `attacks` (seed terenu obrońcy `map_seed`, seed bitwy, rozkazy, wynik, łup oraz kopie
     obrony i zamku obrońcy i armii atakującego z chwili startu; z nich liczy się bitwa), `shields`, `ad_rewards`.
   - **Dostęp gracza:** czyta i zapisuje tylko swój zamek, obronę i nick. Nie zmieni seedu terenu, licznika
     zmian, rankingu ani epoki i nie usunie zamku. Ataki, tarcze i nagrody tylko czyta (swoje); zapisuje je
@@ -916,7 +919,7 @@ backend Supabase i PvP. Jest schemat bazy z RLS (#21), klient z anonimowym konte
 władcą (#228), synchronizacja zamku z obroną z rewizjami (#23, w kodzie) i dobór przeciwnika z ekranem
 3 celów (#24, migracja `match_targets` i funkcja `find_targets` są na projekcie). Konto anonimowe przetrwa
 reinstalację tylko z sesją na telefonie, więc pełny powrót po reinstalacji czeka na decyzję: kopia
-zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze w jego limicie miejsc i utrzymania żywności, #249), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10, Wóz 50, #235), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Ranking PvP (#27) ma osobne tabele ataku i obrony w epoce gracza (Elo, punkty zmienia tylko serwer po bitwie); migracja `pvp_ranking` i funkcja `ranking` są na projekcie. Ranking PvE (#242) to trzeci widok tego ekranu: punkty za wygrane z zamkami-botami liczy serwer po `finish_attack`; migracja `pve_ranking` i nowa wersja Edge Function `ranking` są na projekcie, a dobór przeciwnika nadal używa wspólnego `rating` (przejście na ranking ataku i obrony to decyzja właścicielki). Wóz (#235) podnosi capacity łupu; migracja `wagon_carry` jest na projekcie. Limit armii przy starcie ataku (#249, migracja `army_limits`) jest na projekcie razem z nową wersją `start_attack`; klient wysyła tylko oddziały mieszczące się w limitach. Po ataku na gracza (#99) `finish_attack` zapisuje zniszczone budynki (`record_destroyed`, migracja `attack_ruins` i nowe `finish_attack` są na projekcie): tylko gotowe budynki z kopii zamku, bez umocnień, nie więcej niż procent zniszczeń. Obrońca po połączeniu czyta swoje obrony i widzi te budynki jako ruiny, które same się odbudowują (epoka I godzina, każda następna o godzinę dłużej); w ruinie Chata drwala i Rybak produkują 75%. Łup z ataku na gracza odejmuje obrońcy i dodaje atakującemu serwer (#274). Wynik ataku na gracza nie ginie przy zamknięciu gry przed odpowiedzią serwera ani bez sieci: czeka w pliku `user://attack_result.json` (`PendingFinish`) i wraca na serwer po połączeniu (#99). Z wcześniejszych etapów zostają:
+zapasowa Androida albo logowanie (np. Google). Atak ma serwerowy start i koniec (#25): `start_attack` blokuje cel na czas ataku (tarcza, limit 10 startów na 10 minut, armia z zamku na serwerze w jego limicie miejsc i utrzymania żywności, #249), a `finish_attack` przyjmuje wynik tylko w limitach: łup najwyżej z niechronionych zapasów obrońcy i najwyżej tyle, ile uniosą ocaleli (piechota 5, konnica 10, Wóz 50, #235), tarcza obrońcy 8 h od 30% zniszczeń. Łup z zamków-botów też ogranicza capacity ocalałych. Klient atakuje gracza z ekranu 3 celów (#240): bitwa z kopii zamku i obrony z `start_attack`, łup z odpowiedzi `finish_attack`. Ranking PvP (#27) ma osobne tabele ataku i obrony w epoce gracza (Elo, punkty zmienia tylko serwer po bitwie); migracja `pvp_ranking` i funkcja `ranking` są na projekcie. Zamków-botów jest 20 na epokę I–II (#230); migrację `bot_castles_per_age` i nową wersję `start_attack` (bot_idx 0–39) wdraża właścicielka. Ranking PvE (#242) to trzeci widok tego ekranu: punkty za wygrane z zamkami-botami liczy serwer po `finish_attack`; migracja `pve_ranking` i nowa wersja Edge Function `ranking` są na projekcie, a dobór przeciwnika nadal używa wspólnego `rating` (przejście na ranking ataku i obrony to decyzja właścicielki). Wóz (#235) podnosi capacity łupu; migracja `wagon_carry` jest na projekcie. Limit armii przy starcie ataku (#249, migracja `army_limits`) jest na projekcie razem z nową wersją `start_attack`; klient wysyła tylko oddziały mieszczące się w limitach. Po ataku na gracza (#99) `finish_attack` zapisuje zniszczone budynki (`record_destroyed`, migracja `attack_ruins` i nowe `finish_attack` są na projekcie): tylko gotowe budynki z kopii zamku, bez umocnień, nie więcej niż procent zniszczeń. Obrońca po połączeniu czyta swoje obrony i widzi te budynki jako ruiny, które same się odbudowują (epoka I godzina, każda następna o godzinę dłużej); w ruinie Chata drwala i Rybak produkują 75%. Łup z ataku na gracza odejmuje obrońcy i dodaje atakującemu serwer (#274). Wynik ataku na gracza nie ginie przy zamknięciu gry przed odpowiedzią serwera ani bez sieci: czeka w pliku `user://attack_result.json` (`PendingFinish`) i wraca na serwer po połączeniu (#99). Z wcześniejszych etapów zostają:
 część efektów badań (#12) i ogólny wygląd (#150). Sprawdzanie szczelności obrony (#199) jest w kodzie
 (Komenda umocnień + Sprawdź / Domknij). Magazyn podnosi limit surowców ponad 1000 z Dworu.
 Zwiad z mgłą wojny (#28, etap 10) ma część kliencką: Chata tropicieli (S1, epoka I) szkoli

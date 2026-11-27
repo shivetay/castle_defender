@@ -113,7 +113,7 @@ func test_bots_place_all_buildings() -> bool:
 	for i in BotRoster.COUNT:
 		var bot := BotRoster.generate(i)
 		var want: Dictionary[int, int] = {K.LUMBER_HUT: 2, K.HUNTER: 1}
-		for kind in BotRoster.recruit_buildings(i):
+		for kind in BotRoster.recruit_buildings(BotRoster.structure_of(i)):
 			want[kind] = int(want.get(kind, 0)) + 1
 		for kind: int in want:
 			var have := 0

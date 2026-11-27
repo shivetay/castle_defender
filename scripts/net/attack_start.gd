@@ -10,7 +10,7 @@ extends RefCounted
 const PATH := "/functions/v1/start_attack"
 
 
-## Treść żądania ataku na zamek-bota (`bot_idx` 0..19).
+## Treść żądania ataku na zamek-bota (`bot_idx` 0..BotRoster.COUNT-1).
 static func request_bot(bot_idx: int, army: Array = []) -> Dictionary:
 	return {"bot_idx": bot_idx, "army": army}
 
@@ -46,7 +46,7 @@ static func parse_response(data: Variant) -> Dictionary:
 	var bot: Variant = d.get("bot_idx")
 	if bot is int or bot is float:
 		var idx := int(bot)
-		if idx >= 0 and idx <= 19:
+		if idx >= 0 and idx < BotRoster.COUNT:
 			out["bot_idx"] = idx
 	var defender: Variant = d.get("defender_id")
 	if defender is String and not (defender as String).is_empty():

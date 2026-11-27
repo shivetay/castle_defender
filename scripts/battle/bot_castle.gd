@@ -2,15 +2,16 @@ class_name BotCastle
 extends RefCounted
 ## Zamek-cel do ataku (#17) i zamek-bot z listy BotRoster (#26): gród z seeda. Dwór i donżon
 ## w pierścieniu palisady albo wału (BotRoster.inner_wall_of) z bramą od strony drogi, wieże, budynki gospodarcze i rekrutacji poza
-## pierścieniem, od zamku 11 zewnętrzny wał, oraz załoga. `strength` (numer zamku na liście, 0–19)
-## wybiera wszystko z BotRoster. Ten sam seed i siła dają zawsze ten sam zamek. Liczby TYMCZASOWE.
+## pierścieniem, od siły 10 zewnętrzny wał, oraz załoga. `strength` (siła konstrukcji 0–19,
+## BotRoster.structure_of) wybiera wszystko z BotRoster; BotRoster.generate podmienia załogę na
+## załogę zamku z listy (epoka II). Ten sam seed i siła dają zawsze ten sam zamek. Liczby TYMCZASOWE.
 
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
 
 var seed_value := 0
 var strength := 0
-## Numer zamku na liście BotRoster (0–19).
+## Numer zamku na liście BotRoster (0–39).
 var index := 0
 var grid: BuildGrid
 ## Id donżonu: cel ataku.

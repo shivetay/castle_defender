@@ -90,7 +90,8 @@ Deno.serve(async (req) => {
   if (defenderId != null && !UUID.test(defenderId)) {
     return json({ error: "bad_target" }, 400);
   }
-  if (botIdx != null && (botIdx < 0 || botIdx > 19)) {
+  // BotRoster.COUNT = 40 (#230: 20 zamków na epokę I–II); bazę pilnuje check na bot_castles.idx
+  if (botIdx != null && (botIdx < 0 || botIdx > 39)) {
     return json({ error: "bad_bot" }, 400);
   }
   // kształt i zakresy armii sprawdza begin_attack; tu tylko rozmiar żądania

@@ -130,7 +130,7 @@ static func parse_footprint(raw: Variant) -> Array[Rect2i]:
 	return out
 
 
-## Cel-bot `i` (0–19): zamek z listy BotRoster, jego zarys, siła i szacowany łup ze skarbca (z cache).
+## Cel-bot `i` (0–39): zamek z listy BotRoster, jego zarys, siła i szacowany łup ze skarbca (z cache).
 static func bot_target(i: int) -> Target:
 	if _bots.has(i):
 		return _bots[i]
@@ -177,8 +177,7 @@ static func fill(players: Array[Target], beaten: int) -> Array[Target]:
 
 ## Epoka rzymską liczbą, np. „Epoka II”.
 static func age_label(age: int) -> String:
-	const ROMAN: Array[String] = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
-	return "Epoka " + ROMAN[clampi(age, 0, ROMAN.size() - 1)]
+	return "Epoka " + BotRoster.age_name(age)
 
 
 ## Nazwa po czyszczeniu; pusta, gdy ma znaki spoza fontu albo jest za długa (po przycięciu do

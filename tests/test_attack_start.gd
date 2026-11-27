@@ -64,16 +64,46 @@ func test_attacker_matches_defender_world_seed() -> bool:
 	return true
 
 
+## Seedy zamków 0–19 sprzed #230 (z `*_init_pvp_schema.sql`): formuła seed_of się nie zmienia.
 func test_bot_roster_seeds_match_database_rows() -> bool:
-	# wartości z supabase/migrations/..._init_pvp_schema.sql (bot_castles)
 	var db: Array[int] = [
 		1522671593, 1794635700, 2000785702, 786423411, 652894939, 955747868, 861633082,
 		1900177340, 213453807, 136845175, 1460975256, 601804662, 1757690968, 563504191,
 		821957311, 1990192917, 541277618, 797847133, 308247635, 2034701,
 	]
-	assert_eq(db.size(), BotRoster.COUNT, "20 zamków")
-	for i in BotRoster.COUNT:
+	assert_eq(db.size(), BotRoster.COUNT_PER_AGE, "20 zamków epoki I")
+	for i in db.size():
 		assert_eq(BotRoster.seed_of(i), db[i], "bot %d: seed gry = seed w bazie" % i)
+	return true
+
+
+const BOT_MIGRATIONS: Array[String] = [
+	"res://supabase/migrations/20261118050444_init_pvp_schema.sql",
+	"res://supabase/migrations/20261127130000_bot_castles_per_age.sql",
+]
+
+
+## Wiersze `bot_castles` po wszystkich migracjach (#230): każdy zamek BotRoster ma wiersz z tą samą
+## nazwą, seedem i epoką (20 na epokę), a zamki 15–19 przeszły do epoki I.
+func test_bot_roster_matches_migrations() -> bool:
+	var row := RegEx.create_from_string("\\((\\d+), '([^']+)', (\\d+), (\\d+)\\)")
+	var to_age := RegEx.create_from_string(
+			"update public\\.bot_castles set age = (\\d+) where idx between (\\d+) and (\\d+)")
+	var rows := {}
+	for path in BOT_MIGRATIONS:
+		var sql := FileAccess.get_file_as_string(path)
+		assert_true(not sql.is_empty(), "migracja %s" % path)
+		for m in row.search_all(sql):
+			rows[int(m.get_string(1))] = [m.get_string(2), int(m.get_string(3)), int(m.get_string(4))]
+		for m in to_age.search_all(sql):
+			for idx in range(int(m.get_string(2)), int(m.get_string(3)) + 1):
+				(rows[idx] as Array)[2] = int(m.get_string(1))
+	assert_eq(rows.size(), BotRoster.COUNT, "40 wierszy")
+	for i in BotRoster.COUNT:
+		var r: Array = rows.get(i, ["", -1, -1])
+		assert_eq(r[0], BotRoster.NAMES[i], "bot %d: nazwa" % i)
+		assert_eq(r[1], BotRoster.seed_of(i), "bot %d: seed" % i)
+		assert_eq(r[2], BotRoster.age_of(i), "bot %d: epoka" % i)
 	return true
 
 
