@@ -201,7 +201,9 @@ func test_panel_edits_tasks() -> bool:
 	assert_eq(panel.describe(0)[1], "Obrona odcinka: dotknij mapy", "bez miejsca prosi o dotknięcie")
 	assert_true(p.battle_orders([7] as Array[int])[0] == null, "bez miejsca oddział stoi przy donżonie")
 	panel.activate(DefensePanel.Target.TASK)
-	assert_eq(p.order_for(7).task, T.PATROL, "drugie: Patrol")
+	assert_eq(p.order_for(7).task, T.WALL, "drugie: Obrona murów (#399)")
+	panel.activate(DefensePanel.Target.TASK)
+	assert_eq(p.order_for(7).task, T.PATROL, "trzecie: Patrol")
 	var pts: Array[Vector2i] = [_free_at(grid, Vector2i.RIGHT, 5), _free_at(grid, Vector2i.DOWN, 5),
 			_free_at(grid, Vector2i.LEFT, 5), _free_at(grid, Vector2i.UP, 5)]
 	assert_eq(panel.tap(grid, pts[0]), "Oddział 1: patrol, punkt 1 z 3", "pierwszy punkt")
@@ -217,7 +219,7 @@ func test_panel_edits_tasks() -> bool:
 	var d := p.to_dict()
 	assert_eq(DefensePlan.from_dict(JSON.parse_string(JSON.stringify(d)) as Dictionary).to_dict(), d, "zapis patrolu")
 	panel.activate(DefensePanel.Target.TASK)
-	assert_eq(p.order_for(7).task, T.KEEP, "trzecie: Przy donżonie (łucznik nie ma Wypadu)")
+	assert_eq(p.order_for(7).task, T.KEEP, "czwarte: Przy donżonie (łucznik nie ma Wypadu)")
 	assert_eq(panel.describe(0)[1], "Przy donżonie", "opis")
 	assert_true(p.battle_orders([7] as Array[int])[0] == null, "w bitwie przy donżonie")
 	assert_eq(panel.tap(grid, pts[0]), "Przy donżonie: zmień Zadanie, żeby wskazać miejsce", "mapa nic nie zmienia")
@@ -235,6 +237,7 @@ func test_panel_edits_tasks() -> bool:
 			wall_at = q
 			placed = true
 	assert_true(placed, "palisada w strefie")
+	panel.activate(DefensePanel.Target.TASK)
 	panel.activate(DefensePanel.Target.TASK)
 	assert_eq(panel.tap(grid, wall_at), "Tu stoi %s" % BuildingTypes.NAMES[K.PALISADE],
 			"przy Patrolu palisada nie przyciąga punktu (review #181)")

@@ -246,6 +246,6 @@ func test_panel_wall_task() -> bool:
 	assert_eq(archers.tap(grid, grass), "Obrona murów: dotknij muru, wieży lub kopca", "podpowiedź strzelców")
 	for text: String in ["Obrona murów: dotknij muru, wieży lub kopca", "Obrona murów: dotknij wału lub palisady",
 			"Oddział 1: domyślnie: Obrona murów"]:
-		assert_true(PixelFont.text_width(text) <= 300, "mieści się w 320 px: %s" % text)
+		assert_true(PixelFont.text_width(text) <= Hud.MESSAGE_MAX_WIDTH, "mieści się w 320 px: %s" % text)
 	archers.free()
 	return true
