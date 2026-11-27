@@ -1,6 +1,6 @@
 -- Testy balansu epoki II (#262, ADR 0009), uruchamiane przez `supabase test db` (pgTAP).
 -- Kryteria: serwer liczy poziomy 6–10 tymi samymi liczbami co gra (koszt i czas z ciągłej krzywej,
--- umocnienia w połowie czasu, Dwór z tabeli, produkcja, Magazyn, tempo wytwórców, limit armii i siła
+-- umocnienia z połową przyrostu ponad poziom 5, Dwór z tabeli, produkcja, Magazyn, tempo wytwórców, limit armii i siła
 -- umocnień do poziomu 10; te same wartości liczą testy gry `tests/test_age_balance.gd`
 -- i `tests/test_economy_growth.gd`), epoka I się nie zmienia, a gracz nie woła funkcji serwera.
 begin;
@@ -23,9 +23,9 @@ select is(private.build_cost(3, 99), '{3000, 1000, 1000, 0}'::bigint[], 'poziom 
 select is(private.build_time_ms(3, 5), 5400000::bigint, 'Wieża 5 bez zmian: 90 min');
 select is(private.build_time_ms(3, 10), 25200000::bigint, 'Wieża II.5: ×420, 7 h');
 select is(private.build_time_ms(0, 5), 450000::bigint, 'wał 5 w epoce I: pełny czas');
-select is(private.build_time_ms(0, 6), 325000::bigint, 'wał II.1: połowa krzywej');
-select is(private.build_time_ms(2, 7), 2700000::bigint, 'brama II.2: połowa krzywej');
-select is(private.build_time_ms(26, 8), 600000::bigint, 'fosa II.3: połowa krzywej');
+select is(private.build_time_ms(0, 6), 550000::bigint, 'wał II.1: ×110 (połowa przyrostu ponad poziom 5)');
+select is(private.build_time_ms(2, 7), 4050000::bigint, 'brama II.2: ×135');
+select is(private.build_time_ms(26, 8), 825000::bigint, 'fosa II.3: ×165');
 select is(private.build_time_ms(5, 6), 50400000::bigint, 'przebudowa Dworu: 14 h');
 select is(private.build_time_ms(5, 10), 144000000::bigint, 'Dwór II.5: 40 h');
 

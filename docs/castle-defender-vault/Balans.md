@@ -39,7 +39,7 @@ Koszt rekrutacji = surowce + towary ze zbrojowni. **Nie ma osobnego złota za ż
 
 ### 1.2 Budynki — budowa poziomu 1 (epoka I)
 
-Kolejność surowców: Dr / Ka / Ży / Zł. Poziomy 2–5: mnożniki kosztu **100 / 150 / 250 / 400 / 600%**, czasu **1 / 3 / 10 / 30 / 90**. Epoka II (#262, [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]): krzywa ciągnie się dalej, koszt **850 / 1150 / 1500 / 1950 / 2500%**, czas **130 / 180 / 240 / 320 / 420** (umocnienia: połowa czasu); mnożnik epoki ×2 usunięty.
+Kolejność surowców: Dr / Ka / Ży / Zł. Poziomy 2–5: mnożniki kosztu **100 / 150 / 250 / 400 / 600%**, czasu **1 / 3 / 10 / 30 / 90**. Epoka II (#262, [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]): krzywa ciągnie się dalej, koszt **850 / 1150 / 1500 / 1950 / 2500%**, czas **130 / 180 / 240 / 320 / 420** (umocnienia: połowa przyrostu ponad poziom 5, ×110 … ×255); mnożnik epoki ×2 usunięty.
 
 | Budynek | Koszt L1 (Dr/Ka/Ży/Zł) | Czas L1 | Tech | Vault |
 | --- | --- | --- | --- | --- |

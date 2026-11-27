@@ -149,7 +149,7 @@ w sekcji „Następny etap”.
   przebudowie Dworu (nie może przerosnąć zamku); w nowej epoce zaczyna od poziomu 1. Koszt i czas to jedna
   ciągła krzywa przez 10 poziomów (#262, ADR 0009, `BuildConfig.COST_PERCENT` i `TIME_MULT`): II.1 kosztuje
   850% i trwa ×130 poziomu 1, II.5 2500% i ×420, więc na przejściu nic nie tanieje; umocnienia w epoce II
-  budują się w połowie czasu z krzywej. Dwór II.2–II.5 kosztuje od 1300/1100/1100 (18 h) do 2800/2300/2300 (40 h).
+  biorą połowę przyrostu krzywej ponad poziom 5 (×110 … ×255), więc ich czas też nie spada. Dwór II.2–II.5 kosztuje od 1300/1100/1100 (18 h) do 2800/2300/2300 (40 h).
   Nic nie ginie: zamek, budynki i ich poziomy zostają, a premie rosną dalej do poziomu 10 (`Ages.bonus_level`):
   produkcja, tempo wytwórców, Magazyn, wytrzymałość w bitwie, limit armii (Dwór +8 za poziom epoki II, do 90),
   garnizon i pułapki; strefa obrony zostaje jak przy Dworze 5. Technologie epoki II są dostępne dopiero w epoce II i po swoich wymaganiach. Dwór epoki II ma dach
@@ -954,7 +954,7 @@ z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymaj�
 serwer podnosi epokę do II, gdy zapis ma Dwór na poziomie 6+ i zbadane O1, G1, A7. Epoka tylko
 rośnie, a klient nadal nie ma do niej uprawnień. Migracja `castle_age` jest na projekcie. Balans epoki II (#262, ADR 0009:
 ciągła krzywa kosztu i czasu, premie poziomów 6–10) jest w kodzie; migracja `age_two_balance` czeka na wgranie
-**razem z wydaniem klienta** i podniesieniem `min_code` (`docs/PO-WYDANIU.md` §6): starsza wersja gry płaci
+**tego samego dnia co wydanie klienta** i z podniesieniem `min_code` od razu, nie po 48 h (decyzja właścicielki #262, wyjątek od `docs/PO-WYDANIU.md` §6): starsza wersja gry płaci
 za budowę epoki II mniej i buduje krócej, niż wymaga nowy serwer, więc jej zapis z nowym poziomem epoki II
 trafi na odrzut i przywrócenie zamku z serwera.
 Życie w zamku (#36) jest w kodzie; płynność na słabszym telefonie (próg 30 FPS) i czytelność nocy

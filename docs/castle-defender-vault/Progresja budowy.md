@@ -10,7 +10,7 @@ Każdy typ zamku (epoka) ma 5 poziomów Dworu. Przejście do kolejnej epoki wyma
 - Osobno stoi **donżon**, ostatnia linia obrony i cel każdego ataku: Wieża grodowa (I) → Wieża na kopcu (II) → Donżon (III–V) → Cytadela (VI). Jego upadek albo zdobycie kończy bitwę zwycięstwem atakującego.
 - Każdy budynek ma poziomy 1–5 w ramach bieżącej epoki i nie może mieć wyższego poziomu niż zamek.
 - Każdy poziom zmienia wygląd budynku (wyższa wieża, więcej okien, lepszy materiał) i daje premię: wytrzymałość, zasięg, produkcja albo nowa jednostka.
-- Koszt i czas to **jedna ciągła krzywa przez poziomy narastająco** (`BuildConfig`, [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]], #262): koszt 100 / 150 / 250 / 400 / 600% kosztu poziomu 1 w epoce I i dalej 850 / 1150 / 1500 / 1950 / 2500% w epoce II; czas ×1 / 3 / 10 / 30 / 90 i dalej ×130 / 180 / 240 / 320 / 420. Na przejściu epoki nic nie tanieje. Umocnienia (wał, palisada, fosa, brama) w epoce II budują się w połowie czasu z krzywej. Kolejne epoki przedłużą krzywą. Liczby epoki II są tymczasowe; szczegóły: [[Balans]].
+- Koszt i czas to **jedna ciągła krzywa przez poziomy narastająco** (`BuildConfig`, [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]], #262): koszt 100 / 150 / 250 / 400 / 600% kosztu poziomu 1 w epoce I i dalej 850 / 1150 / 1500 / 1950 / 2500% w epoce II; czas ×1 / 3 / 10 / 30 / 90 i dalej ×130 / 180 / 240 / 320 / 420. Na przejściu epoki nic nie tanieje. Umocnienia (wał, palisada, fosa, brama) w epoce II biorą połowę przyrostu krzywej ponad poziom 5 (×110, 135, 165, 205, 255). Kolejne epoki przedłużą krzywą. Liczby epoki II są tymczasowe; szczegóły: [[Balans]].
 - Rozmiar mówi o roli budynku: Koszary 3×3; Dom drużyny, Strzelnica, Stajnia, Magazyn, Pole lnu, Pole i spichlerz i Kamieniołom 3×2; reszta 2×2, umocnienia i fosa 1×1, brama 3×1. Budynek postawiony wcześniej zostaje w starym rozmiarze ([[ADR/0005-rozmiary-budynkow|ADR 0005]], #340).
 - Technologie są w 5 gałęziach drzewka. Przejście epoki opiera się na konkretnych techach kluczowych ★ (I → II: O1, G1, A7). Pełna lista: [[Drzewko technologiczne]].
 
@@ -25,7 +25,7 @@ Każdy typ zamku (epoka) ma 5 poziomów Dworu. Przejście do kolejnej epoki wyma
 
 ## Przykład: Palisada w epokach I i II (liczby z kodu)
 
-Koszt poziomu 1: 20 Dr i 5 Ży, czas 10 s. W epoce II czas umocnień to połowa krzywej.
+Koszt poziomu 1: 20 Dr i 5 Ży, czas 10 s. W epoce II czas umocnień to połowa przyrostu krzywej ponad poziom 5.
 
 | Poziom | Koszt (drewno) | Czas budowy | Wytrzymałość |
 | --- | --- | --- | --- |
@@ -34,11 +34,11 @@ Koszt poziomu 1: 20 Dr i 5 Ży, czas 10 s. W epoce II czas umocnień to połowa 
 | 3 | 50 | 1 min 40 s | 220 |
 | 4 | 80 | 5 min | 320 |
 | 5 | 120 | 15 min | 450 |
-| II.1 | 170 | 10 min 50 s | 560 |
-| II.2 | 230 | 15 min | 680 |
-| II.3 | 300 | 20 min | 810 |
-| II.4 | 390 | 26 min 40 s | 950 |
-| II.5 | 500 | 35 min | 1100 |
+| II.1 | 170 | 18 min 20 s | 560 |
+| II.2 | 230 | 22 min 30 s | 680 |
+| II.3 | 300 | 27 min 30 s | 810 |
+| II.4 | 390 | 34 min 10 s | 950 |
+| II.5 | 500 | 42 min 30 s | 1100 |
 
 ## Typowe czasy budowy (z kodu)
 

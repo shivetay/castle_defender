@@ -7,7 +7,7 @@
 --   COST_PERCENT = [100, 150, 250, 400, 600, 850, 1150, 1500, 1950, 2500] procent kosztu poziomu 1
 --   (dzielenie całkowite), TIME_MULT = [1, 3, 10, 30, 90, 130, 180, 240, 320, 420] razy czas poziomu 1;
 -- - umocnienia FORT_KINDS = [0, 1, 26, 2] (wał, palisada, fosa, brama) na poziomach epoki II budują się
---   w FORT_AGE_II_TIME_PERCENT = 50 procent czasu z krzywej;
+--   z mnożnikiem 90 + (TIME_MULT − 90) * FORT_AGE_II_TIME_PERCENT / 100 (FORT_AGE_II_TIME_PERCENT = 50, 90 to poziom 5);
 -- - Dwór: MANOR_COST = [[0, 0, 0, 0], [300, 200, 200, 0], [500, 350, 350, 0], [750, 550, 550, 0], [1000, 800, 800, 0], [1000, 1000, 1000, 0], [1300, 1100, 1100, 0], [1700, 1400, 1400, 0], [2200, 1800, 1800, 0], [2800, 2300, 2300, 0]]
 --   i MANOR_TIME_S = [0, 600, 3600, 14400, 43200, 50400, 64800, 86400, 108000, 144000];
 -- - premie liczą się z poziomu do MAX_TOTAL_LEVEL = 10 (Ages.bonus_level): `private.castle_buildings`
@@ -184,7 +184,7 @@ begin
 end;
 $$;
 
--- Czas budowy poziomu `p_level` (narastająco) w ms jak BuildConfig.time_ms; umocnienia w epoce II o połowę krócej.
+-- Czas budowy poziomu `p_level` (narastająco) w ms jak BuildConfig.time_ms; umocnienia w epoce II z połową przyrostu krzywej ponad poziom 5.
 create or replace function private.build_time_ms(p_kind bigint, p_level bigint)
 returns bigint
 language sql
@@ -195,8 +195,9 @@ as $$
     when p_level < 1 or p_level > 10 then 0::bigint
     when p_kind = 5 then (array[0, 600, 3600, 14400, 43200, 50400, 64800, 86400, 108000, 144000])[p_level]::bigint * 1000
     else coalesce((array[5, 10, 30, 60, 45, 0, 40, 50, 60, 50, 40, 60, 50, 60, 45, 30, 40, 60, 60, 75, 70, 90, 70, 0, 60, 45, 5, 60, 40, 30, 50, 50])[p_kind + 1], 0)::bigint
-      * (array[1, 3, 10, 30, 90, 130, 180, 240, 320, 420])[p_level]
-      * case when p_kind in (0, 1, 26, 2) and p_level > 5 then 50 else 100 end / 100 * 1000
+      * case when p_kind in (0, 1, 26, 2) and p_level > 5
+          then 90 + ((array[1, 3, 10, 30, 90, 130, 180, 240, 320, 420])[p_level] - 90) * 50 / 100
+          else (array[1, 3, 10, 30, 90, 130, 180, 240, 320, 420])[p_level] end * 1000
   end
 $$;
 

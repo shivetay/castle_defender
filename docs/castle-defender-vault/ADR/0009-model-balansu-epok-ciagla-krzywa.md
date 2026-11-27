@@ -30,7 +30,8 @@ przyspieszenia, #33). Wszystkie nowe liczby są tymczasowe.
    czas razy czas poziomu 1 `[1, 3, 10, 30, 90, 130, 180, 240, 320, 420]` (`BuildConfig`).
    Kolejne epoki przedłużają tę krzywą.
 3. Umocnienia (wał, palisada, fosa sucha, brama) biorą koszt z krzywej, a czas na poziomach
-   epoki II to połowa krzywej. W epoce I bez zmian.
+   epoki II to mnożnik poziomu 5 plus połowa przyrostu krzywej ponad niego: 90 + (krzywa − 90) / 2,
+   czyli ×110, 135, 165, 205, 255. W epoce I bez zmian.
 4. Dwór na poziomach 6–10: 1000/1000/1000 Dr/Ka/Ży i 14 h, 1300/1100/1100 i 18 h,
    1700/1400/1400 i 24 h, 2200/1800/1800 i 30 h, 2800/2300/2300 i 40 h. Poziomy 1–5 bez zmian.
 5. Premie poziomów 6–10 rosną dalej. `Ages.bonus_level` obcina do 10, a tablice per poziom mają
@@ -67,15 +68,16 @@ przyspieszenia, #33). Wszystkie nowe liczby są tymczasowe.
 - Epoka II jest wyraźnie droższa i dłuższa niż dotąd (Wieża II.1: 1020 Dr i 2 h 10 min zamiast
   240 Dr i 2 min), ale też daje więcej (produkcja, Magazyn, limit armii, wytrzymałość). Koszt
   każdego poziomu mieści się w magazynie osiągalnym przy Dworze tego poziomu.
-- Wyjątek od zasady „nic się nie skraca”: czas umocnień na II.1 to połowa krzywej (65 zamiast 90
-  razy czas poziomu 1), więc odcinek wału II.1 buduje się krócej niż wał 5. Zostaje jak w
-  ustaleniach #262, do ewentualnej korekty właścicielki.
+- Zasada „nic się nie skraca” nie ma wyjątków: sama połowa krzywej dałaby umocnieniom na II.1 krótszy
+  czas niż na poziomie 5 (65 zamiast 90 razy czas poziomu 1), a sama dolna granica poziomu 5 dałaby
+  II.2 równe II.1, więc umocnienia biorą połowę przyrostu ponad poziom 5 (decyzja właścicielki w PR #384).
 - Zamki z budynkami epoki II mają mocniejsze mury i wieże, więc bitwy na takich zamkach przebiegają
   inaczej; nowa wersja gry ma nowy `sim_version` ([[ADR/0008-wersja-symulacji-ataku-z-klienta|ADR 0008]]).
   Siła celu PvP liczy umocnienia do poziomu 10 ([[ADR/0004-sila-celu-pvp-przedzial-z-serwera|ADR 0004]]).
 - Starszy klient płaci za budowę epoki II mniej i buduje krócej, niż wymaga nowy serwer, więc jego
   zapis z nowym poziomem epoki II serwer odrzuci (`economy_too_fast`, `build_too_fast`). Migrację
-  wgrywa się razem z wydaniem klienta i podniesieniem `min_code`
+  wgrywa się tego samego dnia co wydanie klienta i od razu podnosi `min_code`, bez zwykłych 48 h
+  (decyzja właścicielki w PR #384)
   ([[ADR/0006-wymuszenie-aktualizacji-wersji-klienta|ADR 0006]], `docs/PO-WYDANIU.md`).
 - Bez nowych danych o graczu i bez zmian uprawnień: funkcje serwera zostają w schemacie `private`,
   woła je tylko `service_role`.

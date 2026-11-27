@@ -39,8 +39,12 @@ func test_server_time_constants_match_game() -> bool:
 	assert_true(balance.contains("FORT_KINDS = %s" % str(BuildConfig.FORT_KINDS)), "umocnienia w komentarzu")
 	assert_true(balance.contains("FORT_AGE_II_TIME_PERCENT = %d" % BuildConfig.FORT_AGE_II_TIME_PERCENT),
 			"połowa czasu w komentarzu")
-	assert_true(balance.contains("case when p_kind in %s and p_level > %d then %d else 100 end / 100" % [forts,
-			Ages.LEVELS_PER_AGE, BuildConfig.FORT_AGE_II_TIME_PERCENT]), "umocnienia epoki II w funkcji")
+	assert_true(balance.contains("case when p_kind in %s and p_level > %d" % [forts, Ages.LEVELS_PER_AGE]),
+			"umocnienia epoki II w funkcji")
+	var top := BuildConfig.TIME_MULT[Ages.LEVELS_PER_AGE - 1]
+	assert_true(balance.contains("then %d + ((array%s)[p_level] - %d) * %d / 100" % [top,
+			str(BuildConfig.TIME_MULT), top, BuildConfig.FORT_AGE_II_TIME_PERCENT]),
+			"umocnienia: połowa przyrostu ponad poziom 5 w funkcji")
 	assert_true(balance.contains("MANOR_TIME_S = %s" % str(BuildConfig.MANOR_TIME_S)), "czasy Dworu")
 	assert_true(balance.contains("when p_kind = %d then (array%s)" % [K.MANOR, str(BuildConfig.MANOR_TIME_S)]),
 			"czasy Dworu w funkcji")
@@ -60,10 +64,12 @@ func test_server_formula_matches_build_config() -> bool:
 			if kind == K.MANOR:
 				server = BuildConfig.MANOR_TIME_S[level - 1] * 1000
 			else:
-				var percent := BuildConfig.FORT_AGE_II_TIME_PERCENT \
-						if BuildConfig.FORT_KINDS.has(kind) and level > Ages.LEVELS_PER_AGE else 100
-				@warning_ignore("integer_division")
-				server = base[kind] * BuildConfig.TIME_MULT[level - 1] * percent / 100 * 1000
+				var mult := BuildConfig.TIME_MULT[level - 1]
+				if BuildConfig.FORT_KINDS.has(kind) and level > Ages.LEVELS_PER_AGE:
+					@warning_ignore("integer_division")
+					var top5 := BuildConfig.TIME_MULT[Ages.LEVELS_PER_AGE - 1]
+					mult = top5 + (mult - top5) * BuildConfig.FORT_AGE_II_TIME_PERCENT / 100
+				server = base[kind] * mult * 1000
 			assert_eq(server, BuildConfig.time_ms(kind, level), "czas %d poziom %d" % [kind, level])
 	return true
 

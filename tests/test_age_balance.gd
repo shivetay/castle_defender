@@ -87,9 +87,8 @@ func test_duels_are_deterministic() -> bool:
 	return true
 
 
-## Koszt i czas poziomu n+1 nie są mniejsze niż poziomu n, dla każdego rodzaju i surowca. Jedyny wyjątek
-## z ustaleń #262: umocnienia (BuildConfig.FORT_KINDS) na II.1 mają połowę krzywej (130 / 2 = 65 < 90),
-## więc ich czas na przejściu I.5 → II.1 spada; test pilnuje, że to dokładnie ta połowa i nic więcej.
+## Koszt i czas poziomu n+1 nie są mniejsze niż poziomu n, dla każdego rodzaju i surowca, bez wyjątków
+## (#262): umocnienia w epoce II biorą połowę przyrostu krzywej ponad poziom 5.
 func test_cost_and_time_never_drop() -> bool:
 	for kind in K.size():
 		for level in range(1, Ages.MAX_TOTAL_LEVEL):
@@ -99,11 +98,6 @@ func test_cost_and_time_never_drop() -> bool:
 				assert_true(next[res] >= now[res], "rodzaj %d poziom %d → %d surowiec %d" % [kind, level, level + 1, res])
 			var t_now := BuildConfig.time_ms(kind, level)
 			var t_next := BuildConfig.time_ms(kind, level + 1)
-			if BuildConfig.FORT_KINDS.has(kind) and level == Ages.LEVELS_PER_AGE:
-				@warning_ignore("integer_division")
-				assert_eq(t_next, int(BuildConfig.BASE_TIME_S[kind]) * BuildConfig.TIME_MULT[level] / 2 * 1000,
-						"umocnienie %d na II.1: połowa krzywej" % kind)
-				continue
 			assert_true(t_next >= t_now, "czas rodzaju %d poziom %d → %d" % [kind, level, level + 1])
 	return true
 

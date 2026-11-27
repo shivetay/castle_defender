@@ -139,7 +139,9 @@ func test_age_ii_costs_and_times() -> bool:
 	assert_eq(BuildConfig.time_ms(K.TOWER, 6), BuildConfig.time_ms(K.TOWER, 1) * 130, "wieża II.1: czas ×130")
 	assert_eq(BuildConfig.time_ms(K.TOWER, 10), 7 * 3600 * 1000, "wieża II.5: 7 h")
 	assert_eq(BuildConfig.time_ms(K.PALISADE, 5), BuildConfig.time_ms(K.PALISADE, 1) * 90, "palisada 5: pełna krzywa")
-	assert_eq(BuildConfig.time_ms(K.PALISADE, 6), BuildConfig.time_ms(K.PALISADE, 1) * 65, "palisada II.1: połowa krzywej")
+	assert_eq(BuildConfig.time_ms(K.PALISADE, 6), BuildConfig.time_ms(K.PALISADE, 1) * 110,
+			"palisada II.1: ×110, dłużej niż palisada 5")
+	assert_eq(BuildConfig.time_ms(K.PALISADE, 10), BuildConfig.time_ms(K.PALISADE, 1) * 255, "palisada II.5: ×255")
 	assert_eq(BuildConfig.cost(K.MANOR, 6), [1000, 1000, 1000, 0] as Array[int], "przebudowa Dworu")
 	assert_eq(BuildConfig.time_ms(K.MANOR, 6), 14 * 3600 * 1000, "przebudowa Dworu: 14 h")
 	assert_eq(BuildConfig.cost(K.MANOR, 10), [2800, 2300, 2300, 0] as Array[int], "Dwór II.5")
