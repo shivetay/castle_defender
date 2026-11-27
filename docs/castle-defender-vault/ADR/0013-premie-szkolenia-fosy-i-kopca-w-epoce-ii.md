@@ -1,4 +1,4 @@
-# ADR 0012: Premie szkolenia, kolców w fosie i Kopca w epoce II
+# ADR 0013: Premie szkolenia, kolców w fosie i Kopca w epoce II
 
 - **Status:** przyjęty
 - **Data:** 2026-11-27

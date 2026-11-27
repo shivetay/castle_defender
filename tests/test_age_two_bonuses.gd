@@ -1,5 +1,5 @@
 extends TestCase
-## Premie poziomów 6–10 (epoka II) dla szkolenia, kolców w fosie i zasięgu z Kopca (#387, ADR 0012).
+## Premie poziomów 6–10 (epoka II) dla szkolenia, kolców w fosie i zasięgu z Kopca (#387, ADR 0013).
 ## Tablice mają 10 wartości zatwierdzonych przez właścicielkę, żadna premia nie spada na przejściu
 ## I.5 → II.1, a zwiad pokazuje budynek epoki II z jego poziomem (do 10), a nie przycięty do 5.
 ## Zgodność czasu szkolenia z serwerem (`private.train_ms`) sprawdza `tests/test_army_research_goods_sanity.gd`.

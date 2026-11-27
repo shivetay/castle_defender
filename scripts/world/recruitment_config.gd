@@ -23,9 +23,9 @@ const CLASS_BUILDING := {
 }
 
 ## Ile jednostek mieści kolejka szkolenia budynku na poziomach 1–10 (narastająco, 6–10 to epoka II:
-## #387, ADR 0012). TYMCZASOWE.
+## #387, ADR 0013). TYMCZASOWE.
 const TRAINING_SLOTS: Array[int] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
-## Tempo szkolenia na poziomach 1–10 w procentach tempa poziomu 1 (#387, ADR 0012). Serwer liczy je
+## Tempo szkolenia na poziomach 1–10 w procentach tempa poziomu 1 (#387, ADR 0013). Serwer liczy je
 ## tak samo w `private.train_ms`. TYMCZASOWE.
 const TRAINING_SPEED_PERCENT: Array[int] = [100, 120, 140, 170, 200, 230, 260, 300, 340, 400]
 

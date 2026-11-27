@@ -1,4 +1,4 @@
--- #387: szkolenie w epoce II (ADR 0012). Serwer powtarza tempo szkolenia gry dla poziomów 6–10.
+-- #387: szkolenie w epoce II (ADR 0013). Serwer powtarza tempo szkolenia gry dla poziomów 6–10.
 --
 -- Do tej pory `private.train_ms` (z `*_army_research_goods_sanity.sql`) liczył poziomy 6–10 jak poziom 5:
 -- tablica tempa miała 5 wartości, a poziom był przycinany przez least(..., 5). Teraz (decyzja właścicielki,

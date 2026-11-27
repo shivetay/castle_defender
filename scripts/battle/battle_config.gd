@@ -141,10 +141,10 @@ const TOWER_RANGE := 6
 ## Fosa sucha: atakujący na jej kratce idzie z tylu procentami szybkości (−50%, notatka Budynki).
 const MOAT_SPEED_PERCENT := 50
 ## O3 Fosa z kolcami: co sekundę tyle HP traci atakujący na kratce fosy, według poziomu fosy 1–10
-## (6–10 to epoka II: #387, ADR 0012).
+## (6–10 to epoka II: #387, ADR 0013).
 const MOAT_SPIKE_DAMAGE: Array[int] = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 ## Kopiec: wieża drewniana albo donżon, które stykają się z nim bokiem, strzelają o tyle kratek dalej
-## (Kopiec poziomu 1–2: +1, 3–8: +2, 9–10, czyli II.4–II.5: +3; #387, ADR 0012). Strzelcy na samym
+## (Kopiec poziomu 1–2: +1, 3–8: +2, 9–10, czyli II.4–II.5: +3; #387, ADR 0013). Strzelcy na samym
 ## Kopcu mają +1 (WALL_RANGE_BONUS).
 const MOUND_RANGE_BONUS: Array[int] = [1, 1, 2, 2, 2, 2, 2, 2, 3, 3]
 ## Gaszenie pożarów: Studnia obsługuje pożary najwyżej tyle kratek od siebie, a każdy gaszący przy

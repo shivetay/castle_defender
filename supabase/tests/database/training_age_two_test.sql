@@ -1,4 +1,4 @@
--- Testy szkolenia w epoce II (#387, ADR 0012, migracja `*_training_age_two.sql`), uruchamiane przez
+-- Testy szkolenia w epoce II (#387, ADR 0013, migracja `*_training_age_two.sql`), uruchamiane przez
 -- `supabase test db` (pgTAP). Kryteria: `private.train_ms` liczy poziomy 6–10 z tempem
 -- TRAINING_SPEED_PERCENT = [100, 120, 140, 170, 200, 230, 260, 300, 340, 400] jak gra
 -- (RecruitmentConfig.train_ms, `tests/test_army_research_goods_sanity.gd`), epoka I się nie zmienia,
