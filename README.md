@@ -720,7 +720,8 @@ w sekcji „Następny etap”.
   jest czerwony. Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
 - `scripts/ui/title_screen.gd` (`TitleScreen`, #360) i `scripts/gfx/title_art.gd` (`TitleArt`): przy uruchomieniu
-  gry ekran tytułowy Dunholm (nocny gród na kopcu, logo w skali 3×, grafika z kodu i z palety), przyciski Graj
+  gry ekran tytułowy Dunholm (zachód słońca nad kamiennym zamkiem na skale, góry i sosny, logo w skali 3×;
+  grafika z kodu, kolory z `Palette.TITLE`, `STONE` i `GRASS`), przyciski Graj
   i Discord (`scripts/ui/community_link.gd`). Zamek wczytuje się i łączy z serwerem pod spodem; przeładowanie
   sceny nie pokazuje ekranu ponownie. Logo Godota przy starcie jest wyłączone (`boot_splash/show_image=false`,
   tło w kolorze cienia z palety), bo grafika startowa musiałaby być plikiem PNG.

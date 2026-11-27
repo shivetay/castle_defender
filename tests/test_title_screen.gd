@@ -7,10 +7,10 @@ const WIDE := Vector2(400, 180)
 const T := TitleScreen.Target
 
 
-## Wszystkie piksele z palety epoki I albo z kolorów UI (zasada 2 z CLAUDE.md).
+## Wszystkie piksele z palet: epoki I i II, ekranu tytułowego i UI (zasada 2 z CLAUDE.md).
 func test_art_uses_only_palette_colors() -> bool:
 	var allowed := {}
-	for c: Color in Palette.AGE_I + Palette.UI:
+	for c: Color in Palette.AGE_I + Palette.AGE_II + Palette.TITLE + Palette.UI:
 		allowed[c.to_rgba32()] = true
 	var img := TitleArt.make_image(Vector2i(VIEW))
 	var bad := 0

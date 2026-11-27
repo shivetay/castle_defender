@@ -37,6 +37,20 @@ const SHINGLE: Array[Color] = [AGE_II[9], AGE_II[10], AGE_II[11]]
 const STONE: Array[Color] = [AGE_II[12], AGE_II[13], AGE_II[14]]
 const AGE_II_ACCENT: Color = AGE_II[15]
 
+## Ekran tytułowy (#360): zachód słońca nad grodem. Niebo od fioletu do złota, słońce, chmury,
+## dwa pasma gór, skała pod zamkiem, dachówka wież i ciemna zieleń sosen. Kamień zamku to STONE.
+const TITLE: Array[Color] = [
+	Color("4a3a6e"), Color("7a4a7e"), Color("c25a78"), Color("e8804a"), Color("f4b860"),  # 0–4 niebo
+	Color("fce49a"), Color("f6c4a0"),  # 5 słońce, 6 chmury
+	Color("a8688a"), Color("c88898"),  # 7–8 dalekie góry (cień, światło)
+	Color("6e4466"), Color("8a5878"),  # 9–10 bliższe góry
+	Color("3a2440"), Color("5a3858"),  # 11–12 skała i sylwetki sosen pod słońce
+	Color("d8643a"), Color("f08c4a"),  # 13–14 dachówka
+	Color("1f3f34"),  # 15 ciemna zieleń sosen
+]
+const TITLE_SKY: Array[Color] = [TITLE[0], TITLE[1], TITLE[2], TITLE[3], TITLE[4]]
+const ROOF_TILE: Array[Color] = [TITLE[13], TITLE[14]]
+
 ## Pora dnia (#36): mnożnik koloru świata (CanvasModulate), nie kolor do rysowania. Noc, świt,
 ## dzień i zmierzch. Noc jest jasna na tyle, żeby budynki i jednostki dało się rozpoznać na telefonie.
 const DAYLIGHT: Array[Color] = [Color("aab0d8"), Color("ecd0b6"), Color("ffffff"), Color("ecc2a0")]
