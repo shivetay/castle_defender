@@ -48,7 +48,7 @@ static func can_lean(kind: int) -> bool:
 static func has_own_art(kind: int) -> bool:
 	return kind in [BuildingTypes.Kind.DRY_MOAT, BuildingTypes.Kind.MOUND, BuildingTypes.Kind.FARM,
 			BuildingTypes.Kind.WELL, BuildingTypes.Kind.QUARRY, BuildingTypes.Kind.SIGNAL_TOWER,
-			BuildingTypes.Kind.MILL]
+			BuildingTypes.Kind.MILL, BuildingTypes.Kind.MARKET]
 
 
 ## Strona przybudówki z kierunku do muru (BuildGrid.wall_side).
@@ -130,6 +130,8 @@ static func make_image(kind: int, level: int, state: int, mask: int = 0, vertica
 			MvpBuildingArt.draw_signal_tower(img, lv)
 		BuildingTypes.Kind.MILL:
 			AgeIiBuildingArt.draw_mill(img, Ages.local_level(level))
+		BuildingTypes.Kind.MARKET:
+			MvpBuildingArt.draw_market(img)
 		_:
 			_draw_workshop(img, kind, lv, ln, mirror)
 	if mirror:
@@ -929,7 +931,7 @@ static func shadow_offset(kind: int) -> Vector2i:
 	if kind == BuildingTypes.Kind.DRY_MOAT:
 		return Vector2i.ZERO  # rów nie rzuca cienia (#35)
 	if BuildingTypes.is_wall(kind) or kind in [BuildingTypes.Kind.FLAX_FIELD, BuildingTypes.Kind.FARM,
-			BuildingTypes.Kind.WELL, BuildingTypes.Kind.QUARRY]:
+			BuildingTypes.Kind.WELL, BuildingTypes.Kind.QUARRY, BuildingTypes.Kind.MARKET]:
 		return Vector2i(1, 1)
 	if kind in [BuildingTypes.Kind.TOWER, BuildingTypes.Kind.KEEP, BuildingTypes.Kind.WATCHTOWER,
 			BuildingTypes.Kind.SIGNAL_TOWER]:

@@ -128,6 +128,9 @@ var traps: Array[TrapState] = []
 ## Fosa sucha obrońcy (#35): kratka → poziom fosy. Fosa nie jest budynkiem bitwy (structures): nie
 ## blokuje drogi i nie da się jej zburzyć, tylko spowalnia atakujących, a z O3 ich rani.
 var moat: Dictionary[Vector2i, int] = {}
+## Przeszkody bez wytrzymałości (#408, BuildingTypes.is_obstacle: Targ): kratki, na które nikt nie wejdzie.
+## Nie są budynkami bitwy (structures), więc nie są celem, nie da się ich zburzyć i nie wchodzą do skrótu stanu.
+var obstacles: Dictionary[Vector2i, bool] = {}
 ## Gaszenie pożarów (#35): Studnia oddziału obrońcy (klucz: numer oddziału) albo 0.
 var _fire_well: Dictionary[int, int] = {}
 ## Kopce przy wieżach (#35): id wieży drewnianej albo donżonu → id Kopców, które stykają się z nią bokiem.
@@ -214,6 +217,13 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 			for y in range(grid.buildings[id].position.y, grid.buildings[id].end.y):
 				for x in range(grid.buildings[id].position.x, grid.buildings[id].end.x):
 					b.moat[Vector2i(x, y)] = grid.levels[id]
+					b._cells[y * grid.terrain.size + x] = 0
+			continue
+		if BuildingTypes.is_obstacle(grid.kinds[id]):
+			# Targ (#408): ściana bez wytrzymałości, jak woda dla szukania drogi
+			for y in range(grid.buildings[id].position.y, grid.buildings[id].end.y):
+				for x in range(grid.buildings[id].position.x, grid.buildings[id].end.x):
+					b.obstacles[Vector2i(x, y)] = true
 					b._cells[y * grid.terrain.size + x] = 0
 			continue
 		var s := Structure.new()
@@ -641,7 +651,7 @@ func _setup_astar() -> void:
 	for y in _terrain.size:
 		for x in _terrain.size:
 			var c := Vector2i(x, y)
-			if _terrain.get_tile(c) == TerrainMap.Tile.WATER:
+			if _terrain.get_tile(c) == TerrainMap.Tile.WATER or obstacles.has(c):
 				_astar.set_point_solid(c, true)
 			elif _cells[y * _terrain.size + x] != 0:
 				_astar.set_point_weight_scale(c, BattleConfig.BUILDING_PATH_WEIGHT)
@@ -652,7 +662,7 @@ func _setup_astar() -> void:
 		for x in _terrain.size:
 			var c := Vector2i(x, y)
 			var id := _cells[y * _terrain.size + x]
-			if _terrain.get_tile(c) == TerrainMap.Tile.WATER:
+			if _terrain.get_tile(c) == TerrainMap.Tile.WATER or obstacles.has(c):
 				_ram_astar.set_point_solid(c, true)
 			elif id != 0 and structures.has(id) and structures[id].kind != BuildingTypes.Kind.GATE:
 				_ram_astar.set_point_solid(c, true)
@@ -663,7 +673,7 @@ func _setup_astar() -> void:
 		for x in _terrain.size:
 			var c := Vector2i(x, y)
 			var id := _cells[y * _terrain.size + x]
-			if _terrain.get_tile(c) == TerrainMap.Tile.WATER or (id != 0 and structures.has(id)):
+			if _terrain.get_tile(c) == TerrainMap.Tile.WATER or obstacles.has(c) or (id != 0 and structures.has(id)):
 				_retreat_astar.set_point_solid(c, true)
 
 
@@ -1013,12 +1023,13 @@ func _move_toward(f: Fighter, tx: int, ty: int) -> void:
 			f.x += dx
 
 
-## Czy punkt (`x`, `y`) w podjednostkach leży na lądzie (most to ląd).
+## Czy punkt (`x`, `y`) w podjednostkach leży na lądzie (most to ląd), poza przeszkodą (#408).
 func _dry(x: int, y: int) -> bool:
 	if x < 0 or y < 0:
 		return false
 	@warning_ignore("integer_division")
-	return _terrain.is_walkable(Vector2i(x / BattleConfig.SUB, y / BattleConfig.SUB))
+	var c := Vector2i(x / BattleConfig.SUB, y / BattleConfig.SUB)
+	return _terrain.is_walkable(c) and not obstacles.has(c)
 
 
 func _in_range(f: Fighter, tx: int, ty: int, cells: int) -> bool:
@@ -1284,7 +1295,7 @@ static func walkable_near(c: Vector2i, size: int, free: Callable) -> Vector2i:
 
 ## Czy na kratce da się stanąć: na mapie, bez wody i bez żywego budynku.
 func _free_ground(c: Vector2i) -> bool:
-	return _terrain.is_walkable(c) and _structure_at(c) == null
+	return _terrain.is_walkable(c) and not obstacles.has(c) and _structure_at(c) == null
 
 
 func _act_order(f: Fighter, o: AttackPlan.Order) -> void:

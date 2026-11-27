@@ -28,6 +28,8 @@ var queued := false
 var tries := 0
 ## Ostatnie zgłoszenie skończyło się bez przyjęcia wyniku (odmowa startu albo wyniku, brak sieci).
 var _failed := false
+## Ostatni start odrzucony, bo zamek-bot jest zablokowany na serwerze (#386).
+var _locked := false
 
 
 func is_idle() -> bool:
@@ -52,6 +54,7 @@ func on_started(start: Dictionary, error: String) -> Dictionary:
 	if not error.is_empty() or id.is_empty() or int(start.get("bot_idx", -1)) != bot_idx:
 		reset()
 		_failed = true
+		_locked = error == AttackStart.BOT_LOCKED
 		return {}
 	attack_id = id
 	state = State.STARTED
@@ -99,10 +102,21 @@ func failed() -> bool:
 	return _failed
 
 
+## Czy ostatni start odrzucono, bo serwer nie odblokował jeszcze tego zamku-bota (#386).
+func locked() -> bool:
+	return _locked
+
+
+## Komunikat porażki do okna wyniku: przy zablokowanym bocie powód odmowy.
+func failed_message() -> String:
+	return AttackStart.error_message(AttackStart.BOT_LOCKED) if _locked else FAILED_MESSAGE
+
+
 ## Bez zgłoszenia i bez znacznika porażki (przed nową wyprawą).
 func clear() -> void:
 	reset()
 	_failed = false
+	_locked = false
 
 
 ## Koniec zgłoszenia; znacznik porażki zostaje do odczytu w `failed()`.

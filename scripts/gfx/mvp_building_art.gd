@@ -233,3 +233,50 @@ static func _beacon(img: Image, at: Vector2i) -> void:
 	PixelCanvas.px(img, at.x, at.y, Palette.ACCENT)
 	PixelCanvas.px(img, at.x + 1, at.y, Palette.THATCH[2])
 	PixelCanvas.px(img, at.x, at.y + 1, Palette.THATCH[2])
+
+
+## Targ (4×4, #408): ubity plac z czterema straganami pod pasiastymi daszkami (akcent i jasna strzecha),
+## skrzynki i towar przed ladami, a pośrodku słup z proporcem. Targ nie ma poziomów, więc rysunek jeden.
+static func draw_market(img: Image) -> void:
+	var w := img.get_width()
+	var h := img.get_height()
+	# plac z ubitej ziemi z grudami
+	for y in range(1, h - 1):
+		for x in range(1, w - 1):
+			var col := PixelCanvas.dither(x, y, Palette.EARTH[3], Palette.THATCH[0])
+			if PixelCanvas.hash2(x, y, 409) % 7 == 0:
+				col = Palette.EARTH[2]
+			PixelCanvas.px(img, x, y, col)
+	# cztery stragany w rogach placu, między nimi przejście w krzyż
+	var stall := Vector2i(w / 2 - 3, h / 2 - 4)
+	for i in 4:
+		var at := Vector2i(2 + (i % 2) * (w / 2 - 1), 2 + (i / 2) * (h / 2 - 1))
+		_stall(img, Rect2i(at, stall), i)
+	# słup z proporcem na środku placu
+	var mid := Vector2i(w / 2, h / 2)
+	PixelCanvas.rect(img, Rect2i(mid - Vector2i(1, 1), Vector2i(2, 2)), Palette.WOOD[1])
+	PixelCanvas.px(img, mid.x - 1, mid.y - 1, Palette.WOOD[3])
+	PixelCanvas.pennant(img, Vector2i(mid.x, mid.y - 3), Palette.ACCENT)
+
+
+## Stragan z góry: daszek w pasy (akcent i jasna strzecha) z ciemnym okapem od południa, pod nim lada
+## z towarem; `variant` zmienia towar (skrzynki, chleby, zieleniny, worki).
+static func _stall(img: Image, r: Rect2i, variant: int) -> void:
+	var roof := Rect2i(r.position, Vector2i(r.size.x, r.size.y - 3))
+	for y in range(roof.position.y, roof.end.y):
+		for x in range(roof.position.x, roof.end.x):
+			var stripe := ((x - roof.position.x) / 2) % 2 == 0
+			var col := Palette.ACCENT if stripe else Palette.THATCH[2]
+			if y == roof.end.y - 1:
+				col = Palette.WOOD[0]  # okap w cieniu
+			PixelCanvas.px(img, x, y, col)
+	# lada pod daszkiem i towar na niej
+	var counter := Rect2i(r.position.x, roof.end.y, r.size.x, 2)
+	PixelCanvas.rect(img, counter, Palette.WOOD[2])
+	PixelCanvas.rect(img, Rect2i(counter.position.x, counter.end.y - 1, counter.size.x, 1), Palette.WOOD[0])
+	var goods: Array[Color] = [Palette.WOOD[3], Palette.THATCH[1], Palette.GRASS[2], Palette.THATCH[2]]
+	for k in range(1, r.size.x - 1, 3):
+		PixelCanvas.px(img, counter.position.x + k, counter.position.y, goods[variant % goods.size()])
+	# skrzynka przy ladzie
+	var crate := Vector2i(r.end.x - 2, r.end.y - 1)
+	PixelCanvas.rect(img, Rect2i(crate, Vector2i(2, 1)), Palette.WOOD[1])

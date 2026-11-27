@@ -19,6 +19,8 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Premie szkolenia, kolców w fosie i Kopca na poziomach 6–10 (27.11.2026, #387): kolejka 7–11, tempo 230–400%, kolce 7–11 HP/s, Kopiec +2/+2/+2/+3/+3, zwiad z poziomem do 10. Liczby tymczasowe. [[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii|ADR 0013]].
 - Dobór PvP (27.11.2026, #383): dobór, zwiad i start ataku tylko w tej samej epoce; bez graczy w epoce karty uzupełniają boty z Wyprawy jak dotąd. [[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce|ADR 0010]].
 - Budynki epoki II od poziomu 6 i Młyn (27.11.2026, #102): budynek nowej epoki stawia się na poziomie narastającym 6 i ulepsza do 10; Młyn to G5 z premią +4–20% żywności (#388). Liczby tymczasowe. [[ADR/0011-budynki-epoki-ii-od-poziomu-6|ADR 0011]].
+- Sklep w Targu bez reklam (27.11.2026, #408): Targ stoi od startu i otwiera sklep z darmowymi ofertami z odnowieniem (min. 1 h, złoto do 100, inne do 2000), grupy po 3 z panelu admina, odbiór i złoto przez serwer. Zakupy i reklamy dalej w #174. [[ADR/0014-sklep-darmowe-oferty-z-odnowieniem|ADR 0014]].
+- Postęp kampanii botów (27.11.2026, #386): licznik zdobytych zamków-botów trzyma serwer (`players.bots_beaten`, tylko wyzwalacz), `begin_attack` odrzuca zablokowanego bota, import z `attacks`, karty Wyprawy tylko z odblokowanymi botami; weryfikacja wyniku z botem przez worker w #413. [[ADR/0015-postep-kampanii-botow-na-serwerze|ADR 0015]].
 
 ## Pytania otwarte
 

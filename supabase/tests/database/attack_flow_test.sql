@@ -18,6 +18,8 @@ insert into test_ids values
   ('00000000-0000-0000-0000-0000000000d5');
 insert into auth.users (id) select id from test_ids;
 update public.players set rating = 60000, age = 0 where id in (select id from test_ids);
+-- #386: boty powyżej 0 wymagają postępu kampanii; ten test sprawdza start i koniec ataku, nie kolejność
+update public.players set bots_beaten = 40 where id in (select id from test_ids);
 update public.players set age = 3 where id = '00000000-0000-0000-0000-0000000000d4';
 
 -- armia: 3 oddziały toporników (rodzaj 0) po 10 i 1 jeźdźców (rodzaj 6) po 10. Budynki [id, rodzaj,

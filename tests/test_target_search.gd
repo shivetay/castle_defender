@@ -93,10 +93,10 @@ func test_parse_rejects_and_cleans_untrusted_rows() -> bool:
 	return true
 
 
-## Kryterium #24: zawsze 3 cele, braki uzupełniają boty.
+## Kryterium #24: 3 cele, braki uzupełniają odblokowane boty (#386: nowy gracz ma ich mniej).
 func test_always_three_targets() -> bool:
 	var none: Array[TargetSearch.Target] = []
-	for beaten in [0, 1, 2, 5, BotRoster.COUNT - 1, BotRoster.COUNT, 99]:
+	for beaten in [2, 5, BotRoster.COUNT - 1, BotRoster.COUNT, 99]:
 		var list := TargetSearch.fill(none, beaten)
 		assert_eq(list.size(), 3, "3 boty przy %d zdobytych" % beaten)
 		var seen := {}
@@ -116,11 +116,11 @@ func test_always_three_targets() -> bool:
 	return true
 
 
-## Boty: bieżący cel, potem zdobyte od najmłodszego, a nowy gracz dostaje kolejne zamki z listy.
+## Boty: bieżący cel, potem zdobyte od najmłodszego; zablokowanych nie ma (#386, ADR 0015).
 func test_bot_order_is_deterministic() -> bool:
 	assert_eq(TargetSearch.bot_indices(5, 3), [5, 4, 3] as Array[int], "bieżący i zdobyte")
-	assert_eq(TargetSearch.bot_indices(0, 3), [0, 1, 2] as Array[int], "nowy gracz")
-	assert_eq(TargetSearch.bot_indices(1, 3), [1, 0, 2] as Array[int], "jeden zdobyty")
+	assert_eq(TargetSearch.bot_indices(0, 3), [0] as Array[int], "nowy gracz: tylko pierwszy zamek")
+	assert_eq(TargetSearch.bot_indices(1, 3), [1, 0] as Array[int], "jeden zdobyty")
 	assert_eq(TargetSearch.bot_indices(55, 3), [39, 38, 37] as Array[int], "wszystkie zdobyte")
 	assert_eq(TargetSearch.bot_indices(3, 0), [] as Array[int], "brak wolnych miejsc")
 	var a := TargetSearch.bot_target(7)

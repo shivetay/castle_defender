@@ -151,16 +151,11 @@ static func bot_target(i: int) -> Target:
 
 
 ## Numery zamków-botów na `n` wolnych miejsc: najpierw bieżący cel kampanii, potem zdobyte od
-## najmłodszego, a gdy to za mało (nowy gracz), kolejne zamki z listy. Zawsze `n` różnych numerów
-## (przy n ≤ BotRoster.COUNT); ten sam postęp daje zawsze te same boty.
+## najmłodszego. Tylko odblokowane zamki, bo zablokowane odrzuca serwer (#386, ADR 0015), więc nowy
+## gracz dostaje mniej niż `n` numerów. Ten sam postęp daje zawsze te same boty.
 static func bot_indices(beaten: int, n: int) -> Array[int]:
 	var out: Array[int] = []
-	var current := BotRoster.last_unlocked(beaten)
-	for i in range(current, -1, -1):
-		if out.size() >= n:
-			return out
-		out.append(i)
-	for i in range(current + 1, BotRoster.COUNT):
+	for i in range(BotRoster.last_unlocked(beaten), -1, -1):
 		if out.size() >= n:
 			break
 		out.append(i)
