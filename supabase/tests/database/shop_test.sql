@@ -1,4 +1,4 @@
--- Testy sklepu w Targu (#408, ADR 0012, migracja `*_shop.sql`), uruchamiane przez `supabase test db` (pgTAP).
+-- Testy sklepu w Targu (#408, ADR 0014, migracja `*_shop.sql`), uruchamiane przez `supabase test db` (pgTAP).
 -- Kryteria: zapis grup i ofert tylko admin (app_metadata.role = admin), bez DELETE; gracz widzi tylko aktywne
 -- grupy w oknie i ich aktywne oferty, a z odbiorów tylko swoje; anon nic. CHECK: najwyżej 3 oferty na grupę,
 -- złoto do 100, inne do 2000, odnowienie od 60 minut. Archiwum grupy zabiera oferty, przywrócenie oddaje je
@@ -8,7 +8,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(68);
+select plan(72);
 
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-0000000408f1'),  -- admin
@@ -107,6 +107,7 @@ select lives_ok($$
   with x as (insert into public.shop_offers (group_id, slot, name, resource, amount, cooldown_minutes, active)
     values ((select id from ids where name = 'g_off'), 2, 'Nieaktywna', 0, 10, 60, false) returning id) insert into ids select 'o_inactive', id from x$$,
   'admin dodaje grupy poza oknem');
+select throws_ok($$select updated_by from public.shop_offers$$, '42501', null, 'admin też nie czyta updated_by przez API');
 select is((select count(*)::integer from public.shop_groups), 4, 'admin widzi wszystkie grupy');
 select is((select count(*)::integer from public.shop_offers), 7, 'admin widzi wszystkie oferty');
 reset role;
@@ -130,6 +131,9 @@ select throws_ok($$insert into public.shop_claims (player_id, offer_id, resource
   'gracz nie wpisze odbioru');
 select throws_ok($$select * from public.claim_offer('00000000-0000-0000-0000-0000000408a2', 1)$$, '42501', null,
   'gracz nie woła claim_offer');
+select throws_ok($$select updated_by from public.shop_groups$$, '42501', null, 'gracz nie czyta updated_by grup (uuid admina)');
+select throws_ok($$select updated_by from public.shop_offers$$, '42501', null, 'gracz nie czyta updated_by ofert');
+select throws_ok($$select * from public.shop_groups$$, '42501', null, 'select * zawiera updated_by, więc też odmowa');
 select is((select count(*)::integer from public.shop_catalog()), 3, 'katalog gracza: 3 oferty widocznej grupy');
 select ok((select bool_and(next_available_at is null) from public.shop_catalog()), 'nowy gracz: wszystko do odbioru');
 reset role;

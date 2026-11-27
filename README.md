@@ -684,13 +684,14 @@ w sekcji „Następny etap”.
   1/5 epoki II (narastająco 6) za 1020 Dr, 510 Ka i 170 Ży, więc wymaga Dworu w epoce II i Magazynu.
   Daje +4/8/12/16/20% całej produkcji żywności (liczy się jeden Młyn, ruina 75% premii). Grafika
   w `scripts/gfx/age_ii_building_art.gd` w palecie epoki II.
-- **Targ i sklep** (#408, ADR 0012): Targ (4×4) stoi od startu przy Dworze, jeden, bez poziomów, rozbiórki
+- **Targ i sklep** (#408, ADR 0014): Targ (4×4) stoi od startu przy Dworze, jeden, bez poziomów, rozbiórki
   i produkcji; stary zapis dostaje go przy wczytaniu, a bez wolnego 4×4 HUD prosi „Zrób miejsce 4×4 na Targ”
   i Targ staje sam po zwolnieniu miejsca. W bitwie jest przeszkodą bez wytrzymałości (nie cel). Karta Targu
   ma Sklep: grupy darmowych ofert z panelu admina (po 3 karty: nazwa, ikona surowca, ilość, Odbierz),
   odliczanie odnowienia, „Magazyn pełny”, tylko online („Brak połączenia”). Odbiór przyznaje serwer
   (Edge Function `shop_claim`, migracje `market` i `shop`), nagroda przychodzi z najbliższym zapisem zamku.
-  Migracje i funkcja czekają na wgranie na projekt przed wydaniem klienta (z podniesieniem `min_code`).
+  Kolejność wdrożenia: poprawka panelu admina (bez `updated_by`), migracje `market` i `shop`, funkcja
+  `shop_claim`, podniesienie `min_code`, dopiero potem klient.
 - Pozostałe budynki MVP (#35, decyzje właścicielki z 20.11.2026, liczby tymczasowe), grafika
   w `scripts/gfx/mvp_building_art.gd` (`MvpBuildingArt`), każdy z 5 poziomami i 4 stanami:
   - **Fosa sucha** (Umocnienia, 1×1, bez technologii): rów przez całą kratkę, więc odcinki tworzą ciągły

@@ -252,7 +252,9 @@ func _ready() -> void:
 		_place_keep()
 	if grid.watchtower_id() == 0:
 		_place_watchtower()
-	# Targ (#408): w nowej grze po Strażnicy, w starym zapisie przy wczytaniu
+	# Targ (#408): w nowej grze po Strażnicy, w starym zapisie przy wczytaniu; nie na pułapce (#341),
+	# więc kratki pułapek trafiają do siatki przed szukaniem miejsca
+	defense.mark_traps(grid)
 	var market_missing := not grid.place_market()
 	var keep_missing := grid.keep_id() == 0
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
@@ -826,6 +828,7 @@ static func _today() -> int:
 ## każdą zmianą budynków, żeby czas sprzed zmiany liczył się po starych stawkach.
 func _tick() -> void:
 	var now := _now_ms()
+	defense.mark_traps(grid)  # budynek nie stanie na pułapce (#341), także przy uszczelnianiu po budowie
 	var researching := research.active
 	# towary po surowcach w każdym punkcie czasu: wytwórcy zużywają drewno i żywność naliczone do tej chwili
 	var done := queue.update(now, grid, economy, research, goods, recruitment.army_upkeep(), ruins)
@@ -961,7 +964,7 @@ func _on_tapped(world_pos: Vector2) -> void:
 		elif result == BuildQueue.Result.NO_PLACE and _lacks_water(cell, kind):
 			hud.message = WATER_HINT % BuildingTypes.NAMES[kind]
 		else:
-			hud.message = BuildQueue.MESSAGES[result]
+			hud.message = queue.message(result)
 	queue_redraw()
 
 
@@ -2700,7 +2703,7 @@ func _on_seal_pressed() -> void:
 	elif result == BuildQueue.Result.NEEDS_TECH:
 		hud.message = _tech_hint(kind)
 	else:
-		hud.message = BuildQueue.MESSAGES[result]
+		hud.message = queue.message(result)
 	_refresh_card()
 	queue_redraw()
 

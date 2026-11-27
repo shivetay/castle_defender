@@ -6,12 +6,12 @@ extends RefCounted
 ## więc budowa idzie dalej, gdy gra jest w tle, a po powrocie nadrabia wszystko po kolei.
 ## Ekonomia liczy się odcinkami: ukończona chata produkuje więcej dopiero od chwili ukończenia.
 
-enum Result { OK, QUEUE_FULL, NO_RESOURCES, MAX_LEVEL, NEEDS_MANOR, ALREADY_QUEUED, NO_PLACE, NOT_FOUND, NEEDS_TECH }
+enum Result { OK, QUEUE_FULL, NO_RESOURCES, MAX_LEVEL, NEEDS_MANOR, ALREADY_QUEUED, NO_PLACE, NOT_FOUND, NEEDS_TECH, TRAP }
 
 ## Komunikaty dla gracza (indeks = Result).
 const MESSAGES: Array[String] = ["", "Kolejka budowy pełna", "Brak surowców", "Najwyższy poziom",
 		"Najpierw ulepsz Dwór", "Ten budynek już czeka w kolejce", "Tu nie można budować", "Brak budynku",
-		"Najpierw zbadaj technologię"]
+		"Najpierw zbadaj technologię", "Tu stoi pułapka"]
 
 
 class Order:
@@ -33,6 +33,8 @@ class Order:
 var orders: Array[Order] = []
 ## Id budynku postawionego przez ostatnie udane order_build().
 var placed_id := 0
+## Rodzaj pułapki (TrapConfig.Kind), przez którą ostatnie order_build() zwróciło TRAP (#341), inaczej -1.
+var blocking_trap := -1
 
 
 func is_full() -> bool:
@@ -55,6 +57,7 @@ func has_order(building_id: int) -> bool:
 func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_ms: int,
 		research: Research = null) -> Result:
 	placed_id = 0
+	blocking_trap = -1
 	if not BuildConfig.is_unlocked(kind, research):
 		return Result.NEEDS_TECH
 	# budynek epoki II (ADR 0011) stawia się od razu na poziomie 6, więc wymaga Dworu w tej epoce
@@ -66,7 +69,9 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 	# gracz stawia: budynek przykleja się do pobliskiej linii umocnień (#149)
 	var rect := grid.placement_for(c, kind, true)
 	if rect == Rect2i():
-		return Result.NO_PLACE
+		# miejsce zajmuje tylko pułapka obrony (#341): gracz dostaje jej nazwę
+		blocking_trap = grid.trap_blocking(c, kind, true)
+		return Result.TRAP if blocking_trap >= 0 else Result.NO_PLACE
 	# brama w linii umocnień: odcinki w budowie zostają (najpierw trzeba je skończyć albo anulować)
 	for wall in grid.walls_under(rect):
 		if has_order(wall):
@@ -82,6 +87,13 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 		return Result.NO_PLACE
 	_append(placed_id, kind, level, cost, now_ms, grid.ruler_perk)
 	return Result.OK
+
+
+## Komunikat dla gracza po zleceniu z wynikiem `result`; przy TRAP z nazwą pułapki z ostatniego order_build().
+func message(result: Result) -> String:
+	if result == Result.TRAP and blocking_trap >= 0:
+		return "%s: %s" % [MESSAGES[result], TrapConfig.NAMES[blocking_trap]]
+	return MESSAGES[result]
 
 
 ## Zleca ulepszenie budynku o 1 poziom. Budynek nie może przerosnąć Dworu. Przebudowa Dworu

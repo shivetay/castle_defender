@@ -1,4 +1,4 @@
--- #408 (część #174): sklep w Targu, darmowe oferty z odnowieniem (ADR 0012).
+-- #408 (część #174): sklep w Targu, darmowe oferty z odnowieniem (ADR 0014).
 --
 -- Właścicielka układa oferty w panelu admina (`castle_defender_admin`, ten sam projekt Supabase) w grupy po
 -- najwyżej 3 oferty. Schemat, RLS i testy są w repo gry; panel to tylko UI. Ten schemat jest KONTRAKTEM z panelem:
@@ -16,7 +16,8 @@
 -- Uprawnienia:
 -- - admin to JWT z `app_metadata.role = 'admin'` (`public.is_admin()`, ta sama definicja co w repo panelu; tylko
 --   `app_metadata`, którego gracz nie zmieni). Admin czyta wszystko i zapisuje (INSERT, UPDATE) tylko kolumny
---   z jawnych grantów; `updated_at` i `updated_by` ustawia wyzwalacz (updated_by = auth.uid()). DELETE nie ma nikt:
+--   z jawnych grantów; `updated_at` i `updated_by` ustawia wyzwalacz (updated_by = auth.uid()). Kolumny
+--   `updated_by` nie czyta przez API nikt (SELECT kolumnowy bez niej), żeby gracz nie poznał uuid admina. DELETE nie ma nikt:
 --   usuwanie to archiwum (`archived_at`);
 -- - gracz (authenticated, także konto anonimowe) czyta tylko grupy aktywne, niezarchiwizowane i w oknie czasu
 --   oraz ich aktywne, niezarchiwizowane oferty, a z odbiorów tylko własne. Nie pisze nic: odbiór idzie przez
@@ -202,12 +203,16 @@ revoke all on public.shop_groups from public, anon, authenticated, service_role;
 revoke all on public.shop_offers from public, anon, authenticated, service_role;
 revoke all on public.shop_claims from public, anon, authenticated, service_role;
 
--- odczyt: gracz przez polityki (widoczne), admin wszystko; zapis tylko admin, bez id i updated_at
-grant select on public.shop_groups to authenticated;
+-- odczyt: gracz przez polityki (widoczne), admin wszystko; zapis tylko admin, bez id i updated_at.
+-- SELECT kolumnowy bez `updated_by`: gracz nie pozna uuid admina (review #412). Admin czyta przez tę samą rolę,
+-- więc panel też nie wybiera `updated_by` (ani `select *` / `return=representation` bez listy kolumn).
+grant select (id, name, sort_order, active, starts_at, ends_at, archived_at, updated_at)
+  on public.shop_groups to authenticated;
 grant insert (name, sort_order, active, starts_at, ends_at, archived_at, updated_by),
   update (name, sort_order, active, starts_at, ends_at, archived_at, updated_by)
   on public.shop_groups to authenticated;
-grant select on public.shop_offers to authenticated;
+grant select (id, group_id, slot, name, resource, amount, cooldown_minutes, active, archived_at, updated_at)
+  on public.shop_offers to authenticated;
 grant insert (group_id, slot, name, resource, amount, cooldown_minutes, active, archived_at, updated_by),
   update (group_id, slot, name, resource, amount, cooldown_minutes, active, archived_at, updated_by)
   on public.shop_offers to authenticated;

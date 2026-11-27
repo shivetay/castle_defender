@@ -19,7 +19,7 @@
 | Studnia | I | gasi pożary (zadanie obrony Gaszenie pożarów, #35), warunek długiego oblężenia |
 | Kamieniołom | I | kamień (+40/60/80/110/140 na h w epoce I, potem 170…310; tymczasowe; wymaga G4, #35; w epoce I od #315) |
 | Młyn | II | +4/8/12/16/20% całej produkcji żywności na II.1–II.5 (jeden Młyn, najwyższy poziom; w ruinie ×75%); G5, 2×2 przy rzece, start od poziomu 6, koszt L1 120/60/20, II.1 = 1020/510/170 (tymczasowe); #388 / #396, [[ADR/0011-budynki-epoki-ii-od-poziomu-6\|ADR 0011]] |
-| Targ | I | stoi od startu (4×4, jeden, bez poziomów i rozbiórki), tylko sklep z darmowymi ofertami; w bitwie przeszkoda, nie cel; #408, [[ADR/0012-sklep-darmowe-oferty-z-odnowieniem\|ADR 0012]] |
+| Targ | I | stoi od startu (4×4, jeden, bez poziomów i rozbiórki), tylko sklep z darmowymi ofertami; w bitwie przeszkoda, nie cel; #408, [[ADR/0014-sklep-darmowe-oferty-z-odnowieniem\|ADR 0014]] |
 | Węglarz | III | węgiel drzewny dla Kopalni rudy, Kuźni i Prochowni |
 | Kopalnia rudy | III | żelazo, główny koszt ciężkich jednostek od epoki III |
 | Kuźnia (kowal) | III | broń z żelaza, ulepszenia broni; nie robi zbroi skórzanych ani strzał |

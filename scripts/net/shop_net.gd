@@ -1,6 +1,6 @@
 class_name ShopNet
 extends RefCounted
-## Sklep w Targu (#408, ADR 0012): kontrakt katalogu (`public.shop_catalog`, REST RPC) i odbioru (Edge Function
+## Sklep w Targu (#408, ADR 0014): kontrakt katalogu (`public.shop_catalog`, REST RPC) i odbioru (Edge Function
 ## `shop_claim`). Oferty układa właścicielka w panelu admina, więc treść z serwera jest niezaufana: nazwy przechodzą
 ## przez znaki fontu, liczby są przycinane do granic z migracji, a grupa ma najwyżej MAX_OFFERS ofert.
 ## Czas odnowienia liczy serwer: odliczanie bierze różnicę `next_available_at - server_now` z tej samej odpowiedzi,

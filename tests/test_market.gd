@@ -6,7 +6,7 @@ extends TestCase
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
 const SPAWN := Vector2i(32, 60)
-const MIGRATION := "res://supabase/migrations/20261127170000_market.sql"
+const MIGRATION := "res://supabase/migrations/20261127190000_market.sql"
 
 
 ## Zamek nowej gry na seedzie 1337: Dwór, donżon i Strażnica jak w main.gd, bez Targu.
@@ -154,4 +154,19 @@ func test_server_market_rules_match_game() -> bool:
 	assert_true(sql.contains(start), "budynki startu w komentarzu")
 	assert_true(sql.contains("b.kind not in (%d, %d, %d, %d)" % [K.MANOR, K.KEEP, K.WATCHTOWER, K.MARKET]),
 			"budynki startu w funkcji")
+	return true
+
+
+## Pułapki obrony (#341): Targ nie staje na kratce z pułapką, tylko na najbliższym wolnym 4×4 obok.
+func test_market_avoids_trap_cells() -> bool:
+	var free := _start_grid()
+	assert_true(free.place_market(), "Targ bez pułapek")
+	var spot := free.buildings[free.market_id()]
+	var grid := _start_grid()
+	grid.trap_cells[spot.position + Vector2i(1, 1)] = TrapConfig.Kind.PIT
+	assert_true(grid.trap_under(spot) >= 0, "pułapka na pierwszym miejscu Targu")
+	assert_true(grid.place_market(), "Targ stoi mimo pułapki")
+	var rect := grid.buildings[grid.market_id()]
+	assert_eq(grid.trap_under(rect), -1, "Targ nie przykrywa pułapki")
+	assert_true(rect != spot, "inne miejsce niż bez pułapki")
 	return true

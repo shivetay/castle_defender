@@ -9,7 +9,7 @@ const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_bal
 ## Najnowsze tabele czasu poziomu 1 i wymaganych technologii (#388: Młyn).
 const MILL_MIGRATION := "res://supabase/migrations/20261127160000_mill.sql"
 ## Targ (#408): bez poziomów, jeden na zamek, nie przenosi się.
-const MARKET_MIGRATION := "res://supabase/migrations/20261127170000_market.sql"
+const MARKET_MIGRATION := "res://supabase/migrations/20261127190000_market.sql"
 const K := BuildingTypes.Kind
 
 

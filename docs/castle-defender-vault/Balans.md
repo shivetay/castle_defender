@@ -135,8 +135,12 @@ Tymczasowe liczby z ustaleń 27.11.2026 ([[ADR/0009-model-balansu-epok-ciagla-kr
 | Limit armii z Dworu | 58 | 66 | 74 | 82 | 90 |
 | Garnizon Dworu | 24 | 28 | 32 | 36 | 40 |
 | Limit pułapek | 12 | 14 | 16 | 18 | 20 |
+| Miejsca w kolejce szkolenia ([[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii\|ADR 0013]]) | 7 | 8 | 9 | 10 | 11 |
+| Tempo szkolenia (% poz. 1, ADR 0013) | 230 | 260 | 300 | 340 | 400 |
+| Kolce w Fosie suchej (HP/s, ADR 0013) | 7 | 8 | 9 | 10 | 11 |
+| Zasięg z Kopca (kratki, ADR 0013) | +2 | +2 | +2 | +3 | +3 |
 
-Koszary dają 2 miejsca za każdy poziom 1–10. Strefa obrony rośnie z Dworem i O25 ([[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]); wzór bierze `bonus_level` do 10. Badania epoki II, rok na pasku i tempo szkolenia bez zmian względem ADR 0009.
+Koszary dają 2 miejsca za każdy poziom 1–10. Strefa obrony rośnie z Dworem i O25 ([[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]); wzór bierze `bonus_level` do 10. Badania epoki II i rok na pasku bez zmian względem ADR 0009. Szkolenie, kolce w fosie i Kopiec rosną dalej od #387 ([[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii|ADR 0013]]).
 
 ### 1.8 Młyn (#388 / #396)
 
@@ -258,7 +262,7 @@ Cel: komfortowy F2P bez poczucia głodu i bez spamu taniej piechoty; wąskie gar
 
 | Sklep (#174) | Propozycja pod C | Soft-lock? |
 | --- | --- | --- |
-| Darmowe oferty w Targu (#408) | jeden surowiec na ofertę: złoto do 100, inne do 2000, odnowienie od 1 h, grupy po 3 z panelu admina; pełny magazyn blokuje odbiór ([[ADR/0012-sklep-darmowe-oferty-z-odnowieniem\|ADR 0012]]) | **nie** — dodatek, bez progów |
+| Darmowe oferty w Targu (#408) | jeden surowiec na ofertę: złoto do 100, inne do 2000, odnowienie od 1 h, grupy po 3 z panelu admina; pełny magazyn blokuje odbiór ([[ADR/0014-sklep-darmowe-oferty-z-odnowieniem\|ADR 0014]]) | **nie** — dodatek, bez progów |
 | Pakiet startowy / „wesprzyj twórcę” | złoto startowe + kosmetyczny sztandar / flaga (nie mnożnik obrażeń) | **nie** |
 | Wygoda | np. +1 miejsce w kolejce budowy **albo** jeden jednorazowy −50% czasu na wybrane zlecenie / dzień (limit serwerowy) | **nie** — kolejka 1+3 działa bez zakupu |
 | Kosmetyka | skóry Dworu / baner rankingu / portret | **nie** |

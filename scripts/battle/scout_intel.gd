@@ -159,7 +159,7 @@ static func from_server(raw: Variant) -> ScoutIntel:
 		var rect := Rect2i(b[0], b[1], b[2], b[3])
 		if rect.size.x >= 1 and rect.size.y >= 1 and map.encloses(rect) and area.intersects(rect) \
 				and b[4] >= 0 and b[4] < BuildingTypes.count():
-			intel.buildings.append([rect, b[4], clampi(b[5], 0, BuildingTypes.MAX_LEVEL)])
+			intel.buildings.append([rect, b[4], clampi(b[5], 0, Ages.MAX_TOTAL_LEVEL)])
 	for e: Variant in _list(d.get("squads")):
 		var q := _ints(e, 3)
 		if not q.is_empty() and q[0] >= UnitTypes.ENGINEERING and q[0] < RecruitmentConfig.CLASS_NAMES.size() \

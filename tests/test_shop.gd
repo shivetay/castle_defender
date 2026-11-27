@@ -3,7 +3,7 @@ extends TestCase
 ## odnowienia z czasów serwera, stan kart (Odbierz, odliczanie, Magazyn pełny), karta Targu w HUD-zie
 ## i liczby z migracji `*_shop.sql`.
 
-const MIGRATION := "res://supabase/migrations/20261127180000_shop.sql"
+const MIGRATION := "res://supabase/migrations/20261127200000_shop.sql"
 const NOW := 1_000_000_000
 
 

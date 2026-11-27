@@ -1,4 +1,4 @@
-# ADR 0012: Sklep w Targu: darmowe oferty z odnowieniem, przyznawane przez serwer
+# ADR 0014: Sklep w Targu: darmowe oferty z odnowieniem, przyznawane przez serwer
 
 - **Status:** przyjęty
 - **Data:** 2026-11-27
@@ -51,6 +51,8 @@ epoki III dającym złoto.
 
 ## Konsekwencje
 
+- `updated_by` (uuid admina) nie jest czytelne przez API: rola `authenticated` ma SELECT kolumnowy bez niego,
+  więc panel admina też go nie wybiera. Poprawka panelu musi wejść przed migracją `*_shop.sql`.
 - Nowe dane o graczu: tylko odbiory (id konta, oferta, czas, surowiec, ilość), kasowane z kontem.
 - Targ zmienia drogę atakujących w bitwie, więc wynik bitwy na zamku z Targiem różni się od tego bez niego;
   starsza wersja gry go nie zna, więc wydanie wymaga podniesienia `min_code` ([[ADR/0006-wymuszenie-aktualizacji-wersji-klienta|ADR 0006]]).
