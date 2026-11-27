@@ -6,7 +6,7 @@ extends TestCase
 
 const MIGRATION := "res://supabase/migrations/20261126065622_research_fixed_cost.sql"
 ## Najnowsza lista doktryn (`private.research_doctrines`, od #342 z O25).
-const DOCTRINES_MIGRATION := "res://supabase/migrations/20261127120000_defense_reach.sql"
+const DOCTRINES_MIGRATION := "res://supabase/migrations/20261127071313_defense_reach.sql"
 
 
 func _sql() -> String:

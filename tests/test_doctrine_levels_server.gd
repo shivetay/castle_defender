@@ -7,7 +7,7 @@ const MIGRATION := "res://supabase/migrations/20261126065715_doctrine_levels.sql
 ## Lista doktryn z poziomami z doktrynami ataku (najnowsza wersja `private.research_leveled`).
 const ATTACK_MIGRATION := "res://supabase/migrations/20261126065756_attack_doctrine_levels.sql"
 ## Najnowsza lista doktryn z poziomami (`private.research_leveled`, od #342 z O25).
-const LEVELED_MIGRATION := "res://supabase/migrations/20261127120000_defense_reach.sql"
+const LEVELED_MIGRATION := "res://supabase/migrations/20261127071313_defense_reach.sql"
 
 
 func _sql() -> String:
