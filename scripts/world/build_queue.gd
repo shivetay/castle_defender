@@ -6,17 +6,22 @@ extends RefCounted
 ## więc budowa idzie dalej, gdy gra jest w tle, a po powrocie nadrabia wszystko po kolei.
 ## Ekonomia liczy się odcinkami: ukończona chata produkuje więcej dopiero od chwili ukończenia.
 
-enum Result { OK, QUEUE_FULL, NO_RESOURCES, MAX_LEVEL, NEEDS_MANOR, ALREADY_QUEUED, NO_PLACE, NOT_FOUND, NEEDS_TECH, TRAP }
+## NO_GOLD (#371): materiały są, ale brakuje złota na dopłatę do odcinka 2 albo 3 kratek.
+enum Result { OK, QUEUE_FULL, NO_RESOURCES, MAX_LEVEL, NEEDS_MANOR, ALREADY_QUEUED, NO_PLACE, NOT_FOUND, NEEDS_TECH, TRAP,
+		NO_GOLD }
 
 ## Komunikaty dla gracza (indeks = Result).
 const MESSAGES: Array[String] = ["", "Kolejka budowy pełna", "Brak surowców", "Najwyższy poziom",
 		"Najpierw ulepsz Dwór", "Ten budynek już czeka w kolejce", "Tu nie można budować", "Brak budynku",
-		"Najpierw zbadaj technologię", "Tu stoi pułapka"]
+		"Najpierw zbadaj technologię", "Tu stoi pułapka", "Za mało złota na dłuższy odcinek"]
 
 
 class Order:
 	extends RefCounted
 	var building_id := 0
+	## Pozostałe kratki odcinka wału albo palisady postawionego jednym zleceniem (#371); kończą się
+	## i anulują razem z `building_id`. Pusta dla zwykłego zlecenia.
+	var extra_ids: Array[int] = []
 	var kind := 0
 	## Poziom po ukończeniu (1 = postawienie nowego budynku).
 	var level := 1
@@ -27,6 +32,10 @@ class Order:
 
 	func finish_ms() -> int:
 		return start_ms + duration_ms
+
+	## Czy zlecenie obejmuje budynek `id` (główny albo kratkę odcinka).
+	func covers(id: int) -> bool:
+		return building_id == id or extra_ids.has(id)
 
 
 ## Zlecenia w kolejności wykonania. Pierwsze jest w budowie.
@@ -43,7 +52,7 @@ func is_full() -> bool:
 
 func order_for(building_id: int) -> Order:
 	for o in orders:
-		if o.building_id == building_id:
+		if o.covers(building_id):
 			return o
 	return null
 
@@ -54,8 +63,10 @@ func has_order(building_id: int) -> bool:
 
 ## Zleca postawienie budynku `kind` na kratce `c`: pobiera koszt i stawia plac budowy.
 ## Budynek z wymaganą technologią (BuildConfig.REQUIRED_TECH) wymaga jej zbadania w `research`.
+## Wał i palisada z `length` 2 albo 3 (#371) to odcinek tylu kratek od `c` w prawo (albo w dół przy
+## `vertical`) jednym zleceniem: materiały i czas ×długość plus złoto (BuildConfig.segment_cost).
 func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_ms: int,
-		research: Research = null) -> Result:
+		research: Research = null, length: int = 1, vertical: bool = false) -> Result:
 	placed_id = 0
 	blocking_trap = -1
 	if not BuildConfig.is_unlocked(kind, research):
@@ -66,6 +77,8 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 		return Result.NEEDS_MANOR
 	if is_full():
 		return Result.QUEUE_FULL
+	if BuildingTypes.is_wall(kind) and length > 1:
+		return _order_segment(grid, economy, c, kind, level, now_ms, length, vertical)
 	# gracz stawia: budynek przykleja się do pobliskiej linii umocnień (#149)
 	var rect := grid.placement_for(c, kind, true)
 	if rect == Rect2i():
@@ -86,6 +99,39 @@ func order_build(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, now_
 			economy.add(res, cost[res])
 		return Result.NO_PLACE
 	_append(placed_id, kind, level, cost, now_ms, grid.ruler_perk)
+	return Result.OK
+
+
+## Odcinek wału albo palisady z `length` kratek (#371): cały albo nic. Przy zajętej kratce nic nie
+## jest pobrane; brak samego złota daje NO_GOLD.
+func _order_segment(grid: BuildGrid, economy: Economy, c: Vector2i, kind: int, level: int, now_ms: int,
+		length: int, vertical: bool) -> Result:
+	var cells := grid.segment_cells(c, kind, length, vertical)
+	if cells.is_empty():
+		blocking_trap = grid.segment_trap(c, length, vertical)
+		return Result.TRAP if blocking_trap >= 0 else Result.NO_PLACE
+	var cost := BuildConfig.segment_cost(kind, level, length)
+	if not economy.can_afford(cost):
+		var materials := cost.duplicate()
+		materials[EconomyConfig.Res.GOLD] = 0
+		return Result.NO_GOLD if economy.can_afford(materials) else Result.NO_RESOURCES
+	economy.spend(cost)
+	var ids: Array[int] = []
+	for r in cells:
+		var id := grid.place(r, kind, 0)
+		if id == 0:
+			# bezpiecznik: segment_cells i place powinny się zgadzać, ale koszt nie może przepaść
+			for placed in ids:
+				grid.remove(placed)
+			for res in cost.size():
+				economy.add(res, cost[res])
+			return Result.NO_PLACE
+		ids.append(id)
+	placed_id = ids[0]
+	_append(placed_id, kind, level, cost, now_ms, grid.ruler_perk)
+	var o: Order = orders.back()
+	o.extra_ids.assign(ids.slice(1))
+	o.duration_ms *= ids.size()
 	return Result.OK
 
 
@@ -156,8 +202,9 @@ func cancel(grid: BuildGrid, economy: Economy, building_id: int, now_ms: int) ->
 	orders.erase(o)
 	for res in o.cost.size():
 		economy.add(res, o.cost[res])
-	if o.level == 1 and grid.levels.get(building_id, -1) == 0:
-		grid.remove(building_id)
+	for id: int in [o.building_id] + o.extra_ids:
+		if o.level == 1 and grid.levels.get(id, -1) == 0:
+			grid.remove(id)
 	if was_active and not orders.is_empty():
 		orders[0].start_ms = now_ms
 	return true
@@ -199,11 +246,14 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 			grid.reach_level = DefensePlan.reach_level(research)
 			continue
 		var o: Order = orders.pop_front()
-		if grid.buildings.has(o.building_id):
-			grid.levels[o.building_id] = o.level
+		# odcinek wału albo palisady (#371): wszystkie kratki kończą się naraz, każda uszczelnia się osobno
+		for id: int in [o.building_id] + o.extra_ids:
+			if not grid.buildings.has(id):
+				continue
+			grid.levels[id] = o.level
 			# ukończony wał/palisada/brama/wieża domyka krótkie luki do bramy i wieży
 			if o.level >= 1:
-				grid.seal_after_place(o.building_id)
+				grid.seal_after_place(id)
 			# ukończony Magazyn mieści więcej od chwili ukończenia
 			economy.refresh_capacity(grid)
 		if not orders.is_empty():
@@ -239,7 +289,7 @@ func remaining_ms(building_id: int, now_ms: int) -> int:
 	for i in orders.size():
 		var o := orders[i]
 		t = maxi(o.finish_ms(), now_ms) if i == 0 else t + o.duration_ms
-		if o.building_id == building_id:
+		if o.covers(building_id):
 			return t - now_ms
 	return -1
 
@@ -287,7 +337,7 @@ static func capacity_gain_text(kind: int, level: int) -> String:
 
 ## Postęp zlecenia w budowie, 0..1000 (‰). 0 dla czekających i budynków bez zlecenia.
 func progress_permille(building_id: int, now_ms: int) -> int:
-	if orders.is_empty() or orders[0].building_id != building_id:
+	if orders.is_empty() or not orders[0].covers(building_id):
 		return 0
 	var o := orders[0]
 	if o.duration_ms <= 0:
@@ -301,8 +351,11 @@ func progress_permille(building_id: int, now_ms: int) -> int:
 func save_data() -> Dictionary:
 	var list: Array = []
 	for o in orders:
-		list.append({"building_id": o.building_id, "kind": o.kind, "level": o.level, "cost": o.cost.duplicate(),
-				"duration_ms": o.duration_ms, "start_ms": o.start_ms})
+		var entry := {"building_id": o.building_id, "kind": o.kind, "level": o.level, "cost": o.cost.duplicate(),
+				"duration_ms": o.duration_ms, "start_ms": o.start_ms}
+		if not o.extra_ids.is_empty():
+			entry["extra_ids"] = o.extra_ids.duplicate()
+		list.append(entry)
 	return {"orders": list}
 
 
@@ -320,6 +373,12 @@ func load_data(d: Dictionary, grid: BuildGrid, now_ms: int) -> int:
 		o.building_id = int(e["building_id"])
 		o.kind = grid.kinds[o.building_id]
 		o.level = clampi(int(e.get("level", 1)), 1, Ages.MAX_TOTAL_LEVEL)
+		# kratki odcinka (#371): tylko istniejące, tego samego rodzaju, bez powtórzeń i bez głównej
+		for extra: Variant in e.get("extra_ids", []) as Array:
+			var id := int(extra)
+			if id != o.building_id and grid.buildings.has(id) and grid.kinds[id] == o.kind \
+					and not o.extra_ids.has(id) and o.extra_ids.size() < BuildConfig.SEGMENT_MAX - 1:
+				o.extra_ids.append(id)
 		for amount: Variant in e.get("cost", []) as Array:
 			o.cost.append(maxi(0, int(amount)))
 		o.duration_ms = maxi(0, int(e.get("duration_ms", 0)))

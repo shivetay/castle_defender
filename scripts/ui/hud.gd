@@ -8,7 +8,8 @@ extends Node2D
 ##   Oblężenie i Wyprawa (PvE) są na karcie Strażnicy,
 ##   dotknięcie budynku otwiera kartę, a dotknięcie czasu budowy na górnym pasku otwiera Kolejkę,
 ## - budowa: Gotowe, Zmień (wraca do panelu budowy) i Anuluj (kończy stawianie bez zmiany
-##   wyboru); dotknięcia mapy tylko stawiają wybrany budynek, niczego nie zaznaczają,
+##   wyboru); dotknięcia mapy tylko stawiają wybrany budynek, niczego nie zaznaczają; przy wale
+##   i palisadzie pod nimi długość odcinka (1–3 kratki) i orientacja (Poziomo/Pionowo, #371),
 ## - karta budynku: stan, koszt ulepszenia oraz Ulepsz, Rozbierz (Anuluj dla zlecenia), przy budynku
 ##   rekrutacji Szkol, przy Strażnicy Oblężenie i Wyprawa, przy Komendzie umocnień Sprawdź i Domknij
 ##   (#199), i Zamknij, wyśrodkowane nad paskiem komunikatu.
@@ -18,6 +19,8 @@ extends Node2D
 signal build_pressed
 signal change_pressed
 signal build_mode_changed(building: bool)
+## Zmiana długości albo orientacji odcinka wału/palisady w trybie budowy (#371).
+signal segment_changed
 signal siege_pressed
 signal speed_pressed
 signal upgrade_pressed
@@ -42,7 +45,7 @@ signal portrait_pressed
 
 enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK, CHECK, SEAL, RANKING }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
-enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, CANCEL = 12, PORTRAIT = 13, RESOURCE = 50, CARD = 100 }
+enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, CANCEL = 12, PORTRAIT = 13, LENGTH = 14, ORIENT = 15, RESOURCE = 50, CARD = 100 }
 
 const BAR_H := 12
 ## Margines treści od lewej i prawej krawędzi ekranu. Zaokrąglone narożniki telefonów ucinają
@@ -75,6 +78,10 @@ const EXPEDITION_LABEL := "Wyprawa"
 const RANKING_LABEL := "Ranking"
 const ARMY_LABEL := "Wojsko"
 const CANCEL_LABEL := "Anuluj"
+## Przyciski odcinka wału i palisady w trybie budowy (#371).
+const LENGTH_LABELS: Array[String] = ["1 kratka", "2 kratki", "3 kratki"]
+const HORIZONTAL_LABEL := "Poziomo"
+const VERTICAL_LABEL := "Pionowo"
 const SIEGE_LABEL := "Oblężenie"
 ## Przycisk karty Dworu (#31): ekran generałów.
 const GENERALS_LABEL := "Generał."
@@ -99,6 +106,10 @@ var message := ""
 var building := false
 ## Wybrany rodzaj budynku (BuildingTypes.Kind), ustawia go panel budowy.
 var selected_kind := 0
+## Odcinek wału albo palisady (#371): długość 1..BuildConfig.SEGMENT_MAX i orientacja (pionowo w dół
+## albo poziomo w prawo od dotkniętej kratki). Trzyma się do wyjścia z trybu budowy.
+var segment_length := 1
+var segment_vertical := false
 ## Karta budynku: widoczna, gdy card_title nie jest pusty.
 var card_title := ""
 ## Tekst z prawej strony karty, np. „poziom 2/5” albo „budowa 0:42”.
@@ -219,9 +230,12 @@ static func uses_icons(is_building: bool, in_battle: bool = false) -> bool:
 
 
 ## Przyciski kolumny w danym trybie, od góry.
-static func column_targets(is_building: bool, in_battle: bool = false) -> Array[int]:
+## Przy stawianiu wału albo palisady (`segment`, #371) pod nimi długość i orientacja odcinka.
+static func column_targets(is_building: bool, in_battle: bool = false, segment: bool = false) -> Array[int]:
 	if in_battle:
 		return [Target.SPEED] as Array[int]
+	if is_building and segment:
+		return [Target.DONE, Target.CHANGE, Target.CANCEL, Target.LENGTH, Target.ORIENT] as Array[int]
 	if is_building:
 		return [Target.DONE, Target.CHANGE, Target.CANCEL] as Array[int]
 	# Oblężenie i Atak (PvE) są na karcie Strażnicy (#177), PvP dostanie osobny budynek
@@ -334,11 +348,11 @@ static func card_button(i: int, recruit: bool, pve: bool = false, seal: bool = f
 ## Cel pod punktem `p` w danym stanie interfejsu. Przyciski karty to CARD + CardButton.
 static func target_at(p: Vector2, view: Vector2, right: float, is_building: bool, card_open: bool,
 		recruit_card: bool = false, in_battle: bool = false, pve_card: bool = false,
-		seal_card: bool = false, plain_card: bool = false) -> int:
+		seal_card: bool = false, plain_card: bool = false, segment: bool = false) -> int:
 	if card_open and not in_battle:
 		var i := hit(card_rects(view, recruit_card, pve_card, seal_card, plain_card), p)
 		return Target.CARD + card_button(i, recruit_card, pve_card, seal_card, plain_card) if i >= 0 else Target.NONE
-	var targets := column_targets(is_building, in_battle)
+	var targets := column_targets(is_building, in_battle, segment)
 	var icons := uses_icons(is_building, in_battle)
 	for i in targets.size():
 		if column_rect(right, i, icons).has_point(p):
@@ -377,7 +391,27 @@ func set_building(on: bool) -> void:
 	if building == on:
 		return
 	building = on
+	if not on:
+		segment_length = 1
+		segment_vertical = false
 	build_mode_changed.emit(on)
+
+
+## Czy w trybie budowy widać przyciski odcinka (wybrany wał albo palisada, #371).
+func shows_segment() -> bool:
+	return building and BuildingTypes.is_wall(selected_kind)
+
+
+## Długość odcinka do zlecenia: wybrana dla wału i palisady, 1 dla innych budynków.
+func build_length() -> int:
+	return segment_length if shows_segment() else 1
+
+
+## Napis przycisku długości albo orientacji odcinka.
+static func segment_label(t: int, length: int, vertical: bool) -> String:
+	if t == Target.LENGTH:
+		return LENGTH_LABELS[clampi(length, 1, LENGTH_LABELS.size()) - 1]
+	return VERTICAL_LABEL if vertical else HORIZONTAL_LABEL
 
 
 # --- Teksty ------------------------------------------------------------------------------------
@@ -492,14 +526,14 @@ func _target_at(p: Vector2) -> int:
 	if shows_portrait() and portrait_rect(content_left, not goal_text.is_empty()).has_point(p):
 		return Target.PORTRAIT
 	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit, battle, card_pve,
-			card_seal, card_plain)
+			card_seal, card_plain, shows_segment())
 
 
 ## Prostokąt przycisku `t` (kolumna w danym trybie albo karta, CARD + CardButton); pusty, gdy go
 ## teraz nie widać.
 static func target_rect(t: int, view: Vector2, right: float, is_building: bool, card_open: bool,
 		recruit_card: bool = false, in_battle: bool = false, pve_card: bool = false,
-		seal_card: bool = false, plain_card: bool = false) -> Rect2:
+		seal_card: bool = false, plain_card: bool = false, segment: bool = false) -> Rect2:
 	if t == Target.NONE:
 		return Rect2()
 	if card_open and not in_battle:
@@ -507,7 +541,7 @@ static func target_rect(t: int, view: Vector2, right: float, is_building: bool, 
 			return Rect2()
 		var i := card_buttons(recruit_card, pve_card, seal_card, plain_card).find(t - Target.CARD)
 		return card_rects(view, recruit_card, pve_card, seal_card, plain_card)[i] if i >= 0 else Rect2()
-	var i := column_targets(is_building, in_battle).find(t)
+	var i := column_targets(is_building, in_battle, segment).find(t)
 	return column_rect(right, i, uses_icons(is_building, in_battle)) if i >= 0 else Rect2()
 
 
@@ -597,6 +631,12 @@ func _activate(t: int) -> void:
 		change_pressed.emit()
 	elif t == Target.DONE or t == Target.CANCEL:
 		set_building(false)
+	elif t == Target.LENGTH:
+		segment_length = segment_length % BuildConfig.SEGMENT_MAX + 1
+		segment_changed.emit()
+	elif t == Target.ORIENT:
+		segment_vertical = not segment_vertical
+		segment_changed.emit()
 	elif t == Target.SIEGE:
 		siege_pressed.emit()
 	elif t == Target.RESEARCH:
@@ -640,10 +680,12 @@ func _draw() -> void:
 	elif is_card_open() and not battle:
 		_draw_card(view)
 	else:
-		var targets := column_targets(building, battle)
+		var targets := column_targets(building, battle, shows_segment())
 		var icons := uses_icons(building, battle)
 		for i in targets.size():
 			var label := speed_label if targets[i] == Target.SPEED else column_label(targets[i])
+			if targets[i] == Target.LENGTH or targets[i] == Target.ORIENT:
+				label = segment_label(targets[i], segment_length, segment_vertical)
 			if targets[i] == Target.QUEUE:
 				label = queue_label(queue_count)
 			if icons:
@@ -655,7 +697,7 @@ func _draw() -> void:
 				draw_rect(alert_rect(column_rect(content_right, i, icons)), Palette.ACCENT)
 	if not overlay:
 		var hint := target_rect(hint_target, view, content_right, building, is_card_open(), card_recruit, battle,
-				card_pve, card_seal, card_plain)
+				card_pve, card_seal, card_plain, shows_segment())
 		if hint.has_area():
 			TutorialHints.draw_frame(self, hint, Time.get_ticks_msec())
 

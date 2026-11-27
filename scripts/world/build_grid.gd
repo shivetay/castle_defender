@@ -204,6 +204,33 @@ func placement_for(c: Vector2i, kind: int, stick: bool = false) -> Rect2i:
 	return Rect2i()
 
 
+## Kratki odcinka wału albo palisady o długości `length` od kratki `c` (#371): w prawo albo, przy
+## `vertical`, w dół. Pusta tablica, gdy którakolwiek kratka nie nadaje się do budowy (zajęta, woda,
+## pułapka) albo `kind` nie jest umocnieniem. Długość 1 to dotknięta kratka bez wskakiwania w lukę.
+func segment_cells(c: Vector2i, kind: int, length: int, vertical: bool) -> Array[Rect2i]:
+	var out: Array[Rect2i] = []
+	if not BuildingTypes.is_wall(kind) or length < 1 or length > BuildConfig.SEGMENT_MAX:
+		return out
+	var along := Vector2i.DOWN if vertical else Vector2i.RIGHT
+	for i in length:
+		var r := Rect2i(c + along * i, Vector2i.ONE)
+		if not can_place(r, kind) or trap_under(r) >= 0:
+			out.clear()
+			return out
+		out.append(r)
+	return out
+
+
+## Pierwsza pułapka (TrapConfig.Kind) na kratkach odcinka albo -1 (komunikat przy odrzuceniu, #341).
+func segment_trap(c: Vector2i, length: int, vertical: bool) -> int:
+	var along := Vector2i.DOWN if vertical else Vector2i.RIGHT
+	for i in length:
+		var t := trap_under(Rect2i(c + along * i, Vector2i.ONE))
+		if t >= 0:
+			return t
+	return -1
+
+
 ## Rodzaj pułapki (TrapConfig.Kind) na którejś kratce prostokąta albo -1 (#341).
 func trap_under(rect: Rect2i) -> int:
 	for c: Vector2i in trap_cells:

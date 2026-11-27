@@ -101,6 +101,11 @@ const MANOR_COST: Array = [
 const MANOR_TIME_S: Array[int] = [0, 10 * 60, 3600, 4 * 3600, 12 * 3600,
 		14 * 3600, 18 * 3600, 24 * 3600, 30 * 3600, 40 * 3600]
 
+## Odcinki wału i palisady (#371): najdłuższy odcinek stawiany jednym zleceniem i dopłata w złocie
+## za długość 1, 2, 3 (indeks = długość − 1). Materiały i czas liczą się ×długość. TYMCZASOWE.
+const SEGMENT_MAX := 3
+const SEGMENT_GOLD: Array[int] = [0, 2, 5]
+
 ## Kolejka budowy: jeden budowniczy, a za nim do 3 czekających zleceń.
 const BUILDERS := 1
 const MAX_WAITING := 3
@@ -118,6 +123,17 @@ static func cost(kind: int, level: int) -> Array[int]:
 	for amount: int in base:
 		@warning_ignore("integer_division")
 		out.append(amount * COST_PERCENT[lv - 1] / 100)
+	return out
+
+
+## Koszt odcinka wału albo palisady z `length` kratek (#371): koszt poziomu ×długość plus dopłata
+## w złocie (SEGMENT_GOLD). Długość 1 to zwykły koszt.
+static func segment_cost(kind: int, level: int, length: int) -> Array[int]:
+	var n := clampi(length, 1, SEGMENT_MAX)
+	var out := cost(kind, level)
+	for res in out.size():
+		out[res] *= n
+	out[EconomyConfig.Res.GOLD] += SEGMENT_GOLD[n - 1]
 	return out
 
 

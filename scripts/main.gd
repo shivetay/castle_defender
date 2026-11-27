@@ -276,6 +276,7 @@ func _ready() -> void:
 	hud.build_pressed.connect(_on_build_panel_opened)
 	hud.change_pressed.connect(_on_build_panel_opened)
 	hud.build_mode_changed.connect(_on_build_mode_changed)
+	hud.segment_changed.connect(_on_segment_changed)
 	hud.siege_pressed.connect(_on_siege_pressed)
 	hud.speed_pressed.connect(_on_speed_pressed)
 	hud.upgrade_pressed.connect(_on_upgrade)
@@ -910,7 +911,8 @@ func _on_tapped(world_pos: Vector2) -> void:
 		return
 	if id != 0 and BuildGrid.replaces_walls(hud.selected_kind) and BuildingTypes.is_wall(grid.kinds[id]):
 		id = 0  # brama albo wieża na wale lub palisadzie: zastępuje odcinki w linii (po teście na telefonie)
-	if id != 0 and BuildingTypes.is_wall(hud.selected_kind):
+	var length := hud.build_length()
+	if id != 0 and BuildingTypes.is_wall(hud.selected_kind) and length == 1:
 		# palec w wąskiej luce linii umocnień trafił w sąsiedni odcinek: budujemy w luce
 		var gap := grid.gap_near(world_pos, hud.selected_kind, GAP_TAP_TOLERANCE)
 		if gap.x >= 0:
@@ -920,12 +922,15 @@ func _on_tapped(world_pos: Vector2) -> void:
 		hud.message = "Tu stoi %s" % BuildingTypes.NAMES[grid.kinds[id]]
 	else:
 		var kind := hud.selected_kind
-		var result := queue.order_build(grid, economy, cell, kind, _now_ms(), research)
+		var result := queue.order_build(grid, economy, cell, kind, _now_ms(), research, length, hud.segment_vertical)
 		_cursor_ok = result == BuildQueue.Result.OK
 		# przy nieudanej próbie ramka ma kształt pierwszego wariantu (np. pionowej bramy)
 		_cursor = grid.buildings[queue.placed_id] if _cursor_ok else grid.placement_candidates(cell, kind, true)[0]
+		if length > 1:
+			# odcinek wału albo palisady (#371): ramka na wszystkie kratki od dotkniętej
+			_cursor = Rect2i(cell, Vector2i(1, length) if hud.segment_vertical else Vector2i(length, 1))
 		if _cursor_ok:
-			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(_build_time(kind, BuildConfig.start_level(kind), grid.ruler_perk))]
+			hud.message = "Budowa: %s, %s" % [BuildingTypes.NAMES[kind], Hud.format_time(queue.orders.back().duration_ms)]
 			_save()
 		elif result == BuildQueue.Result.NEEDS_TECH:
 			hud.message = _tech_hint(kind)
@@ -959,7 +964,7 @@ func _on_place_requested(kind: int) -> void:
 	hud.overlay = false
 	hud.selected_kind = kind
 	hud.set_building(true)
-	hud.message = build_message(kind, grid.ruler_perk)
+	hud.message = build_message(kind, grid.ruler_perk, hud.build_length())
 	queue_redraw()
 
 
@@ -967,19 +972,22 @@ func _on_place_requested(kind: int) -> void:
 ## budynku z jego kosztem w komunikacie; otwarty przez Buduj wraca do oglądania (review #160).
 func _on_build_panel_closed() -> void:
 	hud.overlay = false
-	hud.message = closed_message(hud.building, hud.selected_kind, grid.ruler_perk)
+	hud.message = closed_message(hud.building, hud.selected_kind, grid.ruler_perk, hud.build_length())
 	queue_redraw()
 
 
-## Komunikat trybu budowy: nazwa, koszt i czas wybranego budynku (z perkiem władcy `perk`).
-static func build_message(kind: int, perk: int = RulerPerks.Perk.NONE) -> String:
-	return "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.cost(kind, BuildConfig.start_level(kind))),
-			Hud.format_time(_build_time(kind, BuildConfig.start_level(kind), perk))]
+## Komunikat trybu budowy: nazwa, koszt i czas wybranego budynku (z perkiem władcy `perk`). Odcinek
+## wału albo palisady z `length` kratek (#371) ma koszt z dopłatą w złocie i czas ×długość.
+static func build_message(kind: int, perk: int = RulerPerks.Perk.NONE, length: int = 1) -> String:
+	var level := BuildConfig.start_level(kind)
+	var n := length if BuildingTypes.is_wall(kind) else 1
+	return "%s: %s, %s" % [BuildingTypes.NAMES[kind], Hud.cost_text(BuildConfig.segment_cost(kind, level, n)),
+			Hud.format_time(_build_time(kind, level, perk) * n)]
 
 
 ## Komunikat po zamknięciu panelu budowy bez Postaw.
-static func closed_message(building: bool, kind: int, perk: int = RulerPerks.Perk.NONE) -> String:
-	return build_message(kind, perk) if building else DEFAULT_MESSAGE
+static func closed_message(building: bool, kind: int, perk: int = RulerPerks.Perk.NONE, length: int = 1) -> String:
+	return build_message(kind, perk, length) if building else DEFAULT_MESSAGE
 
 
 ## Czy Rybak albo Młyn nie staje tylko przez brak wody: ten sam prostokąt bez warunku wody byłby wolny
@@ -1008,6 +1016,13 @@ func _deselect() -> void:
 	_selected_id = 0
 	hud.hide_card()
 	hud.message = DEFAULT_MESSAGE
+	queue_redraw()
+
+
+## Zmiana długości albo orientacji odcinka (#371): koszt i czas w komunikacie, bez starej ramki.
+func _on_segment_changed() -> void:
+	_cursor = Rect2i()
+	hud.message = build_message(hud.selected_kind, grid.ruler_perk, hud.build_length())
 	queue_redraw()
 
 
@@ -2677,6 +2692,8 @@ func _draw() -> void:
 	CastleView.draw_buildings(self, grid, textures, battle_states if battle_view != null and not _on_target_map() else _ruin_states)
 	if not queue.orders.is_empty():
 		_draw_progress(queue.orders[0].building_id)
+		for extra in queue.orders[0].extra_ids:
+			_draw_progress(extra)
 	_draw_seal_gaps()
 	_draw_age_rebuild()
 	var frame := grid.buildings[_selected_id] if _selected_id != 0 else _cursor
