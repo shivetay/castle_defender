@@ -5,12 +5,12 @@ Kolumna „Zastępuje” pokazuje ścieżkę przebudowy. Epoki: [[Epoki]].
 | Budynek | Epoka | Funkcja | Zastępuje |
 | --- | --- | --- | --- |
 | Wał ziemny | I | blokuje ruch, +wysokość dla łuczników | — |
-| Fosa sucha | I | spowalnia wroga o 50%; przechodnia, nie da się jej zburzyć; z O3 kolce 2–6 HP/s według poziomu (#35) | — |
+| Fosa sucha | I | spowalnia wroga o 50%; przechodnia, nie da się jej zburzyć; z O3 kolce 2–6 HP/s według poziomu (#35), w epoce II 7–11 HP/s ([[ADR/0012-premie-szkolenia-fosy-i-kopca-w-epoce-ii|ADR 0012]]) | — |
 | Palisada | I | prosty mur, płonie od ognia | — |
 | Brama drewniana | I | wejście, słaby punkt | — |
 | Komenda umocnień | I | Sprawdź szczelność pierścienia (~1 min), czerwone luki, Domknij wskazaną lukę; wymaga O2 | — |
 | Pomost strzelecki | I | stanowisko 2 łuczników na wale | — |
-| Kopiec (motte) | II | podwyższa wieżę: wieża albo donżon przy Kopcu +1 kratka zasięgu (od poz. 3: +2), strzelcy na Kopcu +1; wymaga O1 (#35) | — |
+| Kopiec (motte) | II | podwyższa wieżę: wieża albo donżon przy Kopcu +1 kratka zasięgu (od poz. 3: +2, od II.4: +3, [[ADR/0012-premie-szkolenia-fosy-i-kopca-w-epoce-ii|ADR 0012]]), strzelcy na Kopcu +1; wymaga O1 (#35) | — |
 | Wieża drewniana | II | strzały w promieniu | pomost strzelecki |
 | Częstokół | II | rani konnicę | — |
 | Mur kurtynowy | III | mocny mur kamienny | palisada |
