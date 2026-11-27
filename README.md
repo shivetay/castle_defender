@@ -967,7 +967,7 @@ ataku na gracza (`bad_plan`), więc trzeba grać z APK z #29 lub nowszego. Stara
 jest w kodzie; migracja `defense_history` i Edge Function `defense_history` są na projekcie.
 Siła celu PvP jako przedział z serwera (#293) jest w kodzie. Migracja `target_strength` i nowe wersje Edge Functions
 `find_targets` i `defense_history` są na projekcie (starsza wersja gry pomija nowe pola).
-Push o ataku (#30, ADR 0012), część serwerowa, jest w kodzie: tabela `push_tokens` (bez dostępu klienta), Edge Function `push_token` i wysyłka przez FCM z `finish_attack`, raz na atak. Migracja `push_tokens`, nowa `push_token`, nowa wersja `finish_attack` i sekret `FCM_SERVICE_ACCOUNT` czekają na wgranie. Wtyczka Android i lokalne powiadomienie o końcu budowy idą w kolejnych PR-ach.
+Push o ataku (#30, ADR 0012), część serwerowa, jest w kodzie: tabela `push_tokens` (bez dostępu klienta), Edge Function `push_token` i wysyłka przez FCM z `finish_attack`, raz na atak. Migracja `push_tokens`, nowa Edge Function `push_token` i nowa wersja `finish_attack` są na projekcie; sekret `FCM_SERVICE_ACCOUNT` czeka na projekt Firebase (bez niego push się nie wysyła). Wtyczka Android i lokalne powiadomienie o końcu budowy idą w kolejnych PR-ach.
 Wymuszenie aktualizacji (#336, ADR 0006) jest w kodzie: progi `min_code` i `recommended_code` z serwera
 (migracja `client_version`), okienko o nowej wersji raz na 24 h, ekran blokady poniżej minimum (także offline,
 z zapamiętaną polityką) i odrzucanie starszych wersji przez Edge Functions i zapisy zamku (`update_required`).

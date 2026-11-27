@@ -122,6 +122,8 @@ select throws_ok($$select public.push_token_register('00000000-0000-0000-0000-00
 reset role;
 
 -- ---- usunięcie konta kasuje tokeny ----
+-- bez claims gracza: wyzwalacz wersji klienta (client_version) nie dotyczy kasowania konta przez serwer
+select set_config('request.jwt.claims', '', true);
 delete from auth.users where id = '00000000-0000-0000-0000-0000000030b1';
 select ok(not exists (select 1 from public.push_tokens where player_id = '00000000-0000-0000-0000-0000000030b1'),
   'tokeny znikają z kontem');
