@@ -58,6 +58,8 @@ signal castle_rejected
 signal version_policy_loaded(policy: ClientVersion.Policy, ok: bool)
 ## Serwer odrzucił wersję gry (`update_required`, HTTP 426): gra ma się zablokować do aktualizacji.
 signal update_required
+## Serwer zapisał token push urządzenia (#30) albo odrzucił go (`ok` false).
+signal push_token_saved(ok: bool)
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -124,6 +126,9 @@ var _scout_call: int = ScoutCall.NONE
 ## Polityka wersji (#336) idzie osobnym połączeniem, naraz jedno żądanie.
 var _version: HTTPRequest
 var _version_pending := false
+## Token push (#30) idzie osobnym połączeniem, naraz jedno żądanie.
+var _push: HTTPRequest
+var _push_pending := false
 ## Serwer odrzucił wersję gry: zamek nie idzie na serwer, dopóki nowe sprawdzenie tego nie zdejmie.
 var update_blocked := false
 var _castle_call: int = CastleCall.NONE
@@ -212,6 +217,10 @@ func _ready() -> void:
 	_version.timeout = TIMEOUT_S
 	add_child(_version)
 	_version.request_completed.connect(_on_version_completed)
+	_push = HTTPRequest.new()
+	_push.timeout = TIMEOUT_S
+	add_child(_push)
+	_push.request_completed.connect(_on_push_completed)
 	session = SupabaseSession.load_from(session_path)
 	connect_now()
 
@@ -455,6 +464,33 @@ func handle_reports(result: int, code: int, body: String) -> void:
 		defense_reports_loaded.emit([] as Array[DefenseLog.Report], false)
 		return
 	defense_reports_loaded.emit(DefenseLog.parse_history(SupabaseConfig.parse_json(body)), true)
+
+
+## Zapis tokenu push urządzenia z przełącznikiem „Ataki” (#30, Edge Function `push_token`); odpowiedź
+## w `push_token_saved`. Id gracza serwer bierze z tokenu konta. False: brak sieci, zły token albo
+## poprzedni zapis jeszcze trwa.
+func save_push_token(token: String, attacks: bool) -> bool:
+	if _push_pending or not is_online() or user_id().is_empty() or not PushNotifications.is_valid_token(token):
+		return false
+	_push_pending = true
+	var body := PushNotifications.save_request(token, attacks)
+	if fake_transport:
+		sent_requests.append({"path": PushNotifications.PATH, "body": body})
+		return true
+	if _push == null:
+		_push_pending = false
+		return false
+	var err := _push.request(config.url + PushNotifications.PATH, rest_headers(), HTTPClient.METHOD_POST,
+			JSON.stringify(body))
+	if err != OK:
+		handle_push(HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	return true
+
+
+## Obsługa odpowiedzi zapisu tokenu (bez sieci, wołana też z testów). Treści nie logujemy.
+func handle_push(result: int, code: int, _body: String) -> void:
+	_push_pending = false
+	push_token_saved.emit(outcome_of(result, code) == Outcome.OK)
 
 
 ## Dane powtórki obrony `attack_id` (#29); odpowiedź w `replay_loaded`. False: brak sieci albo inne
@@ -776,6 +812,11 @@ func _on_defenses_completed(result: int, code: int, _headers: PackedStringArray,
 func _on_reports_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	note_status(code)
 	handle_reports(result, code, body.get_string_from_utf8())
+
+
+func _on_push_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
+	handle_push(result, code, body.get_string_from_utf8())
 
 
 func _attack_send(call: int, path: String, body: Dictionary) -> bool:

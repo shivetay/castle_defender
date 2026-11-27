@@ -13,6 +13,7 @@ Klient sieciowy PvP (Supabase). W kliencie **tylko** klucz publishable/`anon` �
 | `attack_start.gd` | Start ataku: seedy terenu i bitwy, kopie zamku i obrony celu-gracza (#166, #25) |
 | `attack_finish.gd` | Koniec ataku (#25): treść żądania `finish_attack` i łup przyjęty przez serwer |
 | `pending_finish.gd` | Wynik ataku na gracza czekający na serwer w `user://attack_result.json` (#99): przetrwa zamknięcie gry, wraca po połączeniu |
+| `push_notifications.gd` | Push (#30, ADR 0012): wtyczka Androida DunholdPush, kiedy pytać o zgodę, format tokenu i treść zapisu do `push_token` |
 | `defense_log.gd` | Ostatnie obrony gracza (#99): zniszczone budynki z `attacks.destroyed` do odbudowy (`Ruins`); historia obron z Edge Function `defense_history` (#29, #328) |
 | `attack_replay.gd` | Powtórka obrony (#29): kontrakt `attack_replay`, sprawdzenie armii, seedów i wyniku z serwera |
 | `ranking_board.gd` | Rankingi PvP (#27) i PvE (#242): odpowiedź `ranking`, wiersze tabeli |
