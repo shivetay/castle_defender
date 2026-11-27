@@ -393,7 +393,11 @@ func test_gap_with_trap_stays_gap_but_refuses_build() -> bool:
 	var result := q.order_build(g, e, c, g.wall_kind_for_gap(c), 0, _research_all())
 	assert_eq(result, BuildQueue.Result.TRAP, "uszczelnienie odmawia przez pułapkę")
 	assert_eq(q.message(result), "Tu stoi pułapka: Kolczatka", "komunikat z nazwą pułapki")
-	assert_true(PixelFont.text_width(q.message(result)) <= Hud.MESSAGE_MAX_WIDTH, "komunikat mieści się")
+	for k in TrapConfig.count():
+		q.blocking_trap = k
+		assert_true(PixelFont.text_width(q.message(result)) <= Hud.MESSAGE_MAX_WIDTH,
+				"%s: komunikat mieści się" % TrapConfig.NAMES[k])
+	q.blocking_trap = TK.CALTROPS
 	assert_eq(e.amounts, before, "odmowa nic nie kosztuje")
 	assert_eq(q.message(BuildQueue.Result.NO_PLACE), "Tu nie można budować", "inne przeszkody bez zmian")
 	return true
