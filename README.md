@@ -515,6 +515,10 @@ w sekcji „Następny etap”.
     murze, a kolejni z oddziału na sąsiednich odcinkach tej linii (reszta pod murem). Ma +1 kratkę zasięgu
     i 60% obrażeń od strzał, a wręcz dosięgnie go tylko atakujący po drabinie. Gdy odcinek padnie, zostaje
     na gruzie i walczy z ziemi; złamany schodzi z muru i wycofuje się pod donżon. Liczby tymczasowe.
+  - **Obrona murów** (#399, ADR 0016): jawne zadanie stanowiska na murze, od epoki I. Strzelcy stają na
+    wale, palisadzie, wieży albo Kopcu jak z Obroną odcinka na murze (to też ich zadanie domyślne). Piechota
+    lekka i ciężka staje tylko na wale i palisadzie: nie strzela, bije wręcz tylko wroga, który wszedł po
+    drabinie, nie ma premii zasięgu, a od strzał dostaje 60% obrażeń. Konnica i specjalni tego zadania nie mają.
   - **Wypad konnicy** (od epoki II, jak w notatce): konnica czeka tuż za wskazaną bramą. Gdy atakujący
     podejdzie na 2 kratki do bramy albo brama padnie, wychodzi przez nią (własna brama to dla niej
     przejście), bije wrogów do 6 kratek od bramy i wraca. Liczby tymczasowe.
