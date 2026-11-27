@@ -1,7 +1,7 @@
 // start_attack (#166, #25): start ataku po stronie serwera. Id atakującego idzie wyłącznie z tokenu.
 // Całą walidację i zapis robi `public.begin_attack` w jednej transakcji (migracje *_finish_attack.sql
 // i *_army_limits.sql): limit 10 startów na 10 minut, armia nie większa niż w zamku atakującego
-// i w jego limicie miejsc oraz utrzymania żywności (#249), cel bez tarczy, w zasięgu epoki
+// i w jego limicie miejsc oraz utrzymania żywności (#249), cel bez tarczy, z tej samej epoki (#383)
 // i rankingu, nieatakowany przez niego w 24 h i bez innego ataku w toku (blokada celu).
 // Odpowiedź: id ataku, seed terenu obrońcy (`map_seed`) osobno od seeda bitwy (`battle_seed`). Przy
 // ataku na gracza (#28, pełne ukrycie obrony) tylko zarys budynków, donżon i to, co odsłonił ostatni

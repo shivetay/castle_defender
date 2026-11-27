@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(49);
+select plan(50);
 
 -- A = 5c01 (zwiadowca: Chata tropicieli 22, S1, 3 Tropicieli 5 i 4 Zwiadowców 14), B = 5c02 (cel),
 -- C = 5c03 (bez Chaty), D = 5c04 (Chata bez S1), E = 5c05 (Chata i S1 bez zwiadowców),
@@ -62,6 +62,9 @@ insert into public.castles (player_id, map_seed, save_version, data) values
 insert into public.defense_layouts (player_id, save_version, data) values
   ('00000000-0000-0000-0000-000000005c02', 10, '{"orders": [[1, 0, 11, 11, []], [2, 1, 21, 19, [[30, 30]]]],
     "traps": [[0, 12, 12, 0], [1, 25, 25, 0]], "tower_priority": 0}');
+-- #383: zwiad tylko w tej samej epoce; A ma Dwór 6 (epoka II), więc cele też są w epoce II (G zostaje w epoce 3)
+update public.players set age = 1 where id in (select id from scout_ids)
+  and id <> '00000000-0000-0000-0000-000000005c07';
 
 -- ---- klient nie woła funkcji zwiadu i nie czyta misji ----
 set local role authenticated;
@@ -98,7 +101,16 @@ select throws_ok($$select * from public.begin_scout('00000000-0000-0000-0000-000
 select throws_ok($$select * from public.begin_scout('00000000-0000-0000-0000-000000005c01',
   '00000000-0000-0000-0000-000000005c02', 0::smallint, -1)$$, 'P0001', 'bad_seed', 'zły seed');
 select throws_ok($$select * from public.begin_scout('00000000-0000-0000-0000-000000005c01',
-  '00000000-0000-0000-0000-000000005c07', 0::smallint, 0)$$, 'P0001', 'target_out_of_range', 'cel poza epoką ±1');
+  '00000000-0000-0000-0000-000000005c07', 0::smallint, 0)$$, 'P0001', 'target_out_of_range', 'cel z innej epoki (#383)');
+-- #383: epoka −1 też poza zasięgiem (B na chwilę w epoce I)
+reset role;
+update public.players set age = 0 where id = '00000000-0000-0000-0000-000000005c02';
+set local role service_role;
+select throws_ok($$select * from public.begin_scout('00000000-0000-0000-0000-000000005c01',
+  '00000000-0000-0000-0000-000000005c02', 0::smallint, 0)$$, 'P0001', 'target_out_of_range', 'cel z epoki −1 (#383)');
+reset role;
+update public.players set age = 1 where id = '00000000-0000-0000-0000-000000005c02';
+set local role service_role;
 select throws_ok($$select * from public.begin_scout('00000000-0000-0000-0000-000000005c01',
   '00000000-0000-0000-0000-000000005c08', 0::smallint, 0)$$, 'P0001', 'target_not_found', 'cel bez zamku');
 

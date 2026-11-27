@@ -1,6 +1,6 @@
 -- Testy doboru przeciwnika (#24), uruchamiane przez `supabase test db` (pgTAP).
 -- Kryteria: klient nie wywoła `match_targets` (czyta cudze zamki), serwer dostaje najwyżej 3 graczy
--- bez tarczy, z epoką ±1 i rankingiem ±100, nieatakowanych przez niego w 24 h, bez siebie samego;
+-- bez tarczy, z tej samej epoki (#383) i z rankingiem ±100, nieatakowanych przez niego w 24 h, bez siebie samego;
 -- karta dostaje sam zarys budynków i zaokrąglony szacowany łup.
 begin;
 create extension if not exists pgtap with schema extensions;
@@ -48,7 +48,8 @@ insert into auth.users (id) select id from test_ids;
 update public.players set rating = 50000, age = 0 where id in (select id from test_ids);
 update public.players set nickname = 'Bolko' where id = '00000000-0000-0000-0000-0000000000b1';
 update public.players set rating = 50100 where id = '00000000-0000-0000-0000-0000000000a2';
-update public.players set rating = 49900, age = 1 where id = '00000000-0000-0000-0000-0000000000a4';
+update public.players set rating = 49900 where id = '00000000-0000-0000-0000-0000000000a4';
+-- #383: epoka +1 już nie pasuje, przypadki w same_age_matching_test.sql
 update public.players set age = 2 where id = '00000000-0000-0000-0000-0000000000d1';
 update public.players set rating = 50200 where id = '00000000-0000-0000-0000-0000000000e1';
 update public.players set rating = 51000 where id = '00000000-0000-0000-0000-0000000000a6';
@@ -109,7 +110,7 @@ select results_eq(
   $$select player_id from public.match_targets('00000000-0000-0000-0000-0000000000a1') order by player_id$$,
   $$values ('00000000-0000-0000-0000-0000000000a2'::uuid), ('00000000-0000-0000-0000-0000000000a4'::uuid),
     ('00000000-0000-0000-0000-0000000000b1'::uuid)$$,
-  'dobór: B, G (atak sprzed 25 h), I (wygasła tarcza, epoka +1, ranking -100)');
+  'dobór: B, G (atak sprzed 25 h), I (wygasła tarcza, ranking -100)');
 select is_empty(
   $$select 1 from public.match_targets('00000000-0000-0000-0000-0000000000a1')
     where player_id = '00000000-0000-0000-0000-0000000000a1'$$,

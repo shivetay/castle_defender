@@ -108,7 +108,9 @@ insert into public.castles (player_id, map_seed, save_version, data) values
   ('00000000-0000-0000-0000-0000000032a1', 3232, 12, pg_temp.castle('["A60", "A61"]', true)),
   ('00000000-0000-0000-0000-0000000032b1', 3232, 12, pg_temp.castle('[]'));
 set local session_replication_role = origin;
-update public.players set age = 1 where id = '00000000-0000-0000-0000-0000000032a1';
+-- #383: atak tylko w tej samej epoce, więc B też jest w epoce II
+update public.players set age = 1 where id in ('00000000-0000-0000-0000-0000000032a1',
+  '00000000-0000-0000-0000-0000000032b1');
 
 set local role service_role;
 create temp table started on commit drop as

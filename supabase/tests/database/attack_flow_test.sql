@@ -86,7 +86,7 @@ select throws_ok(
   'P0001', 'target_shielded', 'cel z tarczą odrzucony');
 select throws_ok(
   $$select * from public.begin_attack('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000d4', null, '[[0, 10]]', 1)$$,
-  'P0001', 'target_out_of_range', 'cel spoza epoki ±1 odrzucony');
+  'P0001', 'target_out_of_range', 'cel z innej epoki odrzucony (#383)');
 select throws_ok(
   $$select * from public.begin_attack('00000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-0000000000d5', null, '[[0, 10]]', 1)$$,
   'P0001', 'target_not_found', 'zamek bez nazwy nie jest celem');

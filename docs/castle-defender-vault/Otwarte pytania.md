@@ -16,6 +16,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Wymuszenie aktualizacji (26.11.2026, #336): komunikat o nowej wersji ze sklepem i blokada gry poniżej minimum z serwera, także offline; serwer odrzuca starsze klienty. [[ADR/0006-wymuszenie-aktualizacji-wersji-klienta|ADR 0006]].
 - Wersja symulacji ataku (27.11.2026, #354): klient podaje ją przy zatwierdzeniu ataku, a wersja bez packa na serwerze blokuje atak z komunikatem o aktualizacji. [[ADR/0008-wersja-symulacji-ataku-z-klienta|ADR 0008]].
 - Pierwsza passa balansu i premie poziomów 6–10 (27.11.2026, #262): ciągła krzywa kosztu i czasu przez 10 poziomów, premie epoki II rosną dalej (tablice do poziomu 10), Dwór II.1–II.5 z własnej tabeli; z Opcji C z [[Balans]] została zasada reklam i sklepu, reszta odrzucona. Liczby tymczasowe. [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]].
+- Dobór PvP (27.11.2026, #383): dobór, zwiad i start ataku tylko w tej samej epoce; bez graczy w epoce karty uzupełniają boty z Wyprawy jak dotąd. [[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce|ADR 0010]].
 
 ## Pytania otwarte
 

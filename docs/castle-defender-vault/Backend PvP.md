@@ -7,7 +7,7 @@ Asynchroniczne PvP wymaga serwera, który przechowuje zamki i układy obrony, do
 | Logowanie | Supabase Auth: konto anonimowe przy pierwszym uruchomieniu, potem powiązanie z Google |
 | Połączenie z grą | `HTTPRequest` w Godot do REST i RPC Supabase (bez wtyczek) |
 | Dane | Postgres: `players`, `castles` (układ budynków w JSON + wersja + `map_seed`, losowy seed terenu gracza), `defense_layouts`, `attacks` (seed, rozkazy, wynik), `shields` |
-| Dobór przeciwnika | funkcja RPC w Postgres: bez tarczy, epoka ±1, ranking ±100, nie atakowany przez Ciebie w ostatnich 24 h |
+| Dobór przeciwnika | funkcja RPC w Postgres: bez tarczy, ta sama epoka ([[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce\|ADR 0010]]), ranking ±100, nie atakowany przez Ciebie w ostatnich 24 h |
 | Przebieg ataku | Edge Function `start_attack` blokuje cel i zwraca kopię obrony, seed terenu obrońcy i seed bitwy; `finish_attack` zapisuje wynik, łup i tarczę |
 | Powiadomienia | Firebase Cloud Messaging wywoływany z Edge Function („Twój zamek został zaatakowany”) |
 | Powtórki | zapis seeda i rozkazów; powtórka to ponowne uruchomienie symulacji, nie nagranie wideo |
