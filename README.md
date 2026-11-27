@@ -576,7 +576,7 @@ w sekcji „Następny etap”.
     od nowa” nadpisuje zamek na serwerze, gra sprzed #23 z postępem wysyła swój zamek, a zamku
     zapisanego nowszą wersją gry (`save_version` wyższa niż nasza) klient nie rusza.
   - **Dobór przeciwnika (#24, `TargetSearch`):** Edge Function `find_targets` bierze id gracza z tokenu
-    i woła `match_targets`: do 3 graczy bez aktywnej tarczy, z epoką ±1 i rankingiem ±100, z zamkiem
+    i woła `match_targets`: do 3 graczy bez aktywnej tarczy, z tej samej epoki (#383, ADR 0010) i z rankingiem ±100, z zamkiem
     po onboardingu, których gracz nie atakował w ostatnich 24 h, w losowej kolejności. Funkcję SQL
     może wykonać tylko serwer (`service_role`), najwyżej 20 razy na 10 minut na gracza (potem 429
     i same boty z napisem „Za często”). Odpowiedź ma nick, nazwę zamku, władcę, epokę, ranking,
