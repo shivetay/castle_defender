@@ -953,10 +953,11 @@ z technologiami O1, G1 i A7, budynki wchodzą w epokę II z poziomu 5 i trzymaj�
 (`players.age`, ranking i dobór przeciwnika) zajmuje się migracja `castle_age`: po każdym zapisie zamku
 serwer podnosi epokę do II, gdy zapis ma Dwór na poziomie 6+ i zbadane O1, G1, A7. Epoka tylko
 rośnie, a klient nadal nie ma do niej uprawnień. Migracja `castle_age` jest na projekcie. Balans epoki II (#262, ADR 0009:
-ciągła krzywa kosztu i czasu, premie poziomów 6–10) jest w kodzie; migracja `age_two_balance` czeka na wgranie
-**tego samego dnia co wydanie klienta** i z podniesieniem `min_code` od razu, nie po 48 h (decyzja właścicielki #262, wyjątek od `docs/PO-WYDANIU.md` §6): starsza wersja gry płaci
-za budowę epoki II mniej i buduje krócej, niż wymaga nowy serwer, więc jej zapis z nowym poziomem epoki II
-trafi na odrzut i przywrócenie zamku z serwera.
+ciągła krzywa kosztu i czasu, premie poziomów 6–10) jest w kodzie, a migracja `age_two_balance` jest na projekcie (27.11.2026, na prośbę właścicielki, przed
+wydaniem; w epoce II nie było wtedy żadnego gracza). Starsza wersja gry płaci za budowę epoki II mniej
+i buduje krócej, niż wymaga serwer, więc jej zapis z nowym poziomem epoki II trafi na odrzut i przywrócenie
+zamku z serwera; dlatego przy wydaniu klienta z #262 `min_code` podnosi się od razu, bez zwykłych 48 h
+(decyzja właścicielki, wyjątek od `docs/PO-WYDANIU.md` §6), a wydanie dostaje nowy `sim_version` (ADR 0008).
 Życie w zamku (#36) jest w kodzie; płynność na słabszym telefonie (próg 30 FPS) i czytelność nocy
 zostają do ręcznego testu. Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
 Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
