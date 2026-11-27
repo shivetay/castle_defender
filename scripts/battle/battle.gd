@@ -261,9 +261,9 @@ static func create_squads(grid: BuildGrid, objective_id: int, attackers: Array, 
 			points.append(b._walkable_near(p))
 		b._patrol[i + 1] = points
 		if o.task == DefensePlan.Task.SORTIE:
-			b._sortie_gate[i + 1] = b._gate_near(o.post)
+			b._sortie_gate[i + 1] = b._beside(o.post, BuildingTypes.Kind.GATE)
 		if o.task == DefensePlan.Task.FIREFIGHT:
-			b._fire_well[i + 1] = b._well_near(o.post)
+			b._fire_well[i + 1] = b._beside(o.post, BuildingTypes.Kind.WELL)
 	b._spawn_squads(defenders, Side.DEFENDER, home, anchors)
 	var beloved := RulerPerks.beloved_morale(b.ruler_perk(Side.DEFENDER))
 	if beloved > 0:
@@ -1801,18 +1801,14 @@ func _step_down(f: Fighter) -> void:
 	f.path.clear()
 
 
-## Brama najbliżej kratki `c` (żywa, przy remisie niższe id) albo 0.
-func _gate_near(c: Vector2i) -> int:
+## Żywy budynek rodzaju `kind`, z którym kratka `c` styka się bokiem (przy kilku najniższe id), albo 0:
+## brama Wypadu i Studnia Gaszenia (#379). Plan obrony dopuszcza tylko takie miejsca (DefensePlan.beside_id).
+func _beside(c: Vector2i, kind: int) -> int:
 	var best := 0
-	var best_d := -1
 	for id: int in structures:
 		var s := structures[id]
-		if s.kind != BuildingTypes.Kind.GATE or s.hp <= 0:
-			continue
-		var d := (s.rect.get_center() - c).length_squared()
-		if best_d < 0 or d < best_d or (d == best_d and id < best):
+		if s.kind == kind and s.hp > 0 and DefensePlan.touches_side(s.rect, c) and (best == 0 or id < best):
 			best = id
-			best_d = d
 	return best
 
 
@@ -2163,21 +2159,6 @@ func _moat_spikes() -> void:
 		var c := f.cell()
 		if moat.has(c):
 			_hurt(f, BattleConfig.moat_spike_damage(moat[c]))
-
-
-## Studnia najbliżej kratki `c` (żywa, przy remisie niższe id) albo 0.
-func _well_near(c: Vector2i) -> int:
-	var best := 0
-	var best_d := -1
-	for id: int in structures:
-		var s := structures[id]
-		if s.kind != BuildingTypes.Kind.WELL or s.hp <= 0:
-			continue
-		var d := (s.rect.get_center() - c).length_squared()
-		if best_d < 0 or d < best_d or (d == best_d and id < best):
-			best = id
-			best_d = d
-	return best
 
 
 ## Płonący żywy budynek najbliżej Studni `well` i najwyżej FIREFIGHT_RADIUS kratek od niej (środek do

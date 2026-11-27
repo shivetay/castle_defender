@@ -260,6 +260,10 @@ static func order_allowed(grid: BuildGrid, o: Order, unit_class: int, age: int =
 		return false
 	if o.post == NO_POST or o.task == Task.KEEP or o.task == Task.GARRISON:
 		return true
+	if o.task == Task.FIREFIGHT and beside_id(grid, o.post, BuildingTypes.Kind.WELL) == 0:
+		return false  # Gaszenie tuż przy Studni (#379)
+	if o.task == Task.SORTIE and beside_id(grid, o.post, BuildingTypes.Kind.GATE) == 0:
+		return false  # Wypad tuż przy bramie (#379)
 	for p in o.patrol_points():
 		if post_problem(grid, p).is_empty():
 			continue
@@ -452,13 +456,34 @@ static func section_post(grid: BuildGrid, id: int) -> Vector2i:
 	for y in range(g.position.y, g.end.y):
 		for x in range(g.position.x, g.end.x):
 			var p := Vector2i(x, y)
-			var beside := (x >= r.position.x and x < r.end.x) or (y >= r.position.y and y < r.end.y)
-			if r.has_point(p) or not beside or not post_problem(grid, p).is_empty():
+			if not touches_side(r, p) or not post_problem(grid, p).is_empty():
 				continue
 			var d := (p - c).length_squared()
 			if best_d < 0 or d < best_d:
 				best = p
 				best_d = d
+	return best
+
+
+## Czy kratka `p` leży poza prostokątem `r` i styka się z nim bokiem (nie po skosie).
+static func touches_side(r: Rect2i, p: Vector2i) -> bool:
+	if r.has_point(p) or not r.grow(1).has_point(p):
+		return false
+	return (p.x >= r.position.x and p.x < r.end.x) or (p.y >= r.position.y and p.y < r.end.y)
+
+
+## Gotowy budynek rodzaju `kind` (poziom ≥ 1) w strefie obrony, z którym wolna kratka `cell` styka się
+## bokiem (przy kilku najniższe id), albo 0. Miejsce Gaszenia przy Studni i Wypadu przy bramie (#379).
+static func beside_id(grid: BuildGrid, cell: Vector2i, kind: int) -> int:
+	if not post_problem(grid, cell).is_empty():
+		return 0
+	var z := zone(grid)
+	var best := 0
+	for id: int in grid.buildings:
+		if grid.kinds[id] != kind or grid.levels[id] < 1 or not z.intersects(grid.buildings[id]):
+			continue
+		if touches_side(grid.buildings[id], cell) and (best == 0 or id < best):
+			best = id
 	return best
 
 
