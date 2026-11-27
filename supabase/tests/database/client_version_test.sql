@@ -1,4 +1,4 @@
--- Testy wymuszenia aktualizacji (#336, ADR 0005), uruchamiane przez `supabase test db` (pgTAP).
+-- Testy wymuszenia aktualizacji (#336, ADR 0006), uruchamiane przez `supabase test db` (pgTAP).
 -- Kryteria: klient czyta progi wersji tylko przez `client_version_policy()` i nie zmieni ich; zapis
 -- zamku, obrony i gracza z wersją klienta (nagłówek `x-client-version`) poniżej `min_code` albo bez
 -- nagłówka kończy się błędem `update_required` (HTTP 426 w PostgREST), a serwer (service_role,

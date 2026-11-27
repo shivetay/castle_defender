@@ -15,7 +15,7 @@ Edge Functions (Deno / TypeScript) wywoływane z klienta lub crona.
 | `ranking/` | Ranking PvP (#27) i PvE (#242): woła `pvp_ranking` (atak albo obrona) albo `pve_ranking` (`pve`) z id gracza z tokenu, zwraca 20 najlepszych z jego epoki i jego wiersz |
 | `pve_wave/` | Fala PvE (#288): start (`begin_wave`, fala od postępu serwera, jedna naraz, 10 startów na 10 minut) i koniec (`end_wave`, wygrana najwcześniej po 5 s, wynik do 10 minut); nagrodę za wygraną dopisuje serwer do `castle_loot_pending`, ponowienie zwraca zapisany wynik |
 
-`_shared/client_version.ts` (#336, ADR 0005): każda funkcja po sprawdzeniu tokenu odpowiada 426
+`_shared/client_version.ts` (#336, ADR 0006): każda funkcja po sprawdzeniu tokenu odpowiada 426
 `{"error": "update_required"}`, gdy nagłówek `X-Client-Version` jest niższy niż `min_code` z
 `client_version_policy()` albo go brak. Zmiana w `_shared/` oznacza wgranie wszystkich funkcji.
 

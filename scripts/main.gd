@@ -81,7 +81,7 @@ var identity: PlayerProfile.Identity
 var onboarding: OnboardingPanel
 ## Zasłona ładowania przy synchronizacji z serwerem (#316), na własnej warstwie nad całym UI.
 var sync_loader: SyncLoaderPanel
-## Okno aktualizacji (#336, ADR 0005): komunikat o nowej wersji albo blokada gry.
+## Okno aktualizacji (#336, ADR 0006): komunikat o nowej wersji albo blokada gry.
 var update_panel: UpdatePanel
 var _update_layer: CanvasLayer
 ## Ostatnia polityka wersji z serwera (z `user://version_policy.json` do pierwszej odpowiedzi); null: nigdy.

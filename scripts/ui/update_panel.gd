@@ -1,6 +1,6 @@
 class_name UpdatePanel
 extends Node2D
-## Okno aktualizacji gry (#336, ADR 0005), nad wszystkim innym, także nad zasłoną ładowania.
+## Okno aktualizacji gry (#336, ADR 0006), nad wszystkim innym, także nad zasłoną ładowania.
 ## SOFT: komunikat o nowej wersji na przyciemnionym zamku; Aktualizuj otwiera sklep, oba przyciski zamykają.
 ## HARD: pełny ekran blokady; Aktualizuj otwiera sklep, Sprawdź ponownie pyta serwer jeszcze raz.
 ## Blokady nie da się zamknąć. Okno samo obsługuje dotyk, więc nic nie trafia do kamery ani do HUD.

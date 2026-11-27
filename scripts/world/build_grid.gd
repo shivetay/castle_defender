@@ -740,6 +740,15 @@ func is_vertical(id: int) -> bool:
 	return buildings.has(id) and buildings[id].size.y > buildings[id].size.x
 
 
+## Obrys budynku `id` do rysunku (BuildingArt.make_image, `cells`): zapisany prostokąt, a dla bramy
+## w pionowej linii jej obrys bez obrotu. Budynek ze starszego zapisu ma tu stary rozmiar (#340).
+func cells_of(id: int) -> Vector2i:
+	if not buildings.has(id):
+		return Vector2i.ZERO
+	var s := buildings[id].size
+	return Vector2i(s.y, s.x) if kinds[id] == BuildingTypes.Kind.GATE and s.y > s.x else s
+
+
 func _is_palisade(c: Vector2i) -> bool:
 	var id := building_at(c)
 	return id != 0 and BuildingTypes.is_wall(kinds[id])

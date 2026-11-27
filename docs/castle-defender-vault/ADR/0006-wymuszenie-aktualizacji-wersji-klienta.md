@@ -1,8 +1,10 @@
-# ADR 0005: Wymuszenie aktualizacji wersji klienta
+# ADR 0006: Wymuszenie aktualizacji wersji klienta
 
 - **Status:** przyjęty
 - **Data:** 2026-11-26
 - **Issue:** #336
+- **Numer:** pierwotnie 0005, zmieniony na 0006 po scaleniu ADR 0005 o rozmiarach budynków (#340). Wgrane na projekt
+  migracja `client_version` i `_shared/client_version.ts` w komentarzach nadal mówią „ADR 0005”.
 
 ## Kontekst
 

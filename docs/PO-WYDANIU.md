@@ -248,7 +248,7 @@ Na koniec zamknij issues, które to wydanie domknęło.
 **Gdzie:** Supabase → SQL Editor. Dopiero gdy nowa wersja jest w Play (krok 4).
 
 Gra porównuje swój kod wersji (`$SIM`, np. 600 dla 0.6.0) z dwoma progami w `public.client_versions`
-(#336, ADR 0005):
+(#336, ADR 0006):
 
 - `recommended_code`: starsza wersja dostaje okienko „Dostępna nowa wersja” z linkiem do sklepu
   (najwyżej raz na 24 h), ale gra dalej;

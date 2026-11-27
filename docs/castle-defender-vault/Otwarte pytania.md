@@ -5,6 +5,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 ## Ustalone
 
 - Bitwą nikt nie steruje (działa plan); klany i sojusze w późniejszych wersjach; gra darmowa z dobrowolnymi reklamami.
+- **Czy każdy budynek ma 2×2?** Nie: Koszary 3×3, budynki wojska, Magazyn i pola 3×2, stare budynki w starym rozmiarze (#340, 26.11.2026, [[ADR/0005-rozmiary-budynkow|ADR 0005]]).
 - **Ile oddziałów w planie ataku?** 3 w epoce I, potem 4 / 5 / 6 / 7 / 8 do epoki VI (`AttackPlan`, 16.11.2026).
 - Celem ataku jest donżon (Wieża grodowa od epoki I), nie Dwór (#120).
 - Gaszenie pożarów + Studnia weszły z #35 / #20.
@@ -12,7 +13,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Przejście I → II: Dwór 5 + O1 + G1 + A7; przebudowa L6; budynki max→lvl1 z bonusami (#34 / #261). **Liczby tymczasowe** → #262 / [[Balans]].
 - Historia obron (26.11.2026, #328): okno po połączeniu z liczbą ataków, lista z nickiem i siłą armii atakującego z serwera; siła obrony atakującego odłożona do #293. [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika|ADR 0003]].
 - Siła celu PvP (26.11.2026, #293): serwer liczy siłę obrony z własnej kopii zamku, karta celu, karta bota i historia obron pokazują tylko przedział o stałych granicach, także po zwiadzie. [[ADR/0004-sila-celu-pvp-przedzial-z-serwera|ADR 0004]].
-- Wymuszenie aktualizacji (26.11.2026, #336): komunikat o nowej wersji ze sklepem i blokada gry poniżej minimum z serwera, także offline; serwer odrzuca starsze klienty. [[ADR/0005-wymuszenie-aktualizacji-wersji-klienta|ADR 0005]].
+- Wymuszenie aktualizacji (26.11.2026, #336): komunikat o nowej wersji ze sklepem i blokada gry poniżej minimum z serwera, także offline; serwer odrzuca starsze klienty. [[ADR/0006-wymuszenie-aktualizacji-wersji-klienta|ADR 0006]].
 
 ## Pytania otwarte
 

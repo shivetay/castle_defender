@@ -82,11 +82,14 @@ static func draw_mound(img: Image, level: int) -> void:
 		PixelCanvas.pennant(img, Vector2i(7, 6), Palette.ACCENT)
 
 
-## Pole i spichlerz (2×2): pole zboża w rzędach i spichlerz pod strzechą w rogu. Poziomy: 1 grządka
+## Pole i spichlerz (3×2, #340): pole zboża w rzędach i spichlerz pod strzechą w rogu. Poziomy: 1 grządka
 ## z zielonym zbożem i mały spichlerz, 2 całe pole, 3 zboże dojrzewa (złote), 4 większy spichlerz
 ## na palach, 5 snopy na skraju pola.
 static func draw_farm(img: Image, level: int) -> void:
-	var field := Rect2i(1, 7, 14, 8) if level >= 2 else Rect2i(1, 9, 9, 6)
+	# większe pole (#340): pole sięga prawego i dolnego brzegu, spichlerz stoi w prawym górnym rogu
+	var size := img.get_size()
+	var extra := size - Vector2i(16, 16)
+	var field := Rect2i(1, 7, size.x - 2, size.y - 8) if level >= 2 else Rect2i(1, 9 + extra.y, 9, 6)
 	for y in range(field.position.y, field.end.y):
 		for x in range(field.position.x, field.end.x):
 			PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
@@ -96,7 +99,7 @@ static func draw_farm(img: Image, level: int) -> void:
 		for x in range(field.position.x, field.end.x):
 			PixelCanvas.px(img, x, y, grain if PixelCanvas.hash2(x, y, 223) % 3 != 0 else stalk)
 	# spichlerz: korpus z desek i dach dwuspadowy z kalenicą wzdłuż
-	var barn := Rect2i(8, 1, 7, 5) if level < 4 else Rect2i(6, 1, 9, 6)
+	var barn := Rect2i(8 + extra.x, 1, 7, 5) if level < 4 else Rect2i(6 + extra.x, 1, 9, 6)
 	if level >= 4:
 		# pale pod spichlerzem (chronią zboże przed wilgocią i myszami)
 		for c: Vector2i in [Vector2i(barn.position.x, barn.end.y), Vector2i(barn.end.x - 1, barn.end.y)]:
@@ -157,11 +160,14 @@ static func draw_well(img: Image, level: int) -> void:
 		PixelCanvas.px(img, 12, 3, Palette.ACCENT)
 
 
-## Kamieniołom (2×2): wyrobisko schodzące tarasami w głąb, z ciosami gotowymi do wywózki. Poziomy:
+## Kamieniołom (3×2, #340): wyrobisko schodzące tarasami w głąb, z ciosami gotowymi do wywózki. Poziomy:
 ## 1 płytkie wyrobisko, 2 drugi taras i stos ciosów, 3 żuraw z bali, 4 rampa z deskami do wywózki,
 ## 5 drugi stos ciosów i proporzec na żurawiu.
 static func draw_quarry(img: Image, level: int) -> void:
-	var pit := Rect2i(1, 1, 14, 14) if level >= 2 else Rect2i(2, 2, 11, 11)
+	# większe wyrobisko (#340): ciosy i pomost przy prawym i dolnym brzegu
+	var size := img.get_size()
+	var extra := size - Vector2i(16, 16)
+	var pit := Rect2i(1, 1, size.x - 2, size.y - 2) if level >= 2 else Rect2i(2, 2, 11 + extra.x, 11 + extra.y)
 	for y in range(pit.position.y, pit.end.y):
 		for x in range(pit.position.x, pit.end.x):
 			var edge := mini(mini(x - pit.position.x, pit.end.x - 1 - x), mini(y - pit.position.y, pit.end.y - 1 - y))
@@ -178,7 +184,7 @@ static func draw_quarry(img: Image, level: int) -> void:
 				col = Palette.SHADOW  # szczelina w skale
 			PixelCanvas.px(img, x, y, col)
 	if level >= 2:
-		_blocks(img, Vector2i(10, 10))
+		_blocks(img, Vector2i(10, 10) + extra)
 	if level >= 3:
 		# żuraw: słup w rogu i wysięgnik nad wyrobiskiem
 		PixelCanvas.rect(img, Rect2i(2, 2, 2, 2), Palette.WOOD[1])
@@ -186,9 +192,9 @@ static func draw_quarry(img: Image, level: int) -> void:
 			PixelCanvas.px(img, 4 + i, 4 + i / 2, Palette.WOOD[2])
 		PixelCanvas.px(img, 10, 7, Palette.WOOD[0])  # hak z liną
 	if level >= 4:
-		PixelCanvas.deck(img, Rect2i(12, 2, 3, 6), false, Palette.WOOD, 257)
+		PixelCanvas.deck(img, Rect2i(12 + extra.x, 2, 3, 6), false, Palette.WOOD, 257)
 	if level == 5:
-		_blocks(img, Vector2i(3, 11))
+		_blocks(img, Vector2i(3, 11 + extra.y))
 		PixelCanvas.pennant(img, Vector2i(2, 1), Palette.ACCENT)
 
 

@@ -22,22 +22,37 @@ static func art_level(level: int, kind: int = -1) -> int:
 	return clampi(level, 0, BuildingTypes.MAX_LEVEL + 1)
 
 
-static func key(kind: int, level: int, state: int, mask: int, vertical: bool = false, lean: int = 0) -> int:
-	return ((((kind * 16 + level) * 4 + state) * 16 + mask) * 2 + (1 if vertical else 0)) * 5 + lean
+## `cells` (obrys w kratkach, BuildingArt.footprint) odróżnia budynek ze starszego zapisu w starym
+## rozmiarze od nowego (#340). Każdy bok mieści się w 0–7 kratkach.
+static func key(kind: int, level: int, state: int, mask: int, vertical: bool = false, lean: int = 0,
+		cells: Vector2i = Vector2i.ZERO) -> int:
+	var c := BuildingArt.footprint(kind, cells)
+	var k := ((((kind * 16 + level) * 4 + state) * 16 + mask) * 2 + (1 if vertical else 0)) * 5 + lean
+	return (k * 8 + c.x) * 8 + c.y
 
 
-## Tekstura budynku. Maska N/E/S/W liczy się tylko dla wału i palisady, `vertical` tylko dla bramy.
-## `lean`: przybudówka przy murze (BuildingArt.Lean, #149), tylko dla rodzajów z BuildingArt.can_lean.
-func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
-		vertical: bool = false, lean: int = 0) -> ImageTexture:
+## Klucz cache dla wariantu po sprowadzeniu parametrów do tych, od których zależy rysunek.
+static func _key_of(kind: int, level: int, state: int, mask: int, vertical: bool, lean: int, cells: Vector2i) -> int:
 	var m := mask if BuildingTypes.is_wall(kind) else 0
 	var v := vertical and kind == BuildingTypes.Kind.GATE
 	var lv := art_level(level, kind)
 	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
-	var k := key(kind, lv, state, m, v, ln)
+	return key(kind, lv, state, m, v, ln, cells)
+
+
+## Tekstura budynku. Maska N/E/S/W liczy się tylko dla wału i palisady, `vertical` tylko dla bramy.
+## `lean`: przybudówka przy murze (BuildingArt.Lean, #149), tylko dla rodzajów z BuildingArt.can_lean.
+## `cells`: obrys budynku w kratkach (BuildGrid.cells_of, #340); zero to rozmiar rodzaju.
+func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
+		vertical: bool = false, lean: int = 0, cells: Vector2i = Vector2i.ZERO) -> ImageTexture:
+	var m := mask if BuildingTypes.is_wall(kind) else 0
+	var v := vertical and kind == BuildingTypes.Kind.GATE
+	var lv := art_level(level, kind)
+	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
+	var k := key(kind, lv, state, m, v, ln, cells)
 	var tex: ImageTexture = _cache.get(k)
 	if tex == null:
-		var img := BuildingArt.make_image(kind, lv, state, m, v, ln)
+		var img := BuildingArt.make_image(kind, lv, state, m, v, ln, BuildingArt.footprint(kind, cells))
 		tex = ImageTexture.create_from_image(img)
 		_cache[k] = tex
 		_used[k] = img.get_used_rect()
@@ -47,13 +62,9 @@ func draw_building(kind: int, level: int, state: int = BuildingTypes.State.INTAC
 
 ## Proporce tekstury budynku (#36), w pikselach obrazu. Zburzony budynek zwykle już ich nie ma.
 func flags(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
-		vertical: bool = false, lean: int = 0) -> Array:
-	draw_building(kind, level, state, mask, vertical, lean)
-	var m := mask if BuildingTypes.is_wall(kind) else 0
-	var v := vertical and kind == BuildingTypes.Kind.GATE
-	var lv := art_level(level, kind)
-	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
-	return _flags[key(kind, lv, state, m, v, ln)]
+		vertical: bool = false, lean: int = 0, cells: Vector2i = Vector2i.ZERO) -> Array:
+	draw_building(kind, level, state, mask, vertical, lean, cells)
+	return _flags[_key_of(kind, level, state, mask, vertical, lean, cells)]
 
 
 ## Szuka proporców z PixelCanvas.pennant: płachta 3×2 w kolorze sztandaru z wcięciem w dolnym rogu
@@ -113,25 +124,17 @@ func cached_count() -> int:
 
 ## Zamalowany prostokąt tekstury (w pikselach obrazu), liczony raz razem z teksturą.
 func used_rect(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
-		vertical: bool = false, lean: int = 0) -> Rect2i:
-	draw_building(kind, level, state, mask, vertical, lean)
-	var m := mask if BuildingTypes.is_wall(kind) else 0
-	var v := vertical and kind == BuildingTypes.Kind.GATE
-	var lv := art_level(level, kind)
-	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
-	return _used[key(kind, lv, state, m, v, ln)]
+		vertical: bool = false, lean: int = 0, cells: Vector2i = Vector2i.ZERO) -> Rect2i:
+	draw_building(kind, level, state, mask, vertical, lean, cells)
+	return _used[_key_of(kind, level, state, mask, vertical, lean, cells)]
 
 
 ## Cień budynku na trawie (#150): sylwetka tekstury przesunięta o BuildingArt.shadow_offset.
 ## Rysuje się w tym samym miejscu co tekstura, przed wszystkimi budynkami.
 func shadow(kind: int, level: int, state: int = BuildingTypes.State.INTACT, mask: int = 0,
-		vertical: bool = false, lean: int = 0) -> ImageTexture:
-	var tex := draw_building(kind, level, state, mask, vertical, lean)
-	var m := mask if BuildingTypes.is_wall(kind) else 0
-	var v := vertical and kind == BuildingTypes.Kind.GATE
-	var lv := art_level(level, kind)
-	var ln := lean if BuildingArt.can_lean(kind) and lv >= 1 else 0
-	var k := key(kind, lv, state, m, v, ln)
+		vertical: bool = false, lean: int = 0, cells: Vector2i = Vector2i.ZERO) -> ImageTexture:
+	var tex := draw_building(kind, level, state, mask, vertical, lean, cells)
+	var k := _key_of(kind, level, state, mask, vertical, lean, cells)
 	var sh: ImageTexture = _shadows.get(k)
 	if sh == null:
 		sh = ImageTexture.create_from_image(BuildingArt.shadow_image(tex.get_image(), BuildingArt.shadow_offset(kind)))

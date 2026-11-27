@@ -1,6 +1,6 @@
 class_name ClientVersion
 extends RefCounted
-## Wymuszenie aktualizacji (#336, ADR 0005): kod wersji gry i polityka wersji z serwera.
+## Wymuszenie aktualizacji (#336, ADR 0006): kod wersji gry i polityka wersji z serwera.
 ## Serwer (`public.client_version_policy()`) podaje `min_code` (niższa wersja blokuje całą grę, także
 ## offline) i `recommended_code` (niższa dostaje komunikat o nowej wersji najwyżej raz na 24 h).
 ## Ostatnia pobrana polityka leży w `user://version_policy.json`: bez sieci gra działa, ale gdy

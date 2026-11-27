@@ -1,5 +1,5 @@
 extends TestCase
-## Wymuszenie aktualizacji (#336, ADR 0005): kod wersji, polityka z serwera i z pliku, miękki komunikat
+## Wymuszenie aktualizacji (#336, ADR 0006): kod wersji, polityka z serwera i z pliku, miękki komunikat
 ## raz na 24 h, blokada po `update_required`, nagłówek wersji w zapytaniach, okno aktualizacji (bez sieci).
 
 const PATH := "user://test_client_version_policy.json"

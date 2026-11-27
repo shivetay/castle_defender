@@ -33,16 +33,16 @@ func test_sticks_to_horizontal_wall_on_both_sides() -> bool:
 	var grid := _grid(true)
 	# palec kratkę pod linią, ale z odstępem: budynek dosuwa się w górę, do muru
 	assert_true(o.x >= 0, "wolne pole na mapie")
-	var below := grid.placement_for(o + Vector2i(4, 9), K.BARRACKS, true)
+	var below := grid.placement_for(o + Vector2i(4, 9), K.TANNERY, true)
 	assert_eq(below.position.y, o.y + 8, "pod murem: górny bok przy linii")
 	assert_eq(grid.wall_contact(below), 2, "cały bok przylega")
-	var above := grid.placement_for(o + Vector2i(4, 4), K.BARRACKS, true)
+	var above := grid.placement_for(o + Vector2i(4, 4), K.TANNERY, true)
 	assert_eq(above.end.y, o.y + 7, "nad murem: dolny bok przy linii")
 	assert_eq(grid.wall_contact(above), 2, "cały bok przylega")
-	assert_eq(grid.placement_for(o + Vector2i(4, 9), K.BARRACKS), Rect2i(o + Vector2i(4, 9), Vector2i(2, 2)),
+	assert_eq(grid.placement_for(o + Vector2i(4, 9), K.TANNERY), Rect2i(o + Vector2i(4, 9), Vector2i(2, 2)),
 			"bez stick (generator) jak dotąd")
-	assert_eq(grid.placement_for(o + Vector2i(4, 9), K.BARRACKS, true), below, "deterministycznie")
-	var far := grid.placement_for(o + Vector2i(4, 11), K.BARRACKS, true)
+	assert_eq(grid.placement_for(o + Vector2i(4, 9), K.TANNERY, true), below, "deterministycznie")
+	var far := grid.placement_for(o + Vector2i(4, 11), K.TANNERY, true)
 	assert_eq(far, Rect2i(o + Vector2i(4, 11), Vector2i(2, 2)), "daleko od muru: bez przyklejania")
 	return true
 

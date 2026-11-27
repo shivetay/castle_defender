@@ -16,9 +16,19 @@ const SHADOW_ALPHA := 0.3
 
 
 ## Rozmiar obrazu. `vertical` obraca obrys budynku (brama w pionowej linii palisady).
-static func image_size(kind: int, vertical: bool = false) -> Vector2i:
-	var s := BuildingTypes.size_of(kind) * CELL
+## `cells`: obrys w kratkach (BuildGrid.cells_of), np. stary rozmiar budynku ze starszego zapisu (#340);
+## zero oznacza rozmiar rodzaju (BuildingTypes.size_of).
+static func image_size(kind: int, vertical: bool = false, cells: Vector2i = Vector2i.ZERO) -> Vector2i:
+	var s := footprint(kind, cells) * CELL
 	return Vector2i(s.y, s.x) if vertical else s
+
+
+## Obrys rysunku w kratkach: `cells`, gdy podany, a bez niego rozmiar rodzaju. Umocnienia i brama
+## zawsze mają rozmiar rodzaju (ich rysunek łączy się z sąsiadami).
+static func footprint(kind: int, cells: Vector2i = Vector2i.ZERO) -> Vector2i:
+	if cells.x <= 0 or cells.y <= 0 or BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.GATE:
+		return BuildingTypes.size_of(kind)
+	return cells
 
 
 ## Przybudówka przy murze (#149): strona, po której stoi wał albo palisada. Budynek przy murze ma dach
@@ -68,9 +78,9 @@ static func _lean_dir(lean: int) -> Vector2i:
 
 
 static func make_image(kind: int, level: int, state: int, mask: int = 0, vertical: bool = false,
-		lean: int = Lean.NONE) -> Image:
+		lean: int = Lean.NONE, cells: Vector2i = Vector2i.ZERO) -> Image:
 	var v := vertical and kind == BuildingTypes.Kind.GATE
-	var sz := image_size(kind, v)
+	var sz := image_size(kind, v, cells)
 	var img := Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
 	if level <= 0:
 		_draw_site(img, kind, mask)
@@ -514,8 +524,9 @@ static func _age_ii_marks(img: Image, kind: int) -> void:
 
 # --- Wytwórcy (#90) ---------------------------------------------------------------------------
 
-## Warsztat (2×2). Szkielet wspólny, dach wg kategorii w panelu budowy (czytelność z dystansu):
-## wytwórcy — strzecha dwuspadowa, wojsko — płaski pomost z desek, gospodarka — dach namiotowy.
+## Warsztat (2×2; Koszary 3×3, reszta wojska i Magazyn 3×2, #340). Szkielet wspólny, dach wg kategorii
+## w panelu budowy (czytelność z dystansu): wytwórcy — strzecha dwuspadowa, wojsko — płaski pomost
+## z desek, gospodarka — dach namiotowy.
 ## Rozpoznanie rodzaju zostaje w rekwizycie z prawej (_draw_prop, bez zmian).
 ## Poziomy: 1 wiata z rekwizytem, 2 izba pod dachem kategorii, 3 większa z kominem,
 ## 4 najszersza z większym rekwizytem, 5 z proporcem w rogu dachu i drugim przy wejściu.
@@ -523,9 +534,12 @@ static func _age_ii_marks(img: Image, kind: int) -> void:
 static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.NONE,
 		mirrored: bool = false) -> void:
 	var size := img.get_size()
+	# większy budynek (#340): korpus rośnie o nadmiar ponad 2×2, rekwizyt zostaje przy prawej krawędzi
+	var extra := size - Vector2i(16, 16)
+	var prop := Vector2i(11 + extra.x, 3)
 	if level == 1:
-		_shed(img, Rect2i(1, 1, 10, 7), lean, size)
-		_draw_prop(img, kind, Vector2i(11, 3), false)
+		_shed(img, Rect2i(1, 1, 10 + extra.x, 7 + extra.y), lean, size)
+		_draw_prop(img, kind, prop, false)
 		return
 	var wide := level >= 4
 	var r := Rect2i(1, 2, 10, 9)
@@ -533,11 +547,15 @@ static func _draw_workshop(img: Image, kind: int, level: int, lean: int = Lean.N
 		r = Rect2i(1, 1, 10, 10)
 	elif wide:
 		r = Rect2i(0, 1, 11, 11)
+	r.size += extra
 	var body := _body(r, lean, size)
 	_workshop_roof(img, body, lean, kind, mirrored)
 	if level >= 3:
 		PixelCanvas.chimney(img, chimney_at(body))
-	_draw_prop(img, kind, Vector2i(11, 3), wide)
+	_draw_prop(img, kind, prop, wide)
+	if extra.y >= CELL:
+		# wysoki budynek (Koszary 3×3): drugi rekwizyt pod pierwszym
+		_draw_prop(img, kind, prop + Vector2i(0, CELL), wide)
 	if level == 5:
 		PixelCanvas.pennant(img, Vector2i(body.position.x + 1, body.position.y + 1), Palette.ACCENT)
 		PixelCanvas.rect(img, Rect2i(body.position.x + 4, body.end.y, 2, 2), Palette.ACCENT)
@@ -768,11 +786,12 @@ static func _draw_watchtower(img: Image) -> void:
 			PixelCanvas.px(img, 8, y, Palette.WOOD[3])
 
 
-## Pole lnu (2×2, #122): zaorana ziemia z rzędami lnu. Poziomy: 1 mała grządka z siewkami,
+## Pole lnu (3×2, #122, #340): zaorana ziemia z rzędami lnu. Poziomy: 1 mała grządka z siewkami,
 ## 2 całe pole w zielonych rzędach, 3 len kwitnie na niebiesko, 4 snopki na skraju pola,
 ## 5 strach na wróble z czerwoną chustą.
 static func _draw_flax_field(img: Image, level: int) -> void:
-	var field := Rect2i(1, 1, 14, 14) if level >= 2 else Rect2i(3, 4, 8, 7)
+	var size := img.get_size()
+	var field := Rect2i(1, 1, size.x - 2, size.y - 2) if level >= 2 else Rect2i(3, 4, 8, 7)
 	for y in range(field.position.y, field.end.y):
 		for x in range(field.position.x, field.end.x):
 			PixelCanvas.px(img, x, y, PixelCanvas.dither(x, y, Palette.EARTH[2], Palette.EARTH[1]))
@@ -794,9 +813,10 @@ static func _draw_flax_field(img: Image, level: int) -> void:
 			PixelCanvas.px(img, sx, 2, Palette.THATCH[2])
 	if level == 5:
 		# strach na wróble z góry: krzyż z kapeluszem i chustą
-		PixelCanvas.rect(img, Rect2i(10, 5, 5, 1), Palette.WOOD[1])
-		PixelCanvas.rect(img, Rect2i(11, 4, 3, 3), Palette.THATCH[2])
-		PixelCanvas.rect(img, Rect2i(12, 7, 1, 2), Palette.ACCENT)
+		var sx := size.x - 6
+		PixelCanvas.rect(img, Rect2i(sx, 5, 5, 1), Palette.WOOD[1])
+		PixelCanvas.rect(img, Rect2i(sx + 1, 4, 3, 3), Palette.THATCH[2])
+		PixelCanvas.rect(img, Rect2i(sx + 2, 7, 1, 2), Palette.ACCENT)
 
 
 # --- Plac budowy -----------------------------------------------------------------------------
