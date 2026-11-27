@@ -679,6 +679,11 @@ w sekcji „Następny etap”.
   i żywności, a Chata drwala +60/90/120/160/200 drewna/h na poziomach 1–5. Pole i spichlerz (#35) daje
   tyle samo żywności, a Kamieniołom (G4) +40/60/80/110/140 kamienia/h, jak Rybak żywności. Poziomy epoki II
   dokładają dalej (#262): Chata drwala i Pole 240–440/h, Rybak i Kamieniołom 170–310/h.
+- **Młyn** (#388, ADR 0010, liczby tymczasowe): pierwszy budynek epoki II spoza MVP (#102). Gospodarka,
+  2×2, tylko tuż przy rzece, po G5 Młyn wodny (epoka II, wymaga G2). Stawia się od razu na poziomie
+  1/5 epoki II (narastająco 6) za 1020 Dr, 510 Ka i 170 Ży, więc wymaga Dworu w epoce II i Magazynu.
+  Daje +4/8/12/16/20% całej produkcji żywności (liczy się jeden Młyn, ruina 75% premii). Grafika
+  w `scripts/gfx/age_ii_building_art.gd` w palecie epoki II.
 - Pozostałe budynki MVP (#35, decyzje właścicielki z 20.11.2026, liczby tymczasowe), grafika
   w `scripts/gfx/mvp_building_art.gd` (`MvpBuildingArt`), każdy z 5 poziomami i 4 stanami:
   - **Fosa sucha** (Umocnienia, 1×1, bez technologii): rów przez całą kratkę, więc odcinki tworzą ciągły
@@ -963,7 +968,7 @@ zamku z serwera; dlatego przy wydaniu klienta z #262 `min_code` podnosi się od 
 (decyzja właścicielki, wyjątek od `docs/PO-WYDANIU.md` §6), a wydanie dostaje nowy `sim_version` (ADR 0008).
 Życie w zamku (#36) jest w kodzie; płynność na słabszym telefonie (próg 30 FPS) i czytelność nocy
 zostają do ręcznego testu. Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
-Wieża sygnałowa); migracja `farm_food` jest na projekcie. Donżon strzela jak wieża,
+Wieża sygnałowa); migracja `farm_food` jest na projekcie. Budynki epoki II spoza MVP (#102) idą po kolei: Młyn (#388) jest w kodzie, migracja `mill` czeka na wgranie na projekt przed wydaniem klienta (bez niej serwer odrzuci zapis z Młynem jako budynek bez technologii i z nieznanym G5); dalej Pomost strzelecki (#389), Częstokół (#390), Kaplica (#391) i zasięg Domu zwiadowców (#392). Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
 Etap 11 (#133) zaczynają generałowie (#31) w kodzie. Migracje `attack_general` i `general_budget` oraz nowe wersje Edge Functions
 `launch_attack` i `attack_replay` czekają na wgranie na projekt **przed** wydaniem klienta: wdrożona
