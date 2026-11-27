@@ -19,11 +19,18 @@ build/
 .vscode/
 .idea/
 
+# Wtyczka Android DunholdPush (#30): wynik budowy Gradle
+/tools/android/push_plugin/build/
+/tools/android/push_plugin/.gradle/
+/tools/android/push_plugin/local.properties
+
 # Python
 __pycache__/
 
 # Konfiguracja Supabase (#22): tworzy się lokalnie albo w CI, nie trafia do repo
 /config/supabase.json
+# Konfiguracja Firebase (#30, ADR 0012): z konsoli Firebase albo w CI z sekretu GOOGLE_SERVICES_JSON
+/config/google-services.json
 
 # Packi weryfikacji (#305): budowane lokalnie albo w CI, nie trafiają do repo
 /server/verifier/packs/*.pck
