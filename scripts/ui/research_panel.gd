@@ -341,6 +341,7 @@ func _draw_tile(r: Rect2, code: String, active: bool, frame: Color) -> void:
 		draw_rect(Rect2(r.position.x, r.end.y - 1, r.size.x, 1), Palette.WOOD[0])
 	var col := tile_text_color(state, active)
 	if research.active == code:
+		# kolejny poziom zbadanej doktryny: kafelek zostaje zielony, napis złoty jak w toku
 		col = Palette.THATCH[2]
 	if state == TileState.DONE:
 		_draw_mark(r.position + Vector2(1, 1), CHECK_MARK, Palette.VALID)
@@ -439,8 +440,9 @@ static func state_color(state: TileState, active: bool) -> Color:
 	return Palette.WOOD[2] if active else Palette.WOOD[1]
 
 
-## Kolor kodu na kafelku: niedostępna przygaszona, ale czytelna (na jaśniejszym tle zaznaczenia
-## jaśniejsza), reszta kremowa. Badanie w toku nadpisuje go złotem przy rysowaniu.
+## Kolor kodu na kafelku: w toku złoty, niedostępna przygaszona, ale czytelna (na jaśniejszym tle
+## zaznaczenia jaśniejsza), reszta kremowa. Zbadana doktryna w trakcie kolejnego poziomu ma stan DONE,
+## więc złoto dostaje dopiero przy rysowaniu (_draw_tile).
 static func tile_text_color(state: TileState, active: bool) -> Color:
 	match state:
 		TileState.ACTIVE:
