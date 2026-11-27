@@ -2,9 +2,11 @@ class_name ResearchPanel
 extends Node2D
 ## Ekran drzewka badań (#12) na całą mapę, między górnym a dolnym paskiem HUD.
 ## U góry zakładki gałęzi (Atak, Obrona, Gospodarka, Użyteczne, Specjalne), pod nimi kafelki technologii
-## z kodem. Kafelek pokazuje stan kolorem napisu: zbadana, w toku, dostępna, zablokowana
-## (brak wymaganej technologii, budynku badań gałęzi z #165 albo późniejsza epoka); zbadana ma zielony kafelek ze znaczkiem
-## w lewym rogu, a technologia kluczowa ★ czerwony znacznik w prawym. Technologie z późniejszej epoki
+## z kodem. Kafelek pokazuje stan (TileState, #356): zbadana ma zielony kafelek z ptaszkiem w lewym rogu,
+## dostępna jest wypukła jak przycisk, w toku ma złoty napis, a niedostępna (brak wymaganej technologii,
+## budynku badań gałęzi z #165 albo późniejsza epoka) jest ciemna i płaska z przygaszonym napisem;
+## wykluczona perkiem innego władcy ma dodatkowo kłódkę. Technologia kluczowa ★ ma czerwony znacznik
+## w prawym górnym rogu. Zaznaczony kafelek jest jaśniejszy i ma kremową ramkę na zewnątrz. Technologie z późniejszej epoki
 ## są ukryte, dopóki nie zbadano ich wymagań (Research.is_visible); ukryte nie pojawiają się też
 ## w ramkach, w „Odblokowuje” ani w „Powiązane”.
 ## Dotknięcie kafelka pokazuje szczegóły: nazwę, stan, efekt, koszt i czas, wymagania, co technologia
@@ -17,6 +19,8 @@ signal research_requested(code: String)
 signal closed
 
 enum Target { NONE = -1, CLOSE = 1, START = 2, TAB = 100, TILE = 200 }
+## Stan kafelka technologii (#356), od niego zależy wygląd.
+enum TileState { DONE, ACTIVE, AVAILABLE, LOCKED, PERK_LOCKED }
 
 const TAB_Y := Hud.BAR_H + 3
 const TAB_H := 14
@@ -32,6 +36,12 @@ const START_LABEL := "Badaj"
 ## Przycisk startu dla kolejnego poziomu zbadanej doktryny.
 const LEVEL_UP_LABEL := "Ulepsz"
 const CLOSE_LABEL := "Zamknij"
+## Ramka zaznaczonego kafelka (#356), inna niż kolory ramek powiązań.
+const SELECTION_COLOR := Palette.INK
+## Ptaszek zbadanej technologii (lewy górny róg) i kłódka perka wykluczonego przez innego władcę
+## (prawy dolny róg).
+const CHECK_MARK: Array[String] = ["...X", "X.X.", ".X.."]
+const LOCK_MARK: Array[String] = [".X.", "X.X", "XXX", "XXX"]
 
 var research: Research
 var economy: Economy
@@ -323,39 +333,75 @@ func _draw() -> void:
 
 
 func _draw_tile(r: Rect2, code: String, active: bool, frame: Color) -> void:
-	draw_rect(r, tile_color(research.is_done(code), active))
-	var col: Color = Palette.INK
-	if research.is_done(code):
-		# zbadana: zielony kafelek z jasnym kodem i znaczkiem w lewym górnym rogu
-		draw_rect(Rect2(r.position.x + 1, r.position.y + 1, 2, 2), Palette.VALID)
+	var state := tile_state(research, code, age, grid)
+	draw_rect(r, state_color(state, active))
+	if state == TileState.AVAILABLE or state == TileState.ACTIVE:
+		# dostępna wypukła jak przycisk HUD: jasna krawędź u góry, ciemna u dołu
+		draw_rect(Rect2(r.position.x, r.position.y, r.size.x, 1), Palette.WOOD[3])
+		draw_rect(Rect2(r.position.x, r.end.y - 1, r.size.x, 1), Palette.WOOD[0])
+	var col := tile_text_color(state, active)
+	if research.active == code:
+		# kolejny poziom zbadanej doktryny: kafelek zostaje zielony, napis złoty jak w toku
+		col = Palette.THATCH[2]
+	if state == TileState.DONE:
+		_draw_mark(r.position + Vector2(1, 1), CHECK_MARK, Palette.VALID)
 		# kolejne poziomy doktryny: znaczek za każdy poziom ponad pierwszy w lewym dolnym rogu
 		for i in research.level(code) - 1:
 			draw_rect(Rect2(r.position.x + 1 + 3 * i, r.end.y - 3, 2, 2), Palette.VALID)
-		if research.active == code:
-			col = Palette.THATCH[2]
-	elif research.active == code:
-		col = Palette.THATCH[2]
-	elif TechTree.age(code) > age or not research.missing(code).is_empty() \
-			or (grid != null and not Research.has_building(code, grid)):
-		# przygaszone tylko zablokowane: trwające inne badanie nie gasi reszty drzewka
-		col = Palette.WOOD[0]
+	elif state == TileState.PERK_LOCKED:
+		_draw_mark(Vector2(r.end.x - 4, r.end.y - 5), LOCK_MARK, Palette.LOCKED[1])
 	PixelFont.draw_centered(self, r, code, col)
 	if TechTree.is_key(code):
 		draw_rect(Rect2(r.end.x - 3, r.position.y + 1, 2, 2), Palette.ACCENT)
 	if frame.a > 0.0:
-		draw_rect(Rect2(r.position.x, r.position.y, r.size.x, 1), frame)
-		draw_rect(Rect2(r.position.x, r.end.y - 1, r.size.x, 1), frame)
-		draw_rect(Rect2(r.position.x, r.position.y, 1, r.size.y), frame)
-		draw_rect(Rect2(r.end.x - 1, r.position.y, 1, r.size.y), frame)
+		_draw_frame(r, frame)
+	if active:
+		_draw_frame(selection_rect(r), SELECTION_COLOR)
 
 
-## Kolor ramki kafelka `code` względem zaznaczonej technologii: wymagana czerwona (spełniona jasna,
-## żeby była widoczna na zielonym kafelku zbadanej, review #157), odblokowywana złota, powiązana
-## niebieska; przezroczysty, gdy brak powiązania.
+func _draw_frame(r: Rect2, col: Color) -> void:
+	draw_rect(Rect2(r.position.x, r.position.y, r.size.x, 1), col)
+	draw_rect(Rect2(r.position.x, r.end.y - 1, r.size.x, 1), col)
+	draw_rect(Rect2(r.position.x, r.position.y, 1, r.size.y), col)
+	draw_rect(Rect2(r.end.x - 1, r.position.y, 1, r.size.y), col)
+
+
+## Znaczek z wierszy pikseli („X” zapalony) z lewym górnym rogiem w `at`.
+func _draw_mark(at: Vector2, rows: Array[String], col: Color) -> void:
+	for y in rows.size():
+		for x in rows[y].length():
+			if rows[y][x] == "X":
+				draw_rect(Rect2(at.x + x, at.y + y, 1, 1), col)
+
+
+## Stan kafelka technologii `code`: zbadana (też w trakcie kolejnego poziomu doktryny), w toku,
+## wykluczona perkiem innego władcy, niedostępna (późniejsza epoka, brak wymagań albo budynku badań)
+## albo dostępna.
+static func tile_state(r: Research, code: String, current_age: int, grid: BuildGrid = null) -> TileState:
+	if r.is_done(code):
+		return TileState.DONE
+	if r.active == code:
+		return TileState.ACTIVE
+	if RulerPerks.is_locked(code, r.done, r.active):
+		return TileState.PERK_LOCKED
+	if TechTree.age(code) > current_age or not r.missing(code).is_empty() \
+			or (grid != null and not Research.has_building(code, grid)):
+		return TileState.LOCKED
+	return TileState.AVAILABLE
+
+
+## Ramka zaznaczenia: 1 px na zewnątrz kafelka, w odstępie GAP, żeby nie myliła się z ramkami powiązań.
+static func selection_rect(tile: Rect2) -> Rect2:
+	return tile.grow(1)
+
+
+## Kolor ramki kafelka `code` względem zaznaczonej technologii: wymagana czerwona (spełniona wyblakła
+## czerwień SKIN, żeby była widoczna na zielonym kafelku zbadanej, review #157, i nie myliła się
+## z ptaszkiem ani z kremowym zaznaczeniem, #356), odblokowywana złota, powiązana niebieska; przezroczysty, gdy brak powiązania.
 static func link_color(code: String, reqs: Array[String], next: Array[String], linked: Array[String],
 		done: bool) -> Color:
 	if reqs.has(code):
-		return Palette.INK if done else Palette.ACCENT
+		return Palette.SKIN if done else Palette.ACCENT
 	if next.has(code):
 		return Palette.THATCH[2]
 	if linked.has(code):
@@ -377,11 +423,33 @@ static func tab_marker(i: int, reqs: Array[String], next: Array[String], linked:
 	return best
 
 
-## Tło kafelka: zbadane mają zielone (trawa), reszta drewniane; zaznaczony jest jaśniejszy.
+## Tło kafelka zbadanej albo zwykłej pozycji listy (wybór bota, celu, ranking): zielone albo drewniane,
+## zaznaczony jaśniejszy.
 static func tile_color(done: bool, active: bool) -> Color:
-	if done:
-		return Palette.GRASS[2] if active else Palette.GRASS[0]
+	return state_color(TileState.DONE if done else TileState.AVAILABLE, active)
+
+
+## Tło kafelka technologii w stanie `state`: zbadana zielona (trawa), dostępna i w toku drewniana jak przycisk,
+## niedostępna ciemna i płaska; zaznaczony kafelek jest jaśniejszy.
+static func state_color(state: TileState, active: bool) -> Color:
+	match state:
+		TileState.DONE:
+			return Palette.GRASS[2] if active else Palette.GRASS[0]
+		TileState.LOCKED, TileState.PERK_LOCKED:
+			return Palette.WOOD[1] if active else Palette.WOOD[0]
 	return Palette.WOOD[2] if active else Palette.WOOD[1]
+
+
+## Kolor kodu na kafelku: w toku złoty, niedostępna przygaszona, ale czytelna (na jaśniejszym tle
+## zaznaczenia jaśniejsza), reszta kremowa. Zbadana doktryna w trakcie kolejnego poziomu ma stan DONE,
+## więc złoto dostaje dopiero przy rysowaniu (_draw_tile).
+static func tile_text_color(state: TileState, active: bool) -> Color:
+	match state:
+		TileState.ACTIVE:
+			return Palette.THATCH[2]
+		TileState.LOCKED, TileState.PERK_LOCKED:
+			return Palette.WOOD[3] if active else Palette.WOOD[2]
+	return Palette.INK
 
 
 ## Linie szczegółów technologii [tekst, kolor, tekst z prawej], zawinięte do `width` px i najwyżej

@@ -1,6 +1,6 @@
 # Otwarte pytania
 
-Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na `main` (stan na 23.11.2026). Chronologia: [[Stan prac]]. Liczby: [[Balans]].
+Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na `main` (stan na 27.11.2026). Chronologia: [[Stan prac]]. Liczby: [[Balans]]. Serwer: [[Serwer]].
 
 ## Ustalone
 
@@ -38,7 +38,6 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 | Perki władcy | #32 | generałowie #31 gotowe |
 | Powiadomienia push | #30 | ustalone w [[ADR/0012-powiadomienia-push-fcm\|ADR 0012]]; serwer w PR, wtyczka Android i koniec budowy w kolejnych PR-ach |
 | Ranking PvE (ticket zbiorczy) | #242 | kod rankingu #264–#265; checklist issue |
-| Balans epoki II (koszty, czasy, premie) | #262 | ustalone w [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]], kod w PR, migracja do wgrania z wydaniem |
 | Mini-samouczek UI do 6 żołnierzy | #251 | — |
 | Życie w zamku | #36 | — |
 | Reklamy z nagrodą | #33 | — |
@@ -47,10 +46,12 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 
 ### Zamknięte niedawno (nie trzymać jako braków)
 
-#19, #20, #28, #29 (rdzeń), #31, #35, #89, #101, #164, #166, #185, #199, #214, #225, #226 — szczegóły w [[Stan prac]] / [[Bugs]].
+#19, #20, #28, #29 (rdzeń), #31, #35, #89, #101, #164, #166, #185, #199, #214, #225, #226,
+#262 (balans epoki II / #384), #383 (same-age PvP / #395), #388 (Młyn / #396), #354 (`sim_version` / #382)
+— szczegóły w [[Stan prac]] / [[Bugs]].
 
 ### Świadomie później (po MVP / 1.0)
 
-Epoki III–VI (#93–#96, #103+), sezony i ligi, kampania PvE, osiągnięcia, i18n, zgodność ze sklepem — [[Roadmapa do 1.0]]. Budynki epoki II spoza rdzenia (Pomost, Częstokół, Młyn, Kaplica): #102.
+Epoki III–VI (#93–#96, #103+), sezony i ligi, kampania PvE, osiągnięcia, i18n, zgodność ze sklepem — [[Roadmapa do 1.0]]. Pozostałe budynki epoki II z #102 (Pomost, Częstokół, Kaplica, zasięg Domu zwiadowców); Młyn (#388) już na `main`.
 
 Powiązane: [[Koncept gry]], [[Plan MVP]], [[Stan prac]], [[Bugs]], [[Balans]], [[Model wydania]]
