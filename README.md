@@ -963,8 +963,11 @@ eksport w `addons/dunhold_push`), debug APK budowany przez Gradle, uprawnienie `
 okienko zgody przy pierwszym wejściu na Wyprawę (po odmowie znowu po 7 dniach), token urządzenia
 wysyłany przez Edge Function `push_token` i przełączniki Ataki / Koniec budowy w Ustawieniach → Powiadomienia.
 Do działania potrzebny jest projekt Firebase (`config/google-services.json` poza repo, w CI sekret
-`GOOGLE_SERVICES_JSON`) i część serwerowa z PR #402. Przełącznik Koniec budowy zacznie działać
-z lokalnym powiadomieniem (trzeci PR #30).
+`GOOGLE_SERVICES_JSON`) i część serwerowa z PR #402. Koniec budowy to lokalne powiadomienie z tej samej
+wtyczki (AlarmManager, kanał `build`, bez serwera): przy wyjściu do tła gra planuje po jednym na każde
+zlecenie z kolejki („Budowa zakończona”, „Palisada (poz. 3)”), a po powrocie je kasuje. Działa po zgodzie
+z okienka i z włączonym przełącznikiem Koniec budowy. Po restarcie telefonu plan przepada do kolejnego
+wyjścia z gry, a Android może przesunąć niedokładny alarm o kilka minut.
 Wymuszenie aktualizacji (#336, ADR 0006) jest w kodzie: progi `min_code` i `recommended_code` z serwera
 (migracja `client_version`), okienko o nowej wersji raz na 24 h, ekran blokady poniżej minimum (także offline,
 z zapamiętaną polityką) i odrzucanie starszych wersji przez Edge Functions i zapisy zamku (`update_required`).
