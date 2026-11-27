@@ -18,6 +18,7 @@ numer, a stary zmienia tylko status na „zastąpiony przez”.
 | [[ADR/0009-model-balansu-epok-ciagla-krzywa\|0009]] | Model balansu epok: ciągła krzywa kosztu i czasu, premie do poziomu 10 | przyjęty | #262 |
 | [[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce\|0010]] | Dobór PvP, zwiad i atak tylko w tej samej epoce | przyjęty | #383 |
 | [[ADR/0011-budynki-epoki-ii-od-poziomu-6\|0011]] | Budynki epoki II startują od poziomu 6, pierwszy Młyn | przyjęty | #102 |
+| [[ADR/0012-powiadomienia-push-fcm\|0012]] | Powiadomienia push o ataku przez FCM, koniec budowy lokalnie | przyjęty | #30 |
 | [[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii\|0013]] | Premie szkolenia, kolców w fosie i Kopca w epoce II | przyjęty | #387 |
 | [[ADR/0014-sklep-darmowe-oferty-z-odnowieniem\|0014]] | Sklep w Targu: darmowe oferty z odnowieniem, przyznawane przez serwer | przyjęty | #408 |
 | [[ADR/0015-postep-kampanii-botow-na-serwerze\|0015]] | Postęp kampanii zamków-botów na serwerze | przyjęty | #386 |

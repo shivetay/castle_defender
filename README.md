@@ -968,13 +968,14 @@ ataku na gracza (`bad_plan`), więc trzeba grać z APK z #29 lub nowszego. Stara
 jest w kodzie; migracja `defense_history` i Edge Function `defense_history` są na projekcie.
 Siła celu PvP jako przedział z serwera (#293) jest w kodzie. Migracja `target_strength` i nowe wersje Edge Functions
 `find_targets` i `defense_history` są na projekcie (starsza wersja gry pomija nowe pola).
+Push o ataku (#30, ADR 0012), część serwerowa, jest w kodzie: tabela `push_tokens` (bez dostępu klienta), Edge Function `push_token` i wysyłka przez FCM z `finish_attack`, raz na atak. Migracja `push_tokens`, nowa Edge Function `push_token` i nowa wersja `finish_attack` są na projekcie; sekret `FCM_SERVICE_ACCOUNT` czeka na projekt Firebase (bez niego push się nie wysyła). Wtyczka Android i lokalne powiadomienie o końcu budowy idą w kolejnych PR-ach.
 Push o ataku (#30, ADR 0012), część kliencka, jest w kodzie: własna wtyczka Androida DunholdPush
 (Kotlin w `tools/android/push_plugin`, AAR budowany w CI przez `.github/scripts/build_push_plugin.sh`,
 eksport w `addons/dunhold_push`), debug APK budowany przez Gradle, uprawnienie `POST_NOTIFICATIONS`,
 okienko zgody przy pierwszym wejściu na Wyprawę (po odmowie znowu po 7 dniach), token urządzenia
 wysyłany przez Edge Function `push_token` i przełączniki Ataki / Koniec budowy w Ustawieniach → Powiadomienia.
 Do działania potrzebny jest projekt Firebase (`config/google-services.json` poza repo, w CI sekret
-`GOOGLE_SERVICES_JSON`) i część serwerowa z PR #402. Przełącznik Koniec budowy zacznie działać
+`GOOGLE_SERVICES_JSON`) (część serwerowa jest już na `main` i na projekcie). Przełącznik Koniec budowy zacznie działać
 z lokalnym powiadomieniem (trzeci PR #30).
 Wymuszenie aktualizacji (#336, ADR 0006) jest w kodzie: progi `min_code` i `recommended_code` z serwera
 (migracja `client_version`), okienko o nowej wersji raz na 24 h, ekran blokady poniżej minimum (także offline,
