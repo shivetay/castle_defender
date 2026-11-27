@@ -1,5 +1,5 @@
 extends TestCase
-## Obrona murów (#399, ADR 0016): jawne zadanie DefensePlan.Task.WALL. Strzelcy stają na wale,
+## Obrona murów (#399, ADR 0017): jawne zadanie DefensePlan.Task.WALL. Strzelcy stają na wale,
 ## palisadzie, wieży albo Kopcu (jak Obrona odcinka na murze), piechota lekka i ciężka tylko na wale
 ## i palisadzie: nie strzela, bije wręcz tylko wroga, który wszedł po drabinie, i bez premii zasięgu.
 

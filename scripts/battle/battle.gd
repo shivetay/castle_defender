@@ -769,7 +769,7 @@ func _place_fighter(f: Fighter, cell: Vector2i, at: Vector2i, anchor: Vector2i, 
 ## Czy jednostka `unit` oddziału `squad` strony `side` staje na stanowisku: strzelec obrońcy z Obroną
 ## odcinka, którego miejsce to kratka żywego wału albo palisady (#20), wieży drewnianej (#232) albo Kopca (#35),
 ## a także strzelec przy donżonie (_keep_station). Inni stają pod murem.
-## Obrona murów (#399, ADR 0016) stawia tak samo strzelców, a piechotę lekką i ciężką tylko na wale i palisadzie.
+## Obrona murów (#399, ADR 0017) stawia tak samo strzelców, a piechotę lekką i ciężką tylko na wale i palisadzie.
 func _wall_station(side: int, squad: int, unit: int, anchor: Vector2i) -> bool:
 	if side != Side.DEFENDER:
 		return false

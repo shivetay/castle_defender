@@ -7,7 +7,7 @@ extends RefCounted
 ##   wału, palisady, bramy czy wieży) i bije wrogów, którzy podejdą na HOLD_RADIUS kratek, ale dalej
 ##   ich nie ściga;
 ##   Strzelcy mogą stać na samym wale albo palisadzie (stanowisko na murze, Battle._wall_act);
-## - Obrona murów (#399, ADR 0016): jawny rozkaz stanowiska na murze. Strzelcy stają na wale, palisadzie,
+## - Obrona murów (#399, ADR 0017): jawny rozkaz stanowiska na murze. Strzelcy stają na wale, palisadzie,
 ##   wieży albo Kopcu (jak Obrona odcinka na murze), piechota lekka i ciężka tylko na wale i palisadzie:
 ##   nie strzela i bije wręcz tylko wroga, który wszedł po drabinie (wall_task_post, Battle._wall_act);
 ## - Patrol: oddział krąży między 2–3 punktami, bije wroga w zasięgu wzroku i wraca na trasę;
@@ -309,14 +309,14 @@ static func task_allowed(task: int, unit_class: int, age: int, has_well: bool = 
 	return task_options(unit_class, age, has_well).has(task)
 
 
-## Czy klasa `unit_class` może dostać Obronę murów (#399, ADR 0016): strzelcy i piechota lekka i ciężka.
+## Czy klasa `unit_class` może dostać Obronę murów (#399, ADR 0017): strzelcy i piechota lekka i ciężka.
 ## Klasa -1 (nieznana: testy, podgląd) też, jak w order_allowed.
 static func can_man_walls(unit_class: int) -> bool:
 	return unit_class < 0 or unit_class == RecruitmentConfig.UnitClass.RANGED \
 			or unit_class == RecruitmentConfig.UnitClass.LIGHT or unit_class == RecruitmentConfig.UnitClass.HEAVY
 
 
-## Czy kratka `cell` to miejsce Obrony murów dla klasy `unit_class` (#399, ADR 0016): strzelcy (i klasa
+## Czy kratka `cell` to miejsce Obrony murów dla klasy `unit_class` (#399, ADR 0017): strzelcy (i klasa
 ## -1) na stanowisku strzelców (station_post: mur, wieża, Kopiec), piechota lekka i ciężka tylko na wale
 ## albo palisadzie (wall_post), inne klasy nigdzie.
 static func wall_task_post(grid: BuildGrid, cell: Vector2i, unit_class: int) -> bool:

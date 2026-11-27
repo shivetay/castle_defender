@@ -1,4 +1,4 @@
-# ADR 0016: Obrona murów: jawne zadanie dla strzelców i piechoty
+# ADR 0017: Obrona murów: jawne zadanie dla strzelców i piechoty
 
 - **Status:** przyjęty
 - **Data:** 2026-11-27

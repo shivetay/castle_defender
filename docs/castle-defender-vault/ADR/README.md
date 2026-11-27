@@ -22,7 +22,7 @@ numer, a stary zmienia tylko status na „zastąpiony przez”.
 | [[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii\|0013]] | Premie szkolenia, kolców w fosie i Kopca w epoce II | przyjęty | #387 |
 | [[ADR/0014-sklep-darmowe-oferty-z-odnowieniem\|0014]] | Sklep w Targu: darmowe oferty z odnowieniem, przyznawane przez serwer | przyjęty | #408 |
 | [[ADR/0015-postep-kampanii-botow-na-serwerze\|0015]] | Postęp kampanii zamków-botów na serwerze | przyjęty | #386 |
-| [[ADR/0016-obrona-murow-strzelcy-i-piechota\|0016]] | Obrona murów: jawne zadanie dla strzelców i piechoty | przyjęty | #399 |
+| [[ADR/0017-obrona-murow-strzelcy-i-piechota\|0017]] | Obrona murów: jawne zadanie dla strzelców i piechoty | przyjęty | #399 |
 
 Numeracja: przy merge #395 i #396 oba PR-y chciały **0010**. Na `main` zostało: **0010** = same-age PvP (#395), **0011** = Młyn / budynki od poz. 6 (#396).
 Przy #402 i #409 oba PR-y chciały **0012**: **0012** zostaje dla powiadomień push (#402), premie szkolenia, fosy i Kopca epoki II to **0013** (#409). Sklep w Targu (#408) to **0014**, a postęp kampanii botów (#386, #415) to **0015**.

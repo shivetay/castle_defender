@@ -25,7 +25,7 @@ Parametry każdego manewru: cel, trasa (0–3 punkty), start (od razu / po X s /
 | Zadanie | Co robi załoga | Od epoki |
 | --- | --- | --- |
 | Obrona odcinka | trzyma wskazany fragment muru | I |
-| Obrona murów | strzelcy na wale, palisadzie, wieży albo Kopcu; piechota na wale i palisadzie bije tylko wspiętych po drabinie (#399, [[ADR/0016-obrona-murow-strzelcy-i-piechota\|ADR 0016]]) | I |
+| Obrona murów | strzelcy na wale, palisadzie, wieży albo Kopcu; piechota na wale i palisadzie bije tylko wspiętych po drabinie (#399, [[ADR/0017-obrona-murow-strzelcy-i-piechota\|ADR 0017]]) | I |
 | Patrol | krąży między punktami | I |
 | Priorytet celów wież | np. najpierw taran, artyleria albo najbliższy wróg | I |
 | Gaszenie pożarów | robotnicy gaszą ogień wodą ze studni (piechota lekka przy Studni, do 8 kratek, −3 s ognia na sekundę na gaszącego, #35) | I |
