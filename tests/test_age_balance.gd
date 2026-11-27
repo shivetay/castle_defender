@@ -8,7 +8,7 @@ extends TestCase
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
 ## Zamek z pełnym układem epoki I (zewnętrzny wał, 4 wieże, budynki rekrutacji): ostatni bot epoki I.
-const LAYOUT_BOT := BotRoster.AGE_II_FROM - 1
+const LAYOUT_BOT := BotRoster.COUNT_PER_AGE - 1
 const SEED := 262
 
 
