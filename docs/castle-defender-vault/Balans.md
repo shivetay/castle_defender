@@ -1,10 +1,10 @@
 # Balans
 
-Stan liczb z kodu na `main` (HEAD 6bb7bbe, 22–23.11.2026) oraz porównanie z vaultem. **Wszystkie wartości poniżej są tymczasowe.** Model balansu epok ustalono 27.11.2026 (#262, [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]): jedna ciągła krzywa kosztu i czasu przez 10 poziomów i premie poziomów 6–10; liczby epoki II w § 1.7. Opcje A/B/C z § 3 zostają jako zapis rozważań.
+Stan liczb z kodu na `main` (HEAD `77484bd`, 27.11.2026, wersja **0.6.0**). **Wszystkie wartości poniżej są tymczasowe.** Model balansu epok: #262 / #384 / [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]] — ciągła krzywa kosztu i czasu przez 10 poziomów i premie 6–10 (§ 1.7). Młyn: #388 / #396 / [[ADR/0011-budynki-epoki-ii-od-poziomu-6|ADR 0011]] (§ 1.8). Opcje A/B/C z § 3 to zapis rozważań sprzed decyzji.
 
-Źródła kodu: `scripts/world/unit_types.gd`, `recruitment_config.gd`, `build_config.gd`, `economy_config.gd`, `goods_config.gd`, `research_config.gd`, `generals.gd`, `ages.gd`. Issue: #214 (utrzymanie Ży — zamknięte przez #247), #262 (balans epoki II — otwarte), #273 (generałowie).
+Źródła kodu: `scripts/world/unit_types.gd`, `recruitment_config.gd`, `build_config.gd`, `economy_config.gd`, `goods_config.gd`, `research_config.gd`, `generals.gd`, `ages.gd`. Issue: #214 (utrzymanie Ży — zamknięte przez #247), #262 (balans epoki II — **zamknięte** przez #384), #273 (generałowie), #388 (Młyn).
 
-Powiązane: [[Jednostki]], [[Klasy jednostek i produkcja]], [[Progresja budowy]], [[Władca i generałowie]], [[Epoki]], [[Otwarte pytania]], [[Stan prac]]
+Powiązane: [[Jednostki]], [[Klasy jednostek i produkcja]], [[Progresja budowy]], [[Władca i generałowie]], [[Epoki]], [[Otwarte pytania]], [[Stan prac]], [[Serwer]]
 
 ---
 
@@ -43,17 +43,17 @@ Kolejność surowców: Dr / Ka / Ży / Zł. Poziomy 2–5: mnożniki kosztu **10
 
 | Budynek | Koszt L1 (Dr/Ka/Ży/Zł) | Czas L1 | Tech | Vault |
 | --- | --- | --- | --- | --- |
-| Wał | 10 / 0 / 10 / 0 | 5 s | — | przykłady w [[Progresja budowy]] **nie zgadzają się** z kodem (tam palisada 20 Dr / 15 s vs kod 20 / 10 s) |
-| Palisada | 20 / 0 / 5 / 0 | 10 s | — | rozjazd czasów „typowych” vs kod |
+| Wał | 10 / 0 / 10 / 0 | 5 s | — | [[Progresja budowy]] zgodna z kodem |
+| Palisada | 20 / 0 / 5 / 0 | 10 s | — | przykład L1–II.5 w [[Progresja budowy]] |
 | Brama | 60 / 20 / 20 / 0 | 30 s | — | — |
 | Wieża | 120 / 40 / 40 / 0 | 60 s | — | — |
 | Fosa sucha | 5 / 0 / 15 / 0 | 5 s | — | #35 |
 | Kopiec | 60 / 40 / 40 / 0 | 60 s | O1 | #35 |
 | Chata drwala | 80 / 0 / 30 / 0 | 45 s | — | skala bazowa |
-| Pole i spichlerz | 60 / 0 / 20 / 0 | 40 s | — | produkcja Ży zgodna z [[Gospodarka]] |
+| Pole i spichlerz | 60 / 0 / 20 / 0 | 40 s | — | produkcja Ży § 1.4 / 1.7 |
 | Studnia | 40 / 30 / 10 / 0 | 30 s | — | #35 |
-| Kamieniołom | 100 / 0 / 30 / 0 | 50 s | G4 | #35 |
-| Magazyn | 100 / 40 / 0 / 0 | 45 s | — | pojemność +500…+2000 |
+| Kamieniołom | 100 / 0 / 30 / 0 | 50 s | G4 | #35; epoka I od #315 |
+| Magazyn | 100 / 40 / 0 / 0 | 45 s | — | pojemność +500…+6000 (L1–10) |
 | Koszary | 100 / 20 / 40 / 0 | 60 s | — | — |
 | Dom drużyny | 140 / 30 / 40 / 0 | 75 s | A45 | — |
 | Strzelnica | 120 / 10 / 40 / 0 | 70 s | A44 | — |
@@ -62,6 +62,7 @@ Kolejność surowców: Dr / Ka / Ży / Zł. Poziomy 2–5: mnożniki kosztu **10
 | Dom umocnień | 100 / 40 / 30 / 0 | 60 s | O2 | — |
 | Wieża sygnałowa | 100 / 20 / 30 / 0 | 50 s | S2 | #35 |
 | Wieża grodowa | 150 / 60 / 40 / 0 | 90 s | — | donżon |
+| Młyn | 120 / 60 / 20 / 0 | 50 s | G5 | epoka II, start od poz. 6 (§ 1.8) |
 | Wytwórcy (myśliwy…smolarnia, len, rybak) | 60–100 Dr (+ Ka/Ży wg `BASE_COST`) | 30–60 s | G18–G24 / A38–A43 | koszty tylko w kodzie |
 
 Pełna lista w `BuildConfig.BASE_COST`.
@@ -85,17 +86,18 @@ Przebudowa L6 wymaga techów **O1 + G1 + A7** (`Ages.TRANSITION_TECHS`). Mieści
 
 ### 1.4 Produkcja surowców i badania
 
-| Źródło | Stawka / h (poz. 1→5) |
-| --- | --- |
-| Baza grodu | +20 Dr, +20 Ka, +20 Ży |
-| Chata drwala | 60 / 90 / 120 / 160 / 200 Dr |
-| Pole i spichlerz | 60 / 90 / 120 / 160 / 200 Ży |
-| Rybak | 40 / 60 / 80 / 110 / 140 Ży |
-| Kamieniołom | 40 / 60 / 80 / 110 / 140 Ka |
-| Start zapasu | 500 Dr, 300 Ka, 300 Ży, 50 Zł |
-| Pojemność grodu | 1000 / 1000 / 1000 / ∞ (złoto) |
+| Źródło | Stawka / h (poz. 1→5) | Epoka II (poz. 6→10) |
+| --- | --- | --- |
+| Baza grodu | +20 Dr, +20 Ka, +20 Ży | bez zmian |
+| Chata drwala | 60 / 90 / 120 / 160 / 200 Dr | 240 / 280 / 330 / 380 / 440 |
+| Pole i spichlerz | 60 / 90 / 120 / 160 / 200 Ży | 240 / 280 / 330 / 380 / 440 |
+| Rybak | 40 / 60 / 80 / 110 / 140 Ży | 170 / 200 / 230 / 270 / 310 |
+| Kamieniołom | 40 / 60 / 80 / 110 / 140 Ka | 170 / 200 / 230 / 270 / 310 |
+| Start zapasu | 500 Dr, 300 Ka, 300 Ży, 50 Zł | — |
+| Pojemność grodu | 1000 / 1000 / 1000 / ∞ (złoto) | Magazyn +500…+6000 (sumuje się) |
+| Młyn | — | +4 / 8 / 12 / 16 / 20% całej produkcji Ży (§ 1.8) |
 
-Badania (`ResearchConfig`): baza epoki I **100/50/50/0**, 60 s; epoka II **400/300/200/0**, 30 min; koszt stały w epoce, a ×1,6 kosztu tylko dla doktryn (A1, A2, G1, G2: sama procentowa premia) za każdą wcześniejszą doktrynę epoki; czas stały w epoce. Doktryny A1, A2, G1 i G2 mają poziomy (A1 115 → 120 → 125% obrażeń toporów w drewno, A2 120 → 125 → 130% zasięgu łuków, w całych kratkach w dół): +5 pkt proc. premii za poziom, najwyżej 3 w epoce I i 5 w epoce II, każdy poziom kosztuje jak kolejna doktryna epoki.
+Badania (`ResearchConfig`): baza epoki I **100/50/50/0**, 60 s; epoka II **400/300/200/0**, 30 min; koszt stały w epoce, a ×1,6 kosztu tylko dla doktryn (A1, A2, G1, G2: sama procentowa premia) za każdą wcześniejszą doktrynę epoki; czas stały w epoce. Doktryny A1, A2, G1 i G2 mają poziomy (A1 115 → 120 → 125% obrażeń toporów w drewno, A2 120 → 125 → 130% zasięgu łuków, w całych kratkach w dół): +5 pkt proc. premii za poziom, najwyżej 3 w epoce I i 5 w epoce II, każdy poziom kosztuje jak kolejna doktryna epoki. G5 Młyn wodny: epoka II, wymaga G2.
 
 ### 1.5 Generałowie
 
@@ -112,13 +114,14 @@ PvE wystarcza najwyżej do poziomu 2 (`PVE_LEVEL`). Vault [[Władca i generałow
 
 | Temat | Vault | Kod | Status |
 | --- | --- | --- | --- |
-| Przykład palisady / typowe czasy | [[Progresja budowy]] poprawiona do kodu | 10 s L1; ciągła krzywa 1…420 | zgodne (#262) |
-| Premie poziomów 6–10 | „nowa epoka dokłada ulepszenia” | tablice do poziomu 10 (#262) | ustalone, [[ADR/0009-model-balansu-epok-ciagla-krzywa\|ADR 0009]] |
-| Koszty jednostek Ży | vault podaje towary, rzadko ilości Ży | stałe 5–20 Ży | vault uzupełniony tą notatką |
-| Generałowie | zaktualizowane 22.11 | #273 | zgodne |
-| Utrzymanie Ży | opisane przy Wozie | pełna tablica `UPKEEP` | ta notatka |
+| Przykład palisady / typowe czasy | [[Progresja budowy]] = kod | 10 s L1; ciągła krzywa 1…420 | zgodne (#262 / #384) |
+| Premie poziomów 6–10 | tablice w § 1.7 | `EconomyConfig` / `Ages.bonus_level` do 10 | zgodne |
+| Młyn | [[Gospodarka]] + § 1.8 | `MILL_FOOD_PERCENT`, start 6 | zgodne (#396) |
+| Koszty jednostek Ży | ta notatka § 1.1 | 5–20 Ży | zgodne |
+| Generałowie | [[Władca i generałowie]] | #273 | zgodne |
+| Utrzymanie Ży | § 1.1 | `UPKEEP` | zgodne |
 
-### 1.7 Premie poziomów epoki II (#262)
+### 1.7 Premie poziomów epoki II (#262 / #384)
 
 Tymczasowe liczby z ustaleń 27.11.2026 ([[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]). Poziomy 1–5 bez zmian.
 
@@ -133,26 +136,38 @@ Tymczasowe liczby z ustaleń 27.11.2026 ([[ADR/0009-model-balansu-epok-ciagla-kr
 | Garnizon Dworu | 24 | 28 | 32 | 36 | 40 |
 | Limit pułapek | 12 | 14 | 16 | 18 | 20 |
 
-Koszary dają 2 miejsca za każdy poziom 1–10. Strefa obrony zostaje jak przy Dworze 5 ([[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]). Badania epoki II, rok na pasku i tempo szkolenia bez zmian.
+Koszary dają 2 miejsca za każdy poziom 1–10. Strefa obrony rośnie z Dworem i O25 ([[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]); wzór bierze `bonus_level` do 10. Badania epoki II, rok na pasku i tempo szkolenia bez zmian względem ADR 0009.
+
+### 1.8 Młyn (#388 / #396)
+
+Budynek epoki II: technologia G5, 2×2 przy rzece, stawia się od poziomu narastającego **6**
+([[ADR/0011-budynki-epoki-ii-od-poziomu-6|ADR 0011]]). Koszt L1 = 120/60/20/0, czas L1 = 50 s;
+płaci się od razu krzywą od poziomu 6 (1020/510/170 przy ×130). Premia żywności z jednego
+najwyższego Młyna: +4 / 8 / 12 / 16 / 20% (`EconomyConfig.MILL_FOOD_PERCENT`); w ruinie ×75%.
+Serwer: migracja `*_mill.sql` — parity kosztów, `mill_food_percent`, odrzut poziomów 1–5.
+
+Wyprawa / PvP (kontekst balansu): 20 botów na epokę (#385); dobór graczy tylko w tej samej epoce
+([[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce|ADR 0010]] / #395).
 
 ---
 
 ## 2. Krótka analiza problemów
 
-Fakty z kodu i issue, nie odczucia:
+Fakty z kodu — stan po #384 / #396:
 
-1. **Armia vs żywność.** Limit utrzymania działa (#247), ale piechota kosztuje tylko **1 Ży/h** przy produkcji Pola 60–200/h + Rybak + baza 20. Dwór 5 + Koszary 5 ≈ **60 miejsc**, a jedno Pole 5 daje 200 Ży/h — spożywanie nie jest wąskim gardłem przy spamie taniej piechoty (Chłop 5 Ży rekrutacji, 1 utrzymania).
+1. **Armia vs żywność.** Limit utrzymania działa (#247), ale piechota kosztuje tylko **1 Ży/h** przy produkcji Pola 60–200/h (i 240–440 w epoce II) + Rybak + baza 20 + opcjonalnie Młyn. Dwór 5 + Koszary 5 ≈ **60 miejsc** — spożywanie nadal nie jest wąskim gardłem przy spamie taniej piechoty.
 2. **Złoto prawie nie hamuje armii.** Żołnierze nie biorą Zł; 50 start + łup. Generałowie są tani (50 / 80 / 150). Tempo złota zależy od PvP/PvE, nie od produkcji.
-3. **Epoka II na liczbach „na teraz”.** Przebudowa 1000/1000/1000 + 12 h; budynki ×2; premie poziomów II nie istnieją (#262). Gracz płaci za epokę, ale nie dostaje nowych bonusów budynków ponad poziom 5.
-4. **Skala czasów niespójna z notatką.** Kod: Wieża L5 = 60×90 = 90 min (epoka I); notatka „typowe” 4 min. Albo skracamy kod, albo poprawiamy vault — #262 każe wybrać jedną skalę.
+3. **Epoka II ma ciągłą krzywą i premie** (#262 / #384). Przebudowa 1000/1000/1000 + 14 h; budynki droższe i dłuższe niż I.5; premie 6–10 rosną. Liczby nadal tymczasowe — kolejna passa po playteście.
+4. **Skala czasów = kod.** Vault ([[Progresja budowy]]) idzie za `TIME_MULT` / umocnieniami II (×110…255). Wieża L5 = 90 min; Wieża II.1 = 2 h 10 min.
 5. **Łańcuch towarów** jest prawdziwym kosztem armii (łuki, konie, skóry), ale tempo przepisów jest tymczasowe i łatwo zapełnia zbrojownię offline (limit catch-up 30 dni).
-6. **Generałowie (#273):** XP 20+20 i cap PvE na L2 pchają w PvP — OK projektowo; liczby obniżone 22.11, nadal tymczasowe.
+6. **Generałowie (#273):** XP 20+20 i cap PvE na L2 pchają w PvP — OK projektowo; liczby nadal tymczasowe.
+7. **Deploy bilansu** wymaga migracji + EF + `min_code` od razu ([[Serwer]]); stary klient inaczej dostaje `economy_too_fast` / `build_too_fast`.
 
 ---
 
-## 3. Opcje balansu
+## 3. Opcje balansu (zapis rozważań 21–23.11)
 
-A i B to skrajne odniesienia. **Opcja C** to proponowana ścieżka środka (feedback właścicielki 23.11.2026): bez głodu, bez spamu armii, pełny postęp F2P, a reklamy i sklep dają realną korzyść bez soft-locka. Wszystkie zakładają epoki I–II MVP i te same mechaniki (miejsca + utrzymanie). Wdrożenie dopiero po OK właścicielki. Ticket: #262.
+A i B to skrajne odniesienia. **Opcja C** była propozycją środka (feedback 23.11.2026). **27.11 właścicielka wybrała ciągłą krzywą** ([[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]] / #384): z C została tylko zasada monetyzacji; liczby C (m.in. Dwór 800/8 h, `TIME_MULT` [1,2,6,20,55], premie lokalne L6→1) **odrzucone**. Poniższe tabele zostają jako historia grillowania.
 
 ### Opcja A — „Szybki gród” (łatwiejszy early, miększa epoka II) — odniesienie
 
@@ -252,17 +267,16 @@ Cel: komfortowy F2P bez poczucia głodu i bez spamu taniej piechoty; wąskie gar
 
 ---
 
-## 4. Co wybrać dalej (bez decyzji agenta)
+## 4. Stan po decyzji (27.11.2026)
 
-**Stan 27.11.2026:** właścicielka wybrała model ciągłej krzywej ([[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]]); poniższa lista to plan sprzed decyzji.
+**Przyjęte:** [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]] w kodzie (#384) i na serwerze
+(migracja `age_two_balance`); Młyn (#396); same-age PvP (#395). #262 zamknięte.
 
-**Rekomendacja vaultu (23.11):** przyjąć **Opcję C**, ewentualnie z korektą pojedynczych wierszy. A/B zostają jako skrajne odniesienia.
+**Dalej (bez nowej decyzji o modelu):**
 
-Po OK właścicielki:
+1. Playtest liczb epoki II na telefonie; ewentualna druga passa liczb (nadal tymczasowe).
+2. Ops przy wydaniu klienta: pack `sim_version`, `min_code` od razu — [[Serwer]].
+3. Trzymać nagrady ads i sklep w limicie zasady z § Monetizacja C; ticket #33 / #174.
+4. Pozostałe budynki #102 (Pomost, Częstokół, Kaplica) na tej samej krzywej od poziomu 6.
 
-1. Wpisać liczby C w `*_config.gd` / `unit_types.gd` / `generals.gd` (generałowie bez zmian).
-2. Zsynchronizować serwer (`bonus_level` / premie 6–10) za zgodą właścicielki.
-3. Trzymać nagrady ads i sklep w limicie zasady z § Monetizacja; ticket #33 / #174.
-4. Zaktualizować tę notatkę i [[Progresja budowy]]; zamknąć #262 checkboxami.
-
-Powiązane: [[00 Start]], [[Plan MVP]], [[Bugs]], [[Model wydania]]
+Powiązane: [[00 Start]], [[Plan MVP]], [[Bugs]], [[Model wydania]], [[Serwer]], [[ADR/README|ADR]]
