@@ -5,8 +5,8 @@ extends TestCase
 ## co w grze; test składa je z klas gry i szuka w komentarzu i w funkcji migracji.
 
 const MIGRATION := "res://supabase/migrations/20261124150000_army_research_goods_sanity.sql"
-## Najnowsza wersja `private.tech_tree` (#315: G4 Kamieniarstwo w epoce I).
-const TREE_MIGRATION := "res://supabase/migrations/20261127071313_defense_reach.sql"
+## Najnowsza wersja `private.tech_tree` (#388: G5 Młyn wodny w epoce II).
+const TREE_MIGRATION := "res://supabase/migrations/20261127160000_mill.sql"
 ## Tempo wytwórców do poziomu 10 (#262) ma najnowsza wersja `private.goods_plan`.
 const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
 

@@ -6,6 +6,8 @@ extends TestCase
 const MIGRATION := "res://supabase/migrations/20261124120000_building_sanity.sql"
 ## Czasy budowy poziomów 1–10 (ciągła krzywa, #262) ma najnowsza wersja `private.build_time_ms`.
 const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
+## Najnowsze tabele czasu poziomu 1 i wymaganych technologii (#388: Młyn).
+const MILL_MIGRATION := "res://supabase/migrations/20261127160000_mill.sql"
 const K := BuildingTypes.Kind
 
 
@@ -29,9 +31,10 @@ func test_server_time_constants_match_game() -> bool:
 	var sql := _sql()
 	assert_true(not sql.is_empty(), "migracja jest")
 	var base := str(_base_times())
-	assert_true(sql.contains("BASE_TIME_S = %s" % base), "czasy poziomu 1 w komentarzu")
+	var mill := FileAccess.get_file_as_string(MILL_MIGRATION)
+	assert_true(mill.contains("BASE_TIME_S = %s" % base), "czasy poziomu 1 w komentarzu")
+	assert_true(mill.contains("coalesce((array%s)[p_kind + 1], 0)" % base), "czasy poziomu 1 w funkcji")
 	var balance := _balance_sql()
-	assert_true(balance.contains("coalesce((array%s)[p_kind + 1], 0)" % base), "czasy poziomu 1 w funkcji")
 	assert_true(balance.contains("TIME_MULT = %s" % str(BuildConfig.TIME_MULT)), "krzywa czasu")
 	assert_true(balance.contains("(array%s)[p_level]" % str(BuildConfig.TIME_MULT)), "krzywa w funkcji")
 	assert_eq(BuildConfig.TIME_MULT.size(), Ages.MAX_TOTAL_LEVEL, "krzywa przez wszystkie poziomy")
@@ -101,8 +104,9 @@ func test_required_tech_matches_game() -> bool:
 		parts.append("\"%d\": \"%s\"" % [kind, BuildConfig.REQUIRED_TECH[kind]])
 	var table := "{" + ", ".join(parts) + "}"
 	var sql := _sql()
-	assert_true(sql.contains("REQUIRED_TECH = " + table), "tabela w komentarzu")
-	assert_true(sql.contains("select ('" + table + "'::jsonb ->> n.kind::text)"), "tabela w funkcji")
+	var mill := FileAccess.get_file_as_string(MILL_MIGRATION)
+	assert_true(mill.contains("REQUIRED_TECH = " + table), "tabela w komentarzu")
+	assert_true(mill.contains("select ('" + table + "'::jsonb ->> n.kind::text)"), "tabela w funkcji")
 	assert_true(sql.contains("TOLERANCE = 5 minut łącznie"), "tolerancja łączna, nie na zapis")
 	return true
 
