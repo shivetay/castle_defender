@@ -31,6 +31,10 @@ var reach_level: int = 0
 ## w umocnieniach z pułapką zostaje luką (Sprawdź szczelność). Ustawia je main przed każdą zmianą
 ## budynków (_tick); nie trafiają do zapisu.
 var trap_cells: Dictionary[Vector2i, int] = {}
+## Odcinki wału i palisady (#371): kratka → wszystkie kratki jej odcinka w kolejności od początku
+## (Array[int], 2..BuildConfig.SEGMENT_MAX). Odcinek ulepsza się i rozbiera w całości; brama albo wieża
+## na jego kratce go skraca (remove). Zapisywane w save_data.
+var segments: Dictionary[int, Array] = {}
 var _next_id := 1
 
 
@@ -202,6 +206,78 @@ func placement_for(c: Vector2i, kind: int, stick: bool = false) -> Rect2i:
 		if can_place(rect, kind) and trap_under(rect) < 0:
 			return rect
 	return Rect2i()
+
+
+## Kratki odcinka wału albo palisady o długości `length` od kratki `c` (#371): w prawo albo, przy
+## `vertical`, w dół. Pusta tablica, gdy którakolwiek kratka nie nadaje się do budowy (zajęta, woda,
+## pułapka) albo `kind` nie jest umocnieniem. Długość 1 to dotknięta kratka bez wskakiwania w lukę.
+func segment_cells(c: Vector2i, kind: int, length: int, vertical: bool) -> Array[Rect2i]:
+	var out: Array[Rect2i] = []
+	if not BuildingTypes.is_wall(kind) or length < 1 or length > BuildConfig.SEGMENT_MAX:
+		return out
+	var along := Vector2i.DOWN if vertical else Vector2i.RIGHT
+	for i in length:
+		var r := Rect2i(c + along * i, Vector2i.ONE)
+		if not can_place(r, kind) or trap_under(r) >= 0:
+			out.clear()
+			return out
+		out.append(r)
+	return out
+
+
+## Łączy kratki `ids` w jeden odcinek (#371). Mniej niż 2 kratki to zwykłe pojedyncze umocnienia.
+func link_segment(ids: Array[int]) -> void:
+	if ids.size() < 2:
+		return
+	var members: Array[int] = ids.duplicate()
+	for id in members:
+		segments[id] = members
+
+
+## Wszystkie kratki odcinka, do którego należy budynek `id` (od początku odcinka), albo [id].
+func segment_ids(id: int) -> Array[int]:
+	var out: Array[int] = []
+	if segments.has(id):
+		out.assign(segments[id])
+	else:
+		out.append(id)
+	return out
+
+
+## Prostokąt obejmujący cały odcinek budynku `id` (sam budynek, gdy nie jest w odcinku).
+func segment_rect(id: int) -> Rect2i:
+	var r := Rect2i()
+	for m in segment_ids(id):
+		if buildings.has(m):
+			r = buildings[m] if not r.has_area() else r.merge(buildings[m])
+	return r
+
+
+## Wyjmuje kratkę `id` z odcinka: reszta zostaje odcinkiem, gdy ma co najmniej 2 kratki i dalej
+## leży w jednej linii bez przerwy; inaczej rozpada się na pojedyncze kratki.
+func _unlink(id: int) -> void:
+	if not segments.has(id):
+		return
+	var rest: Array[int] = []
+	for m: int in segments[id]:
+		segments.erase(m)
+		if m != id:
+			rest.append(m)
+	var span := Rect2i()
+	for m in rest:
+		span = buildings[m] if not span.has_area() else span.merge(buildings[m])
+	if rest.size() >= 2 and span.get_area() == rest.size() and (span.size.x == 1 or span.size.y == 1):
+		link_segment(rest)
+
+
+## Pierwsza pułapka (TrapConfig.Kind) na kratkach odcinka albo -1 (komunikat przy odrzuceniu, #341).
+func segment_trap(c: Vector2i, length: int, vertical: bool) -> int:
+	var along := Vector2i.DOWN if vertical else Vector2i.RIGHT
+	for i in length:
+		var t := trap_under(Rect2i(c + along * i, Vector2i.ONE))
+		if t >= 0:
+			return t
+	return -1
 
 
 ## Rodzaj pułapki (TrapConfig.Kind) na którejś kratce prostokąta albo -1 (#341).
@@ -870,6 +946,7 @@ func wall_stubs(id: int) -> Array[Vector3i]:
 func remove(id: int) -> bool:
 	if not buildings.has(id):
 		return false
+	_unlink(id)
 	_fill(buildings[id], 0)
 	buildings.erase(id)
 	kinds.erase(id)
@@ -916,7 +993,14 @@ func save_data() -> Dictionary:
 	for id in ids:
 		var r := buildings[id]
 		list.append([id, kinds[id], levels[id], r.position.x, r.position.y, r.size.x, r.size.y])
-	return {"next_id": _next_id, "buildings": list}
+	var segs: Array = []
+	for id in ids:
+		if segments.has(id) and int(segments[id][0]) == id:
+			segs.append((segments[id] as Array).duplicate())
+	var out := {"next_id": _next_id, "buildings": list}
+	if not segs.is_empty():
+		out["segments"] = segs
+	return out
 
 
 ## Wczytuje budynki z save_data() do pustej siatki. Wpis, który nie mieści się na tym terenie
@@ -942,4 +1026,28 @@ func load_data(d: Dictionary) -> int:
 		_fill(rect, id)
 		max_id = maxi(max_id, id)
 	_next_id = maxi(int(d.get("next_id", 1)), max_id + 1)
+	_load_segments(d.get("segments", []) as Array)
 	return skipped
+
+
+## Odcinki z zapisu (#371): tylko 2..SEGMENT_MAX istniejących kratek wału albo palisady jednego rodzaju
+## i poziomu, każda w jednym odcinku, w jednej linii bez przerwy. Inne wpisy są pomijane (kratki zostają
+## pojedyncze), żeby spreparowany zapis nie złączył obcych budynków.
+func _load_segments(list: Array) -> void:
+	for entry: Variant in list:
+		var e := entry as Array
+		if e == null or e.size() < 2 or e.size() > BuildConfig.SEGMENT_MAX:
+			continue
+		var ids: Array[int] = []
+		var ok := true
+		var span := Rect2i()
+		for v: Variant in e:
+			var id := int(v)
+			if not buildings.has(id) or segments.has(id) or ids.has(id) or not BuildingTypes.is_wall(kinds[id]) \
+					or (not ids.is_empty() and (kinds[id] != kinds[ids[0]] or levels[id] != levels[ids[0]])):
+				ok = false
+				break
+			ids.append(id)
+			span = buildings[id] if not span.has_area() else span.merge(buildings[id])
+		if ok and span.get_area() == ids.size() and (span.size.x == 1 or span.size.y == 1):
+			link_segment(ids)
