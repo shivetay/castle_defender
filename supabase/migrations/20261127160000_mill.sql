@@ -241,4 +241,6 @@ revoke all on function private.production_max(jsonb, jsonb) from public, anon, a
 revoke all on function private.castle_buildings_problem(jsonb) from public, anon, authenticated;
 grant execute on function private.castle_buildings_problem(jsonb) to service_role;
 grant execute on function private.food_production(jsonb) to service_role;
+-- food_production woła ją jako service_role (np. begin_attack), więc service_role musi mieć EXECUTE
+grant execute on function private.mill_food_percent(integer) to service_role;
 grant execute on function private.tech_tree() to service_role;

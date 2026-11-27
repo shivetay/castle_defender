@@ -7,7 +7,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(20);
+select plan(21);
 
 -- ---- drzewko i technologia ----
 select is(private.tech_tree() -> 'G5', '[1, ["G2"]]'::jsonb, 'G5 Młyn wodny: epoka II, wymaga G2');
@@ -54,6 +54,10 @@ select is(private.mill_food_percent(5), 0, 'poziom poniżej epoki II nic nie daj
 -- ---- uprawnienia ----
 set local role authenticated;
 select throws_ok($$select private.mill_food_percent(6)$$, '42501', null, 'gracz nie woła mill_food_percent');
+reset role;
+set local role service_role;
+select is(private.food_production('{"grid": {"buildings": [[1, 16, 10, 0, 0, 2, 2], [7, 32, 10, 0, 0, 2, 2]]}}'), 396,
+  'service_role (begin_attack) liczy limit utrzymania z premią Młyna');
 reset role;
 
 select * from finish();
