@@ -18,6 +18,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Pierwsza passa balansu i premie poziomów 6–10 (27.11.2026, #262): ciągła krzywa kosztu i czasu przez 10 poziomów, premie epoki II rosną dalej (tablice do poziomu 10), Dwór II.1–II.5 z własnej tabeli; z Opcji C z [[Balans]] została zasada reklam i sklepu, reszta odrzucona. Liczby tymczasowe. [[ADR/0009-model-balansu-epok-ciagla-krzywa|ADR 0009]].
 - Premie szkolenia, kolców w fosie i Kopca na poziomach 6–10 (27.11.2026, #387): kolejka 7–11, tempo 230–400%, kolce 7–11 HP/s, Kopiec +2/+2/+2/+3/+3, zwiad z poziomem do 10. Liczby tymczasowe. [[ADR/0013-premie-szkolenia-fosy-i-kopca-w-epoce-ii|ADR 0013]].
 - Dobór PvP (27.11.2026, #383): dobór, zwiad i start ataku tylko w tej samej epoce; bez graczy w epoce karty uzupełniają boty z Wyprawy jak dotąd. [[ADR/0010-dobor-pvp-tylko-w-tej-samej-epoce|ADR 0010]].
+- Powiadomienia push (27.11.2026, #30): o ataku przez FCM z `finish_attack` (raz na atak, bez nicku), tokeny w `push_tokens` tylko dla serwera, zgoda po okienku w grze, własna wtyczka Android, koniec budowy lokalnie. [[ADR/0012-powiadomienia-push-fcm|ADR 0012]].
 - Budynki epoki II od poziomu 6 i Młyn (27.11.2026, #102): budynek nowej epoki stawia się na poziomie narastającym 6 i ulepsza do 10; Młyn to G5 z premią +4–20% żywności (#388). Liczby tymczasowe. [[ADR/0011-budynki-epoki-ii-od-poziomu-6|ADR 0011]].
 - Sklep w Targu bez reklam (27.11.2026, #408): Targ stoi od startu i otwiera sklep z darmowymi ofertami z odnowieniem (min. 1 h, złoto do 100, inne do 2000), grupy po 3 z panelu admina, odbiór i złoto przez serwer. Zakupy i reklamy dalej w #174. [[ADR/0014-sklep-darmowe-oferty-z-odnowieniem|ADR 0014]].
 - Postęp kampanii botów (27.11.2026, #386): licznik zdobytych zamków-botów trzyma serwer (`players.bots_beaten`, tylko wyzwalacz), `begin_attack` odrzuca zablokowanego bota, import z `attacks`, karty Wyprawy tylko z odblokowanymi botami; weryfikacja wyniku z botem przez worker w #413. [[ADR/0015-postep-kampanii-botow-na-serwerze|ADR 0015]].
@@ -38,7 +39,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 | Dwór przez epoki + garnizon UI | #81 | w PR: 4 miejsca za poziom Dworu, +20% HP przy donżonie, bez ataku (decyzja 23.11.2026); liczby do testu na telefonie |
 | Wynik bitwy: % / gwiazdki / łup UI | #99 | odbudowa / ruiny są (#255); reszta UI otwarta |
 | Perki władcy | #32 | generałowie #31 gotowe |
-| Powiadomienia push | #30 | — |
+| Powiadomienia push | #30 | ustalone w [[ADR/0012-powiadomienia-push-fcm\|ADR 0012]]; serwer w PR, wtyczka Android i koniec budowy w kolejnych PR-ach |
 | Ranking PvE (ticket zbiorczy) | #242 | kod rankingu #264–#265; checklist issue |
 | Mini-samouczek UI do 6 żołnierzy | #251 | — |
 | Życie w zamku | #36 | — |

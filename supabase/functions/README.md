@@ -5,7 +5,7 @@ Edge Functions (Deno / TypeScript) wywoływane z klienta lub crona.
 | Funkcja | Rola |
 |---|---|
 | `start_attack/` | Start ataku (#25): woła `begin_attack` (blokada celu, tarcza, limit startów, zamek-bot tylko odblokowany w kampanii: `409 bot_locked` z `bots_beaten`, #386, armia z zamku w limicie miejsc i utrzymania żywności, #249); zwraca seedy, a przy graczu tylko zarys, donżon i zwiad (`attack_preview`, #28) |
-| `finish_attack/` | Koniec ataku (#25): woła `end_attack` (wynik i łup w limitach zapasów i capacity ocalałych, tarcza 8 h od 30%); ponowienie zwraca zapisany wynik; potem `record_destroyed` zapisuje zniszczone budynki obrońcy (#99) |
+| `finish_attack/` | Koniec ataku (#25): woła `end_attack` (wynik i łup w limitach zapasów i capacity ocalałych, tarcza 8 h od 30%); ponowienie zwraca zapisany wynik; potem `record_destroyed` zapisuje zniszczone budynki obrońcy (#99), a w tle push do obrońcy (#30, `_shared/fcm.ts`, raz na atak przez `attack_push_claim`) |
 | `find_targets/` | Dobór przeciwnika (#24): woła `match_targets` z id gracza z tokenu, zwraca do 3 celów z przedziałem siły obrony (#293, tylko dolna granica) |
 | `scout/` | Zwiad na gracza (#28): woła `begin_scout` (Chata tropicieli, S1 i zwiadowcy z zamku na serwerze, naraz jedna misja, 30 na dobę); wynik z seeda serwera, w odpowiedzi tylko czas misji |
 | `scout_reports/` | Raporty zwiadu (#28): `scout_reports`, wynik i odsłonięte dane dopiero po końcu misji |
@@ -13,12 +13,17 @@ Edge Functions (Deno / TypeScript) wywoływane z klienta lub crona.
 | `attack_replay/` | Powtórka obrony (#29): woła `attack_replay` z id gracza z tokenu; tylko obrońca zakończonego ataku dostaje seedy, kopie z chwili startu, armię, plan i badania atakującego |
 | `defense_history/` | Historia obron (#328): woła `defense_history` z id gracza z tokenu; 10 ostatnich zakończonych ataków na jego zamek z wynikiem, armią i nickiem napastnika (bez id i nazwy zamku napastnika) oraz znacznikiem powtórki i przedziałem siły obrony zamku napastnika (#293) |
 | `ranking/` | Ranking PvP (#27) i PvE (#242): woła `pvp_ranking` (atak albo obrona) albo `pve_ranking` (`pve`) z id gracza z tokenu, zwraca 20 najlepszych z jego epoki i jego wiersz |
+| `push_token/` | Token push urządzenia (#30, ADR 0012): zapis (`push_token_register`, z przełącznikiem Ataki) albo usunięcie własnego tokenu FCM z id gracza z tokenu JWT, najwyżej 20 zapisów na godzinę (429 `rate_limited`); klient nie ma uprawnień do `push_tokens` |
 | `shop_claim/` | Sklep w Targu (#408): woła `claim_offer` z id gracza z tokenu (oferta widoczna, odnowienie od ostatniego odbioru na zegarze serwera, miejsce w magazynie: `cooldown`, `storage_full`, `offer_unavailable`); nagrodę dopisuje do `castle_loot_pending`, ponowienie przed odnowieniem nic nie daje |
 | `pve_wave/` | Fala PvE (#288): start (`begin_wave`, fala od postępu serwera, jedna naraz, 10 startów na 10 minut) i koniec (`end_wave`, wygrana najwcześniej po 5 s, wynik do 10 minut); nagrodę za wygraną dopisuje serwer do `castle_loot_pending`, ponowienie zwraca zapisany wynik |
 
 `_shared/client_version.ts` (#336, ADR 0006): każda funkcja po sprawdzeniu tokenu odpowiada 426
 `{"error": "update_required"}`, gdy nagłówek `X-Client-Version` jest niższy niż `min_code` z
 `client_version_policy()` albo go brak. Zmiana w `_shared/` oznacza wgranie wszystkich funkcji.
+
+`_shared/fcm.ts` (#30, ADR 0012): wysyłka przez FCM HTTP v1 z kontem serwisowym z sekretu
+`FCM_SERVICE_ACCOUNT` (JSON konta serwisowego Firebase, ustawia właścicielka: `supabase secrets set`).
+Bez sekretu push się nie wysyła. Do logów tylko kody błędów, bez tokenów urządzeń.
 
 Nowe funkcje: bez sekretów w repo; wynik/łup/ranking nie ufaj payloadom z klienta
 (skill `pvp-anti-cheat`).
