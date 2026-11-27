@@ -95,7 +95,7 @@ func test_resource_short_names_become_icons() -> bool:
 	var toks := PixelFont.tokens("120 Dr 40 Ka, 5 Ży/h +2 Zł")
 	for res in EconomyConfig.count():
 		assert_true(toks.has(PixelFont.ICON_MARK + str(res)), "ikona surowca %d" % res)
-	assert_eq(PixelFont.text_width("5 Dr"), PixelFont.text_width("5 ") + PixelIcons.SIZE, "ikona ma szerokość 5 px")
+	assert_eq(PixelFont.text_width("5 Dr"), PixelFont.text_width("5 ") + 1 + PixelIcons.SIZE, "ikona ma szerokość 5 px")
 	for t in ["Drewno", "Kamień", "Złoto", "Kara"]:
 		assert_true(not "".join(PixelFont.tokens(t)).contains(PixelFont.ICON_MARK), "„%s” bez ikony" % t)
 	var a := Image.create(40, 8, false, Image.FORMAT_RGBA8)
