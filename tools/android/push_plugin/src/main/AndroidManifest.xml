@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Wtyczka DunholdPush (#30, ADR 0012): rejestracja w Godocie i domyślny kanał pusha o ataku. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <meta-data
+            android:name="org.godotengine.plugin.v2.DunholdPush"
+            android:value="com.shivetay.dunhold.push.DunholdPush" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="attacks" />
+    </application>
+</manifest>
