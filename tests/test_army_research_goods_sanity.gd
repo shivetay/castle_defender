@@ -9,6 +9,8 @@ const MIGRATION := "res://supabase/migrations/20261124150000_army_research_goods
 const TREE_MIGRATION := "res://supabase/migrations/20261127160000_mill.sql"
 ## Tempo wytwórców do poziomu 10 (#262) ma najnowsza wersja `private.goods_plan`.
 const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
+## Tempo szkolenia do poziomu 10 (#387) ma najnowsza wersja `private.train_ms`.
+const TRAIN_MIGRATION := "res://supabase/migrations/20261127170000_training_age_two.sql"
 
 
 func _sql() -> String:
@@ -84,18 +86,20 @@ func test_unit_rules_match_game() -> bool:
 	return true
 
 
-## Czas szkolenia na serwerze (`private.train_ms`) to RecruitmentConfig.train_ms dla każdej jednostki i poziomu.
+## Czas szkolenia na serwerze (najnowsze `private.train_ms`, #387) to RecruitmentConfig.train_ms dla każdej
+## jednostki i poziomu 1–10 (wyższe jak 10).
 func test_train_time_matches_game() -> bool:
-	var sql := _sql()
+	var sql := FileAccess.get_file_as_string(TRAIN_MIGRATION)
 	var times := str(RecruitmentConfig.TRAIN_TIME_S)
 	var speed := str(RecruitmentConfig.TRAINING_SPEED_PERCENT)
 	assert_true(sql.contains("TRAIN_TIME_S = " + times), "czasy w komentarzu")
 	assert_true(sql.contains("coalesce((array%s)[p_unit + 1], 0)" % times), "czasy w funkcji")
 	assert_true(sql.contains("TRAINING_SPEED_PERCENT = " + speed), "tempo w komentarzu")
-	assert_true(sql.contains("(array%s)[least(greatest(p_level, 1), 5)]" % speed), "tempo w funkcji")
+	assert_true(sql.contains("(array%s)[least(greatest(p_level, 1), %d)]" % [speed, Ages.MAX_TOTAL_LEVEL]),
+			"tempo w funkcji, poziom do 10")
 	for unit in UnitTypes.count():
-		for level in range(1, Ages.MAX_TOTAL_LEVEL + 1):
-			var pct: int = RecruitmentConfig.TRAINING_SPEED_PERCENT[clampi(level, 1, 5) - 1]
+		for level in range(1, Ages.MAX_TOTAL_LEVEL + 3):
+			var pct: int = RecruitmentConfig.TRAINING_SPEED_PERCENT[clampi(level, 1, Ages.MAX_TOTAL_LEVEL) - 1]
 			@warning_ignore("integer_division")
 			var server: int = RecruitmentConfig.TRAIN_TIME_S[unit] * 1000 * 100 / pct
 			assert_eq(server, RecruitmentConfig.train_ms(unit, level), "jednostka %d poziom %d" % [unit, level])

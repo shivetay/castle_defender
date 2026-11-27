@@ -119,7 +119,7 @@ select is(private.research_need_ms('{}', '{A1,A2,O1,G1,G2,O2,G18,G21,U1}'), 5400
   'nowe konto: 9 technologii to 9 min, mniej niż 6 h zapasu gry bez sieci');
 select is(private.train_ms(0, 1), 20000::bigint, 'topornik w Koszarach 1: 20 s');
 select is(private.train_ms(0, 5), 10000::bigint, 'Koszary 5: dwa razy szybciej');
-select is(private.train_ms(0, 9), 10000::bigint, 'poziomy epoki II jak 5');
+select is(private.train_ms(0, 9), 5882::bigint, 'Koszary II.4: 340 procent (#387, *_training_age_two.sql)');
 
 -- ---- gracz A: czas badań, szkolenia i produkcji ----
 set local role authenticated;
