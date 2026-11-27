@@ -373,8 +373,10 @@ func load_data(d: Dictionary, grid: BuildGrid, now_ms: int) -> int:
 		o.building_id = int(e["building_id"])
 		o.kind = grid.kinds[o.building_id]
 		o.level = clampi(int(e.get("level", 1)), 1, Ages.MAX_TOTAL_LEVEL)
-		# kratki odcinka (#371): tylko istniejące, tego samego rodzaju, bez powtórzeń i bez głównej
-		for extra: Variant in e.get("extra_ids", []) as Array:
+		# kratki odcinka (#371): tylko wał albo palisada na poziomie 1, istniejące kratki tego samego rodzaju,
+		# bez powtórzeń i bez głównej, jak serwer (private.segment_orders w *_wall_segments.sql)
+		var segment := BuildingTypes.is_wall(o.kind) and o.level == 1
+		for extra: Variant in (e.get("extra_ids", []) as Array) if segment else []:
 			var id := int(extra)
 			if id != o.building_id and grid.buildings.has(id) and grid.kinds[id] == o.kind \
 					and not o.extra_ids.has(id) and o.extra_ids.size() < BuildConfig.SEGMENT_MAX - 1:

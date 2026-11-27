@@ -212,3 +212,30 @@ func test_build_message_shows_segment_cost() -> bool:
 	assert_true(msg.contains(Hud.cost_text(BuildConfig.segment_cost(K.PALISADE, 1, 3))), "koszt odcinka w komunikacie")
 	assert_true(PixelFont.text_width(msg) <= Hud.MESSAGE_MAX_WIDTH, "komunikat mieści się w pasku")
 	return true
+
+
+## Serwer zna te same dopłaty i zasady odcinka (review PR 414, migracja `*_wall_segments.sql`).
+func test_server_knows_segment_gold() -> bool:
+	var sql := FileAccess.get_file_as_string("res://supabase/migrations/20261127180000_wall_segments.sql")
+	assert_true(not sql.is_empty(), "migracja jest")
+	assert_true(sql.contains("SEGMENT_GOLD = %s" % str(BuildConfig.SEGMENT_GOLD)), "dopłaty w komentarzu")
+	var arr := "(array[%s])" % ", ".join(BuildConfig.SEGMENT_GOLD.map(func(g: int) -> String: return str(g)))
+	assert_true(sql.contains(arr + "[cardinality(s.extra_ids) + 1]"), "dopłaty w funkcji")
+	assert_true(sql.contains("limit %d" % (BuildConfig.SEGMENT_MAX - 1)), "najwyżej SEGMENT_MAX − 1 dodatkowych kratek")
+	assert_true(sql.contains("b.kind in (%d, %d)" % [K.RAMPART, K.PALISADE]), "tylko wał i palisada")
+	return true
+
+
+## Zapis z extra_ids przy budynku, który nie jest odcinkiem (wieża, ulepszenie), ich nie bierze, jak serwer.
+func test_load_ignores_extra_ids_outside_segments() -> bool:
+	var castle := _castle()
+	var grid: BuildGrid = castle[0]
+	var c := _free_start(grid, K.PALISADE, 3, false)
+	var a := grid.place(Rect2i(c, Vector2i.ONE), K.PALISADE, 1)
+	var b := grid.place(Rect2i(c + Vector2i(1, 0), Vector2i.ONE), K.PALISADE, 1)
+	var data := {"orders": [{"building_id": a, "extra_ids": [b], "kind": K.PALISADE, "level": 2,
+			"cost": [30, 0, 7, 0], "duration_ms": 30 * SEC, "start_ms": T0}]}
+	var q := BuildQueue.new()
+	q.load_data(data, grid, T0)
+	assert_true(q.orders[0].extra_ids.is_empty(), "ulepszenie nie jest odcinkiem")
+	return true
