@@ -1509,6 +1509,9 @@ func _on_player_target(target: TargetSearch.Target) -> void:
 
 func _on_player_attack_started(start: Dictionary, error: String) -> void:
 	if _pve.state == PveReport.State.STARTING:
+		if error == AttackStart.BOT_LOCKED:
+			_apply_server_bots(int(start.get("bots_beaten", -1)))
+			hud.message = AttackStart.error_message(error)
 		_pve_send(_pve.on_started(start, error))
 		return
 	_starting = false
@@ -1756,7 +1759,7 @@ func _finish_attack(b: Battle) -> void:
 		unlock = "Wszystkie zamki zdobyte!" if bots_beaten + 1 >= BotRoster.COUNT \
 				else BotPicker.unlock_text(bots_beaten + 1)
 	elif _pve.failed():
-		unlock = PveReport.FAILED_MESSAGE  # serwer odrzucił start wyprawy
+		unlock = _pve.failed_message()  # serwer odrzucił start wyprawy
 	elif not online:
 		unlock = PveReport.OFFLINE_MESSAGE
 	if first:
@@ -1765,6 +1768,7 @@ func _finish_attack(b: Battle) -> void:
 			attack_target = bots_beaten  # następna Wyprawa od razu na nowy zamek
 			for o in attack_plan.orders:
 				AttackPlanner.clear(o)  # cel i trasa dotyczyły zdobytego zamku
+	_fit_attack_target()  # licznik z serwera mógł zejść w trakcie bitwy (#386)
 	battle_view.queue_free()
 	battle_view = null
 	_on_battle_states({})  # po bitwie zamek znów jest cały
@@ -1876,6 +1880,28 @@ func _pve_begin(army: Array) -> void:
 	net.flush()  # serwer sprawdza armię z kopii zamku (#23)
 	if net.start_bot_attack(attack_target, army):
 		_pve.begin(attack_target, army)
+
+
+## Postęp kampanii z serwera (#386, ADR 0015): serwer odrzucił zamek-bota, bo zna mniej zdobytych zamków
+## (np. wygranych bez sieci). Gra przyjmuje jego licznik. Cel zmienia się dopiero po bitwie, bo w trakcie
+## wynik liczy się jeszcze dla zamku, z którym gracz walczy. `beaten` < 0: odpowiedź bez postępu.
+func _apply_server_bots(beaten: int) -> void:
+	if beaten < 0:
+		return
+	bots_beaten = mini(beaten, BotRoster.COUNT)
+	if battle_view == null:
+		_fit_attack_target()
+	_save()
+
+
+## Cel Wyprawy poza postępem kampanii wraca na najwyższy odblokowany zamek (bez celów i tras z planu).
+func _fit_attack_target() -> void:
+	var target := BotRoster.unlocked_target(attack_target, bots_beaten)
+	if target == attack_target:
+		return
+	attack_target = target
+	for o in attack_plan.orders:
+		AttackPlanner.clear(o)
 
 
 ## Wysyła wynik wyprawy (pusta treść: nie ma czego wysyłać albo czekamy na start).

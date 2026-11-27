@@ -250,6 +250,8 @@ static func fit(text: String, width: int) -> String:
 
 func _activate(t: int) -> void:
 	if t >= Target.CARD:
+		if t - Target.CARD >= targets.size():
+			return  # puste miejsce po karcie: nowy gracz ma mniej botów (#386)
 		selected = t - Target.CARD
 		scout_changed.emit()
 	elif t == Target.SCOUT_TIME:

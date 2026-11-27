@@ -448,7 +448,10 @@ w sekcji „Następny etap”.
   otwiera mapę zamku-celu).
   - **20 zamków-botów na epokę (#26, #230, `scripts/battle/bot_roster.gd`):** lista wspólna dla wszystkich
     graczy (seed z numeru zamku, w bazie `bot_castles`), z nazwami. Epoki I–II mają po 20 zamków (numery 0–19
-    i 20–39), odblokowywanych po kolei, więc epoka II zaczyna się po 20 zamkach epoki I. W epoce I trudność
+    i 20–39), odblokowywanych po kolei, więc epoka II zaczyna się po 20 zamkach epoki I. Kolejności pilnuje
+    serwer (#386, ADR 0015, migracja `bot_campaign`): licznik `players.bots_beaten` podbija tylko wygrana
+    z kolejnym zamkiem, `start_attack` odrzuca zamek powyżej niego (`bot_locked`), a gra przyjmuje wtedy
+    licznik z serwera. Karty Wyprawy pokazują tylko odblokowane boty. W epoce I trudność
     rośnie z rangą: poziom budynków 1–5 (co 4 zamki), do 4 wież, budynki rekrutacji (Koszary od 4.,
     Strzelnica od 7., Dom drużyny od 10., Stajnia od 13.), gród na wale zamiast palisady w zamkach 2, 4, 6,
     8 i 10, zewnętrzny wał od 11. i załoga z coraz większej liczby klas (od 4 Chłopów do 74 obrońców). Epoka II
