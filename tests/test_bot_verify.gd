@@ -147,3 +147,23 @@ func test_give_up_ignores_late_start() -> bool:
 	assert_true(p.is_idle(), "dalej bez zgłoszenia")
 	assert_eq(p.finish(BattleResult.new(), [10, 10, 8]), {}, "wynik nie idzie na serwer")
 	return true
+
+
+## Migracja i Edge Function używają tych samych liczb i kluczy co gra (#413).
+func test_matches_migration_and_edge() -> bool:
+	var sql := FileAccess.get_file_as_string("res://supabase/migrations/20261128090000_bot_verification.sql")
+	assert_true(not sql.is_empty(), "migracja jest")
+	assert_true(sql.contains("v_stash := 20 + 10 * a.bot_idx") and sql.contains("v_stash := 1000 + 500 * a.bot_idx"),
+			"skarbiec bota jak BattleResult.stash")
+	assert_eq([BattleResult.GOLD_BASE, BattleResult.GOLD_STEP, BattleResult.STASH_BASE, BattleResult.STASH_STEP],
+			[20, 10, 1000, 500], "liczby skarbca w grze")
+	assert_true(sql.contains("v_loot[i + 1] * %d / 100" % BattleResult.REPEAT_PERCENT), "powtórka jak REPEAT_PERCENT")
+	assert_true(sql.contains("order by (t.defender_id is null), v.created_at"), "najpierw PvP")
+	assert_true(sql.contains("'bot_idx', a.bot_idx"), "job niesie numer bota")
+	var fn := FileAccess.get_file_as_string("res://supabase/functions/start_attack/index.ts")
+	var keys := AttackStart.request_bot(BOT, ARMY, AttackPlan.new(), 0).keys()
+	for k: String in keys:
+		assert_true(fn.contains("\"%s\"" % k), "Edge Function przyjmuje klucz %s" % k)
+	assert_true(fn.contains("MAX_ORDERS = %d" % AttackPlan.MAX_SQUADS_BY_AGE[-1]), "limit rozkazów jak w grze")
+	assert_true(fn.contains("\"begin_bot_attack\""), "start z planem przez begin_bot_attack")
+	return true
