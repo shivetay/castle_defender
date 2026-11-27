@@ -4,7 +4,7 @@ Edge Functions (Deno / TypeScript) wywoływane z klienta lub crona.
 
 | Funkcja | Rola |
 |---|---|
-| `start_attack/` | Start ataku (#25): woła `begin_attack` (blokada celu, tarcza, limit startów, zamek-bot tylko odblokowany w kampanii: `409 bot_locked` z `bots_beaten`, #386, armia z zamku w limicie miejsc i utrzymania żywności, #249); zwraca seedy, a przy graczu tylko zarys, donżon i zwiad (`attack_preview`, #28) |
+| `start_attack/` | Start ataku (#25): woła `begin_attack`, a przy zamku-bocie z planem `begin_bot_attack` (#413, ADR 0016: plan, generał i `sim_version` zatwierdzone w tej samej transakcji, w odpowiedzi plan, badania, generał i perk do bitwy i weryfikacji) (blokada celu, tarcza, limit startów, zamek-bot tylko odblokowany w kampanii: `409 bot_locked` z `bots_beaten`, #386, armia z zamku w limicie miejsc i utrzymania żywności, #249); zwraca seedy, a przy graczu tylko zarys, donżon i zwiad (`attack_preview`, #28) |
 | `finish_attack/` | Koniec ataku (#25): woła `end_attack` (wynik i łup w limitach zapasów i capacity ocalałych, tarcza 8 h od 30%); ponowienie zwraca zapisany wynik; potem `record_destroyed` zapisuje zniszczone budynki obrońcy (#99), a w tle push do obrońcy (#30, `_shared/fcm.ts`, raz na atak przez `attack_push_claim`) |
 | `find_targets/` | Dobór przeciwnika (#24): woła `match_targets` z id gracza z tokenu, zwraca do 3 celów z przedziałem siły obrony (#293, tylko dolna granica) |
 | `scout/` | Zwiad na gracza (#28): woła `begin_scout` (Chata tropicieli, S1 i zwiadowcy z zamku na serwerze, naraz jedna misja, 30 na dobę); wynik z seeda serwera, w odpowiedzi tylko czas misji |

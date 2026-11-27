@@ -182,6 +182,11 @@ var _player: PlayerCastle
 var _starting := false
 ## Zatwierdzenie planu na gracza czeka na `launch_attack` (#28).
 var _launching := false
+## Bitwa z botem czeka na odpowiedź startu na serwerze (#413); numer startu odróżnia jego limit czasu,
+## a `_bot_late` każe pominąć odpowiedź, która przyszła po tym limicie.
+var _bot_waiting := false
+var _bot_start_serial := 0
+var _bot_late := false
 ## Zwiad na gracza czeka na odpowiedź `scout` (#28): cel i długość z ekranu celów.
 var _scout_target: TargetSearch.Target
 var _scout_duration := 0
@@ -1529,11 +1534,16 @@ func _on_player_target(target: TargetSearch.Target) -> void:
 
 
 func _on_player_attack_started(start: Dictionary, error: String) -> void:
+	if _bot_late:
+		_bot_late = false  # spóźniona odpowiedź startu wyprawy: bitwa poszła już bez serwera (#413)
+		return
 	if _pve.state == PveReport.State.STARTING:
 		if error == AttackStart.BOT_LOCKED:
 			_apply_server_bots(int(start.get("bots_beaten", -1)))
 			hud.message = AttackStart.error_message(error)
 		_pve_send(_pve.on_started(start, error))
+		if _bot_waiting:
+			_on_bot_started(start)
 		return
 	_starting = false
 	if not target_picker.visible:
@@ -1594,7 +1604,7 @@ func _open_target(bot: BotCastle, player: PlayerCastle) -> void:
 ## Bitwa na zamku-bocie `bot` z armią `army`, przed planem i badaniami.
 func _bot_battle(bot: BotCastle, army: Array) -> Battle:
 	return Battle.create_squads(bot.grid, bot.objective, army, bot.defenders, bot.spawn,
-			PixelCanvas.hash2(bot.seed_value, attack_target, 0xa77) & 0x7fffffff)
+			BotBattle.local_seed(bot, attack_target))
 
 
 ## Co plan ataku widzi z zamku-celu (#28): fragment z raportu zwiadu na ten cel, z miejscami załogi
@@ -1683,20 +1693,61 @@ func _on_attack_launched() -> void:
 		_resume_finish()
 		hud.message = PendingFinish.WAIT_MESSAGE
 		return
-	var bot := planner.bot
+	if _player == null and _bot_waiting:
+		return  # bitwa z botem czeka już na start na serwerze (#413)
 	_battle_ids = recruitment.battle_ids(defense.garrison_ids()).slice(0, army.size())
 	_battle_army = army
-	var b: Battle
 	if _player != null:
 		# seed bitwy, obrona, plan i badania z serwera (#240, #29): ta sama bitwa co powtórka u obrońcy
-		b = _player.create_battle()
-	else:
-		b = _bot_battle(bot, army)
-		b.set_plan(AttackPlan.from_dict(attack_plan.to_dict()))
-		b.apply_research(Battle.Side.ATTACKER, research)  # A1 topory i A2 łuki atakującego (#12)
-		b.set_general(Battle.Side.ATTACKER, generals.attack_general())  # generał ataku (#31)
-		b.set_ruler_perk(Battle.Side.ATTACKER, grid.ruler_perk)  # Zdobywca (#32)
-		_pve_begin(army)
+		_begin_battle(_player.create_battle())
+		return
+	if _pve_begin(army):
+		# #413: seed bitwy, plan, badania, generał i perk z serwera; worker policzy tę samą bitwę
+		_bot_waiting = true
+		_bot_start_serial += 1
+		hud.message = PveReport.CONNECTING_MESSAGE
+		get_tree().create_timer(PveReport.START_WAIT_S).timeout.connect(
+				_on_bot_start_timeout.bind(_bot_start_serial))
+		return
+	_begin_battle(_local_bot_battle(planner.bot, army))
+
+
+## Bitwa z botem bez serwera (brak sieci, odmowa albo brak odpowiedzi): plan i badania z telefonu, lokalny seed.
+func _local_bot_battle(bot: BotCastle, army: Array) -> Battle:
+	return BotBattle.create(bot, army, BotBattle.local_seed(bot, attack_target),
+			AttackPlan.from_dict(attack_plan.to_dict()), research, generals.attack_general(), grid.ruler_perk)
+
+
+## Odpowiedź startu wyprawy (#413): bitwa z danych serwera, a gdy start nie przeszedł, bez serwera. Gracz,
+## który w tym czasie wyszedł z planu, bitwy nie dostaje (atak na serwerze wygaśnie sam).
+func _on_bot_started(start: Dictionary) -> void:
+	_bot_waiting = false
+	if not attack_panel.visible or battle_view != null:
+		_pve.reset()
+		return
+	var b: Battle = null
+	if not _pve.is_idle():
+		b = BotBattle.from_start(planner.bot, _battle_army, start)
+		if b == null:
+			_pve.give_up()  # odpowiedź bez danych bitwy: wynik i tak nie przejdzie weryfikacji
+	if b == null:
+		b = _local_bot_battle(planner.bot, _battle_army)
+	_begin_battle(b)
+
+
+## Start na serwerze nie odpowiedział w PveReport.START_WAIT_S (#413): bitwa rusza bez serwera, a spóźnioną
+## odpowiedź pomijamy (`_bot_late`).
+func _on_bot_start_timeout(serial: int) -> void:
+	if not _bot_waiting or serial != _bot_start_serial:
+		return
+	_bot_late = true
+	_pve.give_up()
+	_on_bot_started({})
+
+
+## Bitwa na mapie celu: ekran planu się chowa, a mapa celu zostaje.
+func _begin_battle(b: Battle) -> void:
+	var army := _battle_army
 	_attacking = true
 	attack_panel.visible = false
 	planner.show_plan = false
@@ -1892,15 +1943,18 @@ func _on_player_attack_finished(loot: Array[int], error: String) -> void:
 ## Start bitwy z zamkiem-botem: gdy gra jest połączona, ten sam atak zaczyna się na serwerze
 ## (`start_attack` z `bot_idx`), żeby wynik mógł dać punkty PvE. Bez sieci bitwa idzie jak dotąd.
 ## Wynik ataku na gracza czekający na serwer albo poprzednia wyprawa w drodze mają pierwszeństwo.
-func _pve_begin(army: Array) -> void:
+## True: start poszedł i bitwa czeka na odpowiedź (#413).
+func _pve_begin(army: Array) -> bool:
 	if not _pve.is_idle() or _pve_sending or _finish_result != null or not _pending.is_empty():
-		return
+		return false
 	_pve.clear()  # nowa wyprawa: bez znacznika porażki poprzedniej
 	if net == null or identity == null or not net.is_online():
-		return
+		return false
 	net.flush()  # serwer sprawdza armię z kopii zamku (#23)
-	if net.start_bot_attack(attack_target, army):
+	if net.start_bot_attack(attack_target, army, attack_plan, generals.attack_kind):
 		_pve.begin(attack_target, army)
+		return true
+	return false
 
 
 ## Postęp kampanii z serwera (#386, ADR 0015): serwer odrzucił zamek-bota, bo zna mniej zdobytych zamków

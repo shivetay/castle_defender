@@ -1,8 +1,10 @@
 class_name PveReport
 extends RefCounted
 ## Wyprawa na zamek-bota w rankingu PvE (#242). Bitwa z botem dalej liczy się w grze (działa też bez
-## sieci), a gdy gra jest połączona, ten sam atak idzie na serwer: `start_attack` z `bot_idx` przy starcie
-## bitwy i `finish_attack` z wynikiem po niej. Punkty PvE dodaje wyłącznie serwer (migracja
+## sieci), a gdy gra jest połączona, ten sam atak idzie na serwer: `start_attack` z `bot_idx` i planem
+## przed bitwą i `finish_attack` z wynikiem po niej. Od #413 (ADR 0016) bitwa online czeka na odpowiedź
+## startu, bo seed bitwy, plan, badania, generał i perk władcy przychodzą z serwera (worker weryfikacji
+## liczy z nich tę samą bitwę). Bez odpowiedzi po START_WAIT_S bitwa idzie bez serwera (`give_up`). Punkty PvE dodaje wyłącznie serwer (migracja
 ## `*_pve_ranking.sql`) po przyjęciu wyniku w swoich limitach; klient ich nie liczy ani nie wysyła.
 ## Odpowiedź na start może przyjść już po końcu bitwy, więc wynik czeka wtedy na id ataku.
 ## Łup trafia do magazynu tylko z wyniku przyjętego przez serwer (#282, decyzja właścicielki): serwer
@@ -15,6 +17,10 @@ enum State { IDLE, STARTING, STARTED, FINISHING }
 const FAILED_MESSAGE := "Wyprawa poza serwerem: bez łupu i PvE"
 ## Okno wyniku wyprawy bez sieci (#282).
 const OFFLINE_MESSAGE := "Bez sieci: wyprawa bez łupu"
+## Pasek komunikatu, gdy bitwa czeka na start na serwerze (#413).
+const CONNECTING_MESSAGE := "Łączę z serwerem..."
+## Ile sekund bitwa czeka na odpowiedź startu, zanim ruszy bez serwera (#413).
+const START_WAIT_S := 5.0
 
 var state: int = State.IDLE
 var bot_idx := -1
@@ -110,6 +116,12 @@ func locked() -> bool:
 ## Komunikat porażki do okna wyniku: przy zablokowanym bocie powód odmowy.
 func failed_message() -> String:
 	return AttackStart.error_message(AttackStart.BOT_LOCKED) if _locked else FAILED_MESSAGE
+
+
+## Start nie odpowiedział na czas (#413): bitwa idzie bez serwera, a spóźnioną odpowiedź pomijamy.
+func give_up() -> void:
+	reset()
+	_failed = true
 
 
 ## Bez zgłoszenia i bez znacznika porażki (przed nową wyprawą).
