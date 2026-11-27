@@ -78,8 +78,9 @@ const RECIPES: Array = [
 	["tar_kiln", 1, 3, {R.WOOD: 4}, {}, {G.PITCH: 1}, {}],
 	["stable", 1, 1, {R.FOOD: 10}, {}, {G.HORSE: 1}, {}],
 ]
-## Tempo poziomów 1–5 w procentach tempa poziomu 1. TYMCZASOWE.
-const LEVEL_PERCENT: Array[int] = [100, 150, 200, 275, 350]
+## Tempo poziomów 1–10 (narastająco) w procentach tempa poziomu 1. TYMCZASOWE; poziomy 6–10:
+## decyzja właścicielki #262.
+const LEVEL_PERCENT: Array[int] = [100, 150, 200, 275, 350, 425, 500, 575, 650, 750]
 ## Puste strzały w zbrojowni zmniejszają tempo strzelania wież i strzelców do tylu procent.
 const NO_ARROWS_FIRE_PERCENT := 50
 

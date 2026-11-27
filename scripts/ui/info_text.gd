@@ -108,7 +108,7 @@ static func army(grid: BuildGrid, recruitment: Recruitment, research: Research =
 		out.append("Limit pełny: nikogo więcej nie wyszkolisz")
 	out.append("Limit to suma:")
 	out.append("- Dwór poz. %s: +%d" % [Ages.short_level(grid.manor_level()),
-			RecruitmentConfig.ARMY_PER_MANOR_LEVEL * Ages.bonus_level(grid.manor_level())])
+			RecruitmentConfig.manor_army(grid.manor_level())])
 	# Koszary zliczone w jednej linii jak chaty w okienku surowca, więc okienko nie rośnie z ich liczbą
 	var barracks := 0
 	var levels := 0
@@ -120,8 +120,14 @@ static func army(grid: BuildGrid, recruitment: Recruitment, research: Research =
 		out.append("- Koszary: brak")
 	else:
 		out.append("- Koszary ×%d (poziomy razem %d): +%d" % [barracks, levels, RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL * levels])
-	out.append("Więcej miejsc: ulepsz Dwór (+%d za poziom)" % RecruitmentConfig.ARMY_PER_MANOR_LEVEL)
-	out.append("albo postaw i ulepszaj Koszary (+%d za poziom)" % RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL)
+	var manor := grid.manor_level()
+	var manor_gain := RecruitmentConfig.manor_army(mini(manor + 1, Ages.MAX_TOTAL_LEVEL)) \
+			- RecruitmentConfig.manor_army(manor)
+	if manor_gain > 0:
+		out.append("Więcej miejsc: ulepsz Dwór (+%d za poziom)" % manor_gain)
+		out.append("albo postaw i ulepszaj Koszary (+%d za poziom)" % RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL)
+	else:
+		out.append("Więcej miejsc: ulepszaj Koszary (+%d za poziom)" % RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL)
 	out.append_array(upkeep(grid, recruitment, research))
 	return out
 

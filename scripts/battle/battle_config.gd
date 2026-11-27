@@ -33,9 +33,9 @@ const FREE_PATH_WEIGHT := 1.0
 const REPATH_TICKS := 15
 
 ## Wytrzymałość budynku na poziomie 1; poziomy mnożą ją jak palisadę z notatki Progresja budowy
-## (100, 150, 220, 320, 450).
+## (100, 150, 220, 320, 450), a poziomy epoki II dalej (TYMCZASOWE, decyzja właścicielki #262).
 const BASE_HP := 100
-const LEVEL_HP_PERCENT: Array[int] = [100, 150, 220, 320, 450]
+const LEVEL_HP_PERCENT: Array[int] = [100, 150, 220, 320, 450, 560, 680, 810, 950, 1100]
 ## Mnożnik wytrzymałości rodzaju w procentach (domyślnie 100). TYMCZASOWE.
 const KIND_HP_PERCENT := {
 	BuildingTypes.Kind.RAMPART: 150,

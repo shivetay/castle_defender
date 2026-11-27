@@ -6,7 +6,7 @@ extends RefCounted
 ## Poziomy budynków liczą się narastająco przez epoki: poziomy 1–5 to epoka I, 6–10 to epoka II
 ## (na ekranie „poziom 1/5, epoka II”). Budynek wchodzi do epoki II dopiero z poziomu 5, bo kolejny
 ## poziom po 5 to 6, czyli poziom 1 epoki II. Tak nic nie ginie przy przejściu: zamek, budynki i ich
-## poziomy zostają, a premie z epoki I trzyma `bonus_level` (epoka II jeszcze nie dokłada nowych).
+## poziomy zostają, a premie rosną dalej z poziomem (`bonus_level`, #262).
 ## Epoka zamku to epoka Dworu: przebudowa Dworu z poziomu 5 na poziom 1 epoki II jest przejściem
 ## I → II i wymaga technologii kluczowych z TRANSITION_TECHS.
 
@@ -45,11 +45,11 @@ static func total_level(age: int, local: int) -> int:
 	return clampi(age, 0, COUNT - 1) * LEVELS_PER_AGE + clampi(local, 1, LEVELS_PER_AGE)
 
 
-## Poziom, od którego liczą się premie budynku (produkcja, limity, wytrzymałość). Premie epoki I
-## zostają po przejściu, a epoka II nie dokłada jeszcze nowych, więc to najwyżej poziom 5.
+## Poziom, od którego liczą się premie budynku (produkcja, limity, wytrzymałość): poziomy epoki II
+## dokładają własne premie (#262, ADR 0009), więc to poziom narastająco, najwyżej MAX_TOTAL_LEVEL.
 ## Serwer (private.castle_buildings) obcina poziom tak samo, więc limity armii zgadzają się z nim.
 static func bonus_level(level: int) -> int:
-	return clampi(level, 0, LEVELS_PER_AGE)
+	return clampi(level, 0, MAX_TOTAL_LEVEL)
 
 
 ## Czy budowa poziomu `level` przenosi budynek do nowej epoki (poziom 1 epoki II itd.).

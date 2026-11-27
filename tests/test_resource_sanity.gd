@@ -5,6 +5,8 @@ extends TestCase
 ## drogą (#282).
 
 const MIGRATION := "res://supabase/migrations/20261124090000_resource_sanity.sql"
+## Magazyn do poziomu 10 (#262) ma najnowsza wersja `private.castle_capacity`.
+const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
 const MAIN := preload("res://scripts/main.gd")
 const K := BuildingTypes.Kind
 const R := EconomyConfig.Res
@@ -15,8 +17,9 @@ func test_server_constants_match_game() -> bool:
 	var sql := FileAccess.get_file_as_string(MIGRATION)
 	assert_true(not sql.is_empty(), "migracja jest")
 	assert_true(sql.contains("CAPACITY = %s" % str(EconomyConfig.CAPACITY)), "pojemność grodu")
-	assert_true(sql.contains("WAREHOUSE_CAPACITY = %s" % str(EconomyConfig.WAREHOUSE_CAPACITY)), "Magazyny")
-	assert_true(sql.contains("(array%s)[b.level]" % str(EconomyConfig.WAREHOUSE_CAPACITY)), "tabela w castle_capacity")
+	var balance := FileAccess.get_file_as_string(BALANCE_MIGRATION)
+	assert_true(balance.contains("WAREHOUSE_CAPACITY = %s" % str(EconomyConfig.WAREHOUSE_CAPACITY)), "Magazyny")
+	assert_true(balance.contains("(array%s)[b.level]" % str(EconomyConfig.WAREHOUSE_CAPACITY)), "tabela w castle_capacity")
 	assert_true(sql.contains("WAREHOUSE = %d" % K.WAREHOUSE), "rodzaj Magazynu")
 	assert_true(sql.contains("b.kind = %d" % K.WAREHOUSE), "Magazyn w castle_capacity")
 	assert_true(sql.contains("select (%d + coalesce" % EconomyConfig.CAPACITY[R.WOOD]), "zapas Dworu w castle_capacity")

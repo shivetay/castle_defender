@@ -6,6 +6,8 @@ extends TestCase
 const MIGRATION := "res://supabase/migrations/20261120131426_army_limits.sql"
 ## Nowsza wersja private.food_production z Polem i spichlerzem (#35).
 const FARM_MIGRATION := "res://supabase/migrations/20261120135657_farm_food.sql"
+## Stawki i limity do poziomu 10 (#262) mają najnowsze wersje funkcji.
+const BALANCE_MIGRATION := "res://supabase/migrations/20261127120000_age_two_balance.sql"
 const K := BuildingTypes.Kind
 const U := UnitTypes.Unit
 const R := EconomyConfig.Res
@@ -37,22 +39,33 @@ func test_server_constants_match_game() -> bool:
 	assert_true(sql.contains("ARMY_PER_BARRACKS_LEVEL = %d" % RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL),
 			"miejsca za Koszary")
 	assert_true(sql.contains("FOOD_BASE = %d" % EconomyConfig.BASE_PER_HOUR[R.FOOD]), "żywność grodu")
+	var balance := FileAccess.get_file_as_string(BALANCE_MIGRATION)
 	var fisher: Array = EconomyConfig.BUILDING_PRODUCTION[K.FISHER]
 	assert_eq(int(fisher[0]), R.FOOD, "Rybak daje żywność")
-	assert_true(sql.contains("FISHER_FOOD = %s" % str(fisher[1])), "stawki Rybaka")
-	assert_true(sql.contains("array%s" % str(fisher[1])), "tabela w private.food_production")
+	assert_true(balance.contains("FISHER_FOOD = %s" % str(fisher[1])), "stawki Rybaka")
+	assert_true(balance.contains("array%s" % str(fisher[1])), "tabela w private.food_production")
 	var g2: Array = TechTree.PRODUCTION_BONUS["G2"]
 	assert_eq(int(g2[0]), R.FOOD, "G2 dotyczy żywności")
 	assert_true(sql.contains("G2 = %d procent" % int(g2[1])), "premia G2")
 	assert_true(sql.contains("MANOR = %d, FISHER = %d, BARRACKS = %d" % [K.MANOR, K.FISHER, K.BARRACKS]),
 			"rodzaje budynków")
-	assert_true(sql.contains("poziom przycina się do 0..%d" % BuildingTypes.MAX_LEVEL), "najwyższy poziom")
+	assert_true(balance.contains("ARMY_PER_MANOR_LEVEL = %d" % RecruitmentConfig.ARMY_PER_MANOR_LEVEL), "Dwór epoki I")
+	assert_true(balance.contains("ARMY_PER_MANOR_LEVEL_AGE_II = %d" % RecruitmentConfig.ARMY_PER_MANOR_LEVEL_AGE_II),
+			"Dwór epoki II")
+	assert_true(balance.contains("ARMY_PER_BARRACKS_LEVEL = %d" % RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL), "Koszary")
+	assert_true(balance.contains("select coalesce((select %d * least(greatest(b.level, 1), %d) + %d * greatest(b.level - %d, 0)" % [
+			RecruitmentConfig.ARMY_PER_MANOR_LEVEL, Ages.LEVELS_PER_AGE, RecruitmentConfig.ARMY_PER_MANOR_LEVEL_AGE_II,
+			Ages.LEVELS_PER_AGE]), "wzór Dworu w private.army_limit")
+	assert_true(balance.contains("+ %d * coalesce((select sum(b.level)" % RecruitmentConfig.ARMY_PER_BARRACKS_LEVEL),
+			"Koszary w private.army_limit")
+	assert_true(balance.contains("przycina poziom do 0..%d" % Ages.MAX_TOTAL_LEVEL), "najwyższy poziom")
+	assert_true(balance.contains("least(greatest(b.lvl, 0), %d)::integer" % Ages.MAX_TOTAL_LEVEL), "poziom w castle_buildings")
 	return true
 
 
 ## Pole i spichlerz (#35): nowa wersja private.food_production w osobnej migracji zna Rybaka i Pole.
 func test_farm_food_on_server() -> bool:
-	var sql := FileAccess.get_file_as_string(FARM_MIGRATION)
+	var sql := FileAccess.get_file_as_string(BALANCE_MIGRATION)
 	assert_true(not sql.is_empty(), "migracja Pola jest")
 	var fisher: Array = EconomyConfig.BUILDING_PRODUCTION[K.FISHER]
 	var farm: Array = EconomyConfig.BUILDING_PRODUCTION[K.FARM]
@@ -62,8 +75,9 @@ func test_farm_food_on_server() -> bool:
 	assert_true(sql.contains("FARM_FOOD = %s" % str(farm[1])), "stawki Pola")
 	assert_true(sql.contains("when %d then (array%s)" % [K.FISHER, str(fisher[1])]), "tabela Rybaka w funkcji")
 	assert_true(sql.contains("when %d then (array%s)" % [K.FARM, str(farm[1])]), "tabela Pola w funkcji")
-	assert_true(sql.contains("FISHER = %d, FARM = %d" % [K.FISHER, K.FARM]), "rodzaje budynków")
-	assert_true(sql.contains("G2 = %d procent" % int((TechTree.PRODUCTION_BONUS["G2"] as Array)[1])), "premia G2")
+	var farm_sql := FileAccess.get_file_as_string(FARM_MIGRATION)
+	assert_true(farm_sql.contains("FISHER = %d, FARM = %d" % [K.FISHER, K.FARM]), "rodzaje budynków")
+	assert_true(farm_sql.contains("G2 = %d procent" % int((TechTree.PRODUCTION_BONUS["G2"] as Array)[1])), "premia G2")
 	return true
 
 

@@ -45,7 +45,7 @@ const NO_POST := Vector2i(-1, -1)
 ## Posterunek i pułapka stoją najwyżej radius() kratek (w pionie i poziomie) od środka donżonu: obrona
 ## skupia się na donżonie (#19), a strefa przy krawędzi mapy zostaje dla atakującego. Promień (#342,
 ## ADR 0007) to RADIUS przy Dworze 1, RADIUS_PER_MANOR_LEVEL za każdy kolejny poziom Dworu w epoce
-## (Ages.bonus_level: w epoce II zostaje jak przy Dworze 5) i RADIUS_PER_TECH_LEVEL za każdy poziom
+## (w epoce II zostaje jak przy Dworze 5, ADR 0007 i #262) i RADIUS_PER_TECH_LEVEL za każdy poziom
 ## technologii REACH_TECH (O25 Wysunięte straże, BuildGrid.reach_level). Liczby TYMCZASOWE.
 const RADIUS := 10
 const RADIUS_PER_MANOR_LEVEL := 2
@@ -324,7 +324,7 @@ static func keep_center(grid: BuildGrid) -> Vector2i:
 
 ## Promień strefy obrony przy Dworze `manor_level` i technologii REACH_TECH na poziomie `tech_level`.
 static func radius_for(manor_level: int, tech_level: int) -> int:
-	return RADIUS + RADIUS_PER_MANOR_LEVEL * (maxi(1, Ages.bonus_level(manor_level)) - 1) \
+	return RADIUS + RADIUS_PER_MANOR_LEVEL * (clampi(manor_level, 1, Ages.LEVELS_PER_AGE) - 1) \
 			+ RADIUS_PER_TECH_LEVEL * maxi(0, tech_level)
 
 

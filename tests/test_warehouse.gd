@@ -28,12 +28,13 @@ func test_warehouse_is_buildable_economy() -> bool:
 	assert_eq(BuildingTypes.SHORT_NAMES.size(), BuildingTypes.NAMES.size(), "skrót dla każdego rodzaju")
 	assert_true(BuildPanel.describe(K.WAREHOUSE).contains("pojemności"), "opis w panelu budowy")
 	# review PR 238: tablica pojemności ma wpis na każdy poziom, a limity surowców są równe
-	assert_eq(EconomyConfig.WAREHOUSE_CAPACITY.size(), BuildingTypes.MAX_LEVEL, "pojemność na każdy poziom")
+	assert_eq(EconomyConfig.WAREHOUSE_CAPACITY.size(), Ages.MAX_TOTAL_LEVEL, "pojemność na każdy poziom (z epoką II, #262)")
 	var sum := 0
-	for level in range(1, BuildingTypes.MAX_LEVEL + 1):
+	for level in range(1, Ages.MAX_TOTAL_LEVEL + 1):
 		assert_true(EconomyConfig.warehouse_gain(level) > 0, "poziom %d dodaje miejsca" % level)
 		sum += EconomyConfig.warehouse_gain(level)
-	assert_eq(sum, EconomyConfig.WAREHOUSE_CAPACITY[BuildingTypes.MAX_LEVEL - 1], "przyrosty sumują się do poziomu 5")
+	assert_eq(sum, EconomyConfig.WAREHOUSE_CAPACITY[Ages.MAX_TOTAL_LEVEL - 1], "przyrosty sumują się do poziomu 10")
+	assert_eq(EconomyConfig.warehouse_gain(Ages.MAX_TOTAL_LEVEL + 1), 0, "ponad poziom 10")
 	assert_eq(EconomyConfig.warehouse_gain(0), 0, "poza zakresem")
 	return true
 

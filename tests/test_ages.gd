@@ -132,22 +132,27 @@ func test_building_enters_new_age_from_max_level() -> bool:
 
 
 func test_age_ii_costs_and_times() -> bool:
-	assert_eq(BuildConfig.cost(K.TOWER, 6), [240, 80, 80, 0] as Array[int], "wieża II.1: koszt poz. 1 ×2")
-	assert_eq(BuildConfig.time_ms(K.TOWER, 6), BuildConfig.time_ms(K.TOWER, 1) * 2, "wieża II.1: czas poz. 1 ×2")
+	# ciągła krzywa (#262): II.1 drożej i dłużej niż poziom 5, a nie jak poziom 1
+	assert_eq(BuildConfig.cost(K.TOWER, 5), [720, 240, 240, 0] as Array[int], "wieża 5: 600 procent")
+	assert_eq(BuildConfig.cost(K.TOWER, 6), [1020, 340, 340, 0] as Array[int], "wieża II.1: 850 procent")
+	assert_eq(BuildConfig.cost(K.TOWER, 10), [3000, 1000, 1000, 0] as Array[int], "wieża II.5: 2500 procent")
+	assert_eq(BuildConfig.time_ms(K.TOWER, 6), BuildConfig.time_ms(K.TOWER, 1) * 130, "wieża II.1: czas ×130")
+	assert_eq(BuildConfig.time_ms(K.TOWER, 10), 7 * 3600 * 1000, "wieża II.5: 7 h")
+	assert_eq(BuildConfig.time_ms(K.PALISADE, 5), BuildConfig.time_ms(K.PALISADE, 1) * 90, "palisada 5: pełna krzywa")
+	assert_eq(BuildConfig.time_ms(K.PALISADE, 6), BuildConfig.time_ms(K.PALISADE, 1) * 65, "palisada II.1: połowa krzywej")
 	assert_eq(BuildConfig.cost(K.MANOR, 6), [1000, 1000, 1000, 0] as Array[int], "przebudowa Dworu")
+	assert_eq(BuildConfig.time_ms(K.MANOR, 6), 14 * 3600 * 1000, "przebudowa Dworu: 14 h")
+	assert_eq(BuildConfig.cost(K.MANOR, 10), [2800, 2300, 2300, 0] as Array[int], "Dwór II.5")
+	assert_eq(BuildConfig.time_ms(K.MANOR, 10), 40 * 3600 * 1000, "Dwór II.5: 40 h")
 	assert_eq(BuildConfig.level_techs(K.MANOR, 6), ["O1", "G1", "A7"] as Array[String], "przebudowa wymaga trzech technologii")
 	assert_true(BuildConfig.level_techs(K.MANOR, 7).is_empty(), "dalsze poziomy już nie")
 	assert_true(BuildConfig.level_techs(K.TOWER, 6).is_empty(), "inne budynki bez technologii przejścia")
 	for kind in BuildingTypes.count():
 		if not BuildingTypes.has_levels(kind):
 			continue
-		# w epoce II czas znowu rośnie od poziomu 1 (jak w notatce Progresja budowy), ale jest dłuższy
-		# niż ten sam poziom epoki I
+		# w epoce II czas rośnie dalej z każdym poziomem i jest dłuższy niż ten sam poziom epoki I
 		for local in range(2, Ages.LEVELS_PER_AGE + 1):
 			var level := Ages.total_level(1, local)
-			# przebudowa Dworu (II.1) to długa budowa przejścia, dalsze poziomy jak zwykle
-			if kind == K.MANOR and local == 2:
-				continue
 			assert_true(BuildConfig.time_ms(kind, level) > BuildConfig.time_ms(kind, level - 1),
 					"%s II.%d: czas rośnie" % [BuildingTypes.NAMES[kind], local])
 		for local in range(1, Ages.LEVELS_PER_AGE + 1):
@@ -157,18 +162,25 @@ func test_age_ii_costs_and_times() -> bool:
 	return true
 
 
-func test_bonuses_from_age_i_are_kept() -> bool:
+## Premie poziomów epoki II (#262) rosną dalej z poziomem: nic nie spada na przejściu I.5 → II.1.
+func test_bonuses_grow_in_age_ii() -> bool:
 	var five := _castle(5, 5)
 	var six := _castle(6, 6)
 	var g5: BuildGrid = five[0]
 	var g6: BuildGrid = six[0]
-	assert_eq(Economy.rates(g6), Economy.rates(g5), "chata II.1 produkuje co najmniej jak poziom 5")
-	assert_eq(Recruitment.army_limit(g6), Recruitment.army_limit(g5), "limit armii z Dworu zostaje")
-	assert_eq(TrapConfig.limit(6), TrapConfig.limit(5), "limit pułapek zostaje")
+	assert_eq(Economy.rates(g6), [260, 20, 20, 0] as Array[int], "chata II.1: 240 + gród 20")
+	assert_true(Economy.rates(g6)[0] > Economy.rates(g5)[0], "chata II.1 produkuje więcej niż poziom 5")
+	assert_eq(Recruitment.army_limit(g5), 50, "Dwór 5: 50 miejsc")
+	assert_eq(Recruitment.army_limit(g6), 58, "Dwór II.1: 50 + 8")
+	assert_eq(RecruitmentConfig.manor_army(10), 90, "Dwór II.5: 90 miejsc")
+	assert_eq(TrapConfig.limit(6), 12, "pułapki II.1: 2 na poziom")
+	assert_eq(TrapConfig.limit(10), 20, "pułapki II.5: 20")
 	for kind in [K.PALISADE, K.TOWER, K.GATE, K.MANOR]:
-		assert_eq(BattleConfig.building_hp(kind, 6), BattleConfig.building_hp(kind, 5), "wytrzymałość %d zostaje" % kind)
-	assert_eq(Ages.bonus_level(10), 5, "premie z poziomu 5 epoki I")
-	assert_eq(BuildQueue.capacity_gain_text(K.WAREHOUSE, 6), "", "Magazyn II.1 bez „+0 miejsca” (review #261)")
+		assert_true(BattleConfig.building_hp(kind, 6) > BattleConfig.building_hp(kind, 5), "wytrzymałość %d rośnie" % kind)
+		assert_true(BattleConfig.building_hp(kind, 10) > BattleConfig.building_hp(kind, 9), "wytrzymałość %d II.5" % kind)
+	assert_eq(Ages.bonus_level(10), 10, "premie z poziomu narastająco")
+	assert_eq(Ages.bonus_level(99), Ages.MAX_TOTAL_LEVEL, "najwyżej poziom 10")
+	assert_eq(BuildQueue.capacity_gain_text(K.WAREHOUSE, 6), ", +500 miejsca", "Magazyn II.1: 2000 → 2500")
 	assert_true(BuildQueue.capacity_gain_text(K.WAREHOUSE, 2).begins_with(", +"), "epoka I z dopiskiem")
 	return true
 
