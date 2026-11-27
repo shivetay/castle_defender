@@ -478,10 +478,11 @@ w sekcji „Następny etap”.
     jest jedna, przy drodze.
 - Ustawienia obrony (#19, `scripts/battle/defense_plan.gd` i `scripts/ui/defense_panel.gd`): przycisk
   Obrona w kolumnie otwiera własny zamek w trybie edycji.
-  - **Posterunki:** oddział załogi z rekrutacji dostaje kratkę w strefie 10 kratek wokół donżonu (na trawie,
-    nie w wodzie i nie na budynku). W bitwie staje wokół niej i wraca tam, gdy nie ma wroga w zasięgu
+  - **Posterunki:** oddział załogi z rekrutacji dostaje kratkę w strefie wokół donżonu (na trawie,
+    nie w wodzie i nie na budynku). Promień to 10 kratek przy Dworze 1, +2 na każdy kolejny poziom Dworu
+    (w epoce II jak przy Dworze 5) i +1 na poziom technologii O25 Wysunięte straże (#342, ADR 0006). W bitwie staje wokół niej i wraca tam, gdy nie ma wroga w zasięgu
     wzroku. Oddział bez posterunku stoi jak dotąd przy donżonie. Złamany oddział (#98) wycofuje się
-    pod donżon, także z wysuniętego posterunku. Promień strefy jest tymczasowy.
+    pod donżon, także z wysuniętego posterunku. Liczby promienia są tymczasowe.
   - **Ekran:** strefa obrony na mapie, znaczniki posterunków z ikoną klasy, pasek oddziałów (Dalej
     przewija, gdy oddziałów jest więcej niż 6) i opis wybranego oddziału. Dotknięcie trawy ustawia
     posterunek wybranego oddziału, dotknięcie cudzego posterunku wybiera jego oddział. Przyciski: Zdejmij

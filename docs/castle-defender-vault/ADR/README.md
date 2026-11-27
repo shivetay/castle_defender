@@ -12,3 +12,4 @@ numer, a stary zmienia tylko status na „zastąpiony przez”.
 | [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika\|0003]] | Historia obron z nickiem atakującego i siłą jego armii | przyjęty | #328 |
 | [[ADR/0004-sila-celu-pvp-przedzial-z-serwera\|0004]] | Siła celu PvP jako przedział liczony przez serwer | przyjęty | #293 |
 | [[ADR/0005-rozmiary-budynkow\|0005]] | Różne rozmiary budynków, stare budynki w zapisanym obrysie | przyjęty | #340 |
+| [[ADR/0006-strefa-obrony-z-dworu-i-technologii\|0006]] | Strefa obrony rośnie z Dworem i technologią O25 | przyjęty | #342 |
