@@ -355,20 +355,9 @@ func trap_describe() -> Array[String]:
 
 
 ## Zadania do wyboru dla oddziału klasy `unit_class` w epoce `current_age`, w kolejności przycisku
-## Zadanie: Obrona odcinka, Patrol, dla konnicy Przed murami i Wypad konnicy (od epoki II), dla piechoty
-## lekkiej Gaszenie pożarów, gdy zamek ma Studnię (`has_well`, #35), Garnizon Dworu (#81), na końcu
-## Przy donżonie.
+## Zadanie. Reguły są w DefensePlan.task_options, z której korzysta też bitwa (#378).
 static func task_options(unit_class: int, current_age: int, has_well: bool = false) -> Array[int]:
-	var out: Array[int] = [DefensePlan.Task.HOLD, DefensePlan.Task.PATROL]
-	if unit_class == RecruitmentConfig.UnitClass.FAST:
-		out.append(DefensePlan.Task.FIELD)
-	if unit_class == RecruitmentConfig.UnitClass.FAST and current_age >= DefensePlan.TASK_AGE[DefensePlan.Task.SORTIE]:
-		out.append(DefensePlan.Task.SORTIE)
-	if unit_class == RecruitmentConfig.UnitClass.LIGHT and has_well:
-		out.append(DefensePlan.Task.FIREFIGHT)
-	out.append(DefensePlan.Task.GARRISON)
-	out.append(DefensePlan.Task.KEEP)
-	return out
+	return DefensePlan.task_options(unit_class, current_age, has_well)
 
 
 ## Następne zadanie oddziału: bez zadania (domyślne) pierwsze z listy, potem po kolei w kółko.

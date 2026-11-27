@@ -234,8 +234,8 @@ func battle_orders(ids: Array[int], squads: Array = [], grid: BuildGrid = null, 
 			continue
 		var o := order_for(ids[i])
 		var cls := UnitTypes.unit_class(int((squads[i] as Array)[0])) if i < squads.size() else -1
-		if o != null and grid != null and not order_allowed(grid, o, cls):
-			o = null  # rozkaz spoza strefy z zapisu spoza gry (#374): jak brak rozkazu
+		if o != null and grid != null and not order_allowed(grid, o, cls, age):
+			o = null  # rozkaz spoza strefy, klasy albo epoki z zapisu spoza gry (#374, #378): jak brak rozkazu
 		if o == null and grid != null and i < squads.size():
 			o = default_order(grid, cls, age)
 		if o == null or o.post == NO_POST or o.task == Task.KEEP or o.task == Task.GARRISON:
@@ -249,11 +249,15 @@ func battle_orders(ids: Array[int], squads: Array = [], grid: BuildGrid = null, 
 	return out
 
 
-## Czy rozkaz `o` oddziału klasy `unit_class` stoi na kratkach, które dopuszcza ekran Obrona (#374):
-## każdy punkt (miejsce i punkty trasy patrolu) przechodzi post_problem, a strzelcy z Obroną odcinka
-## mogą też stać na stanowisku (station_post). Zapis spoza gry (kopia zamku z serwera) może mieć
-## dowolne kratki, a bitwa liczy się tylko z dozwolonych. Rozkaz bez własnej kratki jest dozwolony.
-static func order_allowed(grid: BuildGrid, o: Order, unit_class: int) -> bool:
+## Czy rozkaz `o` oddziału klasy `unit_class` w epoce `age` dopuszcza ekran Obrona: zadanie jest na
+## liście task_options tej klasy i epoki (Studnia z `grid`, #378), a każdy punkt (miejsce i punkty
+## trasy patrolu) przechodzi post_problem; strzelcy z Obroną odcinka mogą też stać na stanowisku
+## (station_post, #374). Zapis spoza gry (kopia zamku z serwera) może mieć dowolne zadania i kratki,
+## a bitwa liczy się tylko z dozwolonych. Klasa -1 (nieznana: testy, podgląd) nie sprawdza zadania.
+## Rozkaz bez własnej kratki jest dozwolony.
+static func order_allowed(grid: BuildGrid, o: Order, unit_class: int, age: int = 0) -> bool:
+	if unit_class >= 0 and not task_allowed(o.task, unit_class, age, grid.has_built(BuildingTypes.Kind.WELL)):
+		return false
 	if o.post == NO_POST or o.task == Task.KEEP or o.task == Task.GARRISON:
 		return true
 	for p in o.patrol_points():
@@ -264,6 +268,29 @@ static func order_allowed(grid: BuildGrid, o: Order, unit_class: int) -> bool:
 			continue
 		return false
 	return true
+
+
+## Zadania do wyboru dla oddziału klasy `unit_class` (RecruitmentConfig.UnitClass) w epoce `age`, w
+## kolejności przycisku Zadanie na ekranie Obrona: Obrona odcinka, Patrol, dla konnicy Przed murami
+## i Wypad konnicy (od TASK_AGE), dla piechoty lekkiej Gaszenie pożarów, gdy zamek ma Studnię
+## (`has_well`, #35), Garnizon Dworu (#81), na końcu Przy donżonie. Jedno źródło reguł dla ekranu
+## (DefensePanel.task_options) i bitwy (order_allowed, #378).
+static func task_options(unit_class: int, age: int, has_well: bool = false) -> Array[int]:
+	var out: Array[int] = [Task.HOLD, Task.PATROL]
+	if unit_class == RecruitmentConfig.UnitClass.FAST:
+		out.append(Task.FIELD)
+	if unit_class == RecruitmentConfig.UnitClass.FAST and age >= TASK_AGE[Task.SORTIE]:
+		out.append(Task.SORTIE)
+	if unit_class == RecruitmentConfig.UnitClass.LIGHT and has_well:
+		out.append(Task.FIREFIGHT)
+	out.append(Task.GARRISON)
+	out.append(Task.KEEP)
+	return out
+
+
+## Czy zadanie `task` jest dostępne dla klasy `unit_class` w epoce `age` (task_options).
+static func task_allowed(task: int, unit_class: int, age: int, has_well: bool = false) -> bool:
+	return task_options(unit_class, age, has_well).has(task)
 
 
 ## Miejsca oddziałów bitwy (NO_POST bez zadania), w kolejności `ids`.
