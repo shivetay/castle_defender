@@ -67,12 +67,14 @@ func test_disallowed_tasks_get_default_order() -> bool:
 	var ids: Array[int] = [1, 2, 3, 4, 5, 6]
 	var squads := [[U.RIDER, 4], [U.AXE_WARRIOR, 6], [U.AXE_WARRIOR, 6], [U.ARCHER, 6], [U.RIDER, 4], [U.AXE_WARRIOR, 6]]
 	var p := DefensePlan.new()
-	p.set_task(1, T.SORTIE).post = cell  # Wypad konnicy w epoce I
+	var at_gate := DefensePlan.section_post(g, DefensePlan.main_gate(g))
+	var at_well := DefensePlan.section_post(g, _well(g))
+	p.set_task(1, T.SORTIE).post = at_gate  # Wypad konnicy w epoce I
 	p.set_task(2, T.SORTIE).post = cell  # piechota na Wypadzie
 	p.set_task(3, T.FIELD).post = cell  # piechota Przed murami
 	p.set_task(4, T.FIREFIGHT).post = cell  # strzelcy gaszą
 	p.set_task(5, T.FIELD).post = cell  # konnica Przed murami: dozwolone
-	p.set_task(6, T.FIREFIGHT).post = cell  # piechota lekka ze Studnią: dozwolone
+	p.set_task(6, T.FIREFIGHT).post = at_well  # piechota lekka ze Studnią: dozwolone
 	var got := p.battle_orders(ids, squads, g, 0)
 	_is_default(got[0], g, C.FAST, 0, "Wypad w epoce I: zadanie domyślne")
 	_is_default(got[1], g, C.LIGHT, 0, "piechota na Wypadzie: zadanie domyślne")
@@ -90,7 +92,7 @@ func test_disallowed_tasks_get_default_order() -> bool:
 
 func test_firefight_without_well_gets_default_order() -> bool:
 	var g := _castle()
-	var cell := _free(g)
+	var cell := DefensePlan.section_post(g, _well(g))
 	var p := DefensePlan.new()
 	p.set_task(1, T.FIREFIGHT).post = cell
 	var ids: Array[int] = [1]
@@ -130,4 +132,90 @@ func test_player_castle_ignores_disallowed_task_and_is_deterministic() -> bool:
 		sums.append(b.checksum())
 	assert_eq(sums[1], sums[0], "piechota na Wypadzie jak brak rozkazu")
 	assert_eq(sums[2], sums[1], "ten sam zapis, ta sama bitwa")
+	return true
+
+
+## Pierwsza Studnia (gotowa) zamku `g`, albo 0.
+func _well(g: BuildGrid) -> int:
+	var best := 0
+	for id: int in g.buildings:
+		if g.kinds[id] == K.WELL and g.levels[id] >= 1 and (best == 0 or id < best):
+			best = id
+	return best
+
+
+## Gaszenie i Wypad stoją tuż przy Studni i bramie (#379): wolna kratka stykająca się z nimi bokiem.
+## Miejsce daleko od nich daje zadanie domyślne, a każda kratka obok (nie tylko section_post) zostaje.
+func test_firefight_and_sortie_posts_beside_well_and_gate() -> bool:
+	var g := _castle()
+	var well := _well(g)
+	var gate := DefensePlan.main_gate(g)
+	assert_true(well != 0 and gate != 0, "Studnia i brama")
+	var age := DefensePlan.TASK_AGE[T.SORTIE]
+	var far := DefensePlan.NO_POST
+	var z := DefensePlan.zone(g)
+	for y in range(z.position.y, z.end.y):
+		for x in range(z.position.x, z.end.x):
+			var p := Vector2i(x, y)
+			if DefensePlan.post_problem(g, p).is_empty() and DefensePlan.beside_id(g, p, K.WELL) == 0 \
+					and DefensePlan.beside_id(g, p, K.GATE) == 0 and far == DefensePlan.NO_POST:
+				far = p
+	assert_true(far != DefensePlan.NO_POST, "kratka daleko od Studni i bramy")
+	var at_well := DefensePlan.section_post(g, well)
+	var at_gate := DefensePlan.section_post(g, gate)
+	assert_eq(DefensePlan.beside_id(g, at_well, K.WELL), well, "section_post przylega do Studni")
+	assert_eq(DefensePlan.beside_id(g, at_gate, K.GATE), gate, "section_post przylega do bramy")
+	var p := DefensePlan.new()
+	p.set_task(1, T.FIREFIGHT).post = far
+	p.set_task(2, T.SORTIE).post = far
+	p.set_task(3, T.FIREFIGHT).post = at_well
+	p.set_task(4, T.SORTIE).post = at_gate
+	var ids: Array[int] = [1, 2, 3, 4]
+	var squads := [[U.AXE_WARRIOR, 6], [U.RIDER, 4], [U.AXE_WARRIOR, 6], [U.RIDER, 4]]
+	var got := p.battle_orders(ids, squads, g, age)
+	_is_default(got[0], g, C.LIGHT, age, "Gaszenie daleko od Studni: zadanie domyślne")
+	_is_default(got[1], g, C.FAST, age, "Wypad daleko od bramy: zadanie domyślne")
+	assert_eq(got[2].task, T.FIREFIGHT, "Gaszenie przy Studni zostaje")
+	assert_eq(got[3].task, T.SORTIE, "Wypad przy bramie zostaje")
+	# każda wolna kratka stykająca się bokiem ze Studnią jest dobra, po skosie nie
+	var r := g.buildings[well]
+	var side_ok := 0
+	for y in range(r.position.y - 1, r.end.y + 1):
+		for x in range(r.position.x - 1, r.end.x + 1):
+			var c := Vector2i(x, y)
+			if r.has_point(c) or not DefensePlan.post_problem(g, c).is_empty():
+				continue
+			var o := DefensePlan.Order.new()
+			o.task = T.FIREFIGHT
+			o.post = c
+			var corner := (x < r.position.x or x >= r.end.x) and (y < r.position.y or y >= r.end.y)
+			assert_eq(DefensePlan.order_allowed(g, o, C.LIGHT, 0), not corner, "Studnia: bokiem tak, po skosie nie %s" % c)
+			if not corner:
+				side_ok += 1
+	assert_true(side_ok >= 1, "jest kratka obok Studni")
+	return true
+
+
+## Bitwa wiąże Gaszenie i Wypad z budynkiem, do którego miejsce przylega (#379), a ten sam plan
+## i seed dają tę samą bitwę.
+func test_battle_binds_to_adjacent_well_and_gate() -> bool:
+	var g := _castle()
+	var well := _well(g)
+	var gate := DefensePlan.main_gate(g)
+	var age := DefensePlan.TASK_AGE[T.SORTIE]
+	var p := DefensePlan.new()
+	p.set_task(1, T.FIREFIGHT).post = DefensePlan.section_post(g, well)
+	p.set_task(2, T.SORTIE).post = DefensePlan.section_post(g, gate)
+	var ids: Array[int] = [1, 2]
+	var squads := [[U.AXE_WARRIOR, 6], [U.RIDER, 4]]
+	var attackers := [[U.AXE_WARRIOR, 8]]
+	var spawn := Vector2i(2, 2)
+	var sums: Array[int] = []
+	for i in 2:
+		var b := Battle.for_castle_squads(g, attackers, squads, spawn, 77, null, p.battle_orders(ids, squads, g, age))
+		assert_eq(int(b._fire_well.get(1, 0)), well, "Gaszenie przy swojej Studni")
+		assert_eq(int(b._sortie_gate.get(2, 0)), gate, "Wypad przez swoją bramę")
+		b.run()
+		sums.append(b.checksum())
+	assert_eq(sums[1], sums[0], "ten sam plan i seed, ta sama bitwa")
 	return true
