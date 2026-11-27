@@ -23,4 +23,5 @@ Klient sieciowy PvP (Supabase). W kliencie **tylko** klucz publishable/`anon` ‚Ä
 
 Backend: `supabase/` (migracje, RLS, Edge Functions). Skille: `supabase-security`, `pvp-anti-cheat`, `user-data-privacy`.
 Atak na gracza (#240): `SupabaseClient.start_attack` / `finish_attack`, cel z kopii w `scripts/battle/player_castle.gd`.
-Testy: `tests/test_supabase_client.gd`, `test_player_castle.gd`, `test_castle_sync.gd`, `test_attack_start.gd`, `test_attack_finish.gd`, `test_pending_finish.gd`, `test_target_search.gd`, `test_ranking_board.gd`, `test_pve_ranking.gd`, `test_replay.gd`, `test_client_version.gd`.
+Sklep w Targu (#408): `scripts/net/shop_net.gd` (katalog `shop_catalog`, odbi√≥r `shop_claim`), `SupabaseClient.load_shop` / `claim_offer`.
+Testy: `tests/test_shop.gd`, `tests/test_supabase_client.gd`, `test_player_castle.gd`, `test_castle_sync.gd`, `test_attack_start.gd`, `test_attack_finish.gd`, `test_pending_finish.gd`, `test_target_search.gd`, `test_ranking_board.gd`, `test_pve_ranking.gd`, `test_replay.gd`, `test_client_version.gd`.

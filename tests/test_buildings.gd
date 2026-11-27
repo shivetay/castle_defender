@@ -463,7 +463,9 @@ func test_workshop_roofs_keep_light_at_wall() -> bool:
 
 
 func test_manor_is_not_on_toolbar() -> bool:
-	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 3, "pasek bez Dworu, donżonu i Strażnicy")
+	assert_eq(BuildingTypes.buildable_count(), BuildingTypes.count() - 4, "pasek bez Dworu, donżonu, Strażnicy i Targu")
+	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.MARKET), "Targu nie ma na pasku (#408)")
+	assert_eq(BuildingTypes.Kind.MARKET, 33, "Targ na końcu rodzajów (stare zapisy bez zmian)")
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.KEEP), "donżonu nie ma na pasku")
 	assert_true(not BuildingTypes.BUILD_BAR.has(BuildingTypes.Kind.WATCHTOWER), "Strażnicy nie ma na pasku")
 	assert_eq(BuildingTypes.Kind.WATCHTOWER, 23, "Strażnica za Domem zwiadowców (stare zapisy bez zmian)")

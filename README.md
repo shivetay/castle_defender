@@ -448,7 +448,10 @@ w sekcji „Następny etap”.
   otwiera mapę zamku-celu).
   - **20 zamków-botów na epokę (#26, #230, `scripts/battle/bot_roster.gd`):** lista wspólna dla wszystkich
     graczy (seed z numeru zamku, w bazie `bot_castles`), z nazwami. Epoki I–II mają po 20 zamków (numery 0–19
-    i 20–39), odblokowywanych po kolei, więc epoka II zaczyna się po 20 zamkach epoki I. W epoce I trudność
+    i 20–39), odblokowywanych po kolei, więc epoka II zaczyna się po 20 zamkach epoki I. Kolejności pilnuje
+    serwer (#386, ADR 0015, migracja `bot_campaign`): licznik `players.bots_beaten` podbija tylko wygrana
+    z kolejnym zamkiem, `start_attack` odrzuca zamek powyżej niego (`bot_locked`), a gra przyjmuje wtedy
+    licznik z serwera. Karty Wyprawy pokazują tylko odblokowane boty. W epoce I trudność
     rośnie z rangą: poziom budynków 1–5 (co 4 zamki), do 4 wież, budynki rekrutacji (Koszary od 4.,
     Strzelnica od 7., Dom drużyny od 10., Stajnia od 13.), gród na wale zamiast palisady w zamkach 2, 4, 6,
     8 i 10, zewnętrzny wał od 11. i załoga z coraz większej liczby klas (od 4 Chłopów do 74 obrońców). Epoka II
@@ -684,6 +687,14 @@ w sekcji „Następny etap”.
   1/5 epoki II (narastająco 6) za 1020 Dr, 510 Ka i 170 Ży, więc wymaga Dworu w epoce II i Magazynu.
   Daje +4/8/12/16/20% całej produkcji żywności (liczy się jeden Młyn, ruina 75% premii). Grafika
   w `scripts/gfx/age_ii_building_art.gd` w palecie epoki II.
+- **Targ i sklep** (#408, ADR 0014): Targ (4×4) stoi od startu przy Dworze, jeden, bez poziomów, rozbiórki
+  i produkcji; stary zapis dostaje go przy wczytaniu, a bez wolnego 4×4 HUD prosi „Zrób miejsce 4×4 na Targ”
+  i Targ staje sam po zwolnieniu miejsca. W bitwie jest przeszkodą bez wytrzymałości (nie cel). Karta Targu
+  ma Sklep: grupy darmowych ofert z panelu admina (po 3 karty: nazwa, ikona surowca, ilość, Odbierz),
+  odliczanie odnowienia, „Magazyn pełny”, tylko online („Brak połączenia”). Odbiór przyznaje serwer
+  (Edge Function `shop_claim`, migracje `market` i `shop`), nagroda przychodzi z najbliższym zapisem zamku.
+  Kolejność wdrożenia: poprawka panelu admina (bez `updated_by`), migracje `market` i `shop`, funkcja
+  `shop_claim`, podniesienie `min_code`, dopiero potem klient.
 - Pozostałe budynki MVP (#35, decyzje właścicielki z 20.11.2026, liczby tymczasowe), grafika
   w `scripts/gfx/mvp_building_art.gd` (`MvpBuildingArt`), każdy z 5 poziomami i 4 stanami:
   - **Fosa sucha** (Umocnienia, 1×1, bez technologii): rów przez całą kratkę, więc odcinki tworzą ciągły
@@ -974,7 +985,8 @@ zamku z serwera; dlatego przy wydaniu klienta z #262 `min_code` podnosi się od 
 (decyzja właścicielki, wyjątek od `docs/PO-WYDANIU.md` §6), a wydanie dostaje nowy `sim_version` (ADR 0008).
 Życie w zamku (#36) jest w kodzie; płynność na słabszym telefonie (próg 30 FPS) i czytelność nocy
 zostają do ręcznego testu. Pozostałe budynki MVP z #35 są w kodzie (Fosa sucha, Kopiec, Pole i spichlerz, Studnia, Kamieniołom,
-Wieża sygnałowa); migracja `farm_food` jest na projekcie. Budynki epoki II spoza MVP (#102) idą po kolei: Młyn (#388) jest w kodzie, migracja `mill` czeka na wgranie na projekt przed wydaniem klienta (bez niej serwer odrzuci zapis z Młynem jako budynek bez technologii i z nieznanym G5); dalej Pomost strzelecki (#389), Częstokół (#390), Kaplica (#391) i zasięg Domu zwiadowców (#392). Donżon strzela jak wieża,
+Wieża sygnałowa); migracja `farm_food` jest na projekcie. Sklep w Targu z darmowymi ofertami (#408, część #174)
+jest w kodzie; panel admina do ofert idzie osobnym PR-em w `castle_defender_admin`, a zakupy i reklamy zostają w #174 i #33. Budynki epoki II spoza MVP (#102) idą po kolei: Młyn (#388) jest w kodzie, migracja `mill` czeka na wgranie na projekt przed wydaniem klienta (bez niej serwer odrzuci zapis z Młynem jako budynek bez technologii i z nieznanym G5); dalej Pomost strzelecki (#389), Częstokół (#390), Kaplica (#391) i zasięg Domu zwiadowców (#392). Donżon strzela jak wieża,
 gdy stoją na nim strzelcy obrońcy, i nie ma już ulepszeń; z wieży i donżonu strzelcy sięgają dalej (#232).
 Etap 11 (#133) zaczynają generałowie (#31) w kodzie. Migracje `attack_general` i `general_budget` oraz nowe wersje Edge Functions
 `launch_attack` i `attack_replay` czekają na wgranie na projekt **przed** wydaniem klienta: wdrożona

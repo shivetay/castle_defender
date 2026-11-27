@@ -170,6 +170,12 @@ static func is_beaten(i: int, beaten: int) -> bool:
 	return i < beaten
 
 
+## Cel Wyprawy przy postępie `beaten`: `target`, gdy jest odblokowany, inaczej najwyższy odblokowany
+## zamek (np. po wyrównaniu licznika z serwerem, #386).
+static func unlocked_target(target: int, beaten: int) -> int:
+	return target if is_unlocked(target, beaten) else last_unlocked(beaten)
+
+
 ## Krótki opis załogi, np. „5 Chłop, 2 Topornik, 1 Łucznik”, od najliczniejszych.
 static func defenders_text(i: int) -> String:
 	var parts: Array[String] = []

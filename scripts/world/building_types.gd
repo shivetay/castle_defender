@@ -32,6 +32,9 @@ enum Kind {
 	## Budynki epoki II spoza MVP (#102, ADR 0011): stawiane od razu na poziomie 6 (BuildConfig.start_level).
 	## Młyn (#388, G5): premia do całej żywności, przy rzece.
 	MILL,
+	## Targ (#408): stoi od startu jak Dwór, jeden na zamek, bez poziomów, bez rozbiórki i bez produkcji.
+	## Otwiera tylko sklep. W bitwie jest przeszkodą, nie celem (Battle).
+	MARKET,
 }
 ## Stan budynku zależny od wytrzymałości: cały, pęknięcia, wyrwa w blankach, gruz.
 enum State { INTACT, CRACKED, BREACHED, RUBBLE }
@@ -53,13 +56,13 @@ const NAMES: Array[String] = ["Wał ziemny", "Palisada", "Brama drewniana", "Wie
 		"Chata myśliwego", "Garbarnia", "Wytwórca zbroi skórzanych", "Drzewcarz", "Cięciwiarz", "Łukmistrz",
 		"Strzałmistrz", "Rymarz", "Smolarnia", "Pole lnu", "Rybak", "Stajnia", "Koszary", "Dom drużyny", "Strzelnica",
 		"Wieża grodowa", "Chata tropicieli", "Strażnica", "Komenda umocnień", "Magazyn",
-		"Fosa sucha", "Kopiec", "Pole i spichlerz", "Studnia", "Kamieniołom", "Wieża sygnałowa", "Młyn"]
+		"Fosa sucha", "Kopiec", "Pole i spichlerz", "Studnia", "Kamieniołom", "Wieża sygnałowa", "Młyn", "Targ"]
 ## Napisy na kafelkach panelu budowy (BuildPanel, ok. 57–71 px).
 const SHORT_NAMES: Array[String] = ["Wał", "Palisada", "Brama", "Wieża", "Chata", "Dwór",
 		"Myśliwy", "Garbarnia", "Zbrojarz", "Drzewcarz", "Cięciwy", "Łukmistrz", "Strzały", "Rymarz", "Smolarnia",
 		"Len", "Rybak", "Stajnia", "Koszary", "Drużyna", "Strzelnica", "Donżon",
 		"Tropiciele", "Strażnica", "Komenda", "Magazyn", "Fosa", "Kopiec", "Spichlerz", "Studnia", "Kamień",
-		"Sygnałowa", "Młyn"]
+		"Sygnałowa", "Młyn", "Targ"]
 ## Rozmiar w kratkach (#340, ADR 0005): Koszary 3×3, budynki wojska, Magazyn i pola 3×2 (poziomo),
 ## reszta 2×2, a umocnienia 1×1 i brama 3×1. Budynek ze starszego zapisu zostaje w zapisanym prostokącie
 ## (BuildGrid.cells_of), więc ta tabela dotyczy tylko nowych budowli.
@@ -68,7 +71,7 @@ const SIZES: Array[Vector2i] = [Vector2i(1, 1), Vector2i(1, 1), Vector2i(3, 1), 
 		Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(3, 2),
 		Vector2i(3, 3), Vector2i(3, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2), Vector2i(2, 2),
 		Vector2i(3, 2), Vector2i(1, 1), Vector2i(2, 2), Vector2i(3, 2), Vector2i(2, 2), Vector2i(3, 2),
-		Vector2i(2, 2), Vector2i(2, 2)]
+		Vector2i(2, 2), Vector2i(2, 2), Vector2i(4, 4)]
 ## Rodzaje na pasku budowy, w kolejności przycisków (bez Dworu): umocnienia, gospodarka (#122),
 ## Magazyn, wytwórcy w kolejności łańcucha, na końcu budynki rekrutacji (#119), Chata tropicieli (#28, #92)
 ## i Wieża sygnałowa (#35). Młyn (#388) stoi za Rybakiem.
@@ -135,16 +138,22 @@ static func needs_water(kind: int) -> bool:
 	return kind == Kind.FISHER or kind == Kind.MILL
 
 
-## Budynki, które zamek ma od startu, po jednym, i których nie da się rozebrać: Dwór, donżon (#120)
-## i Strażnica (PvE, #177).
+## Budynki, które zamek ma od startu, po jednym, i których nie da się rozebrać: Dwór, donżon (#120),
+## Strażnica (PvE, #177) i Targ (#408).
 static func is_unique(kind: int) -> bool:
-	return kind == Kind.MANOR or kind == Kind.KEEP or kind == Kind.WATCHTOWER
+	return kind == Kind.MANOR or kind == Kind.KEEP or kind == Kind.WATCHTOWER or kind == Kind.MARKET
 
 
 ## Czy budynek ma poziomy do ulepszania. Strażnica (#177) ma jeden poziom (decyzja właścicielki):
-## ulepszenie nic by w PvE nie zmieniało. Donżon (#232) też się nie ulepsza (decyzja właścicielki).
+## ulepszenie nic by w PvE nie zmieniało. Donżon (#232) i Targ (#408) też się nie ulepszają.
 static func has_levels(kind: int) -> bool:
-	return kind != Kind.WATCHTOWER and kind != Kind.KEEP
+	return kind != Kind.WATCHTOWER and kind != Kind.KEEP and kind != Kind.MARKET
+
+
+## Czy budynek jest w bitwie tylko przeszkodą (#408): blokuje drogę, ale nie ma wytrzymałości, nie jest
+## celem i nie da się go zburzyć. Tak stoi Targ.
+static func is_obstacle(kind: int) -> bool:
+	return kind == Kind.MARKET
 
 
 ## Liczba rodzajów, które gracz stawia z panelu budowy (bez Dworu i donżonu).
