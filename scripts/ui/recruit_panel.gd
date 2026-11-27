@@ -5,8 +5,9 @@ extends Node2D
 ##   rodzaju z najkrótszą kolejką,
 ## - budynku (przycisk Szkol na karcie budynku rekrutacji): tylko jednostki tego budynku.
 ## U góry stan armii, globalny limit miejsc i utrzymanie w żywności względem produkcji Ży (#214), pod spodem kafelki
-## jednostek (ikona klasy, nazwa, liczba w armii i w szkoleniu). Jednostki, których nie da się
-## szkolić, są przygaszone. Dotknięcie kafelka pokazuje szczegóły: koszt z utrzymaniem, brakujące towary
+## jednostek (ikona klasy, nazwa, liczba w armii i w szkoleniu). Lista pokazuje tylko jednostki, które
+## da się szkolić (#376); zablokowana jednostka, którą gracz ma w armii albo w szkoleniu, zostaje
+## przygaszona. Dotknięcie kafelka pokazuje szczegóły: koszt z utrzymaniem, brakujące towary
 ## z budynkiem, który je robi, szkolenie, a w ostatnim rzędzie wybór oddziału: Nowy albo istniejący
 ## oddział tego rodzaju z zajętymi miejscami (pełne są przygaszone).
 ## Przycisk Opis przełącza szczegóły: koszt → opis jednostki → produkcja cywilna (postawieni
@@ -63,6 +64,8 @@ const STOCK_TITLE := "Zbrojownia"
 const STOCK_STATE := "zapas"
 const STOCK_EMPTY := "Pusto. Wyprodukuj broń i zbroję u wytwórców (Buduj)."
 const CLOSE_LABEL := "Zamknij"
+## Napis zamiast kafelków, gdy nie da się szkolić żadnej jednostki (#376).
+const EMPTY_TEXT := "Brak jednostek do szkolenia. Zbadaj technologię lub postaw budynek."
 
 var recruitment: Recruitment
 var grid: BuildGrid
@@ -114,7 +117,25 @@ func close() -> void:
 
 ## Jednostki widoczne w bieżącym trybie, w kolejności units_for (Chłop i inne ERA_I_ONLY na początku).
 func units() -> Array[int]:
-	return units_for(building_kind)
+	if recruitment == null:
+		return units_for(building_kind)
+	return visible_units(building_kind, recruitment, grid, research, age)
+
+
+## Jednostki z units_for(kind), które da się teraz szkolić, i zablokowane, które gracz ma w armii
+## albo w szkoleniu (#376). Bez technologii, budynku, w złej epoce i bez wojska są ukryte.
+static func visible_units(kind: int, r: Recruitment, g: BuildGrid, res: Research, current_age: int) -> Array[int]:
+	var out: Array[int] = []
+	for unit: int in units_for(kind):
+		if r.availability(unit, g, res, current_age) == Recruitment.Result.OK \
+				or r.army_of(unit) > 0 or r.in_training(unit) > 0:
+			out.append(unit)
+	return out
+
+
+## Czy budynek rodzaju `kind` ma teraz kogo szkolić (karta pokazuje wtedy Szkol, #376).
+static func recruits_now(kind: int, r: Recruitment, g: BuildGrid, res: Research, current_age: int) -> bool:
+	return not visible_units(kind, r, g, res, current_age).is_empty()
 
 
 ## Jednostki do szkolenia w budynku `kind` (wszystkie przy -1). Jednostki epoki I bez wymagań
@@ -138,6 +159,10 @@ static func recruits(kind: int) -> bool:
 func _process(_delta: float) -> void:
 	if not visible:
 		return
+	# lista zmienia się w trakcie (badanie, budynek, epoka): wybór przechodzi na pierwszą widoczną
+	var list := units()
+	if not list.has(selected) and not list.is_empty():
+		select(list[0])
 	var bounds := Hud.content_bounds(get_viewport_rect().size, Hud.safe_area_in_view(get_viewport()))
 	content_left = bounds.x
 	content_right = bounds.y
@@ -598,6 +623,8 @@ func _activate(t: int) -> void:
 ## Wynik próby szkolenia wybranej jednostki do `target_squad`, bez zmiany stanu. Przycisk Szkol
 ## gaśnie przy każdej przeszkodzie: pełna armia, kolejka albo oddział, brak surowców lub towarów.
 func train_check() -> Recruitment.Result:
+	if not units().has(selected):
+		return Recruitment.Result.NO_BUILDING
 	if building_id != 0:
 		return recruitment.check(selected, building_id, target_squad, grid, economy, goods, research, age)
 	return recruitment.check_any(selected, target_squad, grid, economy, goods, research, age)
@@ -621,7 +648,11 @@ func _draw() -> void:
 	var tiles := tile_rects(content_left, content_right, list.size())
 	for i in list.size():
 		_draw_tile(tiles[i], list[i], list[i] == selected or _pressed == Target.TILE + i)
-	_draw_details()
+	if list.is_empty():
+		_draw_empty()
+	# przy pustej liście nie ma wybranej jednostki: tylko produkcja i zapas zbrojowni (review PR 381)
+	if not list.is_empty() or detail_mode == DetailMode.PRODUCTION or detail_mode == DetailMode.STOCK:
+		_draw_details()
 	var can_train := train_check() == Recruitment.Result.OK
 	Hud.paint_button(self, train_rect(view, content_right), TRAIN_LABEL, _pressed == Target.TRAIN, not can_train)
 	Hud.paint_button(self, info_rect(view, content_left), mode_button_label(detail_mode),
@@ -633,6 +664,14 @@ func _draw() -> void:
 		TutorialHints.draw_frame(self, hint, Time.get_ticks_msec())
 
 
+## Napis pustej listy, łamany na szerokość ekranu.
+func _draw_empty() -> void:
+	var y := float(GRID_Y)
+	for line in PixelFont.wrap(EMPTY_TEXT, int(content_right - content_left)):
+		PixelFont.draw_text(self, Vector2(content_left, y), line, Palette.WOOD[3])
+		y += LINE_STEP
+
+
 ## Pasek zapasu: ikona towaru i liczba sztuk. Pusty towar jest przygaszony, a towar, którego
 ## brakuje wybranej jednostce, świeci kolorem braku.
 func _draw_stock(view: Vector2) -> void:
@@ -642,7 +681,7 @@ func _draw_stock(view: Vector2) -> void:
 	if _pressed == Target.STOCK:
 		draw_rect(r, Palette.WOOD[1])
 	var cols := int((r.size.x + 3) / STOCK_CELL_W)
-	var missing := Recruitment.missing_goods(selected, goods)
+	var missing := Recruitment.missing_goods(selected, goods) if units().has(selected) else {}
 	var strip := stock_strip(goods, cols * STOCK_ROWS, missing)
 	var cells := stock_cells(r, strip.size())
 	for i in cells.size():
@@ -708,7 +747,8 @@ func _draw_details() -> void:
 		if not (l[2] as String).is_empty():
 			PixelFont.draw_right(self, content_right, y, l[2] as String, Palette.THATCH[2])
 		y += LINE_STEP
-	_draw_squads()
+	if units().has(selected):
+		_draw_squads()
 
 
 ## Rząd wyboru oddziału: Nowy i oddziały wybranej jednostki; pełne są przygaszone.
