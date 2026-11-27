@@ -1,7 +1,6 @@
 package com.shivetay.dunhold.push
 
 import android.Manifest
-import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -9,7 +8,6 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import com.google.firebase.FirebaseApp
 import com.google.firebase.FirebaseOptions
 import com.google.firebase.messaging.FirebaseMessaging
@@ -37,6 +35,7 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
         const val CHANNEL_ATTACKS = "attacks"
     }
 
+    private var initialized = false
     private var configured = false
 
     override fun getPluginName(): String = "DunholdPush"
@@ -47,15 +46,28 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
         SignalInfo("permission_result", Boolean::class.javaObjectType),
     )
 
-    override fun onMainCreate(activity: Activity): View? {
-        configured = initFirebase(activity)
-        createChannels(activity)
-        return null
+    // Bez nadpisywania onMainCreate(Activity) (w CI „overrides nothing”, review #407): start leniwy
+    // z kontekstu, przy starcie Godota albo przy pierwszym wywołaniu z gry.
+    override fun onGodotSetupCompleted() {
+        ensureInit()
+    }
+
+    private fun ensureInit() {
+        if (initialized) {
+            return
+        }
+        val ctx = context ?: return
+        initialized = true
+        configured = initFirebase(ctx)
+        createChannels(ctx)
     }
 
     /** Czy Firebase ma konfigurację z eksportu (bez niej nie ma tokenu ani pusha). */
     @UsedByGodot
-    fun is_configured(): Boolean = configured
+    fun is_configured(): Boolean {
+        ensureInit()
+        return configured
+    }
 
     /** Czy gra może pokazywać powiadomienia (Android 13+: zgoda POST_NOTIFICATIONS). */
     @UsedByGodot
@@ -100,7 +112,7 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
     /** Token FCM urządzenia; przychodzi sygnałem `token_received` albo `token_failed`. */
     @UsedByGodot
     fun request_token() {
-        if (!configured) {
+        if (!is_configured()) {
             emitSignal("token_failed")
             return
         }
