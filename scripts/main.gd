@@ -26,6 +26,8 @@ const AGE_ANIM_MS := 2400
 const LOADER_LAYER := 100
 ## Warstwa okna aktualizacji (#336): nad zasłoną ładowania.
 const UPDATE_LAYER := 110
+## Ekran tytułowy (#360): nad zasłoną ładowania, pod oknem aktualizacji.
+const TITLE_LAYER := 105
 const UPDATE_OFFLINE_NOTE := "Brak połączenia z serwerem"
 const UPDATE_STILL_NOTE := "Nadal potrzebna aktualizacja"
 const UPDATE_STORE_NOTE := "Nie udało się otworzyć sklepu"
@@ -446,6 +448,7 @@ func _ready() -> void:
 	net.castle_rejected.connect(_on_castle_rejected)
 	add_child(net)
 	_add_sync_loader()
+	_add_title_screen()
 	_add_update_panel()
 	if saved != null:
 		_catch_up("Witaj z powrotem: ")
@@ -589,6 +592,20 @@ func _add_sync_loader() -> void:
 			net.sync_state.restore_pending_for(net.user_id())):
 		sync_loader.start_waiting()
 		sync_loader.on_net_state(net.state)  # brak sieci mógł się okazać już przy dodaniu klienta
+
+
+## Ekran tytułowy Dunholm (#360) tylko przy pierwszym wczytaniu sceny w tym uruchomieniu gry;
+## zamek pod nim wczytuje się i łączy z serwerem. Przeładowanie sceny go nie pokazuje.
+func _add_title_screen() -> void:
+	if TitleScreen.shown_this_run or (OS.is_debug_build() and OS.get_cmdline_user_args().has(BATTLE_PREVIEW_ARG)):
+		return
+	var title_layer := CanvasLayer.new()
+	title_layer.layer = TITLE_LAYER
+	add_child(title_layer)
+	var title := TitleScreen.new()
+	title_layer.add_child(title)
+	title.play_pressed.connect(title_layer.queue_free)
+	title.open()
 
 
 ## Stan sieci w Ustawieniach; po ONLINE zaległy zamek idzie na serwer od razu (#23).
