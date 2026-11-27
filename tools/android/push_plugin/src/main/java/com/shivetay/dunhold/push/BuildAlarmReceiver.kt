@@ -26,16 +26,22 @@ class BuildAlarmReceiver : BroadcastReceiver() {
         private const val EXTRA_BODY = "body"
         private const val REQUEST_BASE = 3100
 
-        /** PendingIntent miejsca `slot`; to samo miejsce daje ten sam alarm (do zastąpienia albo skasowania). */
-        fun pending(ctx: Context, slot: Int, title: String, body: String): PendingIntent {
-            val intent = Intent(ctx, BuildAlarmReceiver::class.java)
-                .setAction(ACTION)
-                .putExtra(EXTRA_SLOT, slot)
-                .putExtra(EXTRA_TITLE, title)
-                .putExtra(EXTRA_BODY, body)
-            return PendingIntent.getBroadcast(ctx, REQUEST_BASE + slot, intent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        }
+        private fun intent(ctx: Context, slot: Int): Intent =
+            Intent(ctx, BuildAlarmReceiver::class.java).setAction(ACTION).putExtra(EXTRA_SLOT, slot)
+
+        /**
+         * Nowy PendingIntent miejsca `slot` z treścią. FLAG_CANCEL_CURRENT zamiast UPDATE_CURRENT: niezmiennego
+         * (IMMUTABLE) PendingIntentu nie aktualizujemy, tylko zastępujemy (review #410).
+         */
+        fun schedule(ctx: Context, slot: Int, title: String, body: String): PendingIntent =
+            PendingIntent.getBroadcast(ctx, REQUEST_BASE + slot,
+                intent(ctx, slot).putExtra(EXTRA_TITLE, title).putExtra(EXTRA_BODY, body),
+                PendingIntent.FLAG_CANCEL_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        /** Istniejący PendingIntent miejsca `slot` albo null (FLAG_NO_CREATE: kasowanie niczego nie tworzy). */
+        fun existing(ctx: Context, slot: Int): PendingIntent? =
+            PendingIntent.getBroadcast(ctx, REQUEST_BASE + slot, intent(ctx, slot),
+                PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE)
     }
 
     override fun onReceive(ctx: Context, intent: Intent) {

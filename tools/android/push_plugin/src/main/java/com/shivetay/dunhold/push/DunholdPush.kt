@@ -134,7 +134,7 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
         val at = System.currentTimeMillis() + delaySeconds * 1000L
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         // niedokładny alarm: bez uprawnienia SCHEDULE_EXACT_ALARM, Android może go przesunąć o kilka minut
-        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, BuildAlarmReceiver.pending(ctx, slot, title, body))
+        am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, BuildAlarmReceiver.schedule(ctx, slot, title, body))
     }
 
     /** Kasuje zaplanowane powiadomienia o budowie i te już widoczne (gracz wrócił do gry). */
@@ -144,7 +144,10 @@ class DunholdPush(godot: Godot) : GodotPlugin(godot) {
         val am = ctx.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val nm = ctx.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         for (slot in 0 until BUILD_SLOTS) {
-            am.cancel(BuildAlarmReceiver.pending(ctx, slot, "", ""))
+            BuildAlarmReceiver.existing(ctx, slot)?.let {
+                am.cancel(it)
+                it.cancel()
+            }
             nm.cancel(BuildAlarmReceiver.TAG_BUILD, slot)
         }
     }
