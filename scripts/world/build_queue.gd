@@ -179,6 +179,8 @@ func update(now_ms: int, grid: BuildGrid, economy: Economy, research: Research =
 			research.update(at)
 			# technologia perka władcy (#308) działa od chwili ukończenia
 			grid.ruler_perk = RulerPerks.from_research(research, grid.age())
+			# O25 Wysunięte straże (#342) poszerza strefę obrony od chwili ukończenia
+			grid.reach_level = DefensePlan.reach_level(research)
 			continue
 		var o: Order = orders.pop_front()
 		if grid.buildings.has(o.building_id):

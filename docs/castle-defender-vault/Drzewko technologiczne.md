@@ -176,6 +176,14 @@ Technologie perków władcy ([[ADR/0002-perki-wladcy-z-technologii|ADR 0002]], #
 | U14 | Ukochany władca | Użyteczne | I | perk władcy: +10 morale załogi | — |
 | U15 | Ukochany władca II | Użyteczne | II | perk władcy: +15 morale załogi | U14 |
 
+## Strefa obrony (O25)
+
+Technologia spoza notatki ([[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]], #342). Doktryna z poziomami: 3 w epoce I, 5 w epoce II, koszt jak kolejne doktryny epoki.
+
+| Kod | Technologia | Gałąź | Epoka | Efekt | Wymaga |
+| --- | --- | --- | --- | --- | --- |
+| O25 | Wysunięte straże | Obrona | I | strefa obrony +1 kratka na poziom | — |
+
 ## Specjalne (S)
 
 | Kod | Technologia | Epoka | Efekt | Wymaga |

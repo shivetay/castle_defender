@@ -171,6 +171,8 @@ static func title_of(r: Research, code: String, next: bool = false) -> String:
 
 ## Premia doktryny z poziomami jako tekst, np. „Premia +25%, następny poziom +30%”; pusty dla innych.
 static func level_text(r: Research, code: String, current_age: int) -> String:
+	if code == DefensePlan.REACH_TECH:
+		return reach_text(r, current_age)
 	var base := doctrine_base(code)
 	if not TechTree.is_leveled(code) or base <= 0:
 		return ""
@@ -179,6 +181,28 @@ static func level_text(r: Research, code: String, current_age: int) -> String:
 	if lv == 0 or lv >= TechTree.max_level(code, current_age):
 		return now_text if lv > 0 else ""
 	return "%s, następny poziom +%d%%" % [now_text, base + TechTree.DOCTRINE_LEVEL_PERCENT * lv]
+
+
+## Premia O25 Wysunięte straże (#342) jako tekst, np. „Strefa +2 kratki, następny poziom +3”; pusty
+## przed zbadaniem.
+static func reach_text(r: Research, current_age: int) -> String:
+	var code := DefensePlan.REACH_TECH
+	var lv := r.level(code)
+	if lv == 0:
+		return ""
+	var now_text := "Strefa +%d %s" % [lv * DefensePlan.RADIUS_PER_TECH_LEVEL, _cells(lv * DefensePlan.RADIUS_PER_TECH_LEVEL)]
+	if lv >= TechTree.max_level(code, current_age):
+		return now_text
+	return "%s, następny poziom +%d" % [now_text, (lv + 1) * DefensePlan.RADIUS_PER_TECH_LEVEL]
+
+
+## „kratka”, „kratki” albo „kratek” po liczbie `n`.
+static func _cells(n: int) -> String:
+	if n == 1:
+		return "kratka"
+	if n % 10 >= 2 and n % 10 <= 4 and (n % 100 < 12 or n % 100 > 14):
+		return "kratki"
+	return "kratek"
 
 
 ## Premia doktryny na poziomie 1 w punktach procentowych: produkcja (G1, G2) z TechTree, bitwa (A1, A2)

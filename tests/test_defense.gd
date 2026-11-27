@@ -45,11 +45,13 @@ func test_posts_stand_on_free_ground_near_the_keep() -> bool:
 	var grid := _castle()
 	var c := DefensePlan.keep_center(grid)
 	var zone := DefensePlan.zone(grid)
-	assert_eq(zone.size, Vector2i.ONE * (2 * DefensePlan.RADIUS + 1), "strefa: %d kratek wokół donżonu" % DefensePlan.RADIUS)
+	var rad := DefensePlan.radius(grid)
+	assert_eq(rad, DefensePlan.RADIUS, "Dwór 1 bez O25: promień bazowy")
+	assert_eq(zone.size, Vector2i.ONE * (2 * rad + 1), "strefa: %d kratek wokół donżonu" % rad)
 	assert_true(zone.has_point(c), "donżon w środku strefy")
 	assert_eq(DefensePlan.post_problem(grid, Vector2i(64, 3)), "Poza mapą", "poza mapą")
-	assert_eq(DefensePlan.post_problem(grid, c + Vector2i(DefensePlan.RADIUS + 1, 0)),
-			"Za daleko od donżonu: najwyżej %d kratek" % DefensePlan.RADIUS, "za strefą")
+	assert_eq(DefensePlan.post_problem(grid, c + Vector2i(rad + 1, 0)),
+			"Za daleko od donżonu: najwyżej %d kratek" % rad, "za strefą")
 	assert_eq(DefensePlan.post_problem(grid, grid.buildings[grid.manor_id()].position), "Tu stoi %s" % BuildingTypes.NAMES[K.MANOR],
 			"nie na budynku")
 	var water := false
