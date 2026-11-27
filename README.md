@@ -719,9 +719,14 @@ w sekcji „Następny etap”.
   względem produkcji i jak podnieść oba limity (Koszary zliczone w jednej linii); pełny licznik
   jest czerwony. Tryb budowy: Gotowe i Zmień (wraca do panelu budowy), koszt
   wybranego budynku w komunikacie; dotknięcia mapy tylko stawiają, niczego nie zaznaczają.
-- `scripts/ui/settings_panel.gd` (`SettingsPanel`, #177): gra startuje od razu w zamku (to gra PvP,
-  bez ekranu startowego; tylko pierwsze uruchomienie zaczyna się od onboardingu z #228). Ustawienia pod zębatką na dole kolumny HUD-u: Język polski/English
-  (angielski jako zapowiedź #64), Dźwięk: wkrótce, Samouczek: wł./wył. (#251), Zacznij od nowa (z potwierdzeniem; usuwa zapis
+- `scripts/ui/title_screen.gd` (`TitleScreen`, #360) i `scripts/gfx/title_art.gd` (`TitleArt`): przy uruchomieniu
+  gry ekran tytułowy Dunholm (nocny gród na kopcu, logo w skali 3×, grafika z kodu i z palety), przyciski Graj
+  i Discord (`scripts/ui/community_link.gd`). Zamek wczytuje się i łączy z serwerem pod spodem; przeładowanie
+  sceny nie pokazuje ekranu ponownie. Logo Godota przy starcie jest wyłączone (`boot_splash/show_image=false`,
+  tło w kolorze cienia z palety), bo grafika startowa musiałaby być plikiem PNG.
+- `scripts/ui/settings_panel.gd` (`SettingsPanel`, #177): po ekranie tytułowym gra wchodzi do zamku
+  (pierwsze uruchomienie zaczyna się od onboardingu z #228). Ustawienia pod zębatką na dole kolumny HUD-u: Język polski/English
+  (angielski jako zapowiedź #64), Dźwięk: wkrótce, Samouczek: wł./wył. (#251), Discord (#360), Zacznij od nowa (z potwierdzeniem; usuwa zapis
   i przeładowuje scenę, mapa zostaje ta sama, bo seed należy do gracza) i Zamknij. Stopka: gra offline
   z zapisem na telefonie i wersja z `project.godot`. Gra nie łączy się z siecią przy starcie.
 - Strażnica (`BuildingTypes.Kind.WATCHTOWER`, #177): budynek PvE 2×2, czatownia na słupach z drabiną.
