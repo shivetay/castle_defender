@@ -73,6 +73,8 @@ Worker Godot headless + Python (`server/verifier/`): odtwarza bitwę i woła
 | Pack | `verify_$SIM.pck` z GitHub Release na dysku hosta |
 | `private.sim_versions` | wiersz z `supported = true` **na tym samym** projekcie co worker |
 | Tryb | `shadow` (porównanie) albo `enforce` (łup/ranking z wyniku workera) |
+| `bot_verification_mode` | osobny klucz dla ataków na boty: `off` / `shadow` / `enforce`, domyślnie `shadow`; w `enforce` łup, PvE i `bots_beaten` idą z `verified_result` ([[ADR/0016-weryfikacja-atakow-na-zamki-boty\|ADR 0016]]) |
+| Kolejka | najpierw ataki PvP, potem boty, FIFO w grupie; przed włączeniem `enforce` dla botów właścicielka podnosi `min_code` |
 
 Ryzyka: stagingowy worker piszący do prod; pack bez wiersza `sim_versions` → `unsupported_version`
 / ataki `failed`; wspólne hasło między projektami.

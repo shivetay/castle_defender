@@ -12,9 +12,18 @@ const PATH := "/functions/v1/start_attack"
 const BOT_LOCKED := "bot_locked"
 
 
-## Treść żądania ataku na zamek-bota (`bot_idx` 0..BotRoster.COUNT-1).
-static func request_bot(bot_idx: int, army: Array = []) -> Dictionary:
-	return {"bot_idx": bot_idx, "army": army}
+## Treść żądania ataku na zamek-bota (`bot_idx` 0..BotRoster.COUNT-1). Z planem (#413, ADR 0016) serwer
+## od razu go zatwierdza: zapisuje plan, generała (`general`, rodzaj 0..2), wersję symulacji i badania,
+## poziom generała i perk władcy z zamku na serwerze, a odpowiedź je oddaje (BotBattle.from_start).
+## Wtedy worker weryfikacji może policzyć tę bitwę jeszcze raz.
+static func request_bot(bot_idx: int, army: Array = [], plan: AttackPlan = null, general: int = -1) -> Dictionary:
+	var d := {"bot_idx": bot_idx, "army": army}
+	if plan != null:
+		d["plan"] = plan.to_server()
+		d["sim_version"] = VerifyJob.project_sim_version()
+		if general >= 0 and general < Generals.count():
+			d["general"] = general
+	return d
 
 
 ## Treść żądania ataku na gracza (`defender_id` = uuid konta).
@@ -50,6 +59,12 @@ static func parse_response(data: Variant) -> Dictionary:
 		var idx := int(bot)
 		if idx >= 0 and idx < BotRoster.COUNT:
 			out["bot_idx"] = idx
+			# #413: plan, badania, generał i perk zatwierdzone przez serwer (surowe; sprawdza BotBattle)
+			if d.has("plan"):
+				out["plan"] = d.get("plan")
+				out["techs"] = AttackLaunch.parse_techs(d.get("techs"))
+				out["general"] = d.get("general")
+				out["ruler_perk"] = d.get("ruler_perk")
 	var defender: Variant = d.get("defender_id")
 	if defender is String and not (defender as String).is_empty():
 		out["defender_id"] = defender as String

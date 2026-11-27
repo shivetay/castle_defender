@@ -26,6 +26,14 @@ approval) and a pack is on the host, use `smoke` on the VPS.
 - `submit_verification` raises `lease_expired` (no valid lease) or `not_pending` (attack already has a
   result); the wrapper rolls back and the lease runs out.
 - A job is claimable once the phone's ruins arrive (`record_destroyed`) or 15 s after `finish_attack`.
+- Bot attacks (#413, ADR 0016): the job has `bot_idx` (null for PvP) and an empty `castle`; the pack builds
+  the bot castle from `BotRoster` and rejects a `map_seed` that is not `BotRoster.seed_of(bot_idx)`
+  (`bad_bot_seed`). The queue hands out PvP jobs first, then bot jobs, FIFO within each group.
+  Bot jobs are claimable at once (no ruins to wait for).
+- Mode `private.settings.bot_verification_mode` for bot attacks, separate from PvP: `shadow` (default)
+  or `enforce` (loot, PvE points and campaign progress only from the worker result). Before `enforce`
+  raise `min_code` (ADR 0006) so old clients without a server-approved plan stop attacking, and ship
+  the client side of #417 (`verifying` status).
 - Mode `private.settings.verification_mode`: `shadow` (default; worker only compares) or `enforce`
   (loot, rating, shield and ruins only from the worker result; needs Edge/client §6 first).
 

@@ -8,6 +8,10 @@
 // udany zwiad (`public.attack_preview`); pełne kopie zamku i obrony daje dopiero `launch_attack`.
 // Zamek-bot tylko odblokowany w kampanii (#386, ADR 0015): przy odmowie `bot_locked` odpowiedź niesie
 // postęp z serwera (`bots_beaten`), żeby telefon wyrównał swój licznik.
+// #413 (ADR 0016): atak na zamek-bota z planem (`plan`, opcjonalnie `general` i `sim_version`, jak w
+// launch_attack) idzie przez `public.begin_bot_attack`, która w tej samej transakcji zatwierdza plan.
+// Odpowiedź oddaje wtedy plan, badania, generała i perk władcy z zamku na serwerze, z których telefon
+// liczy bitwę, a worker weryfikacji tę samą bitwę jeszcze raz. Bez planu (starszy klient) jak dotąd.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { clientOutdated } from "../_shared/client_version.ts";
@@ -17,7 +21,11 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, x-client-version, apikey, content-type",
 };
 
-const ALLOWED_KEYS = new Set(["defender_id", "bot_idx", "army"]);
+const ALLOWED_KEYS = new Set(["defender_id", "bot_idx", "army", "plan", "general", "sim_version"]);
+// jak w launch_attack: Generals.Kind, AttackPlan.MAX_SQUADS_BY_AGE[-1], kod wersji do 99.99.99
+const MAX_GENERAL = 2;
+const MAX_ORDERS = 8;
+const MAX_SIM_VERSION = 999999;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // błędy z begin_attack (raise exception ... P0001) → kod HTTP
@@ -41,6 +49,10 @@ const ERRORS: Record<string, number> = {
   bad_target: 400,
   self_attack: 400,
   bad_seed: 500,
+  // #413: zatwierdzenie planu ataku na bota (launch_attack w begin_bot_attack)
+  bad_plan: 400,
+  bad_general: 400,
+  unsupported_version: 409,
 };
 
 Deno.serve(async (req) => {
@@ -103,6 +115,33 @@ Deno.serve(async (req) => {
     return json({ error: "bad_army" }, 400);
   }
 
+  // #413: plan tylko przy zamku-bocie; kształt i zakresy rozkazów sprawdza check_plan w bazie
+  const withPlan = b.plan !== undefined;
+  if ((withPlan || b.general !== undefined || b.sim_version !== undefined) && botIdx == null) {
+    return json({ error: "unknown_field" }, 400);
+  }
+  if (withPlan && (!Array.isArray(b.plan) || b.plan.length < 1 || b.plan.length > MAX_ORDERS)) {
+    return json({ error: "bad_plan" }, 400);
+  }
+  if (!withPlan && (b.general !== undefined || b.sim_version !== undefined)) {
+    return json({ error: "bad_plan" }, 400);
+  }
+  let general: number | null = null;
+  if (b.general !== undefined) {
+    if (typeof b.general !== "number" || !Number.isInteger(b.general) || b.general < 0 || b.general > MAX_GENERAL) {
+      return json({ error: "bad_general" }, 400);
+    }
+    general = b.general;
+  }
+  let simVersion: number | null = null;
+  if (b.sim_version !== undefined) {
+    const v = b.sim_version;
+    if (typeof v !== "number" || !Number.isInteger(v) || v < 1 || v > MAX_SIM_VERSION) {
+      return json({ error: "bad_sim_version" }, 400);
+    }
+    simVersion = v;
+  }
+
   // seed bitwy z kryptograficznego źródła; osobny od map_seed
   const battleSeed = crypto.getRandomValues(new Uint32Array(1))[0]! & 0x7fffffff;
 
@@ -110,13 +149,23 @@ Deno.serve(async (req) => {
   if (await clientOutdated(req, admin)) {
     return json({ error: "update_required" }, 426);
   }
-  const { data, error } = await admin.rpc("begin_attack", {
-    p_attacker: attackerId,
-    p_defender: defenderId,
-    p_bot: botIdx,
-    p_army: b.army,
-    p_battle_seed: battleSeed,
-  });
+  const { data, error } = withPlan
+    ? await admin.rpc("begin_bot_attack", {
+      p_attacker: attackerId,
+      p_bot: botIdx,
+      p_army: b.army,
+      p_battle_seed: battleSeed,
+      p_plan: b.plan,
+      p_general: general,
+      p_sim_version: simVersion,
+    })
+    : await admin.rpc("begin_attack", {
+      p_attacker: attackerId,
+      p_defender: defenderId,
+      p_bot: botIdx,
+      p_army: b.army,
+      p_battle_seed: battleSeed,
+    });
   if (error) {
     const code = known(error);
     if (code === "bot_locked") {
@@ -161,6 +210,13 @@ Deno.serve(async (req) => {
     payload.intel = view.intel ?? {};
   } else {
     payload.bot_idx = botIdx;
+    if (withPlan) {
+      // dane bitwy zatwierdzone na serwerze (#413): z nich telefon i worker liczą tę samą bitwę
+      payload.plan = row.plan ?? [];
+      payload.techs = row.techs ?? [];
+      payload.general = row.general ?? null;
+      payload.ruler_perk = row.ruler_perk ?? -1;
+    }
   }
   return json(payload);
 });
