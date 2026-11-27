@@ -419,13 +419,15 @@ func _stick_candidates(c: Vector2i, kind: int, size: Vector2i) -> Array[Rect2i]:
 
 ## Bok, którym zwykły budynek `id` przylega do wału albo palisady (#149): kierunek do muru i kratka
 ## muru przy tym boku (pierwsza w stałej kolejności), z najdłuższym stykiem; [ZERO, (-1, -1)], gdy nie
-## przylega. Umocnienia, brama i wieża się nie przyklejają (łączą się w linii).
+## przylega. Umocnienia, brama i wieża się nie przyklejają (łączą się w linii). Fosa też nie (#404):
+## przesunięta do muru zostawiała pasek trawy po drugiej stronie i łamała rów w rogach.
 func wall_side(id: int) -> Array:
 	var none := [Vector2i.ZERO, Vector2i(-1, -1)]
 	if not buildings.has(id):
 		return none
 	var kind := kinds[id]
-	if BuildingTypes.is_wall(kind) or kind == BuildingTypes.Kind.GATE or kind == BuildingTypes.Kind.TOWER:
+	if BuildingTypes.is_wall(kind) or kind in [BuildingTypes.Kind.GATE, BuildingTypes.Kind.TOWER,
+			BuildingTypes.Kind.DRY_MOAT]:
 		return none
 	var r := buildings[id]
 	var best := none
