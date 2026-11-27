@@ -14,6 +14,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Historia obron (26.11.2026, #328): okno po połączeniu z liczbą ataków, lista z nickiem i siłą armii atakującego z serwera; siła obrony atakującego odłożona do #293. [[ADR/0003-historia-obron-z-nickiem-i-sila-napastnika|ADR 0003]].
 - Siła celu PvP (26.11.2026, #293): serwer liczy siłę obrony z własnej kopii zamku, karta celu, karta bota i historia obron pokazują tylko przedział o stałych granicach, także po zwiadzie. [[ADR/0004-sila-celu-pvp-przedzial-z-serwera|ADR 0004]].
 - Wymuszenie aktualizacji (26.11.2026, #336): komunikat o nowej wersji ze sklepem i blokada gry poniżej minimum z serwera, także offline; serwer odrzuca starsze klienty. [[ADR/0006-wymuszenie-aktualizacji-wersji-klienta|ADR 0006]].
+- Wersja symulacji ataku (27.11.2026, #354): klient podaje ją przy zatwierdzeniu ataku, a wersja bez packa na serwerze blokuje atak z komunikatem o aktualizacji. [[ADR/0008-wersja-symulacji-ataku-z-klienta|ADR 0008]].
 
 ## Pytania otwarte
 
