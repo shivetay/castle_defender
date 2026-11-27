@@ -40,7 +40,8 @@ Kolumna „Zastępuje” pokazuje ścieżkę przebudowy. Epoki: [[Epoki]].
 Lista epok I–II zatwierdzona przez właściciela 17.11.2026 (#100). Pułapkę stawia się na ekranie Obrona,
 w strefie obrony (10 kratek od donżonu, +2 na każdy poziom Dworu i +1 na poziom O25 Wysunięte straże,
 [[ADR/0007-strefa-obrony-z-dworu-i-technologii|ADR 0007]]), na wolnej kratce, którą da się przejść. Atakujący jej nie widzi, dopóki nie odsłoni jej
-zwiad ([[Zwiad i kontrwywiad]], #28) albo reklama Wywiad. Działa raz na bitwę, a po bitwie odnawia się za darmo.
+zwiad ([[Zwiad i kontrwywiad]], #28) albo reklama Wywiad. Działa raz na bitwę, a po bitwie odnawia się za darmo. Pułapka zajmuje kratkę: nie stanie na niej
+budynek (#341), a luka w murze z pułapką nadal liczy się jako luka.
 Limit: 2 pułapki na poziom Dworu. Liczby są tymczasowe.
 
 | Pułapka | Epoka | Wymaga | Gdzie | Działanie | Koszt |
