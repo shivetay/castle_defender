@@ -34,7 +34,7 @@ select is(private.food_production('{"grid": {"buildings": [[1, 16, 1, 0, 0, 2, 2
   260, 'Rybak 1 i Pole 5: 20 + 40 + 200');
 select is(private.food_production('{"grid": {"buildings": [[1, 28, 2, 0, 0, 2, 2]]}, "research": {"done": ["G2"]}}'),
   126, 'G2: (20 + 90) × 115%, w dół');
-select is(private.food_production('{"grid": {"buildings": [[1, 28, 9, 0, 0, 2, 2]]}}'), 220, 'poziom Pola przycięty do 5');
+select is(private.food_production('{"grid": {"buildings": [[1, 28, 9, 0, 0, 2, 2]]}}'), 400, 'Pole 9 (epoka II, #262): 20 + 380');
 select is(private.food_production('{"grid": {"buildings": [[1, 30, 5, 0, 0, 2, 2]]}}'), 20, 'Kamieniołom nie daje żywności');
 
 -- ---- start ataku: Pole wyżywi 20 jeźdźców (40 Ży/h przy 80 Ży/h) ----

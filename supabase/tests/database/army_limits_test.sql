@@ -58,7 +58,7 @@ select is(private.army_limit('{"grid": {"buildings": [[1, 5, 3, 0, 0, 4, 4], [2,
   40, 'Dwór 3 i Koszary 2 + 3: 30 + 10');
 select is(private.army_limit('{"grid": {"buildings": [[1, 5, 0, 0, 0, 4, 4]]}}'), 10, 'Dwór na poziomie 0 liczy się jak 1');
 select is(private.army_limit('{"grid": {"buildings": [[1, 5, 9, 0, 0, 4, 4], [2, 18, 99, 0, 0, 3, 3]]}}'),
-  60, 'poziomy przycięte do 5');
+  102, 'Dwór 9: 50 + 4 × 8, Koszary przycięte do 10 (#262)');
 select is(private.army_limit('{"grid": {"buildings": [[1, 18, 5, 0, 0, 3, 3], [1, 18, 5, 0, 0, 3, 3], [0, 18, 5, 0, 0, 3, 3], [-4, 18, 5, 0, 0, 3, 3]]}}'),
   20, 'powtórzone id i id <= 0 się nie liczą');
 select is(private.army_limit('{"grid": {"buildings": [[2, 5, 5, 0, 0, 4, 4], [1, 5, 1, 0, 0, 4, 4]]}}'),
@@ -73,7 +73,7 @@ select is(private.food_production('{"grid": {"buildings": [[1, 16, 1, 0, 0, 2, 2
   140, 'Rybacy 1 i 3: 20 + 40 + 80, plac budowy nic nie daje');
 select is(private.food_production('{"grid": {"buildings": [[1, 16, 1, 0, 0, 2, 2], [2, 16, 3, 0, 0, 2, 2]]}, "research": {"done": ["G1", "G2"]}}'),
   161, 'G2: +15 procent, w dół');
-select is(private.food_production('{"grid": {"buildings": [[1, 16, 7, 0, 0, 2, 2]]}}'), 160, 'poziom Rybaka przycięty do 5');
+select is(private.food_production('{"grid": {"buildings": [[1, 16, 7, 0, 0, 2, 2]]}}'), 220, 'Rybak 7 (epoka II, #262): 20 + 200');
 select is(private.food_production('{"research": {"done": "G2"}}'), 20, 'zły typ listy badań');
 
 -- ---- utrzymanie jednostek (UnitTypes.UPKEEP) ----

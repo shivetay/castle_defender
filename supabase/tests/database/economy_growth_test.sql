@@ -58,7 +58,7 @@ select is(private.consumption_max(pg_temp.castle('[0, 0, 0, 0]'), pg_temp.castle
     '{"grid": {"buildings": [[1, 5, 1, 30, 30, 4, 4], [6, 17, 1, 10, 20, 3, 3]]}, "recruitment": {"squads": [[1, 0, 7]]}}')),
   '{0, 0, 17, 0}'::bigint[], 'zużycie: Stajnia (10 żywności na konia) i utrzymanie 7 toporników');
 select is(private.build_cost(5, 2), '{300, 200, 200, 0}'::bigint[], 'koszt Dworu 2');
-select is(private.build_cost(4, 6), '{160, 0, 60, 0}'::bigint[], 'Chata drwala na poziomie 1 epoki II: ×2');
+select is(private.build_cost(4, 6), '{680, 0, 255, 0}'::bigint[], 'Chata drwala na poziomie 1 epoki II: 850 procent (#262)');
 select is(private.research_cost(0, 2), '{256, 128, 128, 0}'::bigint[], 'trzecia technologia epoki I: ×1,6 dwa razy');
 select is(private.pve_reward(0, 5), '{1250, 800, 1250, 125}'::bigint[], 'nagrody wszystkich fal PvE');
 
