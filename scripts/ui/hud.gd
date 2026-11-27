@@ -39,8 +39,10 @@ signal seal_pressed
 signal resource_pressed(res: int)
 ## Dotknięto portretu władcy (#228) w lewym górnym rogu.
 signal portrait_pressed
+## Dotknięto Sklep na karcie Targu (#408).
+signal shop_pressed
 
-enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK, CHECK, SEAL, RANKING }
+enum CardButton { UPGRADE, DEMOLISH, RECRUIT, CLOSE, SIEGE, ATTACK, CHECK, SEAL, RANKING, SHOP }
 ## Cele dotyku: przyciski kolumny i przyciski karty.
 enum Target { NONE = -1, SIEGE = 1, BUILD = 2, DONE = 3, RESEARCH = 4, ARMY = 5, CHANGE = 6, SPEED = 7, ATTACK = 8, DEFENCE = 9, QUEUE = 10, SETTINGS = 11, CANCEL = 12, PORTRAIT = 13, RESOURCE = 50, CARD = 100 }
 
@@ -73,6 +75,8 @@ const CHECK_LABEL := "Sprawdź"
 const SEAL_LABEL := "Domknij"
 const EXPEDITION_LABEL := "Wyprawa"
 const RANKING_LABEL := "Ranking"
+## Karta Targu (#408): sam Sklep i Zamknij (Targu nie da się ulepszyć ani rozebrać).
+const SHOP_LABEL := "Sklep"
 const ARMY_LABEL := "Wojsko"
 const CANCEL_LABEL := "Anuluj"
 const SIEGE_LABEL := "Oblężenie"
@@ -124,6 +128,8 @@ var card_pve := false
 var card_seal := false
 ## Karta donżonu (#232): sam Zamknij, bo donżonu nie można ulepszyć ani rozebrać.
 var card_plain := false
+## Karta Targu (#408): Sklep i Zamknij.
+var card_market := false
 ## Przycisk Sprawdź niedostępny (trwa odliczanie).
 var card_check_disabled := false
 ## Przycisk Domknij niedostępny (brak wykrytych luk).
@@ -232,7 +238,9 @@ static func column_targets(is_building: bool, in_battle: bool = false) -> Array[
 ## Wyprawa, Ranking, Zamknij; Komenda umocnień: Ulepsz, Rozbierz, Sprawdź, Domknij, Zamknij (#199);
 ## donżon: sam Zamknij (#232).
 static func card_buttons(recruit: bool = false, pve: bool = false, seal: bool = false,
-		plain: bool = false) -> Array[int]:
+		plain: bool = false, market: bool = false) -> Array[int]:
+	if market:
+		return [CardButton.SHOP, CardButton.CLOSE] as Array[int]
 	if plain:
 		return [CardButton.CLOSE] as Array[int]
 	if pve:
@@ -262,13 +270,15 @@ static func card_label(button: int) -> String:
 			return CHECK_LABEL
 		CardButton.SEAL:
 			return SEAL_LABEL
+		CardButton.SHOP:
+			return SHOP_LABEL
 	return CARD_LABELS[2]
 
 
 ## Przyciski karty budynku, wyśrodkowane nad paskiem komunikatu.
 static func card_rects(view: Vector2, recruit: bool = false, pve: bool = false, seal: bool = false,
-		plain: bool = false) -> Array[Rect2]:
-	var n := card_buttons(recruit, pve, seal, plain).size()
+		plain: bool = false, market: bool = false) -> Array[Rect2]:
+	var n := card_buttons(recruit, pve, seal, plain, market).size()
 	var total := n * BUTTON_SIZE.x + (n - 1) * BUTTON_GAP
 	var x := floorf((view.x - total) / 2.0)
 	var out: Array[Rect2] = []
@@ -318,8 +328,8 @@ static func card_needs_lines(needs: String, width: int) -> PackedStringArray:
 ## Tło karty z `lines` liniami opisu: tytuł, opis, przyciski; co najmniej CARD_MIN_W szerokie,
 ## wyśrodkowane nad przyciskami.
 static func card_panel(view: Vector2, line_count: int, recruit: bool = false, pve: bool = false,
-		seal: bool = false, plain: bool = false) -> Rect2:
-	var rects := card_rects(view, recruit, pve, seal, plain)
+		seal: bool = false, plain: bool = false, market: bool = false) -> Rect2:
+	var rects := card_rects(view, recruit, pve, seal, plain, market)
 	var span := rects[-1].end.x - rects[0].position.x + 8
 	var w := maxf(span, CARD_MIN_W)
 	var top := rects[0].position.y - 13 - PixelFont.LINE * maxi(1, line_count) - 5
@@ -327,17 +337,19 @@ static func card_panel(view: Vector2, line_count: int, recruit: bool = false, pv
 
 
 ## Przycisk karty (CardButton) na miejscu `i`.
-static func card_button(i: int, recruit: bool, pve: bool = false, seal: bool = false, plain: bool = false) -> int:
-	return card_buttons(recruit, pve, seal, plain)[i]
+static func card_button(i: int, recruit: bool, pve: bool = false, seal: bool = false, plain: bool = false,
+		market: bool = false) -> int:
+	return card_buttons(recruit, pve, seal, plain, market)[i]
 
 
 ## Cel pod punktem `p` w danym stanie interfejsu. Przyciski karty to CARD + CardButton.
 static func target_at(p: Vector2, view: Vector2, right: float, is_building: bool, card_open: bool,
 		recruit_card: bool = false, in_battle: bool = false, pve_card: bool = false,
-		seal_card: bool = false, plain_card: bool = false) -> int:
+		seal_card: bool = false, plain_card: bool = false, market_card: bool = false) -> int:
 	if card_open and not in_battle:
-		var i := hit(card_rects(view, recruit_card, pve_card, seal_card, plain_card), p)
-		return Target.CARD + card_button(i, recruit_card, pve_card, seal_card, plain_card) if i >= 0 else Target.NONE
+		var i := hit(card_rects(view, recruit_card, pve_card, seal_card, plain_card, market_card), p)
+		return Target.CARD + card_button(i, recruit_card, pve_card, seal_card, plain_card, market_card) if i >= 0 \
+				else Target.NONE
 	var targets := column_targets(is_building, in_battle)
 	var icons := uses_icons(is_building, in_battle)
 	for i in targets.size():
@@ -492,21 +504,21 @@ func _target_at(p: Vector2) -> int:
 	if shows_portrait() and portrait_rect(content_left, not goal_text.is_empty()).has_point(p):
 		return Target.PORTRAIT
 	return target_at(p, get_viewport_rect().size, content_right, building, is_card_open(), card_recruit, battle, card_pve,
-			card_seal, card_plain)
+			card_seal, card_plain, card_market)
 
 
 ## Prostokąt przycisku `t` (kolumna w danym trybie albo karta, CARD + CardButton); pusty, gdy go
 ## teraz nie widać.
 static func target_rect(t: int, view: Vector2, right: float, is_building: bool, card_open: bool,
 		recruit_card: bool = false, in_battle: bool = false, pve_card: bool = false,
-		seal_card: bool = false, plain_card: bool = false) -> Rect2:
+		seal_card: bool = false, plain_card: bool = false, market_card: bool = false) -> Rect2:
 	if t == Target.NONE:
 		return Rect2()
 	if card_open and not in_battle:
 		if t < Target.CARD:
 			return Rect2()
-		var i := card_buttons(recruit_card, pve_card, seal_card, plain_card).find(t - Target.CARD)
-		return card_rects(view, recruit_card, pve_card, seal_card, plain_card)[i] if i >= 0 else Rect2()
+		var i := card_buttons(recruit_card, pve_card, seal_card, plain_card, market_card).find(t - Target.CARD)
+		return card_rects(view, recruit_card, pve_card, seal_card, plain_card, market_card)[i] if i >= 0 else Rect2()
 	var i := column_targets(is_building, in_battle).find(t)
 	return column_rect(right, i, uses_icons(is_building, in_battle)) if i >= 0 else Rect2()
 
@@ -583,6 +595,8 @@ func _activate(t: int) -> void:
 				attack_pressed.emit()
 			CardButton.RANKING:
 				ranking_pressed.emit()
+			CardButton.SHOP:
+				shop_pressed.emit()
 			CardButton.CHECK:
 				if not card_check_disabled:
 					check_pressed.emit()
@@ -655,7 +669,7 @@ func _draw() -> void:
 				draw_rect(alert_rect(column_rect(content_right, i, icons)), Palette.ACCENT)
 	if not overlay:
 		var hint := target_rect(hint_target, view, content_right, building, is_card_open(), card_recruit, battle,
-				card_pve, card_seal, card_plain)
+				card_pve, card_seal, card_plain, card_market)
 		if hint.has_area():
 			TutorialHints.draw_frame(self, hint, Time.get_ticks_msec())
 
@@ -698,11 +712,11 @@ static func column_label(t: int) -> String:
 
 
 func _draw_card(view: Vector2) -> void:
-	var rects := card_rects(view, card_recruit, card_pve, card_seal, card_plain)
-	var buttons := card_buttons(card_recruit, card_pve, card_seal, card_plain)
+	var rects := card_rects(view, card_recruit, card_pve, card_seal, card_plain, card_market)
+	var buttons := card_buttons(card_recruit, card_pve, card_seal, card_plain, card_market)
 	var width := int(maxf(rects[-1].end.x - rects[0].position.x + 8, CARD_MIN_W)) - 8
 	var lines := card_lines(card_info, card_needs, width)
-	var panel := card_panel(view, lines.size(), card_recruit, card_pve, card_seal, card_plain)
+	var panel := card_panel(view, lines.size(), card_recruit, card_pve, card_seal, card_plain, card_market)
 	draw_rect(panel, Color(Palette.SHADOW, 0.85))
 	PixelFont.draw_text(self, panel.position + Vector2(4, 3), card_title, Palette.INK)
 	PixelFont.draw_right(self, panel.end.x - 4, panel.position.y + 3, card_status, Palette.THATCH[2])

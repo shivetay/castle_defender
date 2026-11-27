@@ -58,6 +58,10 @@ signal castle_rejected
 signal version_policy_loaded(policy: ClientVersion.Policy, ok: bool)
 ## Serwer odrzucił wersję gry (`update_required`, HTTP 426): gra ma się zablokować do aktualizacji.
 signal update_required
+## Katalog sklepu w Targu (#408): grupy ofert albo `ok` = false (brak sieci, błąd).
+signal shop_loaded(groups: Array[ShopNet.Group], ok: bool)
+## Odbiór oferty (#408): ShopNet.parse_claim albo kod błędu (`error`, pusty przy sukcesie).
+signal shop_claimed(claim: Dictionary, error: String)
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -69,6 +73,8 @@ enum CastleCall { NONE, GET, INSERT, PUSH, DEFENSE_PATCH, DEFENSE_INSERT, NICKNA
 enum AttackCall { NONE, START, FINISH, LAUNCH, REPLAY, WAVE_START, WAVE_FINISH }
 ## Żądanie zwiadu w toku (#28).
 enum ScoutCall { NONE, SEND, REPORTS }
+## Żądanie sklepu w toku (#408).
+enum ShopCall { NONE, CATALOG, CLAIM }
 
 ## Kod błędu bez odpowiedzi serwera (brak sieci, przekroczony czas, 408, 5xx): żądanie można ponowić.
 const NETWORK_ERROR := "network"
@@ -121,6 +127,9 @@ var _reports_pending := false
 ## Zwiad (#28) idzie osobnym połączeniem, naraz jedno żądanie.
 var _scout: HTTPRequest
 var _scout_call: int = ScoutCall.NONE
+## Sklep w Targu (#408) idzie osobnym połączeniem, naraz jedno żądanie.
+var _shop: HTTPRequest
+var _shop_call: int = ShopCall.NONE
 ## Polityka wersji (#336) idzie osobnym połączeniem, naraz jedno żądanie.
 var _version: HTTPRequest
 var _version_pending := false
@@ -208,6 +217,10 @@ func _ready() -> void:
 	_scout.timeout = TIMEOUT_S
 	add_child(_scout)
 	_scout.request_completed.connect(_on_scout_completed)
+	_shop = HTTPRequest.new()
+	_shop.timeout = TIMEOUT_S
+	add_child(_shop)
+	_shop.request_completed.connect(_on_shop_completed)
 	_version = HTTPRequest.new()
 	_version.timeout = TIMEOUT_S
 	add_child(_version)
@@ -551,6 +564,60 @@ func _scout_send(call: int, path: String, body: Dictionary) -> bool:
 func _on_scout_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	note_status(code)
 	handle_scout(_scout_call, result, code, body.get_string_from_utf8())
+
+
+## Katalog sklepu (#408, `public.shop_catalog`); odpowiedź w `shop_loaded`. False: brak sieci albo inne żądanie
+## sklepu jeszcze trwa.
+func load_shop() -> bool:
+	return _shop_send(ShopCall.CATALOG, ShopNet.CATALOG_PATH, {})
+
+
+## Odbiór oferty `offer_id` (#408, Edge Function `shop_claim`); odpowiedź w `shop_claimed`. False: brak sieci albo
+## inne żądanie sklepu jeszcze trwa.
+func claim_offer(offer_id: int) -> bool:
+	return _shop_send(ShopCall.CLAIM, ShopNet.CLAIM_PATH, ShopNet.claim_request(offer_id))
+
+
+## Czy żądanie sklepu jest w drodze.
+func is_shop_pending() -> bool:
+	return _shop_call != ShopCall.NONE
+
+
+## Obsługa odpowiedzi sklepu (bez sieci, wołana też z testów).
+func handle_shop(call: int, result: int, code: int, body: String) -> void:
+	_shop_call = ShopCall.NONE
+	if call == ShopCall.CATALOG:
+		if outcome_of(result, code) != Outcome.OK:
+			shop_loaded.emit([] as Array[ShopNet.Group], false)
+			return
+		shop_loaded.emit(ShopNet.parse_catalog(SupabaseConfig.parse_json(body), _now_ms()), true)
+	elif call == ShopCall.CLAIM:
+		var error := edge_error(result, code, body)
+		var claim := ShopNet.parse_claim(SupabaseConfig.parse_json(body)) if error.is_empty() else {}
+		if error.is_empty() and claim.is_empty():
+			error = REJECTED_ERROR
+		shop_claimed.emit(claim, error)
+
+
+func _shop_send(call: int, path: String, body: Dictionary) -> bool:
+	if _shop_call != ShopCall.NONE or not is_online() or user_id().is_empty():
+		return false
+	_shop_call = call
+	if fake_transport:
+		sent_requests.append({"call": call, "path": path, "body": body})
+		return true
+	if _shop == null:
+		_shop_call = ShopCall.NONE
+		return false
+	var err := _shop.request(config.url + path, rest_headers(), HTTPClient.METHOD_POST, JSON.stringify(body))
+	if err != OK:
+		handle_shop(call, HTTPRequest.RESULT_CANT_CONNECT, 0, "")
+	return true
+
+
+func _on_shop_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
+	handle_shop(_shop_call, result, code, body.get_string_from_utf8())
 
 
 func is_attack_pending() -> bool:
@@ -1038,3 +1105,7 @@ func _set_state(s: int) -> void:
 
 static func _now() -> int:
 	return int(Time.get_unix_time_from_system())
+
+
+static func _now_ms() -> int:
+	return int(Time.get_unix_time_from_system() * 1000.0)

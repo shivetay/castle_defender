@@ -36,6 +36,8 @@ const UPDATE_STORE_NOTE := "Nie udało się otworzyć sklepu"
 ## Komunikat, gdy Rybak nie styka się z wodą (#122).
 const WATER_HINT := "%s musi stać tuż przy rzece"
 const KEEP_NO_ROOM := "Brak miejsca na donżon: rozbierz coś obok Dworu"
+## Stary zapis bez wolnego 4×4 na Targ (#408): Targ stanie sam, gdy miejsce się zwolni (_ensure_market).
+const MARKET_NO_ROOM := "Zrób miejsce 4×4 na Targ"
 
 ## Komunikat w trybie oglądania.
 const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
@@ -43,6 +45,8 @@ const DEFAULT_MESSAGE := Hud.VIEW_MESSAGE
 const WATCHTOWER_INFO := "Fale, wyprawy i rankingi"
 ## Linia karty donżonu (#232): bez ulepszeń i rozbiórki, strzela jak wieża.
 const KEEP_INFO := "Cel ataku, strzela ze strzelcem"
+## Opis karty Targu (#408).
+const MARKET_INFO := "Darmowe oferty w Sklepie, z odnowieniem"
 ## Opis karty Komendy umocnień (#199), gdy nie trwa Sprawdź i nie ma wyniku.
 const SEAL_HOUSE_INFO := "Sprawdź szczelność umocnień"
 ## Opis karty Chaty tropicieli (#28), gdy nie ma misji ani raportu.
@@ -151,6 +155,11 @@ var generals := Generals.new()
 var target_refresh := TargetRefresh.new()
 var generals_panel: GeneralsPanel
 var ruler_panel: RulerPanel
+## Sklep w Targu (#408).
+var shop_panel: ShopPanel
+## Serwer przyjął odbiór oferty: najbliższy łup z zapisu zamku to nagroda ze sklepu (komunikat).
+var _shop_reward_due := false
+const SHOP_REWARD_PREFIX := "Ze sklepu: "
 ## Porzucony atak na gracza (#240): start na serwerze liczy się jak atak na ten zamek przez dobę.
 const ABANDONED_MESSAGE := "Atak porzucony: ten zamek znowu po dobie"
 ## Początek komunikatu o łupie z serwera i jego wersja dla nagrody za falę PvE (#288).
@@ -243,6 +252,8 @@ func _ready() -> void:
 		_place_keep()
 	if grid.watchtower_id() == 0:
 		_place_watchtower()
+	# Targ (#408): w nowej grze po Strażnicy, w starym zapisie przy wczytaniu
+	var market_missing := not grid.place_market()
 	var keep_missing := grid.keep_id() == 0
 	_terrain_tex = ImageTexture.create_from_image(TerrainRenderer.render(terrain))
 	textures.warm_up()
@@ -272,7 +283,7 @@ func _ready() -> void:
 	hud = Hud.new()
 	hud.economy = economy
 	layer.add_child(hud)
-	hud.message = KEEP_NO_ROOM if keep_missing else DEFAULT_MESSAGE
+	hud.message = KEEP_NO_ROOM if keep_missing else (MARKET_NO_ROOM if market_missing else DEFAULT_MESSAGE)
 	hud.build_pressed.connect(_on_build_panel_opened)
 	hud.change_pressed.connect(_on_build_panel_opened)
 	hud.build_mode_changed.connect(_on_build_mode_changed)
@@ -403,6 +414,12 @@ func _ready() -> void:
 	ruler_panel.visible = false
 	layer.add_child(ruler_panel)
 	ruler_panel.closed.connect(_on_overlay_closed)
+	shop_panel = ShopPanel.new()
+	shop_panel.visible = false
+	layer.add_child(shop_panel)
+	shop_panel.closed.connect(_on_overlay_closed)
+	shop_panel.claim_requested.connect(_on_shop_claim)
+	hud.shop_pressed.connect(_on_shop_pressed)
 	info_popup = InfoPopup.new()
 	layer.add_child(info_popup)  # dostaje dotyk przed panelami
 	identity = PlayerProfile.read_identity(PlayerProfile.PATH)
@@ -446,6 +463,8 @@ func _ready() -> void:
 	net.wave_started.connect(_on_wave_started)
 	net.wave_finished.connect(_on_wave_finished)
 	net.castle_rejected.connect(_on_castle_rejected)
+	net.shop_loaded.connect(shop_panel.set_groups)
+	net.shop_claimed.connect(_on_shop_claimed)
 	add_child(net)
 	_add_sync_loader()
 	_add_title_screen()
@@ -512,6 +531,17 @@ func _place_watchtower() -> void:
 		grid.place(spot, BuildingTypes.Kind.WATCHTOWER)
 	else:
 		push_warning("Brak miejsca na Strażnicę")
+
+
+## Po zwolnieniu miejsca (rozbiórka, anulowana budowa) brakujący Targ staje sam (#408).
+func _ensure_market() -> void:
+	if grid.market_id() != 0:
+		return
+	if grid.place_market():
+		hud.message = "Targ stanął przy Dworze"
+		queue_redraw()
+	else:
+		hud.message = MARKET_NO_ROOM
 
 
 func _process(_delta: float) -> void:
@@ -1865,7 +1895,10 @@ func _on_loot_applied(delta: Array[int]) -> void:
 	var text := loot_message(got)
 	if _wave_reward_due and text.begins_with(LOOT_PREFIX):
 		text = WAVE_REWARD_PREFIX + text.substr(LOOT_PREFIX.length())
+	elif _shop_reward_due and text.begins_with(LOOT_PREFIX):
+		text = SHOP_REWARD_PREFIX + text.substr(LOOT_PREFIX.length())
 	_wave_reward_due = false
+	_shop_reward_due = false
 	if not text.is_empty():
 		hud.message = text
 	_save()
@@ -2168,6 +2201,8 @@ func _on_queue_cancel(id: int) -> void:
 	var title := BuildingTypes.NAMES[o.kind]
 	queue.cancel(grid, economy, id, _now_ms())
 	hud.message = "Anulowano: %s, surowce wróciły" % title
+	if grid.market_id() == 0:
+		_ensure_market()
 	_save()
 	queue_redraw()
 
@@ -2420,6 +2455,41 @@ func _on_portrait_pressed() -> void:
 	hud.message = "Złoto: %d" % economy.amounts[EconomyConfig.Res.GOLD]
 
 
+## Sklep z karty Targu (#408): tylko online, katalog z serwera.
+func _on_shop_pressed() -> void:
+	_tick()
+	_selected_id = 0
+	hud.hide_card()
+	_cursor = Rect2i()
+	hud.overlay = true
+	shop_panel.open(economy)
+	if net == null or not net.load_shop():
+		shop_panel.show_offline()
+	hud.message = "Targ: darmowe oferty"
+
+
+## Odbierz w sklepie: nagrodę daje dopiero serwer (`shop_claim`).
+func _on_shop_claim(offer_id: int) -> void:
+	if net == null or not net.claim_offer(offer_id):
+		shop_panel.claim_failed(SupabaseClient.NETWORK_ERROR)
+
+
+## Odpowiedź `shop_claim`: odliczanie na karcie, a nagroda przychodzi z najbliższym zapisem zamku (loot_applied),
+## więc zapis idzie od razu.
+func _on_shop_claimed(claim: Dictionary, error: String) -> void:
+	if not error.is_empty():
+		shop_panel.claim_failed(error)
+		if error == "cooldown" and net != null:
+			net.load_shop()  # odliczanie z serwera
+		return
+	_tick()
+	shop_panel.claim_done(claim, _now_ms())
+	_shop_reward_due = true
+	_save()
+	if net != null:
+		net.flush()
+
+
 ## Linie okienka władcy: kto rządzi którym zamkiem i jakie ma premie postaci (domyślny żadnych).
 static func ruler_info(id: PlayerProfile.Identity) -> PackedStringArray:
 	var innate := Rulers.innate_perk(id.ruler)
@@ -2468,6 +2538,7 @@ func _refresh_card() -> void:
 	hud.card_pve = level >= 1 and kind == BuildingTypes.Kind.WATCHTOWER
 	hud.card_seal = level >= 1 and kind == BuildingTypes.Kind.SEAL_HOUSE
 	hud.card_plain = plain_card(kind, pending)
+	hud.card_market = kind == BuildingTypes.Kind.MARKET and not pending
 	hud.card_check_disabled = seal_check.is_busy()
 	hud.card_seal_disabled = not seal_check.has_selection()
 	hud.card_info = upgrade_info(kind, level, grid.manor_level(), pending, grid.ruler_perk)
@@ -2523,6 +2594,8 @@ static func upgrade_info(kind: int, level: int, _manor_level: int, pending: bool
 		return "Trwa budowa"
 	if kind == BuildingTypes.Kind.KEEP:
 		return KEEP_INFO
+	if kind == BuildingTypes.Kind.MARKET:
+		return MARKET_INFO
 	if not BuildingTypes.has_levels(kind):
 		return WATCHTOWER_INFO
 	if level >= BuildConfig.max_level(kind, Ages.MAX_TOTAL_LEVEL):
@@ -2640,6 +2713,8 @@ func _on_middle_button() -> void:
 		queue.cancel(grid, economy, _selected_id, _now_ms())
 		_refresh_card()
 		hud.message = "Anulowano: %s, surowce wróciły" % title
+		if grid.market_id() == 0:
+			_ensure_market()
 		_save()
 		return
 	if BuildingTypes.is_unique(grid.kinds[_selected_id]):
@@ -2653,6 +2728,8 @@ func _on_middle_button() -> void:
 	economy.refresh_capacity(grid)
 	_deselect()
 	hud.message = "Rozebrano: %s" % title
+	if grid.market_id() == 0:
+		_ensure_market()
 	_save()
 
 
