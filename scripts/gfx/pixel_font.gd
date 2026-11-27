@@ -5,6 +5,8 @@ extends RefCounted
 ## belki środkowe, żeby tekst nie wyglądał na gruby. Linia ma 8 px: wiersze 0–1 to akcenty (Ć, Ó, Ż...),
 ## 2–6 litera, 7 ogonek (Ą, Ę) albo przecinek. Małe litery rysuje się jako wielkie.
 ## Atlas glifów powstaje raz dla każdego koloru z palety i jest trzymany w cache.
+## Skróty surowców (EconomyConfig.SHORT_NAMES: Dr, Ka, Ży, Zł) jako osobne słowo rysują się
+## ikoną z paska surowców (PixelIcons), np. „120 Dr” to liczba i ikona drewna.
 
 const LINE := 8
 const CAP_TOP := 2
@@ -79,11 +81,15 @@ static var _atlases: Dictionary[int, ImageTexture] = {}
 static var _index: Dictionary[String, int] = {}
 
 
+## Początek tokenu ikony surowca w `tokens` (po nim numer surowca); żaden glif go nie używa.
+const ICON_MARK := "@"
+
+
 ## Szerokość tekstu w pikselach (odstęp 1 px między znakami, bez odstępu na końcu).
 static func text_width(text: String) -> int:
 	var w := 0
-	for ch in _normalize(text):
-		w += glyph_width(ch) + 1
+	for tok in tokens(text):
+		w += token_width(tok) + 1
 	return maxi(w - 1, 0)
 
 
@@ -92,15 +98,56 @@ static func glyph_width(ch: String) -> int:
 	return (rows[0] as String).length()
 
 
+## Szerokość tokenu z `tokens`: glifu albo ikony surowca.
+static func token_width(tok: String) -> int:
+	return PixelIcons.SIZE if tok.begins_with(ICON_MARK) else glyph_width(tok)
+
+
+## Tekst jako tokeny do rysowania: wielkie litery fontu, a skrót surowca będący osobnym słowem
+## (np. „Ży” w „12 Ży/h”) jako jeden token ICON_MARK + numer surowca.
+static func tokens(text: String) -> PackedStringArray:
+	var out: PackedStringArray = []
+	var i := 0
+	while i < text.length():
+		var res := _resource_at(text, i)
+		if res >= 0:
+			out.append(ICON_MARK + str(res))
+			i += EconomyConfig.SHORT_NAMES[res].length()
+			continue
+		for ch in _normalize(text[i]):
+			out.append(ch)
+		i += 1
+	return out
+
+
+## Numer surowca, którego skrót zaczyna się w `text` na pozycji `i` jako całe słowo, albo -1.
+static func _resource_at(text: String, i: int) -> int:
+	if i > 0 and _is_letter(text[i - 1]):
+		return -1
+	for res in EconomyConfig.SHORT_NAMES.size():
+		var short: String = EconomyConfig.SHORT_NAMES[res]
+		var end := i + short.length()
+		if text.substr(i, short.length()) == short and (end >= text.length() or not _is_letter(text[end])):
+			return res
+	return -1
+
+
+static func _is_letter(ch: String) -> bool:
+	return ch.to_upper() != ch.to_lower()
+
+
 ## Rysuje tekst na CanvasItem. `pos` to lewy górny róg linii (8 px wysokości).
 static func draw_text(ci: CanvasItem, pos: Vector2, text: String, col: Color) -> void:
 	var atlas := _atlas(col)
 	var x := floorf(pos.x)
 	var y := floorf(pos.y)
-	for ch in _normalize(text):
-		var w := glyph_width(ch)
-		var src := Rect2(_index[ch] * CELL_W, 0, w, LINE)
-		ci.draw_texture_rect_region(atlas, Rect2(x, y, w, LINE), src)
+	for tok in tokens(text):
+		var w := token_width(tok)
+		if tok.begins_with(ICON_MARK):
+			PixelIcons.draw_resource(ci, Vector2(x, y + CAP_TOP), tok.substr(1).to_int())
+		else:
+			var src := Rect2(_index[tok] * CELL_W, 0, w, LINE)
+			ci.draw_texture_rect_region(atlas, Rect2(x, y, w, LINE), src)
 		x += w + 1
 
 
@@ -155,9 +202,14 @@ static func draw_right(ci: CanvasItem, right_x: float, y: float, text: String, c
 ## Rysuje tekst do obrazu (np. do testów albo tekstur).
 static func render(img: Image, pos: Vector2i, text: String, col: Color) -> void:
 	var x := pos.x
-	for ch in _normalize(text):
-		_blit_glyph(img, Vector2i(x, pos.y), ch, col)
-		x += glyph_width(ch) + 1
+	for tok in tokens(text):
+		if tok.begins_with(ICON_MARK):
+			var s := PixelIcons.SIZE
+			img.blend_rect(PixelIcons.make_atlas(), Rect2i(tok.substr(1).to_int() * s, 0, s, s),
+					Vector2i(x, pos.y + CAP_TOP))
+		else:
+			_blit_glyph(img, Vector2i(x, pos.y), tok, col)
+		x += token_width(tok) + 1
 
 
 ## Wielkie litery; znaki spoza fontu zamienia na „?”.
