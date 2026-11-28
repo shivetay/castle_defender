@@ -106,6 +106,6 @@ func test_loot_from_rows() -> bool:
 	assert_eq(CastleSync.loot_from_rows([{"loot_applied": [1, 2]}]), [0, 0, 0, 0] as Array[int], "zła długość")
 	assert_eq(CastleSync.loot_from_rows([{"loot_applied": [1, "x", 0, 0]}]), [0, 0, 0, 0] as Array[int], "zły typ")
 	assert_eq(CastleSync.loot_from_rows(null), [0, 0, 0, 0] as Array[int], "brak odpowiedzi")
-	assert_true(CastleSync.push_path("abc", 1).ends_with("select=revision,loot_applied"), "zapis prosi o łup")
-	assert_eq(CastleSync.insert_path(), "/rest/v1/castles?select=revision,loot_applied", "założenie też")
+	assert_true(CastleSync.push_path("abc", 1).ends_with("select=revision,loot_applied,army_applied"), "zapis prosi o łup (i rozliczenie strat, #427)")
+	assert_eq(CastleSync.insert_path(), "/rest/v1/castles?select=revision,loot_applied,army_applied", "założenie też")
 	return true

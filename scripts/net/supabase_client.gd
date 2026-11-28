@@ -47,6 +47,9 @@ signal replay_loaded(replay: Dictionary, error: String)
 ## Serwer scalił łup PvP z zapasami przy zapisie zamku (#274, CastleSync.loot_from_rows): zmiana do
 ## doliczenia na telefonie, dodatnia u atakującego, ujemna u obrońcy. Nie przychodzi dla samych zer.
 signal loot_applied(delta: Array[int])
+## Serwer odjął poległych przy zapisie zamku (#427, CastleSync.army_from_rows): rozliczenie dla
+## Recruitment.settle_losses.
+signal army_applied(applied: Array)
 ## Odpowiedź na start fali PvE (#288, WaveReport.parse_start; pusty słownik przy błędzie).
 signal wave_started(start: Dictionary, error: String)
 ## Odpowiedź na koniec fali PvE (#288): nagroda, którą serwer dopisał do zamku (zera przy przegranej).
@@ -944,6 +947,9 @@ func handle_castle_rest(call: int, result: int, code: int, body: String) -> void
 			var delta := CastleSync.loot_from_rows(rows)
 			if delta.any(func(v: int) -> bool: return v != 0):
 				loot_applied.emit(delta)
+			var applied := CastleSync.army_from_rows(rows)
+			if not applied.is_empty():
+				army_applied.emit(applied)
 			_castle_send(CastleCall.DEFENSE_PATCH, HTTPClient.METHOD_PATCH, CastleSync.defense_path(user_id()),
 					CastleSync.update_body(_sent_save_version, _sent_defense), true)
 		CastleCall.DEFENSE_PATCH:

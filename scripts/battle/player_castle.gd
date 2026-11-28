@@ -42,6 +42,8 @@ var defender_generals: Generals
 ## Perk władcy atakującego z serwera (#32; z zamku atakującego na serwerze przy zatwierdzeniu planu):
 ## Zdobywca wzmacnia bitwę, Łupieżca podnosi łup. Perk obrońcy siedzi w kopii jego zamku (grid.ruler_perk).
 var attacker_ruler_perk: int = RulerPerks.Perk.NONE
+## Straty armii atakującego odejmie serwer przy zapisie zamku (#427, ADR 0019).
+var server_losses := false
 ## Id oddziałów załogi w kolejności `target.defenders` (do zadań z DefensePlan).
 var defender_ids: Array[int] = []
 ## Zapasy obrońcy z kopii, w kolejności EconomyConfig.Res (podstawa łupu jak na serwerze).
@@ -144,6 +146,7 @@ func apply_launch(launch: Dictionary) -> bool:
 	attacker_research = AttackLaunch.research_of(techs)
 	attacker_general = Generals.general_from(launch.get("general"))
 	attacker_ruler_perk = ruler_perk_from(launch.get("ruler_perk"))
+	server_losses = launch.get("server_losses") == true
 	defender_generals = state.generals
 	_age = state.grid.age()
 	defender_ids = state.recruitment.battle_ids()

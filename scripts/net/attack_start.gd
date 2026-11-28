@@ -65,6 +65,8 @@ static func parse_response(data: Variant) -> Dictionary:
 				out["techs"] = AttackLaunch.parse_techs(d.get("techs"))
 				out["general"] = d.get("general")
 				out["ruler_perk"] = d.get("ruler_perk")
+				# #427: straty armii odejmie serwer (bez pola: starszy serwer, telefon odejmuje sam)
+				out["server_losses"] = d.get("server_losses") == true
 	var defender: Variant = d.get("defender_id")
 	if defender is String and not (defender as String).is_empty():
 		out["defender_id"] = defender as String

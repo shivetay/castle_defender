@@ -483,6 +483,7 @@ func _ready() -> void:
 	net.defense_reports_loaded.connect(_on_defense_reports)
 	net.replay_loaded.connect(_on_replay_loaded)
 	net.loot_applied.connect(_on_loot_applied)
+	net.army_applied.connect(_on_army_applied)
 	net.wave_started.connect(_on_wave_started)
 	net.wave_finished.connect(_on_wave_finished)
 	net.castle_rejected.connect(_on_castle_rejected)
@@ -1822,7 +1823,7 @@ func _finish_attack(b: Battle) -> void:
 		return
 	var army := _battle_army  # skład z chwili startu bitwy, przed stratami
 	var alive := b.survivors(Battle.Side.ATTACKER)
-	var fallen := recruitment.apply_losses(_battle_ids, alive)
+	var fallen := _apply_losses(_pve.state == PveReport.State.STARTED and _pve.server_losses, _pve.attack_id, alive)
 	var won := b.winner == Battle.Winner.ATTACKER
 	var result := BattleResult.of(b)
 	result.compute_loot(attack_target, BotRoster.is_beaten(attack_target, bots_beaten))
@@ -1861,13 +1862,26 @@ func _finish_attack(b: Battle) -> void:
 	_save()
 
 
+## Straty po bitwie (#164): przy `server_losses` (#427, ADR 0019) polegli czekają na rozliczenie z serwera.
+func _apply_losses(server: bool, attack_id: String, alive: Array[int]) -> int:
+	if server and not attack_id.is_empty():
+		return recruitment.apply_losses_held(attack_id, _battle_ids, alive, _now_ms())
+	return recruitment.apply_losses(_battle_ids, alive)
+
+
+## Serwer odjął poległych przy zapisie zamku (#427, CastleSync.army_from_rows).
+func _on_army_applied(applied: Array) -> void:
+	recruitment.settle_losses(applied)
+	_save()
+
+
 ## Koniec ataku na gracza (#240): straty jak zwykle, a łup trafia do magazynu dopiero z odpowiedzi
 ## `finish_attack` (serwer sprawdza limity). Do tego czasu okno wyniku czeka na serwer.
 func _finish_player_attack(b: Battle) -> void:
 	var alive := b.survivors(Battle.Side.ATTACKER)
 	_finish_result = _player.result_of(b)
 	_finish_body = _player.finish_request(b, _finish_result)
-	_finish_fallen = recruitment.apply_losses(_battle_ids, alive)
+	_finish_fallen = _apply_losses(_player.server_losses, _player.attack_id, alive)
 	_finish_tries = 0
 	_finish_resumed = false
 	# wynik czeka w pliku, dopóki serwer nie odpowie: zamknięcie gry go nie gubi (#99)

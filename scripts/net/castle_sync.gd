@@ -22,7 +22,9 @@ const DEFENSE_PATH := "/rest/v1/defense_layouts"
 const PLAYERS_PATH := "/rest/v1/players"
 const SELECT_OWN := "map_seed,save_version,revision,data"
 ## Odpowiedź na zapis zamku: nowa rewizja i łup PvP, który serwer scalił z zapasami (#274).
-const SELECT_PUSH := "revision,loot_applied"
+## Najwięcej wpisów rozliczenia strat w jednej odpowiedzi (#427): kilka ataków po 8 oddziałów.
+const MAX_ARMY_APPLIED := 64
+const SELECT_PUSH := "revision,loot_applied,army_applied"
 ## Kod HTTP, którym serwer odrzuca zapis zamku spoza limitów surowców (#274, SQLSTATE PT422 w wyzwalaczu
 ## `castles_resources`). Telefon przywraca wtedy zamek z serwera, zamiast ponawiać ten sam zapis.
 const REJECTED_HTTP := 422
@@ -162,6 +164,29 @@ static func revision_from_rows(rows: Variant) -> int:
 	return int(value) if value is int or value is float else -1
 
 
+## Polegli, których serwer odjął przy tym zapisie (#427, `castles.army_applied`):
+## [[id ataku, oddział, odjęci], ...]
+## dla Recruitment.settle_losses. Pusta lista, gdy odpowiedź jej nie ma albo jest zła.
+static func army_from_rows(rows: Variant) -> Array:
+	var raw: Variant = first_row(rows).get("army_applied")
+	if not raw is Array or (raw as Array).size() > MAX_ARMY_APPLIED:
+		return []
+	var out: Array = []
+	for entry: Variant in raw as Array:
+		if not entry is Array or (entry as Array).size() != 3:
+			return []
+		var e := entry as Array
+		if not e[0] is String or (e[0] as String).is_empty() or not _whole(e[1]) or not _whole(e[2]) \
+				or int(e[1]) <= 0 or int(e[2]) < 0 or int(e[2]) > RecruitmentConfig.SQUAD_SIZE:
+			return []
+		out.append([e[0] as String, int(e[1]), int(e[2])])
+	return out
+
+
+static func _whole(v: Variant) -> bool:
+	return v is int or (v is float and float(v) == floorf(float(v)))
+
+
 ## Łup PvP, który serwer scalił z zapasami przy tym zapisie (#274, `castles.loot_applied`), w kolejności
 ## EconomyConfig.Res: dodatni u atakującego, ujemny u obrońcy. Zera, gdy odpowiedź go nie ma albo jest zła.
 static func loot_from_rows(rows: Variant) -> Array[int]:
@@ -190,6 +215,9 @@ static func castle_data(save: Dictionary, identity: PlayerProfile.Identity = nul
 	out.erase("version")
 	# Sprawdź z Komendy umocnień (#199) to stan lokalny gracza, serwer go nie potrzebuje
 	out.erase("seal")
+	# polegli czekający na serwer wracają do oddziałów, bo odejmuje ich serwer (#427, ADR 0019)
+	if out.get("recruitment") is Dictionary:
+		out["recruitment"] = Recruitment.server_data(out["recruitment"] as Dictionary)
 	if identity != null:
 		out[PROFILE_KEY] = identity.to_dict()
 	return out

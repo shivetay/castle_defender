@@ -59,6 +59,9 @@ class Order:
 
 ## Oddziały w kolejności założenia.
 var squads: Array[Squad] = []
+## Polegli z ataków, których straty odejmie serwer (#427, ADR 0019): {attack, squad, unit, n, at_ms}. Gra odjęła
+## ich już z oddziałów, ale do serwera idą jeszcze w oddziale (server_data), dopóki zapis zamku ich nie rozliczy.
+var held: Array[Dictionary] = []
 ## Zlecenia w kolejności złożenia; pierwsze zlecenie każdego budynku jest w szkoleniu.
 var orders: Array[Order] = []
 ## Budynek i oddział z ostatniego udanego zlecenia.
@@ -108,7 +111,8 @@ func free_in_squad(id: int) -> int:
 	var s := squad(id)
 	if s == null:
 		return 0
-	return maxi(0, RecruitmentConfig.SQUAD_SIZE - s.count - pending_for(id))
+	# polegli czekający na serwer (#427) wciąż zajmują miejsce w oddziale na serwerze
+	return maxi(0, RecruitmentConfig.SQUAD_SIZE - s.count - pending_for(id) - held_for(id))
 
 
 ## Pierwszy oddział rodzaju `unit` z wolnym miejscem albo NEW_SQUAD.
@@ -153,6 +157,88 @@ func apply_losses(ids: Array[int], alive: Array[int]) -> int:
 		s.count = left
 	_drop_empty_squads()
 	return fallen
+
+
+## Straty po bitwie, które odejmie serwer (#427, ADR 0019): jak apply_losses, a polegli czekają w `held`
+## na rozliczenie z odpowiedzi na zapis zamku (settle_losses). Zwraca, ilu poległo.
+func apply_losses_held(attack_id: String, ids: Array[int], alive: Array[int], now_ms: int) -> int:
+	for i in mini(ids.size(), alive.size()):
+		var s := squad(ids[i])
+		if s == null:
+			continue
+		var n := s.count - clampi(alive[i], 0, s.count)
+		if n > 0:
+			held.append({"attack": attack_id, "squad": s.id, "unit": s.unit, "n": n, "at_ms": now_ms})
+	return apply_losses(ids, alive)
+
+
+## Rozliczenie strat z serwera (`castles.army_applied`): [[id ataku, oddział, odjęci], ...]. Polegli, których
+## gra trzyma w `held`, już zniknęli z oddziału; resztę (np. po przywróceniu zamku z serwera albo po bitwie
+## przerwanej zamknięciem gry) gra odejmuje teraz.
+func settle_losses(applied: Array) -> void:
+	for entry: Variant in applied:
+		var e := entry as Array
+		if e == null or e.size() < 3:
+			continue
+		var id := int(e[1])
+		var n := maxi(0, int(e[2]))
+		var k := _held_index(str(e[0]), id)
+		if k >= 0:
+			n -= int(held[k]["n"])
+			held.remove_at(k)
+		var s := squad(id)
+		if n > 0 and s != null:
+			s.count = maxi(0, s.count - n)
+	_drop_empty_squads()
+
+
+## Polegli czekający na serwer w oddziale `id`.
+func held_for(id: int) -> int:
+	var n := 0
+	for h in held:
+		if int(h["squad"]) == id:
+			n += int(h["n"])
+	return n
+
+
+## Zapomina poległych czekających dłużej niż HELD_TTL_MS (serwer ich nie rozliczył, np. bez skutków ataku).
+func expire_held(now_ms: int) -> void:
+	for h in held.duplicate():
+		if int(h["at_ms"]) < now_ms - RecruitmentConfig.HELD_TTL_MS:
+			held.erase(h)
+
+
+## Zapis armii do `castles.data` (#427): polegli czekający na serwer wracają do swoich oddziałów (także
+## oddziałów, które gra już usunęła), bo odejmuje ich dopiero serwer; listy `held` serwer nie dostaje.
+static func server_data(d: Dictionary) -> Dictionary:
+	var out := d.duplicate(true)
+	var raw: Variant = out.get("held", [])
+	out.erase("held")
+	if not raw is Array or (raw as Array).is_empty() or not out.get("squads") is Array:
+		return out
+	var squad_list := out["squads"] as Array
+	for entry: Variant in raw as Array:
+		var e := entry as Array
+		if e == null or e.size() < 4:
+			continue
+		var id := int(e[1])
+		var found := false
+		for s: Variant in squad_list:
+			var row := s as Array
+			if row != null and row.size() >= 3 and int(row[0]) == id:
+				row[2] = mini(int(row[2]) + int(e[3]), RecruitmentConfig.SQUAD_SIZE)
+				found = true
+				break
+		if not found:
+			squad_list.append([id, int(e[2]), mini(int(e[3]), RecruitmentConfig.SQUAD_SIZE)])
+	return out
+
+
+func _held_index(attack_id: String, id: int) -> int:
+	for k in held.size():
+		if str(held[k]["attack"]) == attack_id and int(held[k]["squad"]) == id:
+			return k
+	return -1
 
 
 ## Wyszkolone jednostki rodzaju `unit` we wszystkich oddziałach.
@@ -477,7 +563,10 @@ func save_data() -> Dictionary:
 	var squad_list: Array = []
 	for s in squads:
 		squad_list.append([s.id, s.unit, s.count])
-	return {"squads": squad_list, "next_squad": _next_squad, "orders": list}
+	var held_list: Array = []
+	for h in held:
+		held_list.append([h["attack"], h["squad"], h["unit"], h["n"], h["at_ms"]])
+	return {"squads": squad_list, "next_squad": _next_squad, "orders": list, "held": held_list}
 
 
 ## Wczytuje stan z save_data(). Złe oddziały i zlecenia budynków, których nie ma w siatce,
@@ -486,6 +575,7 @@ func load_data(d: Dictionary, grid: BuildGrid, now_ms: int) -> int:
 	var skipped := 0
 	squads.clear()
 	orders.clear()
+	held.clear()
 	_next_squad = 1
 	for entry: Variant in d.get("squads", []) as Array:
 		var e := entry as Array
@@ -518,6 +608,15 @@ func load_data(d: Dictionary, grid: BuildGrid, now_ms: int) -> int:
 		if first and o.start_ms < 0:
 			o.start_ms = now_ms
 		orders.append(o)
+	for entry: Variant in d.get("held", []) as Array:
+		var e := entry as Array
+		if e == null or e.size() < 5 or not e[0] is String or int(e[1]) <= 0 or int(e[2]) < 0 \
+				or int(e[2]) >= UnitTypes.count() or int(e[3]) <= 0:
+			skipped += 1
+			continue
+		held.append({"attack": str(e[0]), "squad": int(e[1]), "unit": int(e[2]),
+				"n": mini(int(e[3]), RecruitmentConfig.SQUAD_SIZE), "at_ms": int(e[4])})
+	expire_held(now_ms)
 	_drop_empty_squads()
 	return skipped
 

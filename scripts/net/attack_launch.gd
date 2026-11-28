@@ -74,4 +74,4 @@ static func parse_response(data: Variant) -> Dictionary:
 	return {"id": str(d.get("id", "")), "castle": castle as Dictionary,
 			"defense": defense as Dictionary if defense is Dictionary else {},
 			"plan": d.get("plan"), "techs": parse_techs(d.get("techs")), "general": d.get("general"),
-			"ruler_perk": d.get("ruler_perk")}
+			"ruler_perk": d.get("ruler_perk"), "server_losses": d.get("server_losses") == true}
