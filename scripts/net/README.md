@@ -20,9 +20,10 @@ Klient sieciowy PvP (Supabase). W kliencie **tylko** klucz publishable/`anon` �
 | `pve_report.gd` | Wyprawa na zamek-bota w rankingu PvE (#242): start i wynik na serwerze, kolejność odpowiedzi, ponowienia |
 | `wave_report.gd` | Fala PvE na serwerze (#288, `pve_wave`): start i wynik, kolejność odpowiedzi, ponowienia; nagrodę daje tylko serwer |
 | `target_search.gd` | Dobór przeciwnika (#24): odpowiedź `find_targets`, czyszczenie danych, uzupełnianie botami do 3 celów |
+| `feature_flags.gd` | Flagi z panelu admina (#280, ADR 0020): `public.feature_flags` tylko do odczytu, okno na czasie serwera (nagłówek `Date`), cache `user://feature_flags.json`, domyślnie `feature.*` włączone, reszta wyłączona; `SupabaseClient.is_feature_active(key)` |
 | `client_version.gd` | Wymuszenie aktualizacji (#336): kod wersji, polityka `client_version_policy` z serwera i z `user://version_policy.json`, komunikat raz na 24 h, blokada; nagłówek `X-Client-Version` w każdym zapytaniu |
 
 Backend: `supabase/` (migracje, RLS, Edge Functions). Skille: `supabase-security`, `pvp-anti-cheat`, `user-data-privacy`.
 Atak na gracza (#240): `SupabaseClient.start_attack` / `finish_attack`, cel z kopii w `scripts/battle/player_castle.gd`.
 Sklep w Targu (#408): `scripts/net/shop_net.gd` (katalog `shop_catalog`, odbiór `shop_claim`), `SupabaseClient.load_shop` / `claim_offer`.
-Testy: `tests/test_shop.gd`, `tests/test_supabase_client.gd`, `test_player_castle.gd`, `test_castle_sync.gd`, `test_attack_start.gd`, `test_attack_finish.gd`, `test_pending_finish.gd`, `test_target_search.gd`, `test_ranking_board.gd`, `test_pve_ranking.gd`, `test_replay.gd`, `test_client_version.gd`.
+Testy: `tests/test_feature_flags.gd`, `tests/test_shop.gd`, `tests/test_supabase_client.gd`, `test_player_castle.gd`, `test_castle_sync.gd`, `test_attack_start.gd`, `test_attack_finish.gd`, `test_pending_finish.gd`, `test_target_search.gd`, `test_ranking_board.gd`, `test_pve_ranking.gd`, `test_replay.gd`, `test_client_version.gd`.

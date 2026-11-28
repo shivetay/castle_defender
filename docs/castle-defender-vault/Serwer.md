@@ -37,6 +37,8 @@ Na jednym projekcie nie da się jednocześnie „swobodnie migrować” i „trz
 - Docelowo: debug APK → staging; AAB → osobne zmienne / Environment `production`. Dopóki nie ma
   splitu, wszystkie APK z Actions wskazują to, co stoi w `vars` — trzymaj tam staging.
 - Auth: anonimowe na start; Google później — **per projekt** Supabase.
+- Flagi z panelu admina (`public.feature_flags`): klient tylko czyta, okno czasu na czasie serwera, bez wiersza
+  `feature.*` włączone, reszta wyłączona; flaga nie przyznaje nagród ([[ADR/0020-flagi-z-panelu-admina|ADR 0020]]).
 
 ---
 

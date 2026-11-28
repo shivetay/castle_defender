@@ -708,6 +708,11 @@ w sekcji „Następny etap”.
   (Edge Function `shop_claim`, migracje `market` i `shop`), nagroda przychodzi z najbliższym zapisem zamku.
   Kolejność wdrożenia: poprawka panelu admina (bez `updated_by`), migracje `market` i `shop`, funkcja
   `shop_claim`, podniesienie `min_code`, dopiero potem klient.
+- **Flagi z panelu admina** (#280, ADR 0020): klient czyta `public.feature_flags` po połączeniu i co 15 minut
+  (`scripts/net/feature_flags.gd`, `SupabaseClient.is_feature_active`), okno od–do na czasie serwera, cache na
+  telefonie. Bez wiersza `feature.*` jest włączone, `offer.*` i `event.*` wyłączone; na razie żadna funkcja
+  nie ma flagi. Kolejność wdrożenia: PR panelu (bez `id` i `updated_by`, rodzaj `feature`), potem migracja
+  `feature_flags` na projekt.
 - Pozostałe budynki MVP (#35, decyzje właścicielki z 20.11.2026, liczby tymczasowe), grafika
   w `scripts/gfx/mvp_building_art.gd` (`MvpBuildingArt`), każdy z 5 poziomami i 4 stanami:
   - **Fosa sucha** (Umocnienia, 1×1, bez technologii): rów przez całą kratkę, więc odcinki tworzą ciągły
