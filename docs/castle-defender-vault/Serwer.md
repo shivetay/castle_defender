@@ -75,6 +75,7 @@ Worker Godot headless + Python (`server/verifier/`): odtwarza bitwę i woła
 | Tryb | `shadow` (porównanie) albo `enforce` (łup/ranking z wyniku workera) |
 | `bot_verification_mode` | osobny klucz dla ataków na boty: `off` / `shadow` / `enforce`, domyślnie `shadow`; w `enforce` łup, PvE i `bots_beaten` idą z `verified_result` ([[ADR/0016-weryfikacja-atakow-na-zamki-boty\|ADR 0016]]) |
 | Kolejka | najpierw ataki PvP, potem boty, FIFO w grupie; przed włączeniem `enforce` dla botów właścicielka podnosi `min_code` |
+| Porzucone ataki | atak z zatwierdzonym planem porzucony w `shadow` / `enforce` idzie do kolejki, a wynik workera zamyka go jako `finished`; `claim_verification` sam porzuca ataki starsze niż 10 min ([[ADR/0018-porzucony-atak-rozstrzyga-serwer\|ADR 0018]]) |
 
 Ryzyka: stagingowy worker piszący do prod; pack bez wiersza `sim_versions` → `unsupported_version`
 / ataki `failed`; wspólne hasło między projektami.

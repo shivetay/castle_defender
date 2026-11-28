@@ -210,6 +210,8 @@ var _resume_poll_s := 0.0
 const RESUME_POLL_S := 30.0
 ## Ranking PvE (#242): wyprawa na zamek-bota zgłoszona serwerowi (start i wynik), gdy gra jest połączona.
 var _pve := PveReport.new()
+## Wysyłany wynik wyprawy pochodzi z pliku zaległego wyniku (#425).
+var _pve_resumed := false
 ## Wynik wyprawy do rankingu PvE czeka na odpowiedź `finish_attack`.
 var _pve_sending := false
 ## Fala PvE zgłoszona serwerowi (#288): start i wynik, gdy gra jest połączona; nagrodę daje tylko serwer.
@@ -1444,6 +1446,11 @@ func _resume_finish() -> void:
 	if _pending.is_empty() or _finish_result != null or _player != null or _attacking or _pve_sending \
 			or not _pve.is_idle() or net == null or not net.is_online() or net.is_attack_pending():
 		return
+	if _pending.bot:
+		# #425: zaległy wynik wyprawy na zamek-bota idzie drogą rankingu PvE, bez okna wyniku
+		_pve_resumed = true
+		_pve_send(_pve.resume(_pending.body))
+		return
 	var r := _pending.result()
 	if r == null:
 		_pending = PendingFinish.new()
@@ -1979,14 +1986,26 @@ func _fit_attack_target() -> void:
 		AttackPlanner.clear(o)
 
 
-## Wysyła wynik wyprawy (pusta treść: nie ma czego wysyłać albo czekamy na start).
+## Wysyła wynik wyprawy (pusta treść: nie ma czego wysyłać albo czekamy na start). Treść czeka w pliku
+## do odpowiedzi serwera (#425, PendingFinish), więc zamknięcie gry albo brak sieci jej nie gubi.
 func _pve_send(body: Dictionary) -> void:
 	if body.is_empty():
 		return
+	_keep_pve_result(body)
 	if net != null and net.finish_attack(body):
 		_pve_sending = true
 		return
 	_on_pve_finished(SupabaseClient.NETWORK_ERROR)
+
+
+## Wynik wyprawy w pliku zaległego wyniku (#425): po zamknięciu gry albo bez sieci wróci na serwer.
+func _keep_pve_result(body: Dictionary) -> void:
+	_pending = PendingFinish.new()
+	_pending.body = body.duplicate(true)
+	_pending.bot = true
+	var err := _pending.write()
+	if err != OK:
+		push_warning("Nie udało się zapisać wyniku wyprawy: %s" % error_string(err))
 
 
 ## Odpowiedź `finish_attack` na wynik wyprawy: przyjęty łup czeka w zamku na serwerze (#282), więc zapis
@@ -1998,6 +2017,18 @@ func _on_pve_finished(error: String) -> void:
 		get_tree().create_timer(AttackFinish.RETRY_S).timeout.connect(
 				func() -> void: _pve_send(_pve.retry_body()))
 		return
+	var resumed := _pve_resumed
+	_pve_resumed = false
+	# #425: bez sieci (albo przed aktualizacją gry) wynik zostaje w pliku i wróci na serwer później
+	if error == SupabaseClient.NETWORK_ERROR or error == ClientVersion.UPDATE_REQUIRED_ERROR:
+		_resume_poll_s = Time.get_ticks_msec() / 1000.0 + RESUME_POLL_S
+		hud.message = PveReport.QUEUED_MESSAGE
+		return
+	if _pending.bot:
+		_pending = PendingFinish.new()
+		PendingFinish.clear()
+	if resumed and error.is_empty():
+		hud.message = PveReport.RESUMED_MESSAGE
 	if _pve.failed():
 		hud.message = PveReport.FAILED_MESSAGE
 		return

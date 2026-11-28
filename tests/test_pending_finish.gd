@@ -1,6 +1,6 @@
 extends TestCase
-## Zaległy wynik ataku na gracza (#99, PendingFinish): treść `finish_attack` przetrwa zamknięcie gry,
-## wraca z pliku w tym samym kształcie (liczby całkowite) i zły plik nie idzie na serwer.
+## Zaległy wynik ataku na gracza (#99) albo wyprawy na zamek-bota (#425, PendingFinish): treść `finish_attack`
+## przetrwa zamknięcie gry, wraca z pliku w tym samym kształcie (liczby całkowite) i zły plik nie idzie na serwer.
 
 const TEST_PATH := "user://test_attack_result.json"
 
@@ -88,6 +88,29 @@ func test_unknown_fields_dropped() -> bool:
 	var back := PendingFinish.from_dict(d)
 	assert_true(not back.body.has("extra"), "bez obcego pola")
 	assert_eq(back.body.keys().size(), _body().keys().size(), "te same pola co AttackFinish.request")
+	return true
+
+
+## Wynik wyprawy na zamek-bota (#425): po pliku wraca jako wyprawa, w kształcie PveReport (bez ruin),
+## a plik sprzed #425 (bez znacznika) to atak na gracza.
+func test_bot_result_round_trip() -> bool:
+	PendingFinish.clear(TEST_PATH)
+	var body := _body()
+	body.erase("destroyed")  # jak PveReport.finish
+	var p := PendingFinish.new()
+	p.body = body
+	p.bot = true
+	assert_eq(p.write(TEST_PATH), OK, "zapis do pliku")
+	var back := PendingFinish.read(TEST_PATH)
+	assert_true(back.bot, "wyprawa na bota")
+	assert_eq(JSON.stringify(back.body), JSON.stringify(body), "ta sama treść co po bitwie, bez ruin")
+	assert_true(back.blocks_start(true), "nowy start czeka na wynik wyprawy")
+	var old := p.to_dict()
+	old.erase("bot")
+	(old["body"] as Dictionary)["destroyed"] = [12, 7]
+	var player := PendingFinish.from_dict(old)
+	assert_true(not player.bot and player.body.has("destroyed"), "plik bez znacznika: atak na gracza")
+	PendingFinish.clear(TEST_PATH)
 	return true
 
 
