@@ -26,6 +26,7 @@ numer, a stary zmienia tylko status na „zastąpiony przez”.
 | [[ADR/0017-obrona-murow-strzelcy-i-piechota\|0017]] | Obrona murów: jawne zadanie dla strzelców i piechoty | przyjęty | #399 |
 | [[ADR/0018-porzucony-atak-rozstrzyga-serwer\|0018]] | Porzucony atak z zatwierdzonym planem rozstrzyga serwer | przyjęty | #425 |
 | [[ADR/0019-straty-armii-liczy-serwer\|0019]] | Straty armii atakującego odejmuje serwer | przyjęty | #427 |
+| [[ADR/0020-flagi-z-panelu-admina\|0020]] | Flagi ofert, eventów i funkcji z panelu admina | przyjęty | #280 |
 
 Numeracja: przy merge #395 i #396 oba PR-y chciały **0010**. Na `main` zostało: **0010** = same-age PvP (#395), **0011** = Młyn / budynki od poz. 6 (#396).
 Przy #402 i #409 oba PR-y chciały **0012**: **0012** zostaje dla powiadomień push (#402), premie szkolenia, fosy i Kopca epoki II to **0013** (#409). Sklep w Targu (#408) to **0014**, a postęp kampanii botów (#386, #415) to **0015**. Weryfikacja botów (#423) i Obrona murów (#424) chciały **0016**: Obrona murów to **0017**.
