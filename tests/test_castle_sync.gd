@@ -248,6 +248,28 @@ func test_defense_failure_retries_defense() -> bool:
 	return true
 
 
+## Serwer odrzuca obronę inną niż w zamku (#421, 422 `defense_mismatch`): telefon nie ponawia tej samej
+## obrony, tylko czyta zamek od nowa (jak konflikt) i zapisuje zamek razem z obroną.
+func test_defense_rejected_rereads_castle() -> bool:
+	for call: int in [SupabaseClient.CastleCall.DEFENSE_PATCH, SupabaseClient.CastleCall.DEFENSE_INSERT]:
+		var c := _client(5)
+		_sync(c, 1)
+		_reply(c, 200, [_row(5)])
+		_reply(c, 200, [{"revision": 6}])
+		if call == SupabaseClient.CastleCall.DEFENSE_INSERT:
+			_reply(c, 200, [])
+		assert_eq(int(_last(c)["call"]), call, "zapis obrony")
+		_reply(c, CastleSync.REJECTED_HTTP, {"code": "PT422", "message": "defense_mismatch"})
+		assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.GET, "odczyt zamku od nowa")
+		assert_true(not c._defense_dirty, "bez ponawiania samej obrony")
+		_reply(c, 200, [_row(6)])
+		assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.PUSH, "zamek jeszcze raz")
+		_reply(c, 200, [{"revision": 7}])
+		assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.DEFENSE_PATCH, "i obrona z nim")
+		_done(c)
+	return true
+
+
 ## Zwykły zapis: PATCH od znanej rewizji, potem obrona (PATCH, a bez wiersza INSERT) i nick.
 func test_push_chain_with_revision() -> bool:
 	var c := _client(5)

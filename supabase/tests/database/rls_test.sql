@@ -98,8 +98,8 @@ select is_empty(
   'A nie zmieni obrony B');
 select lives_ok(
   $$insert into public.defense_layouts (player_id, save_version, data)
-    values ('00000000-0000-0000-0000-00000000000a', 8, '{"traps": []}')$$,
-  'A zakłada własną obronę');
+    values ('00000000-0000-0000-0000-00000000000a', 8, '{}')$$,
+  'A zakłada własną obronę (#421: równą obronie z zamku, tu bez obrony)');
 
 -- konto: ranking i epoka tylko z serwera
 select is((select count(*)::int from public.players), 1, 'A widzi tylko swoje konto');

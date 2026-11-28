@@ -108,7 +108,7 @@ static func error_message(code: String) -> String:
 			return "Zamek jest pod tarczą. Wybierz inny cel"
 		"target_recent":
 			return "Ten zamek zaatakujesz znowu dopiero po dobie"
-		"target_out_of_range", "target_not_found":
+		"target_out_of_range", "target_not_found", "defense_invalid":
 			return "Ten cel jest już niedostępny. Szukaj jeszcze raz"
 		"rate_limited":
 			return "Za dużo ataków naraz. Poczekaj chwilę"

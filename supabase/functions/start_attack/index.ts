@@ -41,6 +41,8 @@ const ERRORS: Record<string, number> = {
   army_over_upkeep: 409,
   // #274: zamek atakującego na serwerze spoza limitów surowców (zapis sprzed reguł) nie wchodzi do PvP
   castle_invalid: 409,
+  // #421: układ obrony celu inny niż obrona w zamku na serwerze (ADR 0020); cel wraca po zapisie z jego telefonu
+  defense_invalid: 409,
   // #386: zamek-bot powyżej postępu kampanii na serwerze (players.bots_beaten)
   bot_locked: 409,
   target_not_found: 404,

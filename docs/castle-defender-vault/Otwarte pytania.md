@@ -25,6 +25,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Weryfikacja ataków na zamki-boty (27.11.2026, #413): worker liczy ataki na boty z `BotRoster` i seedem z serwera, klucz `bot_verification_mode` (domyślnie `shadow`), atak online przez `launch_attack`, kolejka PvP przed botami; UX w #417. [[ADR/0016-weryfikacja-atakow-na-zamki-boty|ADR 0016]].
 - Porzucanie ataku po poznaniu seeda (28.11.2026, #425): porzucony atak z zatwierdzonym planem (PvP i bot) rozstrzyga worker i daje skutki z jego wyniku, w `shadow` i `enforce`; bez limitu porzuceń; wynik wyprawy w `PendingFinish`; straty armii na serwerze w osobnym tickecie. [[ADR/0018-porzucony-atak-rozstrzyga-serwer|ADR 0018]].
 - Straty armii atakującego (28.11.2026, #427): odejmuje serwer przy zapisie zamku (`castle_army_pending` → `army_applied`), telefon trzyma poległych do rozliczenia, próg `army_losses_min_sim` dla nowych klientów. [[ADR/0019-straty-armii-liczy-serwer|ADR 0019]].
+- Sanity układu obrony (28.11.2026, #421): `defense_layouts` tylko równe `castles.data.defense`, kształt obrony (zadania oddziałów z armii, kratki na mapie, pułapki z technologią i epoką w limicie Dworu) sprawdza zapis zamku, `begin_attack` odrzuca rozjechany układ (`defense_invalid`); geometria zostaje w symulacji. [[ADR/0020-uklad-obrony-tylko-z-zamku|ADR 0020]].
 
 ## Pytania otwarte
 

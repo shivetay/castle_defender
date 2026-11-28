@@ -926,6 +926,12 @@ func handle_castle_rest(call: int, result: int, code: int, body: String) -> void
 		if code == CastleSync.REJECTED_HTTP and (call == CastleCall.PUSH or call == CastleCall.INSERT):
 			_castle_rejected(call)
 			return
+		if code == CastleSync.REJECTED_HTTP and (call == CastleCall.DEFENSE_PATCH or call == CastleCall.DEFENSE_INSERT):
+			# obrona inna niż w zamku na serwerze (#421, `defense_mismatch`): ta sama nie przejdzie, więc jak
+			# przy konflikcie czytamy zamek od nowa i zapisujemy go razem z obroną
+			_defense_dirty = false
+			_castle_conflict()
+			return
 		_castle_failed(call, code)
 		if call == CastleCall.GET:
 			castle_checked.emit()
