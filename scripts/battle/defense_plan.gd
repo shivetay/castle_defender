@@ -7,6 +7,9 @@ extends RefCounted
 ##   wału, palisady, bramy czy wieży) i bije wrogów, którzy podejdą na HOLD_RADIUS kratek, ale dalej
 ##   ich nie ściga;
 ##   Strzelcy mogą stać na samym wale albo palisadzie (stanowisko na murze, Battle._wall_act);
+## - Obrona murów (#399, ADR 0017): jawny rozkaz stanowiska na murze. Strzelcy stają na wale, palisadzie,
+##   wieży albo Kopcu (jak Obrona odcinka na murze), piechota lekka i ciężka tylko na wale i palisadzie:
+##   nie strzela i bije wręcz tylko wroga, który wszedł po drabinie (wall_task_post, Battle._wall_act);
 ## - Patrol: oddział krąży między 2–3 punktami, bije wroga w zasięgu wzroku i wraca na trasę;
 ## - Wypad konnicy (od epoki II): konnica czeka za bramą, a gdy wróg dojdzie pod bramę, wychodzi
 ##   przez nią, bije i wraca;
@@ -21,7 +24,7 @@ extends RefCounted
 ##   w begin_attack). Dwór mieści RecruitmentConfig.garrison_capacity() jednostek; oddziały ponad
 ##   pojemność (w kolejności armii) stoją przy donżonie bez premii.
 ## Oddział bez ustawionego zadania dostaje w bitwie zadanie domyślne według klasy (default_order,
-## plan zatwierdzony przez właściciela): strzelcy na mur przy bramie, piechota przy bramie, konnica
+## plan zatwierdzony przez właściciela): strzelcy na mur przy bramie (Obrona murów), piechota przy bramie, konnica
 ## na wypad, specjalni przy donżonie. Bez bramy i murów wszyscy stoją przy donżonie. Priorytet celów
 ## wież to jedno ustawienie na cały zamek. Pułapki (#100, TrapConfig) stoją na kratkach strefy obrony
 ## i są częścią tego samego układu. Komendant obrony (#31) to generał gracza (Generals): nie stoi na
@@ -31,15 +34,16 @@ extends RefCounted
 ## nie przejmuje cudzego zadania. Układ to same liczby całkowite, więc ten sam układ i ten sam seed
 ## dają ten sam przebieg bitwy (powtórka, weryfikacja PvP).
 
-enum Task { HOLD, PATROL, SORTIE, KEEP, FIELD, FIREFIGHT, GARRISON }
+## Nowe zadania dopisuje się na końcu: zapis trzyma numer zadania (WALL = 7, #399).
+enum Task { HOLD, PATROL, SORTIE, KEEP, FIELD, FIREFIGHT, GARRISON, WALL }
 ## Priorytet celów wież: najbliższy atakujący (jak dotąd), Taran, strzelcy, konnica. Wieża bierze
 ## najbliższego atakującego z wybranej grupy w swoim zasięgu, a gdy takiego nie ma, najbliższego.
 enum TowerPriority { NEAREST, RAM, RANGED, CAVALRY }
 
 const TASK_NAMES: Array[String] = ["Obrona odcinka", "Patrol", "Wypad konnicy", "Przy donżonie", "Przed murami",
-		"Gaszenie pożarów", "Garnizon Dworu"]
+		"Gaszenie pożarów", "Garnizon Dworu", "Obrona murów"]
 ## Od której epoki zadanie jest dostępne (0 = I), z notatki Manewry i zadania.
-const TASK_AGE: Array[int] = [0, 0, 1, 0, 0, 0, 0]
+const TASK_AGE: Array[int] = [0, 0, 1, 0, 0, 0, 0, 0]
 const TOWER_PRIORITY_NAMES: Array[String] = ["najbliższy", "taran", "strzelcy", "konnica"]
 const NO_POST := Vector2i(-1, -1)
 ## Posterunek i pułapka stoją najwyżej radius() kratek (w pionie i poziomie) od środka donżonu: obrona
@@ -236,6 +240,8 @@ func battle_orders(ids: Array[int], squads: Array = [], grid: BuildGrid = null, 
 		var cls := UnitTypes.unit_class(int((squads[i] as Array)[0])) if i < squads.size() else -1
 		if o != null and grid != null and not order_allowed(grid, o, cls, age):
 			o = null  # rozkaz spoza strefy, klasy albo epoki z zapisu spoza gry (#374, #378): jak brak rozkazu
+		if o != null and o.task == Task.WALL and o.post == NO_POST:
+			o = null  # Obrona murów bez wskazanego muru: zadanie domyślne (#399)
 		if o == null and grid != null and i < squads.size():
 			o = default_order(grid, cls, age)
 		if o == null or o.post == NO_POST or o.task == Task.KEEP or o.task == Task.GARRISON:
@@ -264,6 +270,8 @@ static func order_allowed(grid: BuildGrid, o: Order, unit_class: int, age: int =
 		return false  # Gaszenie tuż przy Studni (#379)
 	if o.task == Task.SORTIE and beside_id(grid, o.post, BuildingTypes.Kind.GATE) == 0:
 		return false  # Wypad tuż przy bramie (#379)
+	if o.task == Task.WALL:
+		return wall_task_post(grid, o.post, unit_class)  # Obrona murów tylko na murze (#399)
 	for p in o.patrol_points():
 		if post_problem(grid, p).is_empty():
 			continue
@@ -275,12 +283,16 @@ static func order_allowed(grid: BuildGrid, o: Order, unit_class: int, age: int =
 
 
 ## Zadania do wyboru dla oddziału klasy `unit_class` (RecruitmentConfig.UnitClass) w epoce `age`, w
-## kolejności przycisku Zadanie na ekranie Obrona: Obrona odcinka, Patrol, dla konnicy Przed murami
+## kolejności przycisku Zadanie na ekranie Obrona: Obrona odcinka, Obrona murów (strzelcy i piechota,
+## #399), Patrol, dla konnicy Przed murami
 ## i Wypad konnicy (od TASK_AGE), dla piechoty lekkiej Gaszenie pożarów, gdy zamek ma Studnię
 ## (`has_well`, #35), Garnizon Dworu (#81), na końcu Przy donżonie. Jedno źródło reguł dla ekranu
 ## (DefensePanel.task_options) i bitwy (order_allowed, #378).
 static func task_options(unit_class: int, age: int, has_well: bool = false) -> Array[int]:
-	var out: Array[int] = [Task.HOLD, Task.PATROL]
+	var out: Array[int] = [Task.HOLD]
+	if can_man_walls(unit_class):
+		out.append(Task.WALL)
+	out.append(Task.PATROL)
 	if unit_class == RecruitmentConfig.UnitClass.FAST:
 		out.append(Task.FIELD)
 	if unit_class == RecruitmentConfig.UnitClass.FAST and age >= TASK_AGE[Task.SORTIE]:
@@ -295,6 +307,22 @@ static func task_options(unit_class: int, age: int, has_well: bool = false) -> A
 ## Czy zadanie `task` jest dostępne dla klasy `unit_class` w epoce `age` (task_options).
 static func task_allowed(task: int, unit_class: int, age: int, has_well: bool = false) -> bool:
 	return task_options(unit_class, age, has_well).has(task)
+
+
+## Czy klasa `unit_class` może dostać Obronę murów (#399, ADR 0017): strzelcy i piechota lekka i ciężka.
+## Klasa -1 (nieznana: testy, podgląd) też, jak w order_allowed.
+static func can_man_walls(unit_class: int) -> bool:
+	return unit_class < 0 or unit_class == RecruitmentConfig.UnitClass.RANGED \
+			or unit_class == RecruitmentConfig.UnitClass.LIGHT or unit_class == RecruitmentConfig.UnitClass.HEAVY
+
+
+## Czy kratka `cell` to miejsce Obrony murów dla klasy `unit_class` (#399, ADR 0017): strzelcy (i klasa
+## -1) na stanowisku strzelców (station_post: mur, wieża, Kopiec), piechota lekka i ciężka tylko na wale
+## albo palisadzie (wall_post), inne klasy nigdzie.
+static func wall_task_post(grid: BuildGrid, cell: Vector2i, unit_class: int) -> bool:
+	if unit_class < 0 or unit_class == RecruitmentConfig.UnitClass.RANGED:
+		return station_post(grid, cell)
+	return can_man_walls(unit_class) and wall_post(grid, cell)
 
 
 ## Miejsca oddziałów bitwy (NO_POST bez zadania), w kolejności `ids`.
@@ -368,7 +396,7 @@ static func post_problem(grid: BuildGrid, cell: Vector2i) -> String:
 
 
 ## Zadanie domyślne oddziału klasy `unit_class` (RecruitmentConfig.UnitClass) na zamku `grid` w epoce
-## `age`, albo null (przy donżonie): strzelcy na odcinek wału albo palisady najbliżej bramy (bez bramy
+## `age`, albo null (przy donżonie): strzelcy z Obroną murów na odcinek wału albo palisady najbliżej bramy (bez bramy
 ## najbliżej donżonu), piechota lekka i ciężka przy bramie od środka, konnica na wypad (przed epoką II
 ## jak piechota), specjalni przy donżonie. Brama i mury muszą stać w strefie obrony.
 static func default_order(grid: BuildGrid, unit_class: int, age: int = 0) -> Order:
@@ -376,6 +404,7 @@ static func default_order(grid: BuildGrid, unit_class: int, age: int = 0) -> Ord
 	var o := Order.new()
 	match unit_class:
 		RecruitmentConfig.UnitClass.RANGED:
+			o.task = Task.WALL  # #399: w bitwie to samo co Obrona odcinka na murze
 			o.post = default_wall_post(grid, gate)
 		RecruitmentConfig.UnitClass.LIGHT, RecruitmentConfig.UnitClass.HEAVY:
 			o.post = section_post(grid, gate) if gate != 0 else NO_POST

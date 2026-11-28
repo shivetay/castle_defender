@@ -148,7 +148,7 @@ func test_default_orders_by_class() -> bool:
 	var gate := DefensePlan.main_gate(g)
 	assert_true(gate != 0, "brama zamku-celu w strefie")
 	var ranged := DefensePlan.default_order(g, C.RANGED, 0)
-	assert_true(ranged != null and ranged.task == T.HOLD and DefensePlan.wall_post(g, ranged.post), "strzelcy: na murze")
+	assert_true(ranged != null and ranged.task == T.WALL and DefensePlan.wall_post(g, ranged.post), "strzelcy: Obrona murów")
 	var gc := g.buildings[gate].get_center()
 	for id: int in g.buildings:
 		if BuildingTypes.is_wall(g.kinds[id]) and DefensePlan.zone(g).has_point(g.buildings[id].position):
@@ -176,8 +176,8 @@ func test_default_orders_by_class() -> bool:
 	panel.changed.connect(func(t: String) -> void: said.append(t))
 	panel.open(p, [[U.ARCHER, 3]], [3] as Array[int], g, 0)
 	panel.activate(DefensePanel.Target.CLEAR)
-	assert_eq(said[-1], "Oddział 1: domyślnie: na murze", "Zdejmij: komunikat jak opis oddziału")
-	assert_eq(panel.describe(0)[1], "domyślnie: na murze", "opis")
+	assert_eq(said[-1], "Oddział 1: domyślnie: Obrona murów", "Zdejmij: komunikat jak opis oddziału")
+	assert_eq(panel.describe(0)[1], "domyślnie: Obrona murów", "opis")
 	panel.free()
 	return true
 

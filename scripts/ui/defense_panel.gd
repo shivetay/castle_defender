@@ -38,6 +38,9 @@ const TRAP_HINT := "Wybierz pułapkę i dotknij kratki"
 const MORE_LABEL := "Dalej"
 const HINT := "Wybierz oddział i dotknij kratki w strefie"
 const AT_KEEP := "przy donżonie"
+## Podpowiedzi Obrony murów (#399): piechota tylko na wał i palisadę, strzelcy też na wieżę i Kopiec.
+const WALL_HINT := "Obrona murów: dotknij wału lub palisady"
+const WALL_HINT_RANGED := "Obrona murów: dotknij muru, wieży lub kopca"
 const SQUAD_TILE := AttackPanel.SQUAD_TILE
 const INFO_H := AttackPanel.INFO_H
 
@@ -205,15 +208,16 @@ static func task_text(o: DefensePlan.Order, g: BuildGrid = null) -> String:
 		if o.route.is_empty():
 			return "Patrol 1/%d: dodaj punkt" % (DefensePlan.MAX_ROUTE + 1)
 		return "Patrol %d/%d pkt" % [o.route.size() + 1, DefensePlan.MAX_ROUTE + 1]
-	if o.task == DefensePlan.Task.HOLD and g != null and DefensePlan.wall_post(g, o.post):
+	var station := o.task == DefensePlan.Task.HOLD or o.task == DefensePlan.Task.WALL
+	if station and g != null and DefensePlan.wall_post(g, o.post):
 		return "Na murze"
-	if o.task == DefensePlan.Task.HOLD and g != null and DefensePlan.station_post(g, o.post):
+	if station and g != null and DefensePlan.station_post(g, o.post):
 		var on := g.building_at(o.post)
 		return "Na kopcu" if on != 0 and g.kinds[on] == BuildingTypes.Kind.MOUND else "Na wieży"
 	return DefensePlan.TASK_NAMES[o.task]
 
 
-## Opis zadania domyślnego oddziału klasy `unit_class` („domyślnie: na murze” itd.); bez murów
+## Opis zadania domyślnego oddziału klasy `unit_class` („domyślnie: Obrona murów” itd.); bez murów
 ## i bramy „przy donżonie”.
 static func default_text(g: BuildGrid, unit_class: int, current_age: int) -> String:
 	var o := DefensePlan.default_order(g, unit_class, current_age) if g != null else null
@@ -221,6 +225,8 @@ static func default_text(g: BuildGrid, unit_class: int, current_age: int) -> Str
 		return AT_KEEP
 	if o.task == DefensePlan.Task.SORTIE:
 		return "domyślnie: wypad"
+	if o.task == DefensePlan.Task.WALL:
+		return "domyślnie: %s" % DefensePlan.TASK_NAMES[DefensePlan.Task.WALL]
 	if DefensePlan.wall_post(g, o.post):
 		return "domyślnie: na murze"
 	return "domyślnie: przy bramie"
@@ -238,6 +244,13 @@ func describe(i: int) -> Array[String]:
 	if o != null and o.task == DefensePlan.Task.GARRISON:
 		text += " " + garrison_text()
 	return ["%d. %s ×%d" % [i + 1, UnitTypes.unit_name(int(sq[0])), int(sq[1])], text]
+
+
+## Gdzie stoi oddział na stanowisku `cell` (mur, wieża albo Kopiec), małą literą do komunikatu.
+static func station_where(grid: BuildGrid, cell: Vector2i) -> String:
+	if DefensePlan.wall_post(grid, cell):
+		return "na murze"
+	return "na kopcu" if grid.kinds[grid.building_at(cell)] == BuildingTypes.Kind.MOUND else "na wieży"
 
 
 ## Dotknięcie kratki `cell` własnego zamku. Miejsce innego oddziału go wybiera. Odcinek umocnień
@@ -281,13 +294,18 @@ func tap(grid: BuildGrid, cell: Vector2i) -> String:
 			return "Brama: brak miejsca od środka"
 		o.post = behind
 		return "Oddział %d: wypad przez bramę" % (selected + 1)
+	if o != null and o.task == DefensePlan.Task.WALL:
+		# Obrona murów (#399): strzelcy na mur, wieżę albo Kopiec, piechota tylko na wał i palisadę
+		var cls := unit_class_of(selected)
+		if not DefensePlan.wall_task_post(grid, cell, cls):
+			return WALL_HINT_RANGED if cls == RecruitmentConfig.UnitClass.RANGED else WALL_HINT
+		plan.set_post(selected_id(), cell)
+		return "Oddział %d: %s, %s" % [selected + 1, station_where(grid, cell), BuildingTypes.NAMES[grid.kinds[id]]]
 	if not patrol and not field and DefensePlan.station_post(grid, cell) \
 			and unit_class_of(selected) == RecruitmentConfig.UnitClass.RANGED:
 		# strzelcy stają na samym murze (#20), na wieży (#232) albo na Kopcu (#35)
 		plan.set_post(selected_id(), cell)
-		var where := "na murze" if DefensePlan.wall_post(grid, cell) else \
-				("na kopcu" if grid.kinds[id] == BuildingTypes.Kind.MOUND else "na wieży")
-		return "Oddział %d: %s, %s" % [selected + 1, where, BuildingTypes.NAMES[grid.kinds[id]]]
+		return "Oddział %d: %s, %s" % [selected + 1, station_where(grid, cell), BuildingTypes.NAMES[grid.kinds[id]]]
 	# odcinek umocnień przyciąga tylko Obronę odcinka; punkt patrolu stawia się na trawie (review #181)
 	var section := ""
 	if not patrol and not field and id != 0 and DefensePlan.is_section(grid.kinds[id]) and DefensePlan.zone(grid).has_point(cell):
@@ -468,6 +486,9 @@ func activate(t: int) -> void:
 					return
 				if o.task == DefensePlan.Task.SORTIE or o.task == DefensePlan.Task.FIREFIGHT:
 					o.post = DefensePlan.NO_POST  # brama albo Studnia do wskazania
+				elif castle != null and o.post != DefensePlan.NO_POST \
+						and not DefensePlan.order_allowed(castle, o, unit_class_of(selected), age):
+					o.post = DefensePlan.NO_POST  # np. kratka muru po zmianie Obrony murów na Patrol (#399)
 				changed.emit("Oddział %d: %s" % [selected + 1, task_text(o, castle)])
 		Target.CLEAR:
 			if selected_id() != 0:
