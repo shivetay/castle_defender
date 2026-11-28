@@ -20,6 +20,9 @@ insert into garrison_ids values
 insert into auth.users (id) select id from garrison_ids;
 update public.players set rating = 80000, age = 0 where id in (select id from garrison_ids);
 
+-- „Zły zapis” to zamek sprzed #421 (dziś wyzwalacz castles_check_defense go odrzuca): begin_attack dalej
+-- liczy złe wpisy jako brak garnizonu
+alter table public.castles disable trigger castles_check_defense;
 insert into public.castles (player_id, map_seed, save_version, data) values
   ('00000000-0000-0000-0000-0000000000b1', 31, 12, jsonb_build_object(
     'profile', jsonb_build_object('castle_name', 'Strzeżony'),
@@ -35,6 +38,7 @@ insert into public.castles (player_id, map_seed, save_version, data) values
     'profile', jsonb_build_object('castle_name', 'Bez obrony'),
     'grid', jsonb_build_object('buildings', '[[1, 5, 2, 30, 30, 4, 4]]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 0, 10], [2, 0, 10]]'::jsonb)));
+alter table public.castles enable trigger castles_check_defense;
 
 set local role service_role;
 

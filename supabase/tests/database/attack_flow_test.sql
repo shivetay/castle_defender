@@ -39,8 +39,11 @@ select t.id, 4242, 8, jsonb_build_object(
 from test_ids t where t.id <> '00000000-0000-0000-0000-0000000000d5';
 insert into public.castles (player_id, map_seed, save_version, data)
   values ('00000000-0000-0000-0000-0000000000d5', 5, 8, '{"profile": {"castle_name": ""}}');
+-- #421: obrona w zamku i w defense_layouts ta sama (Wilczy dół: G18 zbadane)
+update public.castles set data = data || '{"defense": {"traps": [[0, 4, 1]]}}'
+where player_id = '00000000-0000-0000-0000-0000000000d1';
 insert into public.defense_layouts (player_id, save_version, data)
-  values ('00000000-0000-0000-0000-0000000000d1', 8, '{"traps": [[3, 4, 1]]}');
+  values ('00000000-0000-0000-0000-0000000000d1', 8, '{"traps": [[0, 4, 1]]}');
 insert into public.shields (player_id, until)
   values ('00000000-0000-0000-0000-0000000000d3', now() + interval '1 hour');
 
@@ -72,7 +75,7 @@ select is((select count(*)::int from started), 1, 'A zaczyna atak na B');
 select is((select map_seed from started), 4242::bigint, 'seed terenu B');
 select is((select battle_seed from started), 77::bigint, 'seed bitwy z Edge Function');
 select is((select castle -> 'economy' -> 'amounts' ->> 0 from started), '10000', 'kopia zamku B');
-select is((select defense -> 'traps' from started), '[[3, 4, 1]]'::jsonb, 'kopia obrony B');
+select is((select defense -> 'traps' from started), '[[0, 4, 1]]'::jsonb, 'kopia obrony B');
 select is((select status from public.attacks where id = (select attack_id from started)), 'started',
   'atak w toku');
 

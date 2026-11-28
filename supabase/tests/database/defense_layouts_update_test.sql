@@ -11,6 +11,10 @@ select plan(8);
 insert into auth.users (id) values
   ('00000000-0000-0000-0000-00000000d501'),
   ('00000000-0000-0000-0000-00000000d502');
+-- #421: obrona idzie za zamkiem, więc zamek A ma już nowy układ (Kolczatka, O2 zbadane)
+insert into public.castles (player_id, map_seed, save_version, data)
+  values ('00000000-0000-0000-0000-00000000d501', 5010, 8,
+    '{"research": {"done": ["O2"]}, "defense": {"traps": [[1, 20, 20, 0]]}}');
 insert into public.defense_layouts (player_id, save_version, data)
   values ('00000000-0000-0000-0000-00000000d501', 8, '{"traps": []}');
 
@@ -19,13 +23,13 @@ set local role authenticated;
 select set_config('request.jwt.claims', '{"sub": "00000000-0000-0000-0000-00000000d501", "role": "authenticated"}', true);
 
 select lives_ok(
-  $$update public.defense_layouts set data = '{"traps": ["wilczy_dol"]}', save_version = 9
+  $$update public.defense_layouts set data = '{"traps": [[1, 20, 20, 0]]}', save_version = 9
     where player_id = '00000000-0000-0000-0000-00000000d501'$$,
   'A zapisuje własną obronę');
 select is((select revision from public.defense_layouts where player_id = '00000000-0000-0000-0000-00000000d501'),
   1::bigint, 'licznik zmian obrony rośnie o 1');
 select is((select data from public.defense_layouts where player_id = '00000000-0000-0000-0000-00000000d501'),
-  '{"traps": ["wilczy_dol"]}'::jsonb, 'serwer ma nowy układ obrony');
+  '{"traps": [[1, 20, 20, 0]]}'::jsonb, 'serwer ma nowy układ obrony');
 select lives_ok(
   $$update public.defense_layouts set save_version = 10
     where player_id = '00000000-0000-0000-0000-00000000d501'$$,
@@ -47,14 +51,10 @@ select throws_ok(
     where player_id = '00000000-0000-0000-0000-00000000d501'$$,
   'P0001', 'player_id is immutable', 'właściciela obrony nie da się zmienić');
 
--- Zamek bez wyzwalaczy INSERT (bilans i budynki mają własne testy). Zmiana samego map_seed uruchamia
--- tylko bump_revision, bo pozostałe wyzwalacze UPDATE patrzą na kolumnę data.
-set local session_replication_role = replica;
-insert into public.castles (player_id, map_seed, save_version, data)
-  values ('00000000-0000-0000-0000-00000000d501', 4242, 8, '{}');
-set local session_replication_role = origin;
+-- Zamek A z początku testu. Zmiana samego map_seed uruchamia tylko bump_revision, bo pozostałe wyzwalacze
+-- UPDATE patrzą na kolumnę data.
 select throws_ok(
-  $$update public.castles set map_seed = 4243 where player_id = '00000000-0000-0000-0000-00000000d501'$$,
+  $$update public.castles set map_seed = 5011 where player_id = '00000000-0000-0000-0000-00000000d501'$$,
   'P0001', 'map_seed is immutable', 'seedu terenu zamku dalej nie da się zmienić');
 
 select * from finish();

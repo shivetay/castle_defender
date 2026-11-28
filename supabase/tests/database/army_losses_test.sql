@@ -32,6 +32,9 @@ select t.id, 4270, 8, jsonb_build_object(
   'recruitment', jsonb_build_object('squads', '[[3, 0, 10], [1, 0, 10], [2, 0, 10]]'::jsonb),
   'defense', jsonb_build_object('orders', '[[3, 6, 30, 30, []]]'::jsonb))
 from test_ids t;
+-- #421: obrona do ataku ta sama co w zamku
+insert into public.defense_layouts (player_id, save_version, data)
+select c.player_id, 8, c.data -> 'defense' from public.castles c where c.player_id in (select id from test_ids);
 
 create temp table plan_ok (v jsonb) on commit drop;
 insert into plan_ok values ('[{"squad": 1, "manoeuvre": 0, "target": [-1, -1], "waypoints": [], "start": 0, "start_value": 0, "retreat": 0, "flank_left": true}]');

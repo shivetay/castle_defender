@@ -92,7 +92,8 @@ select throws_ok($$update public.players set nickname = 'Zly' where id = '000000
 select set_config('request.headers', '{"x-client-version": "700"}', true);
 select lives_ok($$update public.players set nickname = 'Nowy' where id = '00000000-0000-0000-0000-0000000336a1'$$,
   'wersja równa minimum zmienia nick');
-select lives_ok($$update public.defense_layouts set data = '{"traps": [2]}'
+-- #421: obrona równa obronie z zamku (zamek bez obrony → '{}')
+select lives_ok($$update public.defense_layouts set data = '{}'
     where player_id = '00000000-0000-0000-0000-0000000336a1'$$,
   'wersja równa minimum zapisuje obronę');
 select set_config('request.headers', '{"x-client-version": "10203"}', true);

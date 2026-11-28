@@ -36,6 +36,10 @@ insert into public.castles (player_id, map_seed, save_version, data) values
     'profile', jsonb_build_object('castle_name', 'Cel'),
     'grid', jsonb_build_object('buildings', '[[1, 21, 1, 10, 10, 2, 2], [2, 4, 1, 20, 20, 2, 2], [3, 1, 1, 15, 15, 1, 1]]'::jsonb),
     'recruitment', jsonb_build_object('squads', '[[1, 2, 5], [2, 0, 5]]'::jsonb),
+    -- #421: obrona w zamku ta sama co w defense_layouts, a pułapki mają swoje technologie
+    'research', jsonb_build_object('done', '["G18", "O2"]'::jsonb),
+    'defense', '{"orders": [[1, 0, 11, 11, []], [2, 1, 21, 19, [[30, 30]]]],
+      "traps": [[0, 12, 12, 0], [1, 25, 25, 0]], "tower_priority": 0}'::jsonb,
     'economy', jsonb_build_object('amounts', '[100, 0, 0, 0]'::jsonb),
     'scout', jsonb_build_object('reports', '[{"key": "gracz:tajne"}]'::jsonb))),
   ('00000000-0000-0000-0000-000000005c03', 33, 10, jsonb_build_object(

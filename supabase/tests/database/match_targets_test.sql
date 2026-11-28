@@ -65,7 +65,7 @@ insert into public.castles (player_id, map_seed, save_version, data) values
     "profile": {"player_name": "Bolko", "castle_name": "Bardzo Długa Nazwa Zamku", "ruler": "kasztelan"},
     "grid": {"next_id": 3, "buildings": [[1, 5, 2, 10, 11, 2, 2], [2, 0, 1, 20, 21, 1, 1], "zły wpis", [9]]},
     "economy": {"amounts": [1000, 555, 0, 99]},
-    "defense": {"traps": ["wilczy_dol"]},
+    "defense": {"traps": []},
     "recruitment": {"army": [1, 2, 3]}
   }'),
   ('00000000-0000-0000-0000-0000000000a3', 1, 8, '{"grid": {}}'),
