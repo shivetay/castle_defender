@@ -23,6 +23,7 @@ Pytania projektowe do decyzji właściciela oraz braki względem planu / kodu na
 - Sklep w Targu bez reklam (27.11.2026, #408): Targ stoi od startu i otwiera sklep z darmowymi ofertami z odnowieniem (min. 1 h, złoto do 100, inne do 2000), grupy po 3 z panelu admina, odbiór i złoto przez serwer. Zakupy i reklamy dalej w #174. [[ADR/0014-sklep-darmowe-oferty-z-odnowieniem|ADR 0014]].
 - Postęp kampanii botów (27.11.2026, #386): licznik zdobytych zamków-botów trzyma serwer (`players.bots_beaten`, tylko wyzwalacz), `begin_attack` odrzuca zablokowanego bota, import z `attacks`, karty Wyprawy tylko z odblokowanymi botami; weryfikacja wyniku z botem przez worker w #413. [[ADR/0015-postep-kampanii-botow-na-serwerze|ADR 0015]].
 - Weryfikacja ataków na zamki-boty (27.11.2026, #413): worker liczy ataki na boty z `BotRoster` i seedem z serwera, klucz `bot_verification_mode` (domyślnie `shadow`), atak online przez `launch_attack`, kolejka PvP przed botami; UX w #417. [[ADR/0016-weryfikacja-atakow-na-zamki-boty|ADR 0016]].
+- Porzucanie ataku po poznaniu seeda (28.11.2026, #425): porzucony atak z zatwierdzonym planem (PvP i bot) rozstrzyga worker i daje skutki z jego wyniku, w `shadow` i `enforce`; bez limitu porzuceń; wynik wyprawy w `PendingFinish`; straty armii na serwerze w osobnym tickecie. [[ADR/0018-porzucony-atak-rozstrzyga-serwer|ADR 0018]].
 
 ## Pytania otwarte
 
