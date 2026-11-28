@@ -1,6 +1,6 @@
 extends TestCase
 ## Straty armii odejmuje serwer (#427, ADR 0019): polegli czekają w Recruitment.held, do serwera idą jeszcze
-## w oddziale (server_data), a odpowiedź na zapis zamku (`army_applied`) je rozlicza; flagi `server_losses'
+## w oddziale (server_data), a odpowiedź na zapis zamku (`army_applied`) je rozlicza; flagi `server_losses`
 ## z odpowiedzi startu wyprawy i zatwierdzenia planu oraz zgodność z migracją.
 
 const U := UnitTypes.Unit
