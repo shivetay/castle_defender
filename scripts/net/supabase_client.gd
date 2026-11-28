@@ -67,6 +67,8 @@ signal push_token_saved(ok: bool)
 signal shop_loaded(groups: Array[ShopNet.Group], ok: bool)
 ## Odbiór oferty (#408): ShopNet.parse_claim albo kod błędu (`error`, pusty przy sukcesie).
 signal shop_claimed(claim: Dictionary, error: String)
+## Flagi z panelu admina (#280) przyszły z serwera (`ok`) albo pobranie się nie udało (zostają stare).
+signal flags_loaded(ok: bool)
 
 enum State { DISABLED, CONNECTING, ONLINE, OFFLINE }
 ## Jak skończyło się żądanie do Auth.
@@ -140,6 +142,13 @@ var _version: HTTPRequest
 var _version_pending := false
 ## Token push (#30) idzie osobnym połączeniem, naraz jedno żądanie.
 var _push: HTTPRequest
+## Flagi z panelu admina (#280, ADR 0020): cache z pliku, potem serwer po połączeniu i co REFRESH_S online.
+var flags := FeatureFlags.new()
+var flags_path := FeatureFlags.PATH
+var _flags_http: HTTPRequest
+var _flags_pending := false
+## Najwcześniejsza następna próba pobrania flag (Time.get_ticks_msec), żeby błąd nie ponawiał co klatkę.
+var _flags_next_ticks := 0
 var _push_pending := false
 ## Serwer odrzucił wersję gry: zamek nie idzie na serwer, dopóki nowe sprawdzenie tego nie zdejmie.
 var update_blocked := false
@@ -172,6 +181,8 @@ var _failures_castle := 0
 ## Testy: żądania synchronizacji trafiają tu zamiast do sieci (call, method, path, body).
 var fake_transport := false
 var sent_requests: Array[Dictionary] = []
+## Testy: pobrania flag (#280) poza `sent_requests`, żeby nie mieszały się z kolejnością synchronizacji.
+var flag_requests := 0
 var _sent_save_version := 0
 var _sent_data: Dictionary = {}
 var _sent_defense: Dictionary = {}
@@ -190,6 +201,7 @@ func _ready() -> void:
 	if config == null:
 		config = SupabaseConfig.load_from()
 	sync_state = CastleSync.SyncState.load_from(sync_path)
+	flags = FeatureFlags.load_from(flags_path)
 	if not config.is_ready():
 		_set_state(State.DISABLED)
 		return
@@ -237,11 +249,18 @@ func _ready() -> void:
 	_push.timeout = TIMEOUT_S
 	add_child(_push)
 	_push.request_completed.connect(_on_push_completed)
+	_flags_http = HTTPRequest.new()
+	_flags_http.timeout = TIMEOUT_S
+	add_child(_flags_http)
+	_flags_http.request_completed.connect(_on_flags_completed)
 	session = SupabaseSession.load_from(session_path)
 	connect_now()
 
 
 func _process(delta: float) -> void:
+	var ticks := Time.get_ticks_msec()
+	if state == State.ONLINE and not _flags_pending and ticks >= _flags_next_ticks and flags.refresh_due(ticks):
+		load_flags()
 	if _push_wait > 0.0:
 		_push_wait -= delta
 		if _push_wait <= 0.0:
@@ -658,6 +677,48 @@ func _shop_send(call: int, path: String, body: Dictionary) -> bool:
 func _on_shop_completed(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	note_status(code)
 	handle_shop(_shop_call, result, code, body.get_string_from_utf8())
+
+
+## Czy treść albo funkcja `key` ma być teraz widoczna (#280): flaga z serwera lub cache, inaczej stan domyślny
+## (`feature.*` włączone, reszta wyłączona). Steruje tylko widocznością; nagrody i dostęp sprawdza serwer.
+func is_feature_active(key: String) -> bool:
+	return flags.is_active(key)
+
+
+## Pobiera flagi z `public.feature_flags` (#280); wynik w `flags_loaded`. False: brak sieci albo pobranie już trwa.
+func load_flags() -> bool:
+	if _flags_pending or not is_online() or user_id().is_empty():
+		return false
+	_flags_pending = true
+	_flags_next_ticks = Time.get_ticks_msec() + RETRY_S[3] * 1000
+	if fake_transport:
+		flag_requests += 1
+		return true
+	if _flags_http == null:
+		_flags_pending = false
+		return false
+	var err := _flags_http.request(config.url + FeatureFlags.LIST_PATH, rest_headers(), HTTPClient.METHOD_GET)
+	if err != OK:
+		handle_flags(HTTPRequest.RESULT_CANT_CONNECT, 0, PackedStringArray(), "")
+	return true
+
+
+## Obsługa odpowiedzi z flagami (bez sieci, wołana też z testów). Czas serwera z nagłówka `Date`; bez niego
+## odpowiedź jest odrzucana, bo okna czasu nie dałoby się sprawdzić. Treści odpowiedzi nie logujemy.
+func handle_flags(result: int, code: int, headers: PackedStringArray, body: String) -> void:
+	_flags_pending = false
+	var ok := false
+	if outcome_of(result, code) == Outcome.OK:
+		ok = flags.apply(SupabaseConfig.parse_json(body), FeatureFlags.date_from_headers(headers),
+				Time.get_ticks_msec(), _now_ms())
+	if ok:
+		flags.save(flags_path)
+	flags_loaded.emit(ok)
+
+
+func _on_flags_completed(result: int, code: int, headers: PackedStringArray, body: PackedByteArray) -> void:
+	note_status(code)
+	handle_flags(result, code, headers, body.get_string_from_utf8())
 
 
 func is_attack_pending() -> bool:
