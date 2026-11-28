@@ -17,6 +17,10 @@ enum State { IDLE, STARTING, STARTED, FINISHING }
 const FAILED_MESSAGE := "Wyprawa poza serwerem: bez łupu i PvE"
 ## Okno wyniku wyprawy bez sieci (#282).
 const OFFLINE_MESSAGE := "Bez sieci: wyprawa bez łupu"
+## Wynik wyprawy czeka w pliku na sieć (#425, mieści się w pasku komunikatu).
+const QUEUED_MESSAGE := "Wynik wyprawy wyślę po połączeniu"
+## Zaległy wynik wyprawy dotarł na serwer (#425).
+const RESUMED_MESSAGE := "Wynik wyprawy dotarł na serwer"
 ## Pasek komunikatu, gdy bitwa czeka na start na serwerze (#413).
 const CONNECTING_MESSAGE := "Łączę z serwerem..."
 ## Ile sekund bitwa czeka na odpowiedź startu, zanim ruszy bez serwera (#413).
@@ -116,6 +120,17 @@ func locked() -> bool:
 ## Komunikat porażki do okna wyniku: przy zablokowanym bocie powód odmowy.
 func failed_message() -> String:
 	return AttackStart.error_message(AttackStart.BOT_LOCKED) if _locked else FAILED_MESSAGE
+
+
+## Zaległy wynik wyprawy z pliku (#425, PendingFinish): ta sama treść idzie na serwer jeszcze raz
+## (serwer zwraca zapisany wynik albo rozstrzyga porzucony atak sam). Zwraca treść do wysłania.
+func resume(body: Dictionary) -> Dictionary:
+	clear()
+	pending = body.duplicate(true)
+	attack_id = str(body.get("attack_id", ""))
+	state = State.FINISHING
+	tries = 1
+	return pending
 
 
 ## Start nie odpowiedział na czas (#413): bitwa idzie bez serwera, a spóźnioną odpowiedź pomijamy.

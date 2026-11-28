@@ -1,7 +1,8 @@
 class_name PendingFinish
 extends RefCounted
-## Wynik ataku na gracza, który czeka na serwer (#99). Gra zapisuje treść `finish_attack` w osobnym
-## pliku tuż po bitwie i usuwa go dopiero po odpowiedzi serwera (przyjęty albo odrzucony wynik).
+## Wynik ataku na gracza (#99) albo wyprawy na zamek-bota (#425), który czeka na serwer. Gra zapisuje treść
+## `finish_attack` w osobnym pliku tuż po bitwie i usuwa go dopiero po odpowiedzi serwera (przyjęty albo
+## odrzucony wynik).
 ## Gdy gra zamknie się wcześniej albo skończą się próby bez sieci, wynik idzie na serwer jeszcze raz
 ## po najbliższym połączeniu. Ponowienie jest bezpieczne: zakończony atak serwer oddaje z zapisanym
 ## wynikiem i łupem, a atak w toku przyjmuje w swoim limicie czasu (`attack_expired` po nim).
@@ -19,6 +20,8 @@ const WAIT_MESSAGE := "Najpierw wysyłam wynik ataku"
 var body: Dictionary = {}
 ## Polegli atakującego do okna wyniku (straty są już w zapisie gry).
 var fallen := 0
+## Wynik wyprawy na zamek-bota (#425): wraca na serwer drogą rankingu PvE, bez okna wyniku i bez ruin.
+var bot := false
 
 
 func is_empty() -> bool:
@@ -33,7 +36,7 @@ func blocks_start(online: bool) -> bool:
 
 
 func to_dict() -> Dictionary:
-	return {"version": VERSION, "body": body.duplicate(true), "fallen": fallen}
+	return {"version": VERSION, "body": body.duplicate(true), "fallen": fallen, "bot": bot}
 
 
 ## Zaległy wynik ze słownika pliku albo pusty, gdy plik jest zły (zły wpis nie idzie na serwer).
@@ -47,7 +50,10 @@ static func from_dict(d: Dictionary) -> PendingFinish:
 	var b := raw as Dictionary
 	# po JSON-ie liczby są floatami: treść wraca z liczb całkowitych i bez nieznanych pól
 	p.body = {"attack_id": str(b["attack_id"]), "result": DefenseLog.parse_result(b["result"]).to_server(),
-			"loot": _ints(b["loot"]), "survivors": _ints(b["survivors"]), "destroyed": _ints(b.get("destroyed", []))}
+			"loot": _ints(b["loot"]), "survivors": _ints(b["survivors"])}
+	p.bot = d.get("bot", false) is bool and bool(d.get("bot", false))
+	if not p.bot:
+		p.body["destroyed"] = _ints(b.get("destroyed", []))  # zamek-bot powstaje z seeda, ruin nie ma (#99)
 	var f: Variant = d.get("fallen", 0)
 	p.fallen = maxi(0, int(f)) if f is int or f is float else 0
 	return p

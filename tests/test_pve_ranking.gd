@@ -96,6 +96,27 @@ func test_finish_retries() -> bool:
 	return true
 
 
+## Zaległy wynik wyprawy z pliku (#425): ta sama treść idzie jeszcze raz, z ponowieniami jak po bitwie,
+## a przyjęcie albo odmowa kończy zgłoszenie. Komunikaty mieszczą się w pasku.
+func test_resume_from_file() -> bool:
+	var p := PveReport.new()
+	p.begin(2, [[U.AXE_WARRIOR, 10]])
+	p.on_started(_start(2), "")
+	var body := p.finish(_result(true), [10] as Array[int])
+	var q := PveReport.new()
+	var again := q.resume(body)
+	assert_eq(again, body, "ta sama treść co po bitwie")
+	assert_eq(q.state, PveReport.State.FINISHING, "wynik w drodze")
+	assert_eq(q.attack_id, ATTACK_ID, "id ataku z treści")
+	assert_true(q.on_finished(SupabaseClient.NETWORK_ERROR), "bez sieci ponowienie")
+	assert_eq(q.retry_body(), body, "ponowienie tej samej treści")
+	assert_true(not q.on_finished(""), "przyjęty wynik kończy zgłoszenie")
+	assert_true(q.is_idle() and not q.failed(), "bez porażki")
+	assert_true(PixelFont.text_width(PveReport.QUEUED_MESSAGE) <= Hud.MESSAGE_MAX_WIDTH, "komunikat kolejki w pasku")
+	assert_true(PixelFont.text_width(PveReport.RESUMED_MESSAGE) <= Hud.MESSAGE_MAX_WIDTH, "komunikat wysłania w pasku")
+	return true
+
+
 ## Klient: start na bota z armią, odpowiedź w `attack_started` z numerem bota; ranking PvE z rodzajem.
 func test_client_requests() -> bool:
 	SupabaseSession.clear(SESSION_PATH)
