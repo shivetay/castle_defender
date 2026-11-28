@@ -12,6 +12,7 @@
 // launch_attack) idzie przez `public.begin_bot_attack`, która w tej samej transakcji zatwierdza plan.
 // Odpowiedź oddaje wtedy plan, badania, generała i perk władcy z zamku na serwerze, z których telefon
 // liczy bitwę, a worker weryfikacji tę samą bitwę jeszcze raz. Bez planu (starszy klient) jak dotąd.
+// #427 (ADR 0019): z planem odpowiedź mówi też (`server_losses`), czy straty armii odejmie serwer.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { clientOutdated } from "../_shared/client_version.ts";
@@ -216,6 +217,8 @@ Deno.serve(async (req) => {
       payload.techs = row.techs ?? [];
       payload.general = row.general ?? null;
       payload.ruler_perk = row.ruler_perk ?? -1;
+      // #427 (ADR 0019): straty armii odejmie serwer przy zapisie zamku
+      payload.server_losses = row.server_losses === true;
     }
   }
   return json(payload);

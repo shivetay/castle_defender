@@ -188,6 +188,19 @@ update private.sim_versions set supported = false where version = 501;  -- stara
 
 Całą grę na starej wersji blokuje dopiero `min_code` (krok 6).
 
+**Straty armii na serwerze (#427, ADR 0019), raz, w pierwszym wydaniu z tą zmianą.** Gdy na projekcie są
+już migracja `army_losses` i nowe Edge Functions `start_attack` i `launch_attack`, a `$SIM` to wersja
+pierwszego APK, który zna `server_losses`, włącz próg:
+
+```sql
+update private.settings set value = '600' where key = 'army_losses_min_sim';  -- tu $SIM tego wydania
+```
+
+Przed włączeniem progu (domyślnie `0` = wyłączone) straty odejmuje jak dotąd telefon. Ataki starszych
+wersji dalej odejmują straty same, dopóki `min_code` (krok 6) ich nie odetnie. Kolejność jest ważna:
+próg włączony przed wdrożeniem Edge Functions sprawi, że telefon odejmie straty, a serwer odejmie je drugi
+raz. Wyłączenie: `update private.settings set value = '0' where key = 'army_losses_min_sim';`.
+
 ### 3.4 Restart workera
 
 **Gdzie:** VPS (SSH), katalog `~/castle_defender/server/verifier`.

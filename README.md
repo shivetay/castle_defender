@@ -458,7 +458,9 @@ w sekcji „Następny etap”.
     i postęp kampanii dopiero z wyniku workera, a klient ze stanem „weryfikacja” to #417. Migrację
     i nową `start_attack` wdraża właścicielka przed wydaniem klienta. Porzucony atak z zatwierdzonym planem
     (bot i PvP) rozstrzyga worker (#425, ADR 0018, migracja `abandoned_attack_verification`): skutki wchodzą
-    z jego wyniku, więc porzucanie po poznaniu seeda nic nie daje, a wynik wyprawy czeka w `PendingFinish`. Karty Wyprawy pokazują tylko odblokowane boty. W epoce I trudność
+    z jego wyniku, więc porzucanie po poznaniu seeda nic nie daje, a wynik wyprawy czeka w `PendingFinish`.
+    Straty armii atakującego odejmuje serwer przy zapisie zamku (#427, ADR 0019, migracja `army_losses`);
+    włącza je próg `army_losses_min_sim` po wdrożeniu serwera (`docs/PO-WYDANIU.md`, krok 3.3). Karty Wyprawy pokazują tylko odblokowane boty. W epoce I trudność
     rośnie z rangą: poziom budynków 1–5 (co 4 zamki), do 4 wież, budynki rekrutacji (Koszary od 4.,
     Strzelnica od 7., Dom drużyny od 10., Stajnia od 13.), gród na wale zamiast palisady w zamkach 2, 4, 6,
     8 i 10, zewnętrzny wał od 11. i załoga z coraz większej liczby klas (od 4 Chłopów do 74 obrońców). Epoka II

@@ -45,6 +45,8 @@ const GARRISON_PER_MANOR_LEVEL := 4
 const DESERT_MS := 3600 * 1000
 ## Najwięcej jednostek w jednym oddziale (oddział ma jeden rodzaj jednostek). TYMCZASOWE.
 const SQUAD_SIZE := 10
+## Jak długo gra pamięta poległych czekających na rozliczenie z serwera (#427): doba.
+const HELD_TTL_MS := 86400000
 
 
 ## Budynek rekrutacji klasy albo -1 (klasa specjalna).

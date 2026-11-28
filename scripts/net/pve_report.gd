@@ -31,6 +31,8 @@ var bot_idx := -1
 ## Liczba oddziałów wysłanych w `start_attack` (serwer liczy ocalałych względem niej).
 var squads := 0
 var attack_id := ""
+## Straty armii tej wyprawy odejmie serwer przy zapisie zamku (#427, ADR 0019).
+var server_losses := false
 ## Treść `finish_attack`, gdy wynik jest gotowy przed odpowiedzią na start.
 var pending: Dictionary = {}
 ## Wynik czeka na wysłanie (bitwa skończyła się przed odpowiedzią na start).
@@ -67,6 +69,7 @@ func on_started(start: Dictionary, error: String) -> Dictionary:
 		_locked = error == AttackStart.BOT_LOCKED
 		return {}
 	attack_id = id
+	server_losses = start.get("server_losses", false) == true
 	state = State.STARTED
 	if queued:
 		return _take()
@@ -152,6 +155,7 @@ func reset() -> void:
 	bot_idx = -1
 	squads = 0
 	attack_id = ""
+	server_losses = false
 	pending = {}
 	queued = false
 	tries = 0

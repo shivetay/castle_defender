@@ -11,6 +11,7 @@
 // #354 (ADR 0008): żądanie niesie `sim_version` (kod wersji gry, MAJOR*10000 + MINOR*100 + PATCH), którym
 // worker weryfikacji wybiera pack. Wersja bez packa (`private.sim_versions`) to 409 `unsupported_version`;
 // brak pola (starszy klient) oznacza najnowszą wspieraną wersję.
+// #427 (ADR 0019): odpowiedź mówi (`server_losses`), czy straty armii atakującego odejmie serwer.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { clientOutdated } from "../_shared/client_version.ts";
@@ -130,6 +131,8 @@ Deno.serve(async (req) => {
     techs: row.techs ?? [],
     general: row.general ?? null,
     ruler_perk: row.ruler_perk ?? -1,
+    // #427 (ADR 0019): straty armii odejmie serwer przy zapisie zamku (telefon nie odejmuje ich na stałe)
+    server_losses: row.server_losses === true,
   });
 });
 

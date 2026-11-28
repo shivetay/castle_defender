@@ -89,7 +89,7 @@ func test_paths_and_parsing() -> bool:
 	assert_eq(CastleSync.map_seed_from_rows([]), 0, "brak wiersza")
 	assert_eq(CastleSync.own_path("abc"), "/rest/v1/castles?player_id=eq.abc", "filtr własnego")
 	assert_eq(CastleSync.push_path("abc", 7),
-			"/rest/v1/castles?player_id=eq.abc&revision=eq.7&select=revision,loot_applied",
+			"/rest/v1/castles?player_id=eq.abc&revision=eq.7&select=revision,loot_applied,army_applied",
 			"zapis tylko od znanej rewizji, z łupem scalonym przez serwer (#274)")
 	assert_eq(CastleSync.revision_from_rows([{"revision": 8}]), 8, "nowa rewizja")
 	assert_eq(CastleSync.revision_from_rows([]), -1, "pusta odpowiedź = konflikt")
@@ -371,7 +371,7 @@ func test_rejected_insert_stops_sync() -> bool:
 	_sync(c, 1)
 	_reply(c, 200, [])
 	assert_eq(int(_last(c)["call"]), SupabaseClient.CastleCall.INSERT, "założenie")
-	assert_true((_last(c)["path"] as String).ends_with("select=revision,loot_applied"), "z łupem w odpowiedzi")
+	assert_true((_last(c)["path"] as String).ends_with("select=revision,loot_applied,army_applied"), "z łupem w odpowiedzi")
 	_reply(c, 422, {"code": "PT422", "message": "over_capacity"})
 	var sent := c.sent_requests.size()
 	_sync(c, 2)
